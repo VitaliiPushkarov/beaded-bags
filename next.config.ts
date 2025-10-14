@@ -1,7 +1,8 @@
-import type { NextConfig } from "next";
+import type { NextConfig } from 'next'
 
 const nextConfig: NextConfig = {
-  /* config options here */
-};
+  // Додаємо Swiper у транспіляцію, щоб він працював з Next 15 / React 19
+  transpilePackages: ['swiper'],
+}
 
-export default nextConfig;
+export default nextConfig

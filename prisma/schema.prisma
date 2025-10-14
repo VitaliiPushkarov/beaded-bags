@@ -1,0 +1,19 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = "file:./dev.db"
+}
+
+model Order {
+  id         String   @id @default(cuid())
+  items      Json
+  amountUAH  Int
+  status     String   @default("pending") // pending|paid|failed|fulfilled
+  customer   Json // name, phone, email, deliveryMethod, npWarehouseId...
+  paymentRef String? // Fondy order_id
+  ttn        String? // Nova Poshta TTN
+  createdAt  DateTime @default(now())
+}
