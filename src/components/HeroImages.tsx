@@ -43,7 +43,7 @@ export default function HeroSection({
     <section className="mx-auto max-w-[1440px]">
       <div
         className="
-          grid gap-[77px]
+          grid md:gap-[77px] sm:gap-0
           md:grid-cols-[1fr_1.2fr_1fr] 
           items-center
           
@@ -74,7 +74,6 @@ export default function HeroSection({
             preload="metadata"
             controls={false} // можна увімкнути, якщо треба
           />
-          {/* невеликий ховер-оверлей з кнопкою mute, якщо захочеш — додамо пізніше */}
         </figure>
 
         {/* Праве фото */}
@@ -87,6 +86,16 @@ export default function HeroSection({
             className="object-cover"
           />
         </figure>
+      </div>
+
+      <div className="flex justify-center -mt-6 md:-mt-30 mb-[70px]">
+        <Image
+          className="z-10"
+          src="/img/signature.png"
+          alt="gerdan"
+          width={652}
+          height={266}
+        />
       </div>
     </section>
   )

@@ -65,17 +65,20 @@ export default function ProductsSlider() {
   }, [])
 
   return (
-    <section className="relative">
+    <section className="relative mx-auto py-12">
       {/* Mobile: вертикальний список */}
+
       <div className="md:hidden max-w-[1440px] mx-auto px-4 sm:px-6 lg:px-8 space-y-5">
+        <h2 className="text-2xl font-semibold mb-5">КАТАЛОГ</h2>
         {PRODUCTS.map((p) => (
-          <ProductCardLarge key={p.id} p={p} />
+          <ProductCardLarge key={p.productId} p={p} />
         ))}
       </div>
 
       {/* Tablet/Desktop: Swiper */}
       <div className="hidden md:block">
         <div className="mx-auto max-w-[1440px] px-4 sm:px-6 lg:px-[50px]">
+          <h2 className="text-2xl font-semibold mb-5">КАТАЛОГ</h2>
           <div className="mx-auto relative w-full overflow-visible">
             {/* зовнішні стрілки: 12px від картки; 16x21 */}
             <button
@@ -122,7 +125,7 @@ export default function ProductsSlider() {
               className=""
             >
               {PRODUCTS.map((p) => (
-                <SwiperSlide key={p.id}>
+                <SwiperSlide key={p.productId}>
                   <div>
                     <ProductCardLarge p={p} />
                   </div>

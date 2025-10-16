@@ -2,17 +2,20 @@
 import Link from 'next/link'
 import Image from 'next/image'
 import { useCart } from '@/app/store/cart'
+import { useUI } from '@/app/store/ui'
 
 export default function CartButton() {
+  const openCart = useUI((s) => s.openCart)
   const count = useCart((s) => s.items.reduce((sum, i) => sum + i.qty, 0))
   return (
-    <Link
-      href="/cart"
-      aria-label="Кошик"
+    <button
+      type="button"
+      onClick={openCart}
+      aria-label="Відкрити кошик"
       className="relative inline-flex h-8 w-8 items-center justify-center"
     >
       <Image
-        src="/icons/cart.svg"
+        src="/icons/bag-cart.svg"
         alt=""
         width={24}
         height={24}
@@ -26,6 +29,6 @@ export default function CartButton() {
           {count > 99 ? '99+' : count}
         </span>
       )}
-    </Link>
+    </button>
   )
 }

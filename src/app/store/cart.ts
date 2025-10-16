@@ -1,39 +1,56 @@
 'use client'
 import { create } from 'zustand'
+import { persist } from 'zustand/middleware'
 
 type CartItem = {
-  id: string
+  variantId: string
+  productId: string
   name: string
   priceUAH: number
   qty: number
-  image?: string
+  image: string
+  slug: string
 }
 type CartState = {
   items: CartItem[]
   add: (item: CartItem) => void
-  remove: (id: string) => void
-  changeQty: (id: string, qty: number) => void
+  remove: (id: string, variantId: string) => void
+  setQty: (id: string, variantId: string, qty: number) => void
   clear: () => void
   total: () => number
 }
-export const useCart = create<CartState>((set, get) => ({
-  items: [],
-  add: (it) =>
-    set((s) => {
-      const ex = s.items.find((x) => x.id === it.id)
-      return {
-        items: ex
-          ? s.items.map((x) =>
-              x.id === it.id ? { ...x, qty: x.qty + it.qty } : x
-            )
-          : [...s.items, it],
-      }
+export const useCart = create<CartState>()(
+  persist(
+    (set, get) => ({
+      items: [],
+      add: (item) =>
+        set((s) => {
+          const i = s.items.findIndex(
+            (x) =>
+              x.productId === item.productId && x.variantId === item.variantId
+          )
+          if (i >= 0) {
+            const copy = [...s.items]
+            copy[i] = { ...copy[i], qty: copy[i].qty + item.qty }
+            return { items: copy }
+          }
+          return { items: [...s.items, item] }
+        }),
+      remove: (id, variantId) =>
+        set((s) => ({
+          items: s.items.filter(
+            (i) => !(i.productId === id && i.variantId === variantId)
+          ),
+        })),
+      setQty: (id, variantId, qty) =>
+        set((s) => ({
+          items: s.items.map((i) =>
+            i.productId === id && i.variantId === variantId ? { ...i, qty } : i
+          ),
+        })),
+      clear: () => set({ items: [] }),
+      total: () => get().items.reduce((sum, i) => sum + i.priceUAH * i.qty, 0),
     }),
-  remove: (id) => set((s) => ({ items: s.items.filter((i) => i.id !== id) })),
-  changeQty: (id, qty) =>
-    set((s) => ({
-      items: s.items.map((i) => (i.id === id ? { ...i, qty } : i)),
-    })),
-  clear: () => set({ items: [] }),
-  total: () => get().items.reduce((sum, i) => sum + i.priceUAH * i.qty, 0),
-}))
+    { name: 'cart-v1' }
+  )
+)

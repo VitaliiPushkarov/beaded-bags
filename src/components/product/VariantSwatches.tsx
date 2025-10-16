@@ -13,6 +13,7 @@ export default function VariantSwatches({ variants, value, onChange }: Props) {
     <div role="radiogroup" className="flex gap-3">
       {variants.map((v) => {
         const selected = v.id === value
+        const disabled = !v.inStock
         return (
           <button
             key={v.id}
@@ -22,14 +23,25 @@ export default function VariantSwatches({ variants, value, onChange }: Props) {
             title={v.color + (!v.inStock ? ' — немає в наявності' : '')}
             onClick={() => v.inStock && onChange(v.id)}
             className={clsx(
-              'relative h-8 w-8 rounded-full ring-1 ring-gray-300 transition',
-              selected && 'ring-2 ring-black',
-              !v.inStock && 'opacity-40 cursor-not-allowed'
+              'relative grid place-items-center h-8 w-8 rounded-full bg-white transition',
+              selected ? 'border-1 border-black' : 'border border-black/10',
+              disabled && 'opacity-40 cursor-not-allowed',
+              !disabled && 'cursor-pointer hover:scale-[1.03]'
             )}
-            style={{ backgroundColor: v.hex }}
           >
-            {/* біла обводка всередині для темних кольорів */}
-            <span className="absolute inset-0 rounded-full ring-1 ring-black/5" />
+            <span
+              aria-hidden
+              className={clsx(
+                'block rounded-full',
+                // розмір внутрішнього кола — трохи менший за зовнішнє
+                'h-5 w-5 md:h-[22px] md:w-[22px]',
+                // легка внутрішня тінь для світлих кольорів
+                'ring-1 ring-black/5'
+              )}
+              style={{ backgroundColor: v.hex }}
+            />
+            {/* фокус-індикатор доступності */}
+            <span className="absolute inset-0 rounded-full ring-0 focus-visible:ring-2 focus-visible:ring-black/40" />
           </button>
         )
       })}

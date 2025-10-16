@@ -10,7 +10,7 @@ export default function Header() {
 
   return (
     <header className="sticky top-0 z-40 font-fixel bg-[#D9D9D9]">
-      <div className="max-w-full mx-auto px-[50px] py-3 flex items-center justify-between">
+      <div className="max-w-full mx-auto px-[50px] py-3 flex items-center justify-between sm:px-6">
         <nav className="hidden sm:flex gap-6 text-sm text-gray-700">
           <Link href="/products" className="hover:underline">
             Новинки

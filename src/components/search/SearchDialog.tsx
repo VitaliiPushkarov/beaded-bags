@@ -107,7 +107,7 @@ export default function SearchDialog() {
                     <div className="flex-1">
                       <div className="text-sm">{p.name}</div>
                       <div className="text-xs text-gray-500">
-                        {p.priceUAH} грн
+                        {p.basePriceUAH} грн
                       </div>
                     </div>
                   </Link>
