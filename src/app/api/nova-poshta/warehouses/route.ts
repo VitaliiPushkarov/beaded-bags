@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { npCall } from '@/lib/np'
-import { any } from 'zod'
 
 export async function GET(req: NextRequest) {
   try {
@@ -22,7 +21,7 @@ export async function GET(req: NextRequest) {
       Limit: Math.min(limit, 200),
     })
 
-    const warehouses = data.map((w, any) => {
+    const warehouses = data.map((w) => {
       const number = w.Number
       const raw = (w.ShortAddress || w.Description || '').trim()
       const afterCity = raw.replace(/^м\..*?,\s*/i, '') // прибрати "м. місто,"

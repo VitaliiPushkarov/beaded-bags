@@ -3,7 +3,6 @@
 import { useMemo, useState } from 'react'
 import { PRODUCTS } from '@/lib/products'
 import ProductCardLarge from './ProductCardLarge'
-import { set } from 'zod'
 
 type Product = (typeof PRODUCTS)[number]
 type Variant = NonNullable<Product['variants']>[number]

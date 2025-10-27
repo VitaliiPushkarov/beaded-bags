@@ -11,7 +11,7 @@ export async function POST(req: NextRequest) {
     )
   await prisma.order.update({
     where: { id: String(orderId) },
-    data: { status: 'paid' },
+    data: { status: 'PAID' },
   })
   return NextResponse.json({ ok: true })
 }

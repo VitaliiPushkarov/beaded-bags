@@ -2,7 +2,6 @@
 
 import { useEffect, useRef, useState } from 'react'
 import { useCheckout } from '@/stores/checkout'
-import { set } from 'zod/v3'
 
 type City = {
   ref?: string

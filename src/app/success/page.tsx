@@ -1,9 +1,10 @@
 // After payment success page
 'use client'
+import Link from 'next/link'
 import { useSearchParams } from 'next/navigation'
-import { useState } from 'react'
+import { useState, Suspense } from 'react'
 
-export default function SuccessPage() {
+function SuccessInner() {
   const sp = useSearchParams()
   const isMock = sp.get('mock') === '1'
   const orderId = sp.get('orderId') || ''
@@ -60,10 +61,18 @@ export default function SuccessPage() {
           {error && <div className="text-sm text-red-600">{error}</div>}
         </div>
       ) : (
-        <a href="/" className="underline">
+        <Link href="/" className="underline">
           На головну
-        </a>
+        </Link>
       )}
     </div>
+  )
+}
+
+export default function SuccessPage() {
+  return (
+    <Suspense fallback={<div className="p-6 text-center">Завантаження…</div>}>
+      <SuccessInner />
+    </Suspense>
   )
 }

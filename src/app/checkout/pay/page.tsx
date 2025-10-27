@@ -1,22 +1,23 @@
 'use client'
-import { useEffect, useRef } from 'react'
 
-export default function PayPage({
-  searchParams,
-}: {
-  searchParams: { data?: string; signature?: string; url?: string }
-}) {
+import { Suspense, useEffect, useRef } from 'react'
+import { useSearchParams } from 'next/navigation'
+
+function PayInner() {
+  const sp = useSearchParams()
+  const data = sp.get('data') || ''
+  const signature = sp.get('signature') || ''
+  const action = sp.get('url') || 'https://www.liqpay.ua/api/3/checkout'
+
   const formRef = useRef<HTMLFormElement>(null)
 
   useEffect(() => {
-    if (searchParams.data && searchParams.signature) {
+    if (data && signature) {
       formRef.current?.submit()
     }
-  }, [searchParams.data, searchParams.signature])
+  }, [data, signature])
 
-  const action = searchParams.url || 'https://www.liqpay.ua/api/3/checkout'
-
-  if (!searchParams.data || !searchParams.signature) {
+  if (!data || !signature) {
     return <div className="p-6">Немає даних для оплати</div>
   }
 
@@ -24,8 +25,8 @@ export default function PayPage({
     <div className="p-6">
       <p className="mb-4">Переходимо на платіжну сторінку…</p>
       <form ref={formRef} method="POST" action={action}>
-        <input type="hidden" name="data" value={searchParams.data} />
-        <input type="hidden" name="signature" value={searchParams.signature} />
+        <input type="hidden" name="data" value={data} />
+        <input type="hidden" name="signature" value={signature} />
         <noscript>
           <button className="rounded bg-black text-white px-4 py-2">
             Перейти до LiqPay
@@ -33,5 +34,13 @@ export default function PayPage({
         </noscript>
       </form>
     </div>
+  )
+}
+
+export default function PayPage() {
+  return (
+    <Suspense fallback={<div className="p-6 text-center">Завантаження…</div>}>
+      <PayInner />
+    </Suspense>
   )
 }

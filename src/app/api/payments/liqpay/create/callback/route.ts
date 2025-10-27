@@ -19,10 +19,10 @@ export async function POST(req: NextRequest) {
     const decoded = JSON.parse(Buffer.from(data, 'base64').toString('utf8'))
 
     // приклади корисних полів
-    const orderId: string = decoded.order_id
+    /* const orderId: string = decoded.order_id
     const status: string = decoded.status // success, failure, error, reversed, sandbox, 3ds_verify, etc.
     const amount = decoded.amount
-    const currency = decoded.currency
+    const currency = decoded.currency */
 
     // тут оновлюємо замовлення в БД
     // if (status === "success" || status === "sandbox") {

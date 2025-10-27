@@ -1,19 +1,17 @@
 // Main page
-import HeroAbout from '@/components/HeroAbout'
+
 import HeroImages from '@/components/HeroImages'
 import Bestsellers from '@/components/Bestsellers'
-/* import ProductCard from '@/app/products/ProductCard' */
-import { PRODUCTS } from '@/lib/products'
+
 import Footer from '@/components/Footer'
 import ProductsSlider from './products/ProductsSlider'
-import CallToAction from '@/components/CallToAction'
+
 import Vision from '@/components/Vision'
 import About from '@/components/About'
 
 export default function Home() {
   return (
     <>
-      {/* <HeroAbout /> */}
       <>
         <HeroImages
           leftImg="/img/hero-img-1.png"
