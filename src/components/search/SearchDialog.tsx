@@ -54,7 +54,7 @@ export default function SearchDialog() {
         }}
         className="inline-flex h-8 w-8 items-center justify-center cursor-pointer"
       >
-        <SearchIcon className="h-5 w-5 fill-current text-gray-900" />
+        <SearchIcon className="h-6 w-6 fill-current text-gray-900" />
       </button>
 
       {/* dialog */}
@@ -89,7 +89,7 @@ export default function SearchDialog() {
                 </li>
               )}
               {results.map((p: Product) => (
-                <li key={p.id} className="hover:bg-gray-50">
+                <li key={p.productId} className="hover:bg-gray-50">
                   <Link
                     href={`/products/${p.slug}`}
                     onClick={() => setOpen(false)}

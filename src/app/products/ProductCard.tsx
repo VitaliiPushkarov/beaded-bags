@@ -1,4 +1,4 @@
-/* 'use client'
+'use client'
 import Link from 'next/link'
 import Image from 'next/image'
 import { useCart } from '@/app/store/cart'
@@ -7,9 +7,9 @@ import { Product } from '@/lib/products'
 export default function ProductCard({ p }: { p: Product }) {
   const { add } = useCart()
   return (
-    <div className="border rounded-lg p-3">
+    <div className="p-3">
       <Link href={`/products/${p.slug}`}>
-        <div className="aspect-square relative mb-3 bg-gray-100 rounded">
+        <div className="aspect-square relative mb-3 bg-gray-100">
           <Image
             src={p.images[0]}
             alt={p.name}
@@ -22,13 +22,15 @@ export default function ProductCard({ p }: { p: Product }) {
         <div className="font-medium">{p.name}</div>
       </Link>
       <div className="flex items-center justify-between mt-2">
-        <span>{p.priceUAH} грн</span>
+        <span>{p.basePriceUAH} грн</span>
         <button
           onClick={() =>
             add({
-              id: p.id,
+              variantId: p.variants[0].id,
+              productId: p.productId,
+              slug: p.slug,
               name: p.name,
-              priceUAH: p.priceUAH,
+              priceUAH: p.basePriceUAH,
               qty: 1,
               image: p.images[0],
             })
@@ -41,4 +43,3 @@ export default function ProductCard({ p }: { p: Product }) {
     </div>
   )
 }
- */

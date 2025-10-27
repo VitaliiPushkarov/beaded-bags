@@ -6,11 +6,11 @@ export default function Bestsellers() {
   const list = PRODUCTS.slice(0, 8)
   return (
     <section className="mx-auto py-12">
-      <div className=" max-w-[1440px] px-4 sm:px-6 lg:px-[50px]">
+      <div className=" max-w-full px-6">
         <h2 className="text-2xl font-semibold mb-5">БЕСТСЕЛЕРИ</h2>
 
         <div className="relative">
-          <div className="flex gap-5 overflow-x-auto snap-x pb-2">
+          <div className="flex gap-5 overflow-x-auto scrollbar-always snap-x pb-2">
             {list.map((p) => (
               <div key={p.productId} className="min-w-[260px] snap-start">
                 <Link href={`/products/${p.slug}`}>

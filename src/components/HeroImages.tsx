@@ -40,17 +40,17 @@ export default function HeroSection({
   }, [])
 
   return (
-    <section className="mx-auto max-w-[1440px]">
+    <section className="mx-auto max-w-full">
       <div
         className="
-          grid md:gap-[77px] sm:gap-0
-          md:grid-cols-[1fr_1.2fr_1fr] 
+          flex md:flex-row lg:gap-[110px] md:gap-[50px] sm:gap-0
+          justify-between
           items-center
-          
+          flex-col
         "
       >
         {/* Ліве фото */}
-        <figure className="relative h-[600px] sm:h-[460px] md:h-[520px] overflow-hidden">
+        <figure className="relative h-[600px] sm:h-[460px] lg:h-[610px] overflow-hidden 2xl:h-[780px] md:w-[460px] w-full">
           <Image
             src={leftImg}
             alt={altLeft}
@@ -61,8 +61,8 @@ export default function HeroSection({
           />
         </figure>
 
-        {/* Центр — відео (більше за висотою) */}
-        <figure className="relative h-[660px] sm:h-[520px] md:h-[560px] overflow-hidden">
+        {/* Центр — відео */}
+        <figure className="relative h-[660px] sm:h-[520px] lg:h-[660px] overflow-hidden 2xl:h-[820px] lg:w-[420px] md:w-[320px] w-full">
           <video
             ref={videoRef}
             className="h-full w-full object-cover"
@@ -72,12 +72,12 @@ export default function HeroSection({
             playsInline
             loop
             preload="metadata"
-            controls={false} // можна увімкнути, якщо треба
+            controls={false}
           />
         </figure>
 
         {/* Праве фото */}
-        <figure className="relative h-[600px] sm:h-[460px] md:h-[520px] overflow-hidden">
+        <figure className="relative h-[600px] sm:h-[460px] lg:h-[610px] lg:w-[460px] overflow-hidden 2xl:h-[780px] md:w-[460px] w-full">
           <Image
             src={rightImg}
             alt={altRight}
@@ -88,7 +88,7 @@ export default function HeroSection({
         </figure>
       </div>
 
-      <div className="flex justify-center -mt-6 md:-mt-30 mb-[70px]">
+      <div className="flex justify-center -mt-6 md:-mt-50">
         <Image
           className="z-10"
           src="/img/signature.png"

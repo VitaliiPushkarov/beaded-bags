@@ -7,13 +7,58 @@ datasource db {
   url      = "file:./dev.db"
 }
 
+enum DeliveryMethod {
+  NP_WAREHOUSE
+  NP_COURIER
+  PICKUP
+}
+
+enum OrderStatus {
+  PENDING
+  PAID
+  FAILED
+  CANCELED
+}
+
 model Order {
-  id         String   @id @default(cuid())
-  items      Json
-  amountUAH  Int
-  status     String   @default("pending") // pending|paid|failed|fulfilled
-  customer   Json // name, phone, email, deliveryMethod, npWarehouseId...
-  paymentRef String? // Fondy order_id
-  ttn        String? // Nova Poshta TTN
-  createdAt  DateTime @default(now())
+  id               String         @id @default(cuid())
+  createdAt        DateTime       @default(now())
+  status           OrderStatus    @default(PENDING)
+
+  // Платіж (заповнимо після інтеграції Mono)
+  paymentProvider  String?        // "mono"
+  paymentId        String?        // id транзакції в mono
+
+  // Клієнт
+  customerName     String
+  customerPhone    String
+  customerEmail    String?
+
+  // Доставка
+  deliveryMethod   DeliveryMethod @default(NP_WAREHOUSE)
+  npCityRef        String?        // НП: ref міста
+  npCityName       String?        // "Київ"
+  npWarehouseRef   String?        // ref відділення
+  npWarehouseText  String?        // "№12. Київ, вул ..."
+  // (для кур’єра можна буде додати street/house/flat)
+
+  // Суми
+  subtotalUAH      Int            // сума товарів
+  shippingUAH      Int            @default(0)
+  totalUAH         Int
+
+  items            OrderItem[]
+}
+
+model OrderItem {
+  id         String  @id @default(cuid())
+  orderId    String
+  order      Order   @relation(fields: [orderId], references: [id])
+
+  productId  String
+  variantId  String?
+  name       String
+  image      String?
+  priceUAH   Int
+  qty        Int
 }

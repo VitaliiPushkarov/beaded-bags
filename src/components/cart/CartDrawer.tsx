@@ -5,6 +5,7 @@ import Link from 'next/link'
 import Image from 'next/image'
 import { useCart } from '@/app/store/cart'
 import { useUI } from '@/app/store/ui'
+import { useIsMounted } from '@/lib/useIsMounted'
 
 export default function CartDrawer() {
   const cartOpen = useUI((s) => s.cartOpen)
@@ -13,6 +14,7 @@ export default function CartDrawer() {
   const total = useCart((s) => s.total)
   const setQty = useCart((s) => s.setQty)
   const remove = useCart((s) => s.remove)
+  const isMounted = useIsMounted()
 
   // lock body scroll when open
   useEffect(() => {
@@ -51,15 +53,15 @@ export default function CartDrawer() {
                     ${cartOpen ? 'translate-x-0' : 'translate-x-full'}`}
         >
           <div className="flex items-center justify-between px-5 py-4 border-b">
-            <h2 className="text-xl font-medium">
-              Кошик {items.length ? `(${items.length})` : ''}
+            <h2 className="text-xl font-medium" suppressHydrationWarning>
+              Кошик {isMounted && items.length ? `(${items.length})` : ''}
             </h2>
             <button
               onClick={closeCart}
               aria-label="Закрити"
               className="text-5xl font-light leading-none cursor-pointer"
             >
-              ×
+              <span className="text-2xl leading-none">&times;</span>
             </button>
           </div>
 
@@ -140,9 +142,14 @@ export default function CartDrawer() {
 
           {/* Footer */}
           <div className="absolute bottom-0 left-0 right-0 border-t px-5 py-4 space-y-3 bg-white">
-            <div className="flex items-center justify-between text-lg">
+            <div
+              className="flex items-center justify-between text-lg"
+              suppressHydrationWarning
+            >
               <span>Разом:</span>
-              <span className="font-semibold">{total()} грн</span>
+              <span className="font-semibold">
+                {isMounted ? total() : 0} грн
+              </span>
             </div>
 
             <Link

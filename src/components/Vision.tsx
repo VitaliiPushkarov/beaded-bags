@@ -47,7 +47,7 @@ export default function Vision() {
     'font-fixel-display uppercase tracking-tight leading-[0.95] text-[clamp(26px,6.8vw,88px)]'
 
   return (
-    <section className="mx-auto max-w-[1440px] px-[50px]py-10 md:py-14 overflow-hidden">
+    <section className="mx-auto max-w-full px-[50px]py-10 md:py-14 overflow-hidden">
       {/* Mobile — суцільний заголовок */}
       <h2 className="md:hidden font-fixel-display uppercase text-[10vw] leading-[0.95]">
         LEADING THE WORLD IN INCLUSIVE AND INNOVATIVE FASHION, EMPOWERING
@@ -57,7 +57,7 @@ export default function Vision() {
       {/* Desktop — авто-скейл у межах вікна */}
       <div
         ref={wrapRef}
-        className="hidden md:block relative min-h-[60vh]"
+        className="hidden md:block relative min-h-[60vh] px-6"
         style={{}}
       >
         <div
@@ -69,10 +69,10 @@ export default function Vision() {
           }}
         >
           {/* дрібні підписи */}
-          <span className="absolute left-[50px] -top-6 text-[11px] tracking-[0.2em] uppercase">
+          <span className="absolute left-1 -top-6 text-[11px] tracking-[0.2em] uppercase">
             Our
           </span>
-          <span className="absolute right-[50px] -top-6 text-[11px] tracking-[0.2em] uppercase">
+          <span className="absolute right-1 -top-6 text-[11px] tracking-[0.2em] uppercase">
             Is
           </span>
           <span className="absolute left-1/2 -translate-x-1/2 -top-6 text-[11px] tracking-[0.2em] uppercase">
@@ -80,26 +80,26 @@ export default function Vision() {
           </span>
 
           {/* Розкладка слів */}
-          <div className={`col-start-2 col-end-5 ${W}`}>Leading</div>
+          <div className={`col-start-1 col-end-4 ${W}`}>Leading</div>
           <div className={`col-start-10 col-end-13 ${W}`}>World</div>
 
-          <div className={`col-start-2 col-end-5 ${W}`}>The</div>
+          <div className={`col-start-1 col-end-4 ${W}`}>The</div>
           <div className={`col-start-7 col-end-9 ${W}`}>In</div>
           <div className={`col-start-9 col-end-13 ${W}`}>Inclusive</div>
 
-          <div className={`col-start-2 col-end-6 ${W}`}>
+          <div className={`col-start-1 col-end-5 ${W}`}>
             And&nbsp;&nbsp;Innovative
           </div>
           <div className={`col-start-7 col-end-10 ${W}`}>Fashion,</div>
 
-          <div className={`col-start-2 col-end-7 ${W}`}>Empowering</div>
+          <div className={`col-start-1 col-end-6 ${W}`}>Empowering</div>
           <div className={`col-start-9 col-end-13 ${W}`}>Everyone</div>
 
-          <div className={`col-start-5 col-end-7 ${W}`}>To</div>
+          <div className={`col-start-1 col-end-6 ${W}`}>To</div>
           <div className={`col-start-7 col-end-9 ${W}`}>Feel</div>
           <div className={`col-start-9 col-end-11 ${W}`}>Perfectly</div>
 
-          <div className={`col-start-2 col-end-8 ${W}`}>Themselves</div>
+          <div className={`col-start-1 col-end-7 ${W}`}>Themselves</div>
         </div>
       </div>
     </section>

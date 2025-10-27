@@ -14,7 +14,7 @@ export default function RootLayout({
     <html lang="uk">
       <body className="min-h-screen text-gray-900 antialiased bg-white font-fixel">
         <Header />
-        <main className="max-w-[1440px] mx-auto md:py-8">{children}</main>
+        <main className="max-w-full mx-auto md:py-8">{children}</main>
         <CartDrawer />
       </body>
     </html>

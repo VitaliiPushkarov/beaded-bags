@@ -68,7 +68,7 @@ export default function ProductsSlider() {
     <section className="relative mx-auto py-12">
       {/* Mobile: вертикальний список */}
 
-      <div className="md:hidden max-w-[1440px] mx-auto px-4 sm:px-6 lg:px-8 space-y-5">
+      <div className="md:hidden max-w-full mx-auto px-6 space-y-5">
         <h2 className="text-2xl font-semibold mb-5">КАТАЛОГ</h2>
         {PRODUCTS.map((p) => (
           <ProductCardLarge key={p.productId} p={p} />
@@ -77,14 +77,14 @@ export default function ProductsSlider() {
 
       {/* Tablet/Desktop: Swiper */}
       <div className="hidden md:block">
-        <div className="mx-auto max-w-[1440px] px-4 sm:px-6 lg:px-[50px]">
+        <div className="mx-auto max-w-full px-6">
           <h2 className="text-2xl font-semibold mb-5">КАТАЛОГ</h2>
           <div className="mx-auto relative w-full overflow-visible">
             {/* зовнішні стрілки: 12px від картки; 16x21 */}
             <button
               ref={prevRef}
               aria-label="Prev"
-              className="absolute left-2 sm:left-3 lg:-left-[32px] top-1/2 -translate-y-1/2 z-10 h-[21px] w-[16px]
+              className="absolute left-2 sm:left-3 lg:-left-[20px] top-1/2 -translate-y-1/2 z-10 h-[21px] w-[16px]
                          hidden md:flex items-center justify-center text-gray-400 hover:text-[#FF3D8C] transition cursor-pointer"
             >
               <Chevron dir="left" className="h-[21px] w-[16px]" />
@@ -92,7 +92,7 @@ export default function ProductsSlider() {
             <button
               ref={nextRef}
               aria-label="Next"
-              className="absolute right-2 sm:right-3 lg:-right-[32px] top-1/2 -translate-y-1/2 z-10 h-[21px] w-[16px]
+              className="absolute right-2 sm:right-3 lg:-right-[20px] top-1/2 -translate-y-1/2 z-10 h-[21px] w-[16px]
                          hidden md:flex items-center justify-center text-gray-400 hover:text-[#FF3D8C] transition cursor-pointer"
             >
               <Chevron dir="right" className="h-[21px] w-[16px]" />

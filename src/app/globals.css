@@ -81,3 +81,16 @@
     font-family: 'Fixel Text', sans-serif;
   }
 }
+/* .scrollbar-always {
+  overflow-x: scroll;
+  scrollbar-gutter: stable;
+}
+.scrollbar-always::-webkit-scrollbar {
+  height: 4px;
+}
+
+.scrollbar-always::-webkit-scrollbar-thumb {
+  background-color: #ff3d8c;
+  border-radius: 4px;
+}
+ */

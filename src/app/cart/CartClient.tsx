@@ -155,7 +155,7 @@ export default function CartPage() {
                 className="flex-1 border border-black rounded-l px-3 py-2 outline-none"
                 placeholder="Введіть код"
               />
-              <button className="px-5 border border-l-0 border-black rounded-r hover:bg-black hover:text-white transition">
+              <button className="px-5 border border-l-0 border-black rounded-r hover:bg-black hover:text-white transition cursor-pointer">
                 →
               </button>
             </div>
@@ -165,10 +165,14 @@ export default function CartPage() {
             <span className="uppercase tracking-wide">Разом</span>
             <span className="font-semibold">{total()} грн</span>
           </div>
-
-          <button className="w-full h-14 text-lg rounded bg-black text-white hover:bg-[#FF3D8C] transition cursor-pointer">
-            Перейти до оформлення
-          </button>
+          <div className="w-full">
+            <Link
+              href="/checkout"
+              className="flex justify-center items-center w-full h-14 text-lg rounded bg-black text-white hover:bg-[#FF3D8C] transition cursor-pointer"
+            >
+              Перейти до оформлення
+            </Link>
+          </div>
         </aside>
       </div>
     </section>
