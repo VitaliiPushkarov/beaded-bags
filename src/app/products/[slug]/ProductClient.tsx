@@ -31,8 +31,8 @@ export function ProductClient({ p }: { p: Product }) {
 
   return (
     <Suspense fallback={<div className="p-6 text-center">Завантаження…</div>}>
-      <section className="mx-auto grid grid-cols-2">
-        <div className="relative h-full min-h-[580px] w-[476px]  overflow-hidden bg-gray-100">
+      <section className="mx-auto flex flex-col items-center md:items-stretch md:flex-row md:justify-between gap-4 md:gap-[60px]">
+        <div className="relative h-[380px] w-full md:h-[580px] md:w-[476px]  overflow-hidden bg-gray-100">
           {v && (
             <Image
               src={v.image}
@@ -44,11 +44,13 @@ export function ProductClient({ p }: { p: Product }) {
           )}
         </div>
 
-        <div className="flex flex-col items-start w-[70%]">
-          <h2 className="text-3xl font-medium font-fixel-display mb-[24px]">
+        <div className="flex flex-col items-start w-[100%] md:w-[50%]">
+          <h2 className="text-xl md:text-3xl font-medium font-fixel-display mb-[12px] md:mb-[24px]">
             {p.name}
           </h2>
-          <div className="mt-2 text-2xl mb-[24px]">{price} ₴</div>
+          <div className="mt-2 text-lg md:text-2xl mb-[12px] md:mb-[24px]">
+            {price} ₴
+          </div>
 
           <div className="mb-3 text-sm text-gray-600">Колір:</div>
           <VariantSwatches

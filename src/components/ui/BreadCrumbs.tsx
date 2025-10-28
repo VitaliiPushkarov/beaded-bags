@@ -80,7 +80,7 @@ export default function Breadcrumbs({ override }: { override?: Crumb[] }) {
   return (
     <Suspense fallback={null}>
       <>
-        <nav aria-label="Хлібні крихти" className="mb-10">
+        <nav aria-label="Хлібні крихти" className="mb-5 md:mb-10">
           <ol className="flex flex-wrap items-center gap-2 text-sm text-gray-600">
             {crumbs.map((c, i) => {
               const last = i === crumbs.length - 1
