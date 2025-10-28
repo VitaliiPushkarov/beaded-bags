@@ -91,6 +91,7 @@ function ProductsInner() {
   const [ui, setUI] = useState<Filters>(initial)
   const [applied, setApplied] = useState<Filters>(initial)
   const [filterAppliedOnes, setFilterAppliedOnes] = useState(false)
+  const [showMobileFilter, setShowMobileFilter] = useState(false)
 
   const sp = useSearchParams()
   useEffect(() => {
@@ -291,7 +292,19 @@ function ProductsInner() {
   return (
     <div className="max-w-[1440px] mx-auto py-10 px-[50px]">
       <Breadcrumbs />
-      <div className="fitler-block">
+      {/* Mobile filter trigger */}
+      <div className="lg:hidden flex items-center justify-between py-4">
+        <h1 className="text-2xl">Каталог</h1>
+        <button
+          className="uppercase tracking-wide inline-flex items-center gap-2 cursor-pointer"
+          onClick={() => setShowMobileFilter(true)}
+          aria-label="Відкрити фільтр"
+        >
+          Фільтр <span className="text-xl leading-none">+</span>
+        </button>
+      </div>
+      {/* Desktop filters */}
+      <div className="hidden lg:block fitler-block">
         <div className="flex justify-between flex-nowrap mb-[26px] uppercase">
           <div className="">
             <div className="flex mb-[34px]">
@@ -482,9 +495,205 @@ function ProductsInner() {
           )}
         </div>
       </div>
+      {/* Mobile full-screen filter */}
+      {showMobileFilter && (
+        <div className="lg:hidden fixed inset-0 z-50">
+          {/* Backdrop */}
+          <div
+            className="absolute inset-0 bg-black/40"
+            onClick={() => setShowMobileFilter(false)}
+            aria-hidden
+          />
+          {/* Panel */}
+          <div className="absolute inset-0 bg-white overflow-y-auto pb-[88px]">
+            <div className="flex items-center justify-between p-4 border-b">
+              <div className="uppercase">Фільтр</div>
+              <button
+                onClick={() => setShowMobileFilter(false)}
+                className="text-2xl leading-none px-2"
+                aria-label="Закрити фільтр"
+              >
+                ✕
+              </button>
+            </div>
 
+            <div className="p-4 space-y-6">
+              {/* Checkboxes */}
+              <div className="flex items-center justify-between">
+                <label className="flex items-center gap-2">
+                  <input
+                    type="checkbox"
+                    checked={ui.inStock}
+                    onChange={(e) =>
+                      setUI((s) => ({ ...s, inStock: e.target.checked }))
+                    }
+                    className="w-4 h-4"
+                  />
+                  В наявності
+                </label>
+                <label className="flex items-center gap-2">
+                  <input
+                    type="checkbox"
+                    checked={ui.onSale}
+                    onChange={(e) =>
+                      setUI((s) => ({ ...s, onSale: e.target.checked }))
+                    }
+                    className="w-4 h-4"
+                  />
+                  On sale
+                </label>
+              </div>
+
+              {/* Sorting */}
+              <div className="grid grid-cols-2 gap-3">
+                <label className="inline-flex items-center gap-2">
+                  <input
+                    type="radio"
+                    name="m-sort"
+                    checked={ui.sort === 'new'}
+                    onChange={() => setUI((s) => ({ ...s, sort: 'new' }))}
+                  />
+                  Новинки
+                </label>
+                <label className="inline-flex items-center gap-2">
+                  <input
+                    type="radio"
+                    name="m-sort"
+                    checked={ui.sort === 'popular'}
+                    onChange={() => setUI((s) => ({ ...s, sort: 'popular' }))}
+                  />
+                  Популярні
+                </label>
+                <label className="inline-flex items-center gap-2">
+                  <input
+                    type="radio"
+                    name="m-sort"
+                    checked={ui.sort === 'cheap'}
+                    onChange={() => setUI((s) => ({ ...s, sort: 'cheap' }))}
+                  />
+                  ↓$
+                </label>
+                <label className="inline-flex items-center gap-2">
+                  <input
+                    type="radio"
+                    name="m-sort"
+                    checked={ui.sort === 'exp'}
+                    onChange={() => setUI((s) => ({ ...s, sort: 'exp' }))}
+                  />
+                  ↑$
+                </label>
+              </div>
+
+              {/* група */}
+              <div className="space-y-2">
+                <div className="uppercase text-sm text-gray-600">Група</div>
+                <select
+                  className="w-full border px-3 py-2 rounded"
+                  value={ui.group}
+                  onChange={(e) =>
+                    setUI((s) => ({
+                      ...s,
+                      group: e.target.value as GroupFilter,
+                    }))
+                  }
+                >
+                  <option value="">— Всі —</option>
+                  <option value="Бісер">Бісер</option>
+                  <option value="Плетіння">Плетіння</option>
+                </select>
+              </div>
+
+              {/* тип */}
+              <div className="space-y-2">
+                <div className="uppercase text-sm text-gray-600">Тип</div>
+                <select
+                  className="w-full border px-3 py-2 rounded"
+                  value={ui.bagTypes}
+                  onChange={(e) =>
+                    setUI((s) => ({
+                      ...s,
+                      bagTypes: e.target.value as ProductType | '',
+                    }))
+                  }
+                >
+                  <option value="">— Всі —</option>
+                  {bagTypes.map((bt) => (
+                    <option key={bt} value={bt}>
+                      {bt}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              {/* колір */}
+              <div className="space-y-2">
+                <div className="uppercase text-sm text-gray-600">Колір</div>
+                <select
+                  className="w-full border px-3 py-2 rounded"
+                  value={ui.color}
+                  onChange={(e) =>
+                    setUI((s) => ({ ...s, color: e.target.value }))
+                  }
+                >
+                  <option value="">— Всі —</option>
+                  {colors.map((c) => (
+                    <option key={c} value={c}>
+                      {c}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              {/* ціна */}
+              <div className="space-y-2">
+                <div className="uppercase text-sm text-gray-600">Ціна</div>
+                <div className="flex items-center gap-3">
+                  <input
+                    placeholder="65 грн."
+                    inputMode="numeric"
+                    value={ui.min}
+                    onChange={(e) =>
+                      setUI((s) => ({
+                        ...s,
+                        min: e.target.value.replace(/[^\\d]/g, ''),
+                      }))
+                    }
+                    className="flex-1 border-b border-black bg-transparent outline-none py-1"
+                  />
+                  <span>до</span>
+                  <input
+                    placeholder="4500 грн."
+                    inputMode="numeric"
+                    value={ui.max}
+                    onChange={(e) =>
+                      setUI((s) => ({
+                        ...s,
+                        max: e.target.value.replace(/[^\\d]/g, ''),
+                      }))
+                    }
+                    className="flex-1 border-b border-black bg-transparent outline-none py-1"
+                  />
+                </div>
+              </div>
+            </div>
+
+            {/* кнопка знизу */}
+            <div className="fixed bottom-0 left-0 right-0 p-4 bg-white border-t">
+              <button
+                onClick={() => {
+                  apply()
+                  setShowMobileFilter(false)
+                }}
+                className="w-full h-12 rounded bg-black text-white uppercase tracking-wide hover:bg-[#FF3D8C]"
+              >
+                Застосувати
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
       {/* Product grid */}
-      <div className="grid grid-cols-2 md:grid-cols-2 lg:grid-cols-3 gap-5">
+      <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-5">
         {filtered.length === 0 && (
           <div className="col-span-full text-gray-500">
             За вашим запитом нічого не знайдено.

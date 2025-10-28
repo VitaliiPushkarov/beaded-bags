@@ -21,7 +21,7 @@ export default function ProductCardLarge({ p }: { p: Product }) {
     <article className="border rounded overflow-hidden bg-white">
       {/* зображення прив'язане до варіанту */}
       <Link href={`/products/${p.slug}?variant=${variantId}`}>
-        <div className="relative h-[360px] md:h-[460px] lg:h-[501px] bg-gray-100">
+        <div className="relative h-[480px] md:h-[460px] lg:h-[501px] bg-gray-100">
           {v && (
             <Image
               src={v.image}

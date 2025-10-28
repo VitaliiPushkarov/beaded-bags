@@ -103,13 +103,13 @@ export default function Breadcrumbs({ override }: { override?: Crumb[] }) {
           </ol>
         </nav>
         {/* JSON-LD для SEO */}
-        {jsonLd && (
+        {/* {jsonLd && (
           <script
             type="application/ld+json"
             // eslint-disable-next-line react/no-danger
             dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
           />
-        )}
+        )} */}
       </>
     </Suspense>
   )
