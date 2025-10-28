@@ -501,7 +501,11 @@ function ProductsInner() {
   )
 }
 export default function ProductsPage() {
-  ;<Suspense fallback={<div className="p-6 text-center">Завантаження</div>}>
-    <ProductsInner />
-  </Suspense>
+  return (
+    <Suspense
+      fallback={<div className="py-20 text-center">Завантаження...</div>}
+    >
+      <ProductsInner />
+    </Suspense>
+  )
 }
