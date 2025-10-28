@@ -36,9 +36,7 @@ export default function ProductCardLarge({ p }: { p: Product }) {
 
       <div className="border-t p-3">
         <div className="flex items-center justify-between">
-          <h3 className="text-sm md:text-base truncate">
-            {p.name} — {v?.color}
-          </h3>
+          <h3 className="text-sm md:text-base truncate">{p.name}</h3>
           <div className="text-sm md:text-base whitespace-nowrap">
             {price} ₴
           </div>

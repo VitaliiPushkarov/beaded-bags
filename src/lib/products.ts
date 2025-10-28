@@ -1,3 +1,5 @@
+export type ProductType = 'Всі' | 'Бананки' | 'Рюкзачки' | 'Чохли' | 'Шопери'
+
 export type Product = {
   productId: string
   slug: string
@@ -8,6 +10,7 @@ export type Product = {
   color?: string
   variants: ProductVariant[]
   images: string[]
+  type: ProductType
 }
 export type ProductVariant = {
   id: string
@@ -28,6 +31,7 @@ export const PRODUCTS: Product[] = [
     inStock: true,
     color: 'white',
     images: ['/img/white-bag.png', '/img/white-bag-02.png'],
+    type: 'Всі',
     variants: [
       {
         id: 'var-white',
@@ -47,6 +51,7 @@ export const PRODUCTS: Product[] = [
     inStock: true,
     color: 'pink',
     images: ['/img/pink-bag.png', '/img/pink-bag-02.png'],
+    type: 'Всі',
     variants: [
       {
         id: 'var-pink',
@@ -70,10 +75,10 @@ export const PRODUCTS: Product[] = [
         inStock: true,
       },
       {
-        id: 'var-grey',
-        color: 'grey',
+        id: 'var-gray',
+        color: 'gray',
         hex: '#2F4841',
-        image: '/img/grey-bag.png',
+        image: '/img/gray-bag.png',
         inStock: true,
       },
     ],
@@ -87,6 +92,7 @@ export const PRODUCTS: Product[] = [
     inStock: true,
     color: 'red',
     images: ['/img/red-bag.png', '/img/red-bag-02.png'],
+    type: 'Всі',
     variants: [
       {
         id: 'var-red',
@@ -106,6 +112,7 @@ export const PRODUCTS: Product[] = [
     inStock: true,
     color: 'green',
     images: ['/img/green-bag.png'],
+    type: 'Всі',
     variants: [
       {
         id: 'var-green',
@@ -125,12 +132,53 @@ export const PRODUCTS: Product[] = [
     inStock: true,
     color: 'blue',
     images: ['/img/blue-bag-bow.png'],
+    type: 'Всі',
     variants: [
       {
         id: 'var-blue-bow',
         color: 'blue',
         hex: '#00F0FF',
         image: '/img/blue-bag-bow.png',
+        inStock: true,
+      },
+    ],
+  },
+  {
+    productId: 'gray-case-001',
+    slug: 'gray-case',
+    name: 'Чохол — Сірий',
+    basePriceUAH: 900,
+    description: 'Сірий чохол з бісеру для телефону, 15×7 см',
+    inStock: true,
+    color: 'gray',
+    images: ['/img/gray-case.png'],
+    type: 'Чохли',
+    variants: [
+      {
+        id: 'gray-case-001',
+        color: 'gray',
+        hex: '#E0E0E0',
+        image: '/img/gray-case.png',
+        inStock: true,
+      },
+    ],
+  },
+  {
+    productId: 'gray-knitted-bag-001',
+    slug: 'gray-knitted-bag',
+    name: 'Вʼязана сумка — Сіра',
+    basePriceUAH: 2400,
+    description: 'Сіра вʼязана сумка ручної роботи, 30×35 см',
+    inStock: true,
+    color: 'gray',
+    images: ['/img/gray-bag.png'],
+    type: 'Рюкзачки',
+    variants: [
+      {
+        id: 'gray-knitted-bag-001',
+        color: 'gray',
+        hex: '#E0E0E0',
+        image: '/img/gray-bag.png',
         inStock: true,
       },
     ],

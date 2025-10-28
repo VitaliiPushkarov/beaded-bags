@@ -54,7 +54,7 @@ export default function SearchDialog() {
         }}
         className="inline-flex h-8 w-8 items-center justify-center cursor-pointer"
       >
-        <SearchIcon className="h-6 w-6 fill-current text-gray-900" />
+        <SearchIcon className="h-5 w-5 fill-current text-gray-900" />
       </button>
 
       {/* dialog */}

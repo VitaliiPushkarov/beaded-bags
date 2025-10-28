@@ -1,8 +1,10 @@
 'use client'
 
-import { useMemo, useState } from 'react'
-import { PRODUCTS } from '@/lib/products'
+import { useEffect, useMemo, useState, Suspense } from 'react'
+import { PRODUCTS, ProductType } from '@/lib/products'
+import { useSearchParams } from 'next/navigation'
 import ProductCardLarge from './ProductCardLarge'
+import Breadcrumbs from '@/components/ui/BreadCrumbs'
 
 type Product = (typeof PRODUCTS)[number]
 type Variant = NonNullable<Product['variants']>[number]
@@ -42,7 +44,7 @@ function matchesSearch(p: Product, q: string) {
   return fields.some((f) => f.includes(s))
 }
 
-export default function ProductsPage() {
+function ProductsInner() {
   // Extract unique colors from products
   const colors = useMemo(() => {
     const set = new Set<string>()
@@ -52,14 +54,23 @@ export default function ProductsPage() {
     }
     return Array.from(set)
   }, [])
+  const bagTypes = useMemo(() => {
+    const set = new Set<ProductType>()
+    for (const p of PRODUCTS) {
+      if (p.type) set.add(p.type as ProductType)
+    }
+    return Array.from(set)
+  }, [])
+
   type Sort = 'new' | 'popular' | 'cheap' | 'exp'
-  type TypeFilter = '' | 'Бісер' | 'Плетіння'
+  type GroupFilter = '' | 'Бісер' | 'Плетіння'
 
   type Filters = {
     q: string
     inStock: boolean
     onSale: boolean
-    type: TypeFilter
+    group: GroupFilter
+    bagTypes: '' | ProductType
     color: string
     min: string
     max: string
@@ -69,7 +80,8 @@ export default function ProductsPage() {
     q: '',
     inStock: false,
     onSale: false,
-    type: '',
+    group: '',
+    bagTypes: '',
     color: '',
     min: '',
     max: '',
@@ -80,6 +92,16 @@ export default function ProductsPage() {
   const [applied, setApplied] = useState<Filters>(initial)
   const [filterAppliedOnes, setFilterAppliedOnes] = useState(false)
 
+  const sp = useSearchParams()
+  useEffect(() => {
+    const t = sp.get('type')
+    if (t) {
+      setUI((s) => ({ ...s, bagTypes: t as ProductType }))
+      setApplied((s) => ({ ...s, bagTypes: t as ProductType }))
+      setFilterAppliedOnes(true)
+    }
+  }, [sp])
+
   const apply = () => {
     setApplied(ui)
     setFilterAppliedOnes(true)
@@ -89,7 +111,8 @@ export default function ProductsPage() {
       q: '',
       inStock: false,
       onSale: false,
-      type: '',
+      group: '',
+      bagTypes: '',
       color: '',
       min: '',
       max: '',
@@ -108,27 +131,29 @@ export default function ProductsPage() {
       arr = arr.filter((p) => matchesSearch(p, applied.q))
     }
 
-    // в наявності
+    // inStock
     if (applied.inStock) arr = arr.filter(isInStock)
 
-    // on sale (якщо у товара є прапорець; інакше фільтр ігнорується)
+    // on sale
     if (applied.onSale) {
       arr = arr.filter((p) => (p as any).onSale === true)
     }
 
-    // тип
-    if (applied.type) {
+    // group
+    if (applied.group) {
       arr = arr.filter((p) =>
-        applied.type === 'Бісер' ? isBeadType(p) : !isBeadType(p)
+        applied.group === 'Бісер' ? isBeadType(p) : !isBeadType(p)
       )
     }
-
-    // колір
+    if (applied.bagTypes) {
+      arr = arr.filter((p) => p.type === applied.bagTypes)
+    }
+    // color
     if (applied.color) {
       arr = arr.filter((p) => matchesColor(p, applied.color))
     }
 
-    // ціна
+    // price
     const minNum = applied.min.trim() ? Number(applied.min) || 0 : -Infinity
     const maxNum = applied.max.trim()
       ? Number(applied.max) || Infinity
@@ -143,7 +168,7 @@ export default function ProductsPage() {
       return prices.some((price) => price >= minNum && price <= maxNum)
     })
 
-    // сортування
+    // sorting
     switch (applied.sort) {
       case 'cheap':
         arr.sort((a, b) => getMinPrice(a) - getMinPrice(b))
@@ -161,7 +186,7 @@ export default function ProductsPage() {
 
     return arr
   }, [applied])
-  // --- Чіпси для застосованих фільтрів
+  // --- Chips for applied filters
   const chips = useMemo(() => {
     const out: { key: string; label: string; onRemove: () => void }[] = []
     if (applied.q.trim()) {
@@ -197,14 +222,14 @@ export default function ProductsPage() {
         },
       })
     }
-    if (applied.type) {
+    if (applied.group) {
       out.push({
-        key: 'type',
-        label: `Тип: ${applied.type}`,
+        key: 'group',
+        label: `Група: ${applied.group}`,
         onRemove: () => {
-          const next = { ...applied, type: '' as const }
+          const next = { ...applied, group: '' as const }
           setApplied(next)
-          setUI((u) => ({ ...u, type: '' as const }))
+          setUI((u) => ({ ...u, group: '' as const }))
         },
       })
     }
@@ -216,6 +241,17 @@ export default function ProductsPage() {
           const next = { ...applied, color: '' }
           setApplied(next)
           setUI((u) => ({ ...u, color: '' }))
+        },
+      })
+    }
+    if (applied.bagTypes) {
+      out.push({
+        key: 'bagTypes',
+        label: `Тип: ${applied.bagTypes}`,
+        onRemove: () => {
+          const next = { ...applied, bagTypes: '' as const }
+          setApplied(next)
+          setUI((u) => ({ ...u, bagTypes: '' as const }))
         },
       })
     }
@@ -254,6 +290,7 @@ export default function ProductsPage() {
 
   return (
     <div className="max-w-[1440px] mx-auto py-10 px-[50px]">
+      <Breadcrumbs />
       <div className="fitler-block">
         <div className="flex justify-between flex-nowrap mb-[26px] uppercase">
           <div className="">
@@ -323,20 +360,40 @@ export default function ProductsPage() {
             <div className="flex justify-start mb-[41px] items-center">
               {/* Dropdowns */}
               <div className="flex items-center gap-3 mr-[40px] cursor-pointer">
-                <span className="uppercase tracking-wide">Тип:</span>
+                <span className="uppercase tracking-wide">Група:</span>
                 <select
                   className="border px-3 py-1 rounded bg-white"
-                  value={ui.type}
+                  value={ui.group}
                   onChange={(e) =>
                     setUI((s) => ({
                       ...s,
-                      type: e.target.value as TypeFilter,
+                      group: e.target.value as GroupFilter,
                     }))
                   }
                 >
                   <option value="">— Всі —</option>
                   <option value="Бісер">Бісер</option>
                   <option value="Плетіння">Плетіння</option>
+                </select>
+              </div>
+              <div className="flex items-center gap-3 mr-[40px] cursor-pointer">
+                <span className="uppercase tracking-wide">Тип:</span>
+                <select
+                  className="border px-3 py-1 rounded bg-white"
+                  value={ui.bagTypes}
+                  onChange={(e) =>
+                    setUI((s) => ({
+                      ...s,
+                      bagTypes: e.target.value as ProductType | '',
+                    }))
+                  }
+                >
+                  <option value="">— Всі —</option>
+                  {bagTypes.map((bt) => (
+                    <option key={bt} value={bt}>
+                      {bt}
+                    </option>
+                  ))}
                 </select>
               </div>
               {/* Color */}
@@ -442,4 +499,9 @@ export default function ProductsPage() {
       </div>
     </div>
   )
+}
+export default function ProductsPage() {
+  ;<Suspense fallback={<div className="p-6 text-center">Завантаження</div>}>
+    <ProductsInner />
+  </Suspense>
 }

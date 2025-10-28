@@ -1,4 +1,3 @@
-// src/components/sections/Vision.tsx
 'use client'
 import { useEffect, useRef, useState } from 'react'
 
@@ -7,7 +6,6 @@ export default function Vision() {
   const innerRef = useRef<HTMLDivElement>(null)
   const [scale, setScale] = useState(1)
 
-  // авто-скейл: вміщуємо у вікно з невеликими полями
   useEffect(() => {
     const recalc = () => {
       const wrap = wrapRef.current

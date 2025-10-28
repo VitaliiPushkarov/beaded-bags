@@ -18,8 +18,8 @@ export default function CartButton() {
       <Image
         src="/icons/bag-cart.svg"
         alt=""
-        width={24}
-        height={24}
+        width={22}
+        height={22}
         className="object-contain"
       />
       {isMounted && count > 0 && (

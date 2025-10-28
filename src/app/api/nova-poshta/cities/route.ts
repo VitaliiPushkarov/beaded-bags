@@ -90,15 +90,6 @@ export async function GET(req: NextRequest) {
       seen.add(key)
       return true
     })
-    if (!process.env.NOVA_POSHTA_API_KEY) {
-      console.error(
-        'NP env missing',
-        Object.keys(process.env).filter(
-          (k) => k.includes('NOVA') || k.includes('POSHTA')
-        )
-      )
-      return NextResponse.json({ error: 'API key missing' }, { status: 500 })
-    }
 
     return NextResponse.json({ data: unique.slice(0, 12) })
   } catch (e: any) {
