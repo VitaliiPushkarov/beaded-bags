@@ -1,0 +1,719 @@
+'use client'
+
+import { ProductType } from '@prisma/client'
+import { useState, useMemo, useEffect } from 'react'
+import { useSearchParams } from 'next/navigation'
+import Breadcrumbs from '../ui/BreadCrumbs'
+import ProductCardLarge from '@/app/products/ProductCardLarge'
+import { TYPE_LABELS, COLOR_LABELS } from '@/lib/labels'
+
+type Product = {
+  id: string
+  slug: string
+  name: string
+  description?: string | null
+  basePriceUAH?: number | null
+  inStock?: boolean | null
+  type?: ProductType | string | null
+  color?: string | null
+  variants?: Variant[]
+}
+type Variant = {
+  id: string
+  color?: string | null
+  hex?: string | null
+  image?: string | null
+  inStock?: boolean | null
+  priceUAH?: number | null
+}
+
+const OPTONS: ProductType[] = ['BAG', 'BELT_BAG', 'BACKPACK', 'SHOPPER', 'CASE']
+
+function getMinPrice(p: Product) {
+  const list: number[] = []
+  if (typeof p.basePriceUAH === 'number') list.push(p.basePriceUAH)
+  p.variants?.forEach((v) => {
+    if (typeof v.priceUAH === 'number') list.push(v.priceUAH)
+  })
+  return list.length ? Math.min(...list) : 0
+}
+
+function isInStock(p: Product) {
+  if (p.inStock) return true
+  return Boolean(p.inStock || p.variants?.some((v) => v.inStock))
+}
+
+function isBeadType(p: Product) {
+  const n = (p.name || '').toLowerCase()
+  return /bead|beaded|бісер/.test(n)
+}
+function matchesColor(p: Product, color: string) {
+  if (!color) return true
+  if ((p as any).color && (p as any).color === color) return true
+  return !!p.variants?.some((v) => v.color === color)
+}
+function matchesSearch(p: Product, q: string) {
+  if (!q) return true
+  const s = q.trim().toLowerCase()
+  if (!s) return true
+  const fields: string[] = []
+  fields.push(p.name?.toLowerCase() || '')
+  p.variants?.forEach((v) => {
+    if (v.color) fields.push(String(v.color).toLowerCase())
+  })
+  return fields.some((f) => f.includes(s))
+}
+
+function ProductsInner({ initialProducts }: { initialProducts: Product[] }) {
+  const [base, setBase] = useState<Product[]>(initialProducts)
+  // Extract unique colors from products
+  const colors = useMemo(() => {
+    const set = new Set<string>()
+    for (const p of base) {
+      if ((p as any).color) set.add((p as any).color)
+      p.variants?.forEach((v: Variant) => v.color && set.add(v.color))
+    }
+    return Array.from(set)
+  }, [base])
+  const bagTypes = useMemo(() => {
+    const set = new Set<ProductType>()
+    for (const p of base) {
+      if (p.type) set.add(p.type as ProductType)
+    }
+    return Array.from(set)
+  }, [base])
+
+  type Sort = 'new' | 'popular' | 'cheap' | 'exp'
+  type GroupFilter = '' | 'Бісер' | 'Плетіння'
+
+  type Filters = {
+    q: string
+    inStock: boolean
+    onSale: boolean
+    group: GroupFilter
+    bagTypes: '' | ProductType
+    color: string
+    min: string
+    max: string
+    sort: Sort
+  }
+  const DEFAULT_FILTERS: Filters = {
+    q: '',
+    inStock: false,
+    onSale: false,
+    group: '',
+    bagTypes: '',
+    color: '',
+    min: '',
+    max: '',
+    sort: 'new',
+  }
+
+  const [ui, setUI] = useState<Filters>(DEFAULT_FILTERS)
+  const [applied, setApplied] = useState<Filters>(DEFAULT_FILTERS)
+  const [filterAppliedOnes, setFilterAppliedOnes] = useState(false)
+  const [showMobileFilter, setShowMobileFilter] = useState(false)
+
+  const sp = useSearchParams()
+  useEffect(() => {
+    const t = sp.get('type')
+    if (t) {
+      setUI((s) => ({ ...s, bagTypes: t as ProductType }))
+      setApplied((s) => ({ ...s, bagTypes: t as ProductType }))
+      setFilterAppliedOnes(true)
+    }
+  }, [sp])
+
+  const apply = () => {
+    setApplied(ui)
+    setFilterAppliedOnes(true)
+  }
+  const clearAll = () => {
+    setFilterAppliedOnes(false)
+    setUI(DEFAULT_FILTERS)
+    setApplied(DEFAULT_FILTERS)
+  }
+
+  // --- обчислення відфільтрованих/відсортованих товарів
+  const filtered = useMemo(() => {
+    let arr = [...base]
+    // Search query
+    if (applied.q.trim()) {
+      arr = arr.filter((p) => matchesSearch(p, applied.q))
+    }
+
+    // inStock
+    if (applied.inStock) arr = arr.filter(isInStock)
+
+    // on sale
+    if (applied.onSale) {
+      arr = arr.filter((p) => (p as any).onSale === true)
+    }
+
+    // group
+    if (applied.group) {
+      arr = arr.filter((p) =>
+        applied.group === 'Бісер' ? isBeadType(p) : !isBeadType(p)
+      )
+    }
+    if (applied.bagTypes) {
+      arr = arr.filter((p) => p.type === applied.bagTypes)
+    }
+    // color
+    if (applied.color) {
+      arr = arr.filter((p) => matchesColor(p, applied.color))
+    }
+
+    // price
+    const minNum = applied.min.trim() ? Number(applied.min) || 0 : -Infinity
+    const maxNum = applied.max.trim()
+      ? Number(applied.max) || Infinity
+      : Infinity
+    arr = arr.filter((p) => {
+      const prices: number[] = []
+      if (typeof p.basePriceUAH === 'number') prices.push(p.basePriceUAH)
+      p.variants?.forEach((v) => {
+        if (typeof v.priceUAH === 'number') prices.push(v.priceUAH)
+      })
+      if (!prices.length) prices.push(0)
+      return prices.some((price) => price >= minNum && price <= maxNum)
+    })
+
+    // sorting
+    switch (applied.sort) {
+      case 'cheap':
+        arr.sort((a, b) => getMinPrice(a) - getMinPrice(b))
+        break
+      case 'exp':
+        arr.sort((a, b) => getMinPrice(b) - getMinPrice(a))
+        break
+      case 'popular':
+        arr.sort((a, b) => (a.name || '').localeCompare(b.name || ''))
+        break
+      case 'new':
+      default:
+        break
+    }
+
+    return arr
+  }, [applied])
+  // --- Chips for applied filters
+  const chips = useMemo(() => {
+    const out: { key: string; label: string; onRemove: () => void }[] = []
+    if (applied.q.trim()) {
+      out.push({
+        key: 'q',
+        label: `“${applied.q.trim()}”`,
+        onRemove: () => {
+          const next = { ...applied, q: '' }
+          setApplied(next)
+          setUI((u) => ({ ...u, q: '' }))
+        },
+      })
+    }
+    if (applied.inStock) {
+      out.push({
+        key: 'inStock',
+        label: 'В наявності',
+        onRemove: () => {
+          const next = { ...applied, inStock: false }
+          setApplied(next)
+          setUI((u) => ({ ...u, inStock: false }))
+        },
+      })
+    }
+    if (applied.onSale) {
+      out.push({
+        key: 'onSale',
+        label: 'On sale',
+        onRemove: () => {
+          const next = { ...applied, onSale: false }
+          setApplied(next)
+          setUI((u) => ({ ...u, onSale: false }))
+        },
+      })
+    }
+    if (applied.group) {
+      out.push({
+        key: 'group',
+        label: `Група: ${applied.group}`,
+        onRemove: () => {
+          const next = { ...applied, group: '' as const }
+          setApplied(next)
+          setUI((u) => ({ ...u, group: '' as const }))
+        },
+      })
+    }
+    if (applied.color) {
+      out.push({
+        key: 'color',
+        label: `Колір: ${applied.color}`,
+        onRemove: () => {
+          const next = { ...applied, color: '' }
+          setApplied(next)
+          setUI((u) => ({ ...u, color: '' }))
+        },
+      })
+    }
+    if (applied.bagTypes) {
+      out.push({
+        key: 'bagTypes',
+        label: `Тип: ${applied.bagTypes}`,
+        onRemove: () => {
+          const next = { ...applied, bagTypes: '' as const }
+          setApplied(next)
+          setUI((u) => ({ ...u, bagTypes: '' as const }))
+        },
+      })
+    }
+    if (applied.min.trim() || applied.max.trim()) {
+      const from = applied.min.trim() ? Number(applied.min) : undefined
+      const to = applied.max.trim() ? Number(applied.max) : undefined
+      out.push({
+        key: 'price',
+        label: `Ціна: ${from ?? '—'} — ${to ?? '—'} грн`,
+        onRemove: () => {
+          const next = { ...applied, min: '', max: '' }
+          setApplied(next)
+          setUI((u) => ({ ...u, min: '', max: '' }))
+        },
+      })
+    }
+    if (applied.sort !== 'new') {
+      const sortLabel =
+        applied.sort === 'popular'
+          ? 'Популярні'
+          : applied.sort === 'cheap'
+          ? '↓$'
+          : '↑$'
+      out.push({
+        key: 'sort',
+        label: `Сортування: ${sortLabel}`,
+        onRemove: () => {
+          const next = { ...applied, sort: 'new' as const }
+          setApplied(next)
+          setUI((u) => ({ ...u, sort: 'new' as const }))
+        },
+      })
+    }
+    return out
+  }, [applied])
+
+  return (
+    <div className="max-w-[1440px] mx-auto py-10 px-[50px]">
+      <Breadcrumbs />
+      {/* Mobile filter trigger */}
+      <div className="lg:hidden flex items-center justify-between py-4">
+        <h1 className="text-2xl">Каталог</h1>
+        <button
+          className="uppercase tracking-wide inline-flex items-center gap-2 cursor-pointer"
+          onClick={() => setShowMobileFilter(true)}
+          aria-label="Відкрити фільтр"
+        >
+          Фільтр <span className="text-xl leading-none">+</span>
+        </button>
+      </div>
+      {/* Desktop filters */}
+      <div className="hidden lg:block fitler-block">
+        <div className="flex justify-between flex-nowrap mb-[26px] uppercase">
+          <div className="">
+            <div className="flex mb-[34px]">
+              {/* Checkboxes */}
+              <label className="flex items-center gap-2 mr-[40px] cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={ui.inStock}
+                  onChange={(e) =>
+                    setUI((s) => ({ ...s, inStock: e.target.checked }))
+                  }
+                  className="w-4 h-4 cursor-pointer"
+                />{' '}
+                В наявності
+              </label>
+              <label className="flex items-center gap-2 mr-[40px] cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={ui.onSale}
+                  onChange={(e) =>
+                    setUI((s) => ({ ...s, onSale: e.target.checked }))
+                  }
+                  className="w-4 h-4 cursor-pointer"
+                />{' '}
+                On sale
+              </label>
+
+              <label className="inline-flex items-center gap-2 mr-[40px] cursor-pointer">
+                <input
+                  type="radio"
+                  name="sort"
+                  checked={ui.sort === 'new'}
+                  onChange={() => setUI((s) => ({ ...s, sort: 'new' }))}
+                />
+                <span>Новинки</span>
+              </label>
+              <label className="inline-flex items-center gap-2 mr-[40px] cursor-pointer">
+                <input
+                  type="radio"
+                  name="sort"
+                  checked={ui.sort === 'popular'}
+                  onChange={() => setUI((s) => ({ ...s, sort: 'popular' }))}
+                />
+                <span>Популярні</span>
+              </label>
+              <label className="inline-flex items-center gap-2 mr-[40px] cursor-pointer">
+                <input
+                  type="radio"
+                  name="sort"
+                  checked={ui.sort === 'cheap'}
+                  onChange={() => setUI((s) => ({ ...s, sort: 'cheap' }))}
+                />
+                <span>↓$</span>
+              </label>
+              <label className="inline-flex items-center gap-2 mr-[40px] cursor-pointer">
+                <input
+                  type="radio"
+                  name="sort"
+                  checked={ui.sort === 'exp'}
+                  onChange={() => setUI((s) => ({ ...s, sort: 'exp' }))}
+                />
+                <span>↑$</span>
+              </label>
+            </div>
+            {/* Filter bar */}
+            <div className="flex justify-start mb-[41px] items-center">
+              {/* Dropdowns */}
+              <div className="flex items-center gap-3 mr-[40px] cursor-pointer">
+                <span className="uppercase tracking-wide">Група:</span>
+                <select
+                  className="border px-3 py-1 rounded bg-white"
+                  value={ui.group}
+                  onChange={(e) =>
+                    setUI((s) => ({
+                      ...s,
+                      group: e.target.value as GroupFilter,
+                    }))
+                  }
+                >
+                  <option value="">— Всі —</option>
+                  <option value="Бісер">Бісер</option>
+                  <option value="Плетіння">Плетіння</option>
+                </select>
+              </div>
+              <div className="flex items-center gap-3 mr-[40px] cursor-pointer">
+                <span className="uppercase tracking-wide">Тип:</span>
+                <select
+                  className="border px-3 py-1 rounded bg-white"
+                  value={ui.bagTypes || ''}
+                  onChange={(e) =>
+                    setUI((s) => ({
+                      ...s,
+                      bagTypes: e.target.value as ProductType | '',
+                    }))
+                  }
+                >
+                  <option value="">— Всі —</option>
+                  {OPTONS.map((bt) => (
+                    <option key={bt} value={bt}>
+                      {TYPE_LABELS[bt]}
+                    </option>
+                  ))}
+                </select>
+              </div>
+              {/* Color */}
+              <div className="flex items-center gap-3 mr-[40px] cursor-pointer">
+                <span className="uppercase tracking-wide">Колір:</span>
+                <select
+                  className="border px-3 py-1 rounded bg-white"
+                  value={ui.color}
+                  onChange={(e) =>
+                    setUI((s) => ({ ...s, color: e.target.value }))
+                  }
+                >
+                  <option value="">— Всі —</option>
+                  {colors.map((c) => (
+                    <option key={c} value={c}>
+                      {COLOR_LABELS[c] || c}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              {/* Price inputs */}
+              <div className="flex items-center gap-3">
+                <span>Ціна:</span>
+                <input
+                  placeholder="60 грн"
+                  inputMode="numeric"
+                  value={ui.min}
+                  onChange={(e) =>
+                    setUI((s) => ({
+                      ...s,
+                      min: e.target.value.replace(/[^\d]/g, ''),
+                    }))
+                  }
+                  className="w-20 border-b border-black bg-transparent outline-none text-gray-700 placeholder-gray-400"
+                />
+                <span>до</span>
+                <input
+                  placeholder="3500 грн"
+                  inputMode="numeric"
+                  value={ui.max}
+                  onChange={(e) =>
+                    setUI((s) => ({
+                      ...s,
+                      max: e.target.value.replace(/[^\d]/g, ''),
+                    }))
+                  }
+                  className="w-24 border-b border-black bg-transparent outline-none text-gray-700 placeholder-gray-400"
+                />
+              </div>
+            </div>
+          </div>
+
+          {/* Actions */}
+
+          <button
+            onClick={apply}
+            className="px-6 py-2 rounded bg-black text-white hover:bg-[#FF3D8C] transition h-[44px] w-[275px] self-end mb-[41px] cursor-pointer"
+          >
+            Застосувати
+          </button>
+        </div>
+        {/* CHIPS */}
+        <div className="mb-6">
+          {filterAppliedOnes && chips.length > 0 && (
+            <div className="flex flex-wrap items-center gap-3">
+              <span className="text-sm text-gray-600">Ви шукали:</span>
+              {chips.map((ch) => (
+                <button
+                  key={ch.key}
+                  className="text-sm rounded-full border px-3 py-1 hover:bg-gray-50 flex items-center gap-2"
+                  onClick={ch.onRemove}
+                  title="Прибрати фільтр"
+                >
+                  {ch.label}
+                  <span className="text-gray-400">×</span>
+                </button>
+              ))}
+              <button
+                className="ml-2 text-sm underline text-gray-600 hover:text-black"
+                onClick={clearAll}
+              >
+                Видалити все
+              </button>
+            </div>
+          )}
+        </div>
+      </div>
+      {/* Mobile full-screen filter */}
+      {showMobileFilter && (
+        <div className="lg:hidden fixed inset-0 z-50">
+          {/* Backdrop */}
+          <div
+            className="absolute inset-0 bg-black/40"
+            onClick={() => setShowMobileFilter(false)}
+            aria-hidden
+          />
+          {/* Panel */}
+          <div className="absolute inset-0 bg-white overflow-y-auto pb-[88px]">
+            <div className="flex items-center justify-between p-4 border-b">
+              <div className="uppercase">Фільтр</div>
+              <button
+                onClick={() => setShowMobileFilter(false)}
+                className="text-2xl leading-none px-2"
+                aria-label="Закрити фільтр"
+              >
+                ✕
+              </button>
+            </div>
+
+            <div className="p-4 space-y-6">
+              {/* Checkboxes */}
+              <div className="flex items-center justify-between">
+                <label className="flex items-center gap-2">
+                  <input
+                    type="checkbox"
+                    checked={ui.inStock}
+                    onChange={(e) =>
+                      setUI((s) => ({ ...s, inStock: e.target.checked }))
+                    }
+                    className="w-4 h-4"
+                  />
+                  В наявності
+                </label>
+                <label className="flex items-center gap-2">
+                  <input
+                    type="checkbox"
+                    checked={ui.onSale}
+                    onChange={(e) =>
+                      setUI((s) => ({ ...s, onSale: e.target.checked }))
+                    }
+                    className="w-4 h-4"
+                  />
+                  On sale
+                </label>
+              </div>
+
+              {/* Sorting */}
+              <div className="grid grid-cols-2 gap-3">
+                <label className="inline-flex items-center gap-2">
+                  <input
+                    type="radio"
+                    name="m-sort"
+                    checked={ui.sort === 'new'}
+                    onChange={() => setUI((s) => ({ ...s, sort: 'new' }))}
+                  />
+                  Новинки
+                </label>
+                <label className="inline-flex items-center gap-2">
+                  <input
+                    type="radio"
+                    name="m-sort"
+                    checked={ui.sort === 'popular'}
+                    onChange={() => setUI((s) => ({ ...s, sort: 'popular' }))}
+                  />
+                  Популярні
+                </label>
+                <label className="inline-flex items-center gap-2">
+                  <input
+                    type="radio"
+                    name="m-sort"
+                    checked={ui.sort === 'cheap'}
+                    onChange={() => setUI((s) => ({ ...s, sort: 'cheap' }))}
+                  />
+                  ↓$
+                </label>
+                <label className="inline-flex items-center gap-2">
+                  <input
+                    type="radio"
+                    name="m-sort"
+                    checked={ui.sort === 'exp'}
+                    onChange={() => setUI((s) => ({ ...s, sort: 'exp' }))}
+                  />
+                  ↑$
+                </label>
+              </div>
+
+              {/* група */}
+              <div className="space-y-2">
+                <div className="uppercase text-sm text-gray-600">Група</div>
+                <select
+                  className="w-full border px-3 py-2 rounded"
+                  value={ui.group}
+                  onChange={(e) =>
+                    setUI((s) => ({
+                      ...s,
+                      group: e.target.value as GroupFilter,
+                    }))
+                  }
+                >
+                  <option value="">— Всі —</option>
+                  <option value="Бісер">Бісер</option>
+                  <option value="Плетіння">Плетіння</option>
+                </select>
+              </div>
+
+              {/* тип */}
+              <div className="space-y-2">
+                <div className="uppercase text-sm text-gray-600">Тип</div>
+                <select
+                  className="w-full border px-3 py-2 rounded"
+                  value={ui.bagTypes}
+                  onChange={(e) =>
+                    setUI((s) => ({
+                      ...s,
+                      bagTypes: e.target.value as ProductType | '',
+                    }))
+                  }
+                >
+                  <option value="">— Всі —</option>
+                  {bagTypes.map((bt) => (
+                    <option key={bt} value={bt}>
+                      {bt}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              {/* колір */}
+              <div className="space-y-2">
+                <div className="uppercase text-sm text-gray-600">Колір</div>
+                <select
+                  className="w-full border px-3 py-2 rounded"
+                  value={ui.color}
+                  onChange={(e) =>
+                    setUI((s) => ({ ...s, color: e.target.value }))
+                  }
+                >
+                  <option value="">— Всі —</option>
+                  {colors.map((c) => (
+                    <option key={c} value={c}>
+                      {c}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              {/* ціна */}
+              <div className="space-y-2">
+                <div className="uppercase text-sm text-gray-600">Ціна</div>
+                <div className="flex items-center gap-3">
+                  <input
+                    placeholder="65 грн."
+                    inputMode="numeric"
+                    value={ui.min}
+                    onChange={(e) =>
+                      setUI((s) => ({
+                        ...s,
+                        min: e.target.value.replace(/[^\\d]/g, ''),
+                      }))
+                    }
+                    className="flex-1 border-b border-black bg-transparent outline-none py-1"
+                  />
+                  <span>до</span>
+                  <input
+                    placeholder="4500 грн."
+                    inputMode="numeric"
+                    value={ui.max}
+                    onChange={(e) =>
+                      setUI((s) => ({
+                        ...s,
+                        max: e.target.value.replace(/[^\\d]/g, ''),
+                      }))
+                    }
+                    className="flex-1 border-b border-black bg-transparent outline-none py-1"
+                  />
+                </div>
+              </div>
+            </div>
+
+            {/* кнопка знизу */}
+            <div className="fixed bottom-0 left-0 right-0 p-4 bg-white border-t">
+              <button
+                onClick={() => {
+                  apply()
+                  setShowMobileFilter(false)
+                }}
+                className="w-full h-12 rounded bg-black text-white uppercase tracking-wide hover:bg-[#FF3D8C]"
+              >
+                Застосувати
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+      {/* Product grid */}
+      <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-5">
+        {filtered.length === 0 && (
+          <div className="col-span-full text-gray-500">
+            За вашим запитом нічого не знайдено.
+          </div>
+        )}
+        {filtered.map((p) => (
+          <ProductCardLarge key={(p as any).id || p.slug} p={p as any} />
+        ))}
+      </div>
+    </div>
+  )
+}
+export default ProductsInner

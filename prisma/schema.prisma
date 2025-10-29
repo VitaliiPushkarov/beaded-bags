@@ -9,11 +9,11 @@ datasource db {
 
 // enums
 enum ProductType {
-  ALL
   BAG
   BACKPACK
   CASE
   SHOPPER
+  BELT_BAG
 }
 
 enum OrderStatus {

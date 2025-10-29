@@ -1,12 +1,23 @@
+'use client'
+
 import Link from 'next/link'
 import { useState, useRef } from 'react'
 import { ChevronDown } from 'lucide-react'
+import { ProductType } from '@prisma/client'
+import { TYPE_LABELS } from '@/lib/labels'
+
+const CATEGORIES: ProductType[] = [
+  'BAG',
+  'BELT_BAG',
+  'BACKPACK',
+  'SHOPPER',
+  'CASE',
+]
 
 export default function CatalogMegaMenu() {
   const [open, setOpen] = useState(false)
   const closeTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
 
-  // щоб не «мигало», даємо невеликий геп між leave/enter
   const openMenu = () => {
     if (closeTimer.current) {
       clearTimeout(closeTimer.current)
@@ -89,43 +100,16 @@ export default function CatalogMegaMenu() {
 
           {/* Колонка 2 (центр) */}
           <div className="space-y-8">
-            <Link
-              className="block hover:opacity-70 text-[14px]/[19px] font-medium tracking-wide"
-              href="/products"
-            >
-              Сумки
-            </Link>
-
-            <Link
-              className="block hover:opacity-70 text-[14px]/[19px] font-medium tracking-wide"
-              href="/products?type=Всі"
-            >
-              Всі
-            </Link>
-            <Link
-              className="block hover:opacity-70 text-[14px]/[19px] font-medium tracking-wide"
-              href="/products?type=Бананки"
-            >
-              Бананки
-            </Link>
-            <Link
-              className="block hover:opacity-70 text-[14px]/[19px] font-medium tracking-wide"
-              href="/products?type=Рюкзачки"
-            >
-              Рюкзачки
-            </Link>
-            <Link
-              className="block hover:opacity-70 text-[14px]/[19px] font-medium tracking-wide"
-              href="/products?type=Чохли"
-            >
-              Чохли
-            </Link>
-            <Link
-              className="block hover:opacity-70 text-[14px]/[19px] font-medium tracking-wide"
-              href="/products?type=Шопери"
-            >
-              Шопери
-            </Link>
+            {CATEGORIES.map((t) => (
+              <li key={t}>
+                <Link
+                  href={`/products?type=${t}`}
+                  className="block hover:opacity-70 text-[14px]/[19px] font-medium tracking-wide"
+                >
+                  {TYPE_LABELS[t]}
+                </Link>
+              </li>
+            ))}
           </div>
 
           {/* Колонка 3 (праворуч) */}

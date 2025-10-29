@@ -2,7 +2,9 @@
 
 import Link from 'next/link'
 import { usePathname, useSearchParams } from 'next/navigation'
-import { useMemo, Suspense } from 'react'
+import { useMemo } from 'react'
+import { TYPE_LABELS } from '@/lib/labels'
+import type { ProductType } from '@prisma/client'
 
 type Crumb = { label: string; href?: string }
 
@@ -20,7 +22,23 @@ const LABELS: Record<string, string> = {
   login: 'Увійти',
 }
 
-export default function Breadcrumbs({ override }: { override?: Crumb[] }) {
+function typeLabel(t?: string | null) {
+  if (!t) return ''
+  const asEnum = (t.toUpperCase?.() ?? t) as ProductType
+  return TYPE_LABELS[asEnum] || nice(t)
+}
+
+import { Suspense } from 'react'
+
+export default function Breadcrumbs(props: { override?: Crumb[] }) {
+  return (
+    <Suspense fallback={null}>
+      <BreadcrumbsInner {...props} />
+    </Suspense>
+  )
+}
+
+function BreadcrumbsInner({ override }: { override?: Crumb[] }) {
   const pathname = usePathname()
   const sp = useSearchParams()
 
@@ -36,18 +54,25 @@ export default function Breadcrumbs({ override }: { override?: Crumb[] }) {
       const isLast = idx === parts.length - 1
       const baseLabel = LABELS[p] || nice(p)
 
-      // спец-випадок: сторінка каталогу з фільтрами (?type=… & group=…)
+      // спец-випадок: сторінка каталогу з фільтрами (?type=… & group=… & color=…)
       if (p === 'products') {
         const type = sp.get('type')
-        const group = sp.get('group') // якщо маєш такий параметр
+        const group = sp.get('group')
+        const color = sp.get('color')
         const list: Crumb[] = [{ label: baseLabel, href }]
 
-        if (group)
+        if (group) {
           list.push({
-            label: `Група: ${group}`,
+            label: `Група: ${nice(group)}`,
             href: `/products?group=${encodeURIComponent(group)}`,
           })
-        if (type) list.push({ label: `Тип: ${type}` }) // останній без href
+        }
+        if (type) {
+          list.push({ label: `Тип: ${typeLabel(type)}` })
+        }
+        if (color) {
+          list.push({ label: `Колір: ${nice(color)}` })
+        }
         return acc.push(...list)
       }
 
@@ -60,10 +85,9 @@ export default function Breadcrumbs({ override }: { override?: Crumb[] }) {
 
   if (crumbs.length <= 1) return null
 
-  const jsonLd = useMemo(() => {
+  const jsonLd = (() => {
     if (typeof window === 'undefined') return null
     const origin = window.location.origin
-
     return {
       '@context': 'https://schema.org',
       '@type': 'BreadcrumbList',
@@ -76,41 +100,41 @@ export default function Breadcrumbs({ override }: { override?: Crumb[] }) {
           : window.location.href,
       })),
     }
-  }, [crumbs])
+  })()
+
   return (
-    <Suspense fallback={null}>
-      <>
-        <nav aria-label="Хлібні крихти" className="mb-5 md:mb-10">
-          <ol className="flex flex-wrap items-center gap-2 text-sm text-gray-600">
-            {crumbs.map((c, i) => {
-              const last = i === crumbs.length - 1
-              return (
-                <li key={`${c.label}-${i}`} className="flex items-center gap-2">
-                  {c.href && !last ? (
-                    <Link
-                      href={c.href}
-                      className="hover:text-black underline underline-offset-2"
-                    >
-                      {c.label}
-                    </Link>
-                  ) : (
-                    <span className="text-gray-900">{c.label}</span>
-                  )}
-                  {!last && <span aria-hidden>›</span>}
-                </li>
-              )
-            })}
-          </ol>
-        </nav>
-        {/* JSON-LD для SEO */}
-        {/* {jsonLd && (
-          <script
-            type="application/ld+json"
-            // eslint-disable-next-line react/no-danger
-            dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
-          />
-        )} */}
-      </>
-    </Suspense>
+    <>
+      <nav aria-label="Хлібні крихти" className="mb-5 md:mb-10">
+        <ol className="flex flex-wrap items-center gap-2 text-sm text-gray-600">
+          {crumbs.map((c, i) => {
+            const last = i === crumbs.length - 1
+            return (
+              <li key={`${c.label}-${i}`} className="flex items-center gap-2">
+                {c.href && !last ? (
+                  <Link
+                    href={c.href}
+                    className="hover:text-black underline underline-offset-2"
+                  >
+                    {c.label}
+                  </Link>
+                ) : (
+                  <span className="text-gray-900">{c.label}</span>
+                )}
+                {!last && <span aria-hidden>›</span>}
+              </li>
+            )
+          })}
+        </ol>
+      </nav>
+
+      {/* JSON-LD для SEO */}
+      {jsonLd && (
+        <script
+          type="application/ld+json"
+          // eslint-disable-next-line react/no-danger
+          dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
+        />
+      )}
+    </>
   )
 }
