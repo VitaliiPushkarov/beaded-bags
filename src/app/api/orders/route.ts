@@ -1,6 +1,6 @@
 // Create order before payment
 import { NextRequest, NextResponse } from 'next/server'
-import { PrismaClient } from '@prisma/client'
+import { PrismaClient, PaymentMethod } from '@prisma/client'
 
 const prisma = new PrismaClient()
 
@@ -17,50 +17,110 @@ type OrderItemInput = {
 
 type CustomerInput = {
   name: string
+  surname: string
+  patronymic?: string
   phone: string
   email?: string
-  cityName?: string
-  warehouseRef?: string
-  warehouseAddress?: string
+}
+
+type ShippingInput = {
+  npCityRef: string
+  npCityName: string
+  npWarehouseRef: string
+  npWarehouseName: string
+}
+
+type BodyInput = {
+  items: OrderItemInput[]
+  subtotalUAH?: number // опційно: можемо перерахувати
+  deliveryUAH?: number
+  discountUAH?: number
+  totalUAH: number
+  customer: CustomerInput
+  shipping: ShippingInput
+  paymentMethod: PaymentMethod // 'LIQPAY' | 'FONDY' | 'COD'
 }
 
 export async function POST(req: NextRequest) {
   try {
-    const body = (await req.json()) as {
-      items: OrderItemInput[]
-      amountUAH: number
-      customer: CustomerInput
-    }
+    const body = (await req.json()) as BodyInput
 
-    const { items, amountUAH, customer } = body
+    const {
+      items,
+      subtotalUAH,
+      deliveryUAH = 0,
+      discountUAH = 0,
+      totalUAH,
+      customer,
+      shipping,
+      paymentMethod,
+    } = body
 
+    // --- валідація вхідних даних ---
     if (!Array.isArray(items) || items.length === 0) {
       return NextResponse.json({ error: 'No items' }, { status: 400 })
     }
-    if (!customer?.name || !customer?.phone) {
+    if (!customer?.name || !customer?.surname || !customer?.phone) {
       return NextResponse.json(
-        { error: 'Customer name/phone required' },
+        { error: 'Customer name/surname/phone required' },
         { status: 400 }
       )
     }
-    if (typeof amountUAH !== 'number' || !Number.isFinite(amountUAH)) {
-      return NextResponse.json({ error: 'Invalid amountUAH' }, { status: 400 })
+    if (
+      !shipping?.npCityRef ||
+      !shipping?.npCityName ||
+      !shipping?.npWarehouseRef ||
+      !shipping?.npWarehouseName
+    ) {
+      return NextResponse.json(
+        { error: 'Nova Poshta shipping fields are required' },
+        { status: 400 }
+      )
+    }
+    if (!paymentMethod) {
+      return NextResponse.json(
+        { error: 'paymentMethod is required' },
+        { status: 400 }
+      )
+    }
+    if (typeof totalUAH !== 'number' || !Number.isFinite(totalUAH)) {
+      return NextResponse.json({ error: 'Invalid totalUAH' }, { status: 400 })
     }
 
-    const subtotalUAH = items.reduce(
-      (sum, it) => sum + (Number(it.priceUAH) || 0) * (Number(it.qty) || 0),
-      0
-    )
+    const computedSubtotal =
+      subtotalUAH ??
+      items.reduce(
+        (sum, it) => sum + (Number(it.priceUAH) || 0) * (Number(it.qty) || 0),
+        0
+      )
 
+    // --- створення замовлення ---
     const order = await prisma.order.create({
       data: {
         status: 'PENDING',
-        amountUAH,
-        subtotalUAH,
-        totalUAH: amountUAH,
+        // totals snapshot
+        subtotalUAH: computedSubtotal,
+        deliveryUAH,
+        discountUAH,
+        totalUAH,
+
+        // customer snapshot
         customerName: customer.name,
+        customerSurname: customer.surname,
+        customerPatronymic: customer.patronymic ?? null,
         customerPhone: customer.phone,
-        // JSON fields
+        customerEmail: customer.email ?? null,
+
+        // Nova Poshta snapshot
+        npCityRef: shipping.npCityRef,
+        npCityName: shipping.npCityName,
+        npWarehouseRef: shipping.npWarehouseRef,
+        npWarehouseName: shipping.npWarehouseName,
+
+        // payment snapshot
+        paymentMethod,
+
+        // items
         items: {
           create: items.map((it) => ({
             productId: it.productId,
@@ -72,7 +132,20 @@ export async function POST(req: NextRequest) {
             slug: it.slug,
           })),
         },
-        customer,
+
+        // пов'язаний клієнт (опційно)
+        customer: customer.phone
+          ? {
+              connectOrCreate: {
+                where: { phone: customer.phone },
+                create: {
+                  name: `${customer.name} ${customer.surname}`.trim(),
+                  phone: customer.phone,
+                  email: customer.email ?? null,
+                },
+              },
+            }
+          : undefined,
       },
     })
 
