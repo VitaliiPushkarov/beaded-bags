@@ -3,65 +3,134 @@ generator client {
 }
 
 datasource db {
-  provider = "sqlite"
-  url      = "file:./dev.db"
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
 }
 
-enum DeliveryMethod {
-  NP_WAREHOUSE
-  NP_COURIER
-  PICKUP
+// enums
+enum ProductType {
+  ALL
+  BAG
+  BACKPACK
+  CASE
+  SHOPPER
 }
 
 enum OrderStatus {
   PENDING
   PAID
   FAILED
-  CANCELED
+  CANCELLED
+  FULFILLED
 }
 
+enum PaymentMethod {
+  LIQPAY
+  COD
+}
+
+// каталог
+model Product {
+  id           String      @id @default(cuid())
+  slug         String      @unique
+  name         String
+  description  String?
+  type         ProductType
+  basePriceUAH Int? // базова ціна (може бути в варіанті)
+  inStock      Boolean     @default(true)
+  createdAt    DateTime    @default(now())
+  updatedAt    DateTime    @updatedAt
+
+  variants ProductVariant[]
+  images   ProductImage[]
+
+  @@index([type])
+  @@index([inStock])
+}
+
+model ProductVariant {
+  id        String  @id @default(cuid())
+  productId String
+  product   Product @relation(fields: [productId], references: [id])
+
+  sku      String? @unique
+  color    String?
+  hex      String?
+  image    String?
+  inStock  Boolean @default(true)
+  priceUAH Int?
+}
+
+model ProductImage {
+  id        String  @id @default(cuid())
+  productId String
+  product   Product @relation(fields: [productId], references: [id])
+
+  url  String
+  sort Int    @default(0)
+}
+
+model Customer {
+  id        String   @id @default(cuid())
+  email     String?  @unique
+  phone     String?  @unique
+  name      String?
+  createdAt DateTime @default(now())
+
+  orders Order[]
+}
+
+// замовлення
 model Order {
-  id               String         @id @default(cuid())
-  createdAt        DateTime       @default(now())
-  status           OrderStatus    @default(PENDING)
-  amountUAH        Int
-  customer         Json
-  
+  id        String      @id @default(cuid())
+  status    OrderStatus @default(PENDING)
+  createdAt DateTime    @default(now())
 
-  // Платіж (заповнимо після інтеграції Mono)
-  paymentProvider  String?        // "mono"
-  paymentId        String?        // id транзакції в mono
+  // totals (знімок на момент замовлення)
+  subtotalUAH Int
+  deliveryUAH Int @default(0)
+  discountUAH Int @default(0)
+  totalUAH    Int
 
-  // Клієнт
-  customerName     String
-  customerPhone    String
-  customerEmail    String?
+  // snapshot клієнта (заповнюється з форми)
+  customerName       String
+  customerSurname    String
+  customerPatronymic String?
+  customerPhone      String
+  customerEmail      String?
 
-  // Доставка
-  deliveryMethod   DeliveryMethod @default(NP_WAREHOUSE)
-  npCityRef        String?        // НП: ref міста
-  npCityName       String?        // "Київ"
-  npWarehouseRef   String?        // ref відділення
-  npWarehouseText  String?        // "№12. Київ, вул ..."
-  // (для кур’єра можна буде додати street/house/flat)
+  // Нова Пошта (знімок)
+  npCityRef       String
+  npCityName      String
+  npWarehouseRef  String
+  npWarehouseName String
 
-  // Суми
-  subtotalUAH      Int            // сума товарів
-  shippingUAH      Int            @default(0)
-  totalUAH         Int
+  // оплата
+  paymentMethod PaymentMethod
+  paymentId     String? // external id (liqpay)
+  paymentStatus String? // сирий статус провайдера
+  paymentRaw    Json? // payload від провайдера (обережно з PII)
 
-  items            OrderItem[]
+  // зв’язки
+  items      OrderItem[]
+  customerId String?
+  customer   Customer?   @relation(fields: [customerId], references: [id])
+
+  @@index([status, createdAt])
+  @@index([customerPhone])
 }
 
 model OrderItem {
-  id         String  @id @default(cuid())
-  orderId    String
-  order      Order   @relation(fields: [orderId], references: [id])
+  id      String @id @default(cuid())
+  orderId String
+  order   Order  @relation(fields: [orderId], references: [id])
 
-  productId  String
-  variantId  String?
-  name       String
-  image      String?
-  priceUAH   Int
-  qty        Int
+  // snapshot товару
+  productId String? // посилання на поточний продукт (не обов’язково)
+  variantId String? // посилання на варіант (не обов’язково)
+  name      String // "Beaded Bag — Pink"
+  color     String?
+  image     String?
+  priceUAH  Int // ціна у момент покупки
+  qty       Int // кількість
 }

@@ -1,5 +1,6 @@
 import './globals.css'
 import type { Metadata } from 'next'
+import { Analytics } from '@vercel/analytics/next'
 import Header from '../components/Header'
 import CartDrawer from '@/components/cart/CartDrawer'
 import Footer from '@/components/Footer'
@@ -37,6 +38,7 @@ export default function RootLayout({
       <body className="min-h-screen text-gray-900 antialiased bg-white font-fixel">
         <Header />
         <main className="max-w-full mx-auto md:py-8">{children}</main>
+        <Analytics />
         <CartDrawer />
         <Footer />
       </body>
