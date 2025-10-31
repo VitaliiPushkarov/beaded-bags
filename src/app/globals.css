@@ -81,6 +81,11 @@
     font-family: 'Fixel Text', sans-serif;
   }
 }
+@media (max-width: 768px) {
+  .hide-on-mobile {
+    display: none;
+  }
+}
 /* .scrollbar-always {
   overflow-x: scroll;
   scrollbar-gutter: stable;

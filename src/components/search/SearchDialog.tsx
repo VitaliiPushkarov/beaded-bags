@@ -72,7 +72,7 @@ export default function SearchDialog() {
           setOpen(true)
           setTimeout(() => inputRef.current?.focus(), 0)
         }}
-        className="inline-flex h-8 w-8 items-center justify-center cursor-pointer"
+        className="inline-flex h-8 w-8 items-center justify-center cursor-pointer hide-on-mobile"
       >
         <SearchIcon className="h-5 w-5 fill-current text-gray-900" />
       </button>

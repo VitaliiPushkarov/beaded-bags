@@ -21,7 +21,7 @@ const eslintConfig = defineConfig([
       'next-env.d.ts',
     ],
   },
-  ...nextVitals,
+
   {
     rules: {
       'react/no-unescaped-entities': 'off',

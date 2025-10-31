@@ -1,6 +1,25 @@
 import ProductCardLarge from '@/app/products/ProductCardLarge'
 
-export default function ProductsGrid({ products }: { products: any[] }) {
+export default function ProductsGrid({
+  products,
+  loading,
+}: {
+  products: any[]
+  loading: boolean
+}) {
+  if (loading) {
+    return (
+      <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-5 mt-6">
+        {Array.from({ length: 9 }).map((_, i) => (
+          <div
+            key={i}
+            className="animate-pulse bg-gray-200 h-[400px] rounded-md"
+          ></div>
+        ))}
+      </div>
+    )
+  }
+
   if (!products.length) {
     return (
       <div className="text-gray-500 mt-6">
