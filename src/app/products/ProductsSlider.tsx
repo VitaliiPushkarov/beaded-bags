@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useRef } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { Swiper, SwiperSlide } from 'swiper/react'
 import {
   Navigation,
@@ -11,7 +11,6 @@ import {
 } from 'swiper/modules'
 
 import ProductCardLarge from './ProductCardLarge'
-import { PRODUCTS } from '@/lib/products'
 
 function Chevron({
   dir = 'left',
@@ -46,13 +45,26 @@ function Chevron({
 }
 
 export default function ProductsSlider() {
-  // зовнішні стрілки
+  const [products, setProducts] = useState<any[]>([])
+
   const prevRef = useRef<HTMLButtonElement>(null)
   const nextRef = useRef<HTMLButtonElement>(null)
-  // доступ до інстансу Swiper
   const swiperRef = useRef<any>(null)
 
-  // після маунту прив’язуємо стрілки та ре-ініт навігації
+  useEffect(() => {
+    async function loadProducts() {
+      try {
+        const res = await fetch('/api/products')
+        const data = await res.json()
+        setProducts(data)
+      } catch (err) {
+        console.error('❌ Failed to load products:', err)
+      }
+    }
+    loadProducts()
+  }, [])
+
+  // ініціалізація стрілок після маунту
   useEffect(() => {
     const s = swiperRef.current
     if (!s || !prevRef.current || !nextRef.current) return
@@ -62,7 +74,7 @@ export default function ProductsSlider() {
     s.navigation.destroy()
     s.navigation.init()
     s.navigation.update()
-  }, [])
+  }, [products])
 
   return (
     <section className="relative mx-auto py-12">
@@ -70,8 +82,8 @@ export default function ProductsSlider() {
 
       <div className="md:hidden max-w-full mx-auto px-6 space-y-5">
         <h2 className="text-2xl font-semibold mb-5">КАТАЛОГ</h2>
-        {PRODUCTS.map((p) => (
-          <ProductCardLarge key={p.productId} p={p} />
+        {products.map((p) => (
+          <ProductCardLarge key={p.id} p={p} />
         ))}
       </div>
 
@@ -124,8 +136,8 @@ export default function ProductsSlider() {
               navigation={false} // зовнішні стрілки підключаємо вручну через useEffect
               className=""
             >
-              {PRODUCTS.map((p) => (
-                <SwiperSlide key={p.productId}>
+              {products.map((p) => (
+                <SwiperSlide key={p.id}>
                   <div>
                     <ProductCardLarge p={p} />
                   </div>

@@ -1,13 +1,17 @@
 'use client'
 import Link from 'next/link'
 import Image from 'next/image'
-import { Product } from '@/lib/products'
+import type { Product, ProductVariant } from '@prisma/client'
 import { useMemo, useState } from 'react'
 import VariantSwatches from '@/components/product/VariantSwatches'
 import { useCart } from '@/app/store/cart'
 import { useUI } from '@/app/store/ui'
 
-export default function ProductCardLarge({ p }: { p: Product }) {
+type ProductWithVariants = Product & {
+  variants: ProductVariant[]
+}
+
+export default function ProductCardLarge({ p }: { p: ProductWithVariants }) {
   const [variantId, setVariantId] = useState(p.variants[0]?.id)
   const v = useMemo(
     () => p.variants.find((x) => x.id === variantId) ?? p.variants[0],
@@ -15,7 +19,7 @@ export default function ProductCardLarge({ p }: { p: Product }) {
   )
   const add = useCart((s) => s.add)
   const openCart = useUI((s) => s.openCart)
-  const price = v?.priceUAH ?? p.basePriceUAH
+  const price = v?.priceUAH ?? p.basePriceUAH ?? 0
 
   return (
     <article className="border rounded overflow-hidden bg-white">
@@ -24,7 +28,12 @@ export default function ProductCardLarge({ p }: { p: Product }) {
         <div className="relative h-[480px] md:h-[460px] lg:h-[501px] bg-gray-100">
           {v && (
             <Image
-              src={v.image}
+              src={
+                v.image ||
+                (Array.isArray((p as any).images)
+                  ? (p as any).images[0]
+                  : '/img/placeholder.png')
+              }
               alt={`${p.name} — ${v.color}`}
               fill
               className="object-cover transition-transform duration-300 hover:scale-[1.02]"
@@ -58,12 +67,16 @@ export default function ProductCardLarge({ p }: { p: Product }) {
           onClick={() => {
             if (!v) return
             add({
-              productId: p.slug,
+              productId: p.id,
               slug: p.slug,
               variantId: v.id,
               name: `${p.name} — ${v.color}`,
               priceUAH: price,
-              image: v.image,
+              image:
+                v.image ||
+                (Array.isArray((p as any).images)
+                  ? (p as any).images[0]
+                  : '/img/placeholder.png'),
               qty: 1,
             })
             openCart()

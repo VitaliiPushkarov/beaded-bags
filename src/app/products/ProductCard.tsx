@@ -2,9 +2,21 @@
 import Link from 'next/link'
 import Image from 'next/image'
 import { useCart } from '@/app/store/cart'
-import { Product } from '@/lib/products'
 
-export default function ProductCard({ p }: { p: Product }) {
+type Variant = {
+  id: string
+}
+
+type ProductWithVariants = {
+  id: string
+  slug: string
+  name: string
+  basePriceUAH: number
+  images: string[]
+  variants: Variant[]
+}
+
+export default function ProductCard({ p }: { p: ProductWithVariants }) {
   const { add } = useCart()
   return (
     <div className="p-3">
@@ -27,7 +39,7 @@ export default function ProductCard({ p }: { p: Product }) {
           onClick={() =>
             add({
               variantId: p.variants[0].id,
-              productId: p.productId,
+              productId: p.id,
               slug: p.slug,
               name: p.name,
               priceUAH: p.basePriceUAH,

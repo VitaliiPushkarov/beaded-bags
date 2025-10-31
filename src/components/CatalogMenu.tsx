@@ -43,7 +43,7 @@ export default function CatalogMegaMenu() {
         aria-expanded={open}
         aria-haspopup="true"
       >
-        <Link href="/products">КАТАЛОГ</Link>
+        <Link href="/shop">КАТАЛОГ</Link>
         <ChevronDown
           className={`w-4 h-4 cursor-pointer transition-transform ${
             open ? 'rotate-180' : ''
@@ -61,55 +61,70 @@ export default function CatalogMegaMenu() {
           <div className="space-y-8">
             <Link
               className="block hover:opacity-70"
-              href="/products?material=Бісер"
+              href="/shop?material=Бісер"
             >
-              <span className="text-[14px]/[19px] font-medium tracking-wide">
+              <span
+                className="text-[12px] font-medium tracking-wide  uppercase
+              "
+              >
                 Бісер
               </span>
             </Link>
 
             <Link
               className="block hover:opacity-70"
-              href="/products?material=Плетіння"
+              href="/shop?material=Плетіння"
             >
-              <span className="text-[14px]/[19px] font-medium tracking-wide">
+              <span
+                className="text-[12px] font-medium tracking-wide uppercase
+              "
+              >
                 Плетіння
               </span>
             </Link>
 
             <Link className="block hover:opacity-70" href="/products?inStock=1">
-              <span className="text-[14px]/[19px] font-medium tracking-wide">
+              <span
+                className="text-[12px] font-medium tracking-wide uppercase
+              "
+              >
                 В наявності
-              </span>
-            </Link>
-
-            <Link className="block hover:opacity-70" href="/products">
-              <span className="text-[14px]/[19px] font-medium tracking-wide">
-                Дивитись все
-              </span>
-            </Link>
-            <Link
-              className="block hover:opacity-70"
-              href="/products?type=Аксесуари"
-            >
-              <span className="text-[14px]/[19px] font-medium tracking-wide">
-                Аксесуари
               </span>
             </Link>
           </div>
 
           {/* Колонка 2 (центр) */}
           <div className="space-y-8">
-            {CATEGORIES.map((t) => (
-              <li key={t}>
-                <Link
-                  href={`/products?type=${t}`}
-                  className="block hover:opacity-70 text-[14px]/[19px] font-medium tracking-wide"
-                >
-                  {TYPE_LABELS[t]}
-                </Link>
-              </li>
-            ))}
+            <Link
+              href="/shop/sumky"
+              className="block hover:opacity-70 text-[12px] font-medium tracking-wide uppercase"
+            >
+              СУМКИ
+            </Link>
+            <Link
+              href="/shop/bananky"
+              className="block hover:opacity-70 text-[12px] font-medium tracking-wide uppercase"
+            >
+              БАНАНКИ
+            </Link>
+            <Link
+              href="/shop/rjukzachky"
+              className="block hover:opacity-70 text-[12px] font-medium tracking-wide uppercase"
+            >
+              РЮКЗАЧКИ
+            </Link>
+            <Link
+              href="/shop/shopery"
+              className="block hover:opacity-70 text-[12px] font-medium tracking-wide uppercase"
+            >
+              ШОПЕРИ
+            </Link>
+            <Link
+              href="/shop/chohly"
+              className="block hover:opacity-70 text-[12px] font-medium tracking-wide uppercase"
+            >
+              ЧОХЛИ
+            </Link>
           </div>
 
           {/* Колонка 3 (праворуч) */}

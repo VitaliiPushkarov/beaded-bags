@@ -1,10 +1,16 @@
-import { PRODUCTS, type Product } from '@/lib/products'
-import { ProductClient } from './ProductClient'
+import { notFound } from 'next/navigation'
+import { prisma } from '@/lib/prisma'
 import { Suspense } from 'react'
 import Breadcrumbs from '@/components/ui/BreadCrumbs'
+import { ProductClient } from './ProductClient'
+import { ProductType } from '@prisma/client'
 
-function getBySlug(slug: string): Product | undefined {
-  return PRODUCTS.find((p) => p.slug === slug)
+const TYPE_TO_ROUTE: Record<ProductType, { label: string; href: string }> = {
+  BAG: { label: 'Сумки', href: '/shop/sumky' },
+  BELT_BAG: { label: 'Бананки', href: '/shop/bananky' },
+  BACKPACK: { label: 'Рюкзачки', href: '/shop/rjukzachky' },
+  SHOPPER: { label: 'Шопери', href: '/shop/shopery' },
+  CASE: { label: 'Чохли', href: '/shop/chohly' },
 }
 
 export default async function ProductPage({
@@ -13,33 +19,36 @@ export default async function ProductPage({
   params: Promise<{ slug: string }>
 }) {
   const { slug } = await params
-  const p = getBySlug(slug)
-  const override = [
-    { label: 'Головна', href: '/' },
-    { label: 'Каталог', href: '/products' },
-
-    ...(p?.type
-      ? [
-          {
-            label: String(p.type),
-            href: `/products?type=${encodeURIComponent(String(p.type))}`,
-          },
-        ]
-      : []),
-    { label: p?.name ?? 'Товар' },
-  ]
+  const p = await prisma.product.findUnique({
+    where: { slug: slug },
+    include: {
+      variants: {
+        orderBy: { id: 'asc' },
+      },
+    },
+  })
 
   if (!p) {
-    return <div className="max-w-6xl mx-auto px-4 py-10">Не знайдено</div>
+    return notFound()
   }
+
+  const crumbs = [
+    { label: 'Головна', href: '/' },
+    { label: 'Каталог', href: '/shop' },
+  ] as { label: string; href?: string }[]
+
+  if (p.type && TYPE_TO_ROUTE[p.type]) {
+    crumbs.push(TYPE_TO_ROUTE[p.type])
+  }
+
+  crumbs.push({ label: p.name || 'Товар' })
 
   return (
     <div className="max-w-[1440px] mx-auto py-10 px-[50px]">
       <Suspense fallback={null}>
-        <Breadcrumbs override={override} />
+        <Breadcrumbs override={crumbs} />
       </Suspense>
-
-      <ProductClient p={p} />
+      <ProductClient p={p as any} />
     </div>
   )
 }

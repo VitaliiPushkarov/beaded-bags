@@ -18,7 +18,6 @@ export async function getProducts(filters: CatalogFilters = {}) {
     ]
   }
 
-  // ✓ Конвертуємо у справжній enum Prisma
   const typeEnum: ProductType | undefined = toDbTypePrisma(
     filters.type ?? undefined
   )

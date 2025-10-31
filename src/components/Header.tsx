@@ -87,12 +87,6 @@ export default function Header() {
           {/* Left nav desktop */}
           <nav className="hidden lg:flex items-center gap-12">
             <CatalogMenu />
-            <Link
-              href="/products?type=arrivals"
-              className=" hover:opacity-70 text-[12px] font-medium tracking-wide"
-            >
-              NEW ARRIVALS
-            </Link>
           </nav>
 
           {/* Center logo */}
@@ -175,34 +169,34 @@ export default function Header() {
                 Каталог
               </li>
               <li>
-                <Link href="/products">Всі товари</Link>
+                <Link href="/shop">Всі товари</Link>
               </li>
               <li className="mt-2 font-medium">Сумки</li>
               <ul className="ml-4 space-y-2 text-base">
                 <li>
-                  <Link href="/products?type=Всі">Всі</Link>
+                  <Link href="/shop/sumky">Всі</Link>
                 </li>
                 <li>
-                  <Link href="/products?type=Бананка">Бананки</Link>
+                  <Link href="/shop/bananky">Бананки</Link>
                 </li>
                 <li>
-                  <Link href="/products?type=Рюкзак">Рюкзачки</Link>
+                  <Link href="/shop/rjukzachky">Рюкзачки</Link>
                 </li>
                 <li>
-                  <Link href="/products?type=Чохол">Чохол</Link>
+                  <Link href="/shop/chohly">Чохли</Link>
                 </li>
                 <li>
-                  <Link href="/products?type=Шопер">Шопер</Link>
+                  <Link href="/shop/shopery">Шопери</Link>
                 </li>
               </ul>
               <li className="mt-4">
-                <Link href="/products?group=Аксесуари">Аксесуари</Link>
+                <Link href="/shop?group=Аксесуари">Аксесуари</Link>
               </li>
               <li>
-                <Link href="/products?group=Бісер">Бісер</Link>
+                <Link href="/shop?group=Бісер">Бісер</Link>
               </li>
               <li>
-                <Link href="/products?group=Плетіння">Плетіння</Link>
+                <Link href="/shop?group=Плетіння">Плетіння</Link>
               </li>
               <li className="mt-6">
                 <Link href="/info">Інфо</Link>

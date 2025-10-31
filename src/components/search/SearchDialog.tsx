@@ -2,7 +2,16 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import Link from 'next/link'
 import SearchIcon from '@/components/icons/Search'
-import { PRODUCTS, type Product } from '@/lib/products'
+
+type SearchProduct = {
+  id: string
+  slug: string
+  name: string
+  description?: string | null
+  basePriceUAH?: number | null
+  color?: string | null
+  images: string[]
+}
 
 function normalize(s: string) {
   return s
@@ -14,9 +23,18 @@ function normalize(s: string) {
 export default function SearchDialog() {
   const [open, setOpen] = useState(false)
   const [q, setQ] = useState('')
+  const [products, setProducts] = useState<SearchProduct[]>([])
   const inputRef = useRef<HTMLInputElement>(null)
 
-  // keyboard: "/" to open (except when typing in inputs)
+  // тягнемо з Prisma через наш API
+  useEffect(() => {
+    fetch('/api/products')
+      .then((res) => res.json())
+      .then((data: SearchProduct[]) => setProducts(data))
+      .catch(() => setProducts([]))
+  }, [])
+
+  // keyboard: "/" to open
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       const tag = (e.target as HTMLElement)?.tagName
@@ -36,12 +54,14 @@ export default function SearchDialog() {
   const results = useMemo(() => {
     if (!q.trim()) return []
     const nq = normalize(q)
-    return PRODUCTS.map((p) => ({ p, score: scoreProduct(p, nq) }))
+
+    return products
+      .map((p) => ({ p, score: scoreProduct(p, nq) }))
       .filter((x) => x.score > 0)
       .sort((a, b) => b.score - a.score)
       .slice(0, 10)
       .map((x) => x.p)
-  }, [q])
+  }, [q, products])
 
   return (
     <>
@@ -57,7 +77,6 @@ export default function SearchDialog() {
         <SearchIcon className="h-5 w-5 fill-current text-gray-900" />
       </button>
 
-      {/* dialog */}
       {open && (
         <div className="fixed inset-0 z-50">
           <div
@@ -88,27 +107,30 @@ export default function SearchDialog() {
                   Нічого не знайдено
                 </li>
               )}
-              {results.map((p: Product) => (
-                <li key={p.productId} className="hover:bg-gray-50">
+              {results.map((p) => (
+                <li key={p.id} className="hover:bg-gray-50">
                   <Link
                     href={`/products/${p.slug}`}
                     onClick={() => setOpen(false)}
                     className="flex items-center gap-3 p-3"
                   >
-                    {/* міні-прев’ю без <Image>, щоб не ускладнювати діалог */}
                     <div
                       className="w-12 h-12 rounded bg-gray-100 overflow-hidden shrink-0"
                       style={{
-                        backgroundImage: `url(${p.images[0]})`,
+                        backgroundImage: p.images?.[0]
+                          ? `url(${p.images[0]})`
+                          : 'none',
                         backgroundSize: 'cover',
                         backgroundPosition: 'center',
                       }}
                     />
                     <div className="flex-1">
                       <div className="text-sm">{p.name}</div>
-                      <div className="text-xs text-gray-500">
-                        {p.basePriceUAH} грн
-                      </div>
+                      {p.basePriceUAH ? (
+                        <div className="text-xs text-gray-500">
+                          {p.basePriceUAH} грн
+                        </div>
+                      ) : null}
                     </div>
                   </Link>
                 </li>
@@ -126,11 +148,12 @@ export default function SearchDialog() {
   )
 }
 
-function scoreProduct(p: Product, nq: string) {
-  const hay = normalize(`${p.name} ${p.description ?? ''} ${p.color ?? ''}`)
+function scoreProduct(p: SearchProduct, nq: string) {
+  const hay = normalize(
+    `${p.name} ${p.description ?? ''} ${p.color ?? ''}`.trim()
+  )
   if (!nq) return 0
-  if (hay.includes(nq)) return 100 - hay.indexOf(nq) // просте ранжування
-  // розбий за пробілами (AND)
+  if (hay.includes(nq)) return 100 - hay.indexOf(nq)
   const terms = nq.split(/\s+/).filter(Boolean)
   const hitCount = terms.reduce((n, t) => n + (hay.includes(t) ? 1 : 0), 0)
   return hitCount > 0 ? 10 + hitCount : 0
