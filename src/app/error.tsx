@@ -1,5 +1,6 @@
 'use client'
 
+import { Link } from 'lucide-react'
 import { useEffect } from 'react'
 
 export default function ErrorPage({
@@ -33,12 +34,12 @@ export default function ErrorPage({
             Спробувати ще раз
           </button>
 
-          <a
+          <Link
             href="/"
             className="inline-flex items-center justify-center rounded border border-gray-300 py-3 px-5 hover:bg-gray-50 transition"
           >
             На головну
-          </a>
+          </Link>
         </div>
 
         {error?.message ? (

@@ -38,7 +38,7 @@ type BodyInput = {
   totalUAH: number
   customer: CustomerInput
   shipping: ShippingInput
-  paymentMethod: PaymentMethod // 'LIQPAY' | 'FONDY' | 'COD'
+  paymentMethod: PaymentMethod // 'LIQPAY' | 'COD'
 }
 
 export async function POST(req: NextRequest) {

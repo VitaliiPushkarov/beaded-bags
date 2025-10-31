@@ -1,6 +1,7 @@
 import Accordion from '@/components/ui/Accordion'
 import { Suspense } from 'react'
 import Breadcrumbs from '@/components/ui/BreadCrumbs'
+import Link from 'next/link'
 
 export const metadata = {
   title: 'ІНФО | GERDAN',
@@ -107,6 +108,26 @@ export default function InfoPage() {
         <Breadcrumbs />{' '}
       </Suspense>
       <h1 className="text-3xl md:text-4xl font-semibold mb-6">ІНФО</h1>
+      <div className="flex gap-4 my-10 flex-col md:flex-row">
+        <Link
+          href="/oferta"
+          className="w-full h-[40px] bg-gray-900 text-white text-center hover:bg-white hover:text-gray-900 border border-gray-900 flex items-center justify-center "
+        >
+          Публічна оферта{' '}
+        </Link>
+        <Link
+          href="/policy"
+          className="w-full h-[40px] bg-gray-900 text-white text-center hover:bg-white hover:text-gray-900 border border-gray-900 flex items-center justify-center"
+        >
+          Політика конфіденційності{' '}
+        </Link>
+        <Link
+          href="/cashback"
+          className="w-full h-[40px] bg-gray-900 text-white text-center hover:bg-white hover:text-gray-900 border border-gray-900 flex items-center justify-center"
+        >
+          Обмін та повернення{' '}
+        </Link>
+      </div>
       <Accordion items={items} />
     </main>
   )

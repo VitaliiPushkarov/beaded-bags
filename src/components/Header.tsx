@@ -111,12 +111,12 @@ export default function Header() {
             >
               ІНФО
             </Link>
-            <Link
+            {/* <Link
               href="/about"
               className="hidden lg:inline-block hover:opacity-70 text-[12px] font-medium tracking-wide"
             >
               ПРО НАС
-            </Link>
+            </Link> */}
             <SearchDialog />
             <CartButton />
             <a
@@ -201,9 +201,9 @@ export default function Header() {
               <li className="mt-6">
                 <Link href="/info">Інфо</Link>
               </li>
-              <li>
+              {/* <li>
                 <Link href="/about">Про нас</Link>
-              </li>
+              </li> */}
             </ul>
           </aside>
         </>

@@ -1,6 +1,14 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { npCall } from '@/lib/np'
 
+interface NovaPoshtaWarehouse {
+  Ref: string
+  Number: string
+  Description?: string
+  ShortAddress?: string
+  CategoryOfWarehouse?: string
+}
+
 export async function GET(req: NextRequest) {
   try {
     const { searchParams } = new URL(req.url)
@@ -14,12 +22,16 @@ export async function GET(req: NextRequest) {
 
     if (!settlementRef) return NextResponse.json({ data: [] })
 
-    const data = await npCall<any[]>('AddressGeneral', 'getWarehouses', {
-      SettlementRef: settlementRef,
-      FindByString: query || undefined,
-      Page: page,
-      Limit: Math.min(limit, 200),
-    })
+    const data = await npCall<NovaPoshtaWarehouse[]>(
+      'AddressGeneral',
+      'getWarehouses',
+      {
+        SettlementRef: settlementRef,
+        FindByString: query || undefined,
+        Page: page,
+        Limit: Math.min(limit, 200),
+      }
+    )
 
     const warehouses = data.map((w) => {
       const number = w.Number
@@ -43,11 +55,9 @@ export async function GET(req: NextRequest) {
     })
 
     return NextResponse.json({ data: warehouses })
-  } catch (e: any) {
-    console.error('NP getWarehouses error:', e?.message || e)
-    return NextResponse.json(
-      { error: e?.message || 'NP getWarehouses failed' },
-      { status: 500 }
-    )
+  } catch (e: unknown) {
+    const message = e instanceof Error ? e.message : 'NP getWarehouses failed'
+    console.error('NP getWarehouses error:', message)
+    return NextResponse.json({ error: message }, { status: 500 })
   }
 }

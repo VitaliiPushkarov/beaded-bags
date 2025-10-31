@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { npCall } from '@/lib/np'
 
-// простий нормалізатор (можна винести в /lib)
 function norm(s: string) {
   return s
     .toLowerCase()
@@ -10,6 +9,7 @@ function norm(s: string) {
     .replace(/\s+/g, ' ')
     .trim()
 }
+
 function typeAbbr(t?: string) {
   const x = (t || '').toLowerCase()
   if (x.includes('місто') || x.includes('город')) return 'м.'
@@ -22,8 +22,17 @@ function areaAbbr(area?: string) {
   return area ? `${area} обл.` : ''
 }
 function districtAbbr(region?: string) {
-  // у НП може бути RegionsDescription або Region — обидва опційні
   return region ? `${region} р-н` : ''
+}
+
+// Тип відповіді від Нової Пошти
+interface NovaPoshtaSettlement {
+  Description: string
+  SettlementTypeDescription?: string
+  AreaDescription?: string
+  RegionsDescription?: string
+  Region?: string
+  Ref: string
 }
 
 export async function GET(req: NextRequest) {
@@ -33,23 +42,25 @@ export async function GET(req: NextRequest) {
     const page = Number(searchParams.get('page') || 1)
     const limit = Math.min(Number(searchParams.get('limit') || 20), 50)
 
-    // мʼяка валідація
     const q = norm(raw)
     if (q.length < 2) return NextResponse.json({ data: [] })
 
-    const data = await npCall<any[]>('AddressGeneral', 'getSettlements', {
-      FindByString: raw,
-      Warehouse: 1,
-      Page: page,
-      Limit: limit,
-    })
+    const data = await npCall<NovaPoshtaSettlement[]>(
+      'AddressGeneral',
+      'getSettlements',
+      {
+        FindByString: raw,
+        Warehouse: 1,
+        Page: page,
+        Limit: limit,
+      }
+    )
 
-    // нормалізація + ранжування
     const rows = data.map((c) => {
-      const name = c.Description as string
-      const type = c.SettlementTypeDescription as string | undefined
-      const area = c.AreaDescription as string | undefined
-      const region = (c.RegionsDescription || c.Region) as string | undefined
+      const name = c.Description
+      const type = c.SettlementTypeDescription
+      const area = c.AreaDescription
+      const region = c.RegionsDescription || c.Region
 
       const abType = typeAbbr(type)
       const parts = [
@@ -59,7 +70,7 @@ export async function GET(req: NextRequest) {
       ].filter(Boolean)
 
       return {
-        settlementRef: c.Ref as string,
+        settlementRef: c.Ref,
         name,
         area: area || '',
         type: type || '',
@@ -82,7 +93,6 @@ export async function GET(req: NextRequest) {
 
     rows.sort((a, b) => score(b) - score(a))
 
-    // Deleting duplicates (area+name)
     const seen = new Set<string>()
     const unique = rows.filter((r) => {
       const key = `${r.area}|${r.name}`
@@ -92,11 +102,9 @@ export async function GET(req: NextRequest) {
     })
 
     return NextResponse.json({ data: unique.slice(0, 12) })
-  } catch (e: any) {
-    console.error('NP getSettlements error:', e?.message || e)
-    return NextResponse.json(
-      { error: e?.message || 'NP error' },
-      { status: 500 }
-    )
+  } catch (e: unknown) {
+    const message = e instanceof Error ? e.message : 'Unknown error'
+    console.error('NP getSettlements error:', message)
+    return NextResponse.json({ error: message }, { status: 500 })
   }
 }

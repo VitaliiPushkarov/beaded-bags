@@ -1,19 +1,22 @@
+import Link from 'next/link'
+
 export default function Footer() {
   return (
-    <footer className="border-t">
-      <div className="max-w-6xl mx-auto px-4 py-8 text-sm flex flex-col sm:flex-row items-center justify-between gap-3">
-        <div>© {new Date().getFullYear()} GERDAN</div>
-        <nav className="flex gap-4 text-gray-600">
-          <a className="hover:underline" href="/faq">
-            FAQ
-          </a>
-          <a className="hover:underline" href="/policy">
-            Політика
-          </a>
-          <a className="hover:underline" href="/contacts">
+    <footer className="border-t py-8 text-sm text-gray-500">
+      <div className="max-w-6xl mx-auto px-4 flex flex-col gap-2 md:flex-row md:items-center md:justify-between">
+        <div>© {new Date().getFullYear()} GERDAN. Усі права захищені.</div>
+        <div className="flex gap-4">
+          <Link href="/contacts" className="hover:text-gray-900">
             Контакти
-          </a>
-        </nav>
+          </Link>
+          <Link href="/cashback" className="hover:text-gray-900">
+            Умови обміну та повернення
+          </Link>
+
+          <Link href="/policy" className="hover:text-gray-900">
+            Політика конфіденційності
+          </Link>
+        </div>
       </div>
     </footer>
   )

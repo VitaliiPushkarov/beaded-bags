@@ -41,7 +41,6 @@ export default function Home() {
       </section> */}
       <ProductsSlider />
       <About image="/img/about-section-preview.png" alt="Про нас" />
-      <Footer />
     </>
   )
 }
