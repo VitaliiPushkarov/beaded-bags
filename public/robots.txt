@@ -2,10 +2,13 @@
 User-agent: *
 Allow: /
 Disallow: /api/
-Disallow: /checkout/
+Disallow: /checkout
+Disallow: /cart
+Disallow: /cashback
 
 # Host
 Host: https://gerdan.online
 
 # Sitemaps
 Sitemap: https://gerdan.online/sitemap.xml
+Sitemap: https://gerdan.online/sitemap-0.xml
