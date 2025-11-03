@@ -4,6 +4,8 @@ import Header from '../components/Header'
 import CartDrawer from '@/components/cart/CartDrawer'
 import Footer from '@/components/Footer'
 
+const SITE_URL = 'https://gerdan.online'
+
 export const metadata = {
   title: {
     default: 'GERDAN — Сумки з бісеру, шопери та аксесуари ручної роботи',
@@ -26,6 +28,18 @@ export const metadata = {
   },
 }
 
+const WEBSITE_JSONLD = {
+  '@context': 'https://schema.org',
+  '@type': 'WebSite',
+  name: 'GERDAN',
+  url: SITE_URL,
+  potentialAction: {
+    '@type': 'SearchAction',
+    target: `${SITE_URL}/shop?q={search_term_string}`,
+    'query-input': 'required name=search_term_string',
+  },
+}
+
 export default function RootLayout({
   children,
 }: {
@@ -35,25 +49,16 @@ export default function RootLayout({
     <html lang="uk">
       <head>
         <link rel="icon" href="/favicon.ico" sizes="any" />
-        <link
-          rel="icon0"
-          href="/icon.svg"
-          type="image/<generated>"
-          sizes="<generated>"
-        />
-        <link
-          rel="icon1"
-          href="/icon.png"
-          type="image/<generated>"
-          sizes="<generated>"
-        />
-        <link
-          rel="apple-touch-icon"
-          href="/apple-icon?<generated>"
-          type="image/<generated>"
-          sizes="<generated>"
-        />
+        <link rel="icon" href="/icon0.svg" type="image/svg+xml" />
+        <link rel="icon" href="/icon1.png" type="image/png" sizes="32x32" />
+        <link rel="apple-touch-icon" href="/apple-icon.png" sizes="180x180" />
       </head>
+      {/* JSON-LD WebSite */}
+      <script
+        type="application/ld+json"
+        suppressHydrationWarning
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(WEBSITE_JSONLD) }}
+      />
       <body className="min-h-screen text-gray-900 antialiased bg-white font-fixel">
         <Header />
         <main className="max-w-full mx-auto md:py-8">{children}</main>

@@ -1,0 +1,11 @@
+# *
+User-agent: *
+Allow: /
+Disallow: /api/
+Disallow: /checkout/
+
+# Host
+Host: https://gerdan.online
+
+# Sitemaps
+Sitemap: https://gerdan.online/sitemap.xml
