@@ -1,11 +1,30 @@
 import './globals.css'
-import type { Metadata } from 'next'
 import { Analytics } from '@vercel/analytics/next'
 import Header from '../components/Header'
 import CartDrawer from '@/components/cart/CartDrawer'
 import Footer from '@/components/Footer'
 
-export const metadata: Metadata = { title: 'GERDAN' }
+export const metadata = {
+  title: {
+    default: 'GERDAN — Сумки з бісеру, шопери та аксесуари ручної роботи',
+    template: '%s | GERDAN',
+  },
+  description:
+    'Інтернет-магазин GERDAN — сучасні сумки з бісеру, шопери та аксесуари ручної роботи. Український бренд із душею.',
+  metadataBase: new URL('https://gerdan.online'),
+  openGraph: {
+    title: 'GERDAN — Сумки з бісеру та аксесуари ручної роботи',
+    description:
+      'Сучасні аксесуари ручної роботи. Купуйте українське — підтримуйте ремесло.',
+    url: 'https://gerdan.online',
+    siteName: 'GERDAN',
+    locale: 'uk_UA',
+    type: 'website',
+  },
+  alternates: {
+    canonical: '/',
+  },
+}
 
 export default function RootLayout({
   children,

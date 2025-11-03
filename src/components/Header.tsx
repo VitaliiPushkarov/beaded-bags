@@ -1,7 +1,7 @@
 'use client'
 import Link from 'next/link'
 import Image from 'next/image'
-import { useCart } from '@/app/store/cart'
+/* import { useCart } from '@/app/store/cart' */
 import SearchDialog from './search/SearchDialog'
 import CartButton from './CartButton'
 import { useState, useEffect } from 'react'
