@@ -10,7 +10,10 @@ type SearchProduct = {
   description?: string | null
   basePriceUAH?: number | null
   color?: string | null
-  images: string[]
+  images?: string[] | null
+  image?: string | null
+  mainImage?: string | null
+  variants?: { image?: string | null }[]
 }
 
 function normalize(s: string) {
@@ -18,6 +21,16 @@ function normalize(s: string) {
     .toLowerCase()
     .normalize('NFKD')
     .replace(/[\u0300-\u036f]/g, '')
+}
+
+function getProductImage(p: SearchProduct): string {
+  return (
+    p.mainImage ||
+    p.image ||
+    (Array.isArray(p.images) && p.images[0]) ||
+    (Array.isArray(p.variants) && p.variants[0]?.image) ||
+    '/img/placeholder.png'
+  )
 }
 
 export default function SearchDialog() {
@@ -37,9 +50,10 @@ export default function SearchDialog() {
   // keyboard: "/" to open
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
-      const tag = (e.target as HTMLElement)?.tagName
+      const target = e.target as HTMLElement | null
+      const tag = target?.tagName
       const typing =
-        tag === 'INPUT' || tag === 'TEXTAREA' || (e as any).isComposing
+        tag === 'INPUT' || tag === 'TEXTAREA' || e.isComposing === true
       if (!typing && e.key === '/') {
         e.preventDefault()
         setOpen(true)
@@ -74,7 +88,7 @@ export default function SearchDialog() {
         }}
         className="inline-flex h-8 w-8 items-center justify-center cursor-pointer hide-on-mobile"
       >
-        <SearchIcon className="h-5 w-5 fill-current text-gray-900" />
+        <SearchIcon />
       </button>
 
       {open && (
@@ -85,7 +99,7 @@ export default function SearchDialog() {
           />
           <div className="absolute left-1/2 top-16 w-[92vw] max-w-xl -translate-x-1/2 rounded-xl bg-white shadow-xl">
             <div className="flex items-center gap-2 border-b px-3">
-              <SearchIcon className="h-4 w-4 text-gray-500" />
+              <SearchIcon />
               <input
                 ref={inputRef}
                 value={q}
@@ -117,9 +131,7 @@ export default function SearchDialog() {
                     <div
                       className="w-12 h-12 rounded bg-gray-100 overflow-hidden shrink-0"
                       style={{
-                        backgroundImage: p.images?.[0]
-                          ? `url(${p.images[0]})`
-                          : 'none',
+                        backgroundImage: `url(${getProductImage(p)})`,
                         backgroundSize: 'cover',
                         backgroundPosition: 'center',
                       }}

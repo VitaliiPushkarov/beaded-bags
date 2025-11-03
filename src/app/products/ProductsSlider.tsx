@@ -9,8 +9,15 @@ import {
   FreeMode,
   Mousewheel,
 } from 'swiper/modules'
+import type { Swiper as SwiperType } from 'swiper'
+import type { NavigationOptions } from 'swiper/types'
+import type { Product, ProductVariant } from '@prisma/client'
 
 import ProductCardLarge from './ProductCardLarge'
+
+type ProductsWithVariants = Product & {
+  variants: ProductVariant[]
+}
 
 function Chevron({
   dir = 'left',
@@ -45,17 +52,17 @@ function Chevron({
 }
 
 export default function ProductsSlider() {
-  const [products, setProducts] = useState<any[]>([])
+  const [products, setProducts] = useState<ProductsWithVariants[]>([])
 
   const prevRef = useRef<HTMLButtonElement>(null)
   const nextRef = useRef<HTMLButtonElement>(null)
-  const swiperRef = useRef<any>(null)
+  const swiperRef = useRef<SwiperType | null>(null)
 
   useEffect(() => {
     async function loadProducts() {
       try {
-        const res = await fetch('/api/products')
-        const data = await res.json()
+        const res = await fetch('/api/products', { cache: 'no-store' })
+        const data = (await res.json()) as ProductsWithVariants[]
         setProducts(data)
       } catch (err) {
         console.error('❌ Failed to load products:', err)
@@ -64,13 +71,18 @@ export default function ProductsSlider() {
     loadProducts()
   }, [])
 
-  // ініціалізація стрілок після маунту
+  // ініціалізація зовнішніх стрілок після монту та оновлення даних
   useEffect(() => {
     const s = swiperRef.current
     if (!s || !prevRef.current || !nextRef.current) return
-    if (!s.params.navigation) s.params.navigation = {}
-    s.params.navigation.prevEl = prevRef.current
-    s.params.navigation.nextEl = nextRef.current
+
+    const nav = (s.params.navigation || {}) as NavigationOptions
+    nav.prevEl = prevRef.current
+    nav.nextEl = nextRef.current
+    nav.enabled = true
+    s.params.navigation = nav
+
+    // перевстановлюємо навігацію після зміни посилань
     s.navigation.destroy()
     s.navigation.init()
     s.navigation.update()
@@ -79,7 +91,6 @@ export default function ProductsSlider() {
   return (
     <section className="relative mx-auto py-12">
       {/* Mobile: вертикальний список */}
-
       <div className="md:hidden max-w-full mx-auto px-6 space-y-5">
         <h2 className="text-2xl font-semibold mb-5">КАТАЛОГ</h2>
         {products.map((p) => (
@@ -113,18 +124,14 @@ export default function ProductsSlider() {
             <Swiper
               modules={[Navigation, Keyboard, A11y, FreeMode, Mousewheel]}
               onSwiper={(s) => (swiperRef.current = s)}
-              // точні вимоги
               direction="horizontal"
-              grabCursor={true}
-              simulateTouch={true}
+              grabCursor
+              simulateTouch
               touchRatio={1}
-              mousewheel={{
-                forceToAxis: true,
-                sensitivity: 0.8,
-              }}
+              mousewheel={{ forceToAxis: true, sensitivity: 0.8 }}
               spaceBetween={22}
-              loop={true}
-              freeMode={true}
+              loop
+              freeMode
               speed={450}
               keyboard={{ enabled: true }}
               breakpoints={{

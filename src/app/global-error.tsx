@@ -1,5 +1,7 @@
 'use client'
 
+import Link from 'next/link'
+
 export default function GlobalError({
   error,
   reset,
@@ -25,12 +27,12 @@ export default function GlobalError({
             >
               Спробувати ще раз
             </button>
-            <a
+            <Link
               href="/"
               className="inline-flex items-center justify-center rounded border border-gray-300 py-3 px-5 hover:bg-gray-50 transition"
             >
               На головну
-            </a>
+            </Link>
           </div>
 
           {error?.message ? (

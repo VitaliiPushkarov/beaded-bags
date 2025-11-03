@@ -30,7 +30,6 @@ const BodySchema = z.object({
       cityRef: z.string().min(1),
       cityName: z.string().min(1),
       warehouseRef: z.string().min(1),
-      // 👇 у схемі це npWarehouseName, тому тут теж name
       warehouseName: z.string().min(1),
     }),
   }),
@@ -114,10 +113,14 @@ export async function POST(req: NextRequest) {
     })
 
     return NextResponse.json({ orderId: created.id }, { status: 201 })
-  } catch (err: any) {
-    console.error('create order error:', err)
+  } catch (err: unknown) {
+    if (err instanceof Error) {
+      console.error('Create order error:', err.message)
+    } else {
+      console.error('Create order error:', err)
+    }
     return NextResponse.json(
-      { error: 'create failed', detail: err?.message },
+      { error: 'Internal Server Error' },
       { status: 500 }
     )
   }

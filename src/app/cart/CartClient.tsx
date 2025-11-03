@@ -112,9 +112,11 @@ export default function CartPage() {
                       value={it.qty}
                       onDec={() => {
                         const n = it.qty - 1
-                        n <= 0
-                          ? remove(it.productId, it.variantId)
-                          : setQty(it.productId, it.variantId, n)
+                        if (n <= 0) {
+                          remove(it.productId, it.variantId)
+                        } else {
+                          setQty(it.productId, it.variantId, n)
+                        }
                       }}
                       onInc={() =>
                         setQty(it.productId, it.variantId, it.qty + 1)

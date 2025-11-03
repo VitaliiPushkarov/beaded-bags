@@ -43,8 +43,13 @@ export async function POST(req: NextRequest) {
       data,
       signature,
     })
-  } catch (e: any) {
-    console.error('liqpay create error:', e?.message || e)
+  } catch (e: unknown) {
+    if (e instanceof Error) {
+      console.error('liqpay create error:', e.message)
+    } else {
+      console.error('Create order error:', e)
+    }
+
     return NextResponse.json({ error: 'liqpay create failed' }, { status: 500 })
   }
 }

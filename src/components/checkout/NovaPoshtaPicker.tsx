@@ -70,8 +70,8 @@ export default function NovaPoshtaPicker() {
         const json = await res.json()
         setCities(Array.isArray(json.data) ? json.data : [])
         setActiveCityIdx(-1)
-      } catch (e: any) {
-        if (e?.name !== 'AbortError') {
+      } catch (e: unknown) {
+        if (e instanceof Error && e.name !== 'AbortError') {
           console.error('NP cities fetch error:', e)
           setCities([])
         }
@@ -149,8 +149,8 @@ export default function NovaPoshtaPicker() {
 
         setAllWh(hydrated)
         setWh(hydrated.slice(0, 50))
-      } catch (e: any) {
-        if (e?.name !== 'AbortError') {
+      } catch (e: unknown) {
+        if (e instanceof Error && e.name !== 'AbortError') {
           console.error('NP warehouses fetch error:', e)
         }
       }

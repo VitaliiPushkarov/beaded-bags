@@ -25,8 +25,8 @@ function SuccessInner() {
       if (!r.ok || !data.ok)
         throw new Error(data?.error || 'Помилка підтвердження')
       setDone(true)
-    } catch (e: any) {
-      setError(e.message)
+    } catch (e: unknown) {
+      setError(e instanceof Error ? e.message : 'Невідома помилка')
     } finally {
       setLoading(false)
     }

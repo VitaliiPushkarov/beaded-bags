@@ -15,11 +15,20 @@ const nice = (s: string) =>
 
 /** Мапа підписів для поширених роутів/фільтрів */
 const LABELS: Record<string, string> = {
-  products: 'Каталог',
-  cart: 'Кошик',
+  shop: 'Каталог',
+  sumky: 'Сумки',
+  bananky: 'Бананки',
+  rjukzachky: 'Рюкзачки',
+  shopery: 'Шопери',
+  chohly: 'Чохли',
+  info: 'Інформація',
   checkout: 'Оформлення',
-  success: 'Успіх',
-  login: 'Увійти',
+  success: 'Успішна оплата',
+  pay: 'Оплата',
+  oferta: 'Публічна оферта',
+  policy: 'Політика конфіденційності',
+  cashback: 'Обмін та повернення',
+  contacts: 'Контакти',
 }
 
 function typeLabel(t?: string | null) {
@@ -85,7 +94,7 @@ function BreadcrumbsInner({ override }: { override?: Crumb[] }) {
 
   if (crumbs.length <= 1) return null
 
-  const jsonLd = (() => {
+  /* const jsonLd = (() => {
     if (typeof window === 'undefined') return null
     const origin = window.location.origin
     return {
@@ -100,7 +109,7 @@ function BreadcrumbsInner({ override }: { override?: Crumb[] }) {
           : window.location.href,
       })),
     }
-  })()
+  })() */
 
   return (
     <>
@@ -128,13 +137,13 @@ function BreadcrumbsInner({ override }: { override?: Crumb[] }) {
       </nav>
 
       {/* JSON-LD для SEO */}
-      {jsonLd && (
+      {/* {jsonLd && (
         <script
           type="application/ld+json"
           // eslint-disable-next-line react/no-danger
           dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
         />
-      )}
+      )} */}
     </>
   )
 }

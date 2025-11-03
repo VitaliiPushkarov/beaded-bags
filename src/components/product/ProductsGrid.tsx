@@ -1,10 +1,15 @@
 import ProductCardLarge from '@/app/products/ProductCardLarge'
+import { Product, ProductVariant } from '@prisma/client'
+
+type ProductWithVariants = Product & {
+  variants: ProductVariant[]
+}
 
 export default function ProductsGrid({
   products,
   loading,
 }: {
-  products: any[]
+  products: ProductWithVariants[]
   loading: boolean
 }) {
   if (loading) {

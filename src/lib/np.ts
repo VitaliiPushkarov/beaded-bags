@@ -5,7 +5,7 @@ const NP_URL = 'https://api.novaposhta.ua/v2.0/json/'
 export async function npCall<T>(
   modelName: 'AddressGeneral' | 'Address',
   calledMethod: string,
-  methodProperties: Record<string, any>
+  methodProperties: Record<string, string | number | boolean | null | undefined>
 ) {
   const apiKey = process.env.NOVA_POSHTA_API_KEY!
   if (!apiKey) throw new Error('Missing NOVA_POSHTA_API_KEY')

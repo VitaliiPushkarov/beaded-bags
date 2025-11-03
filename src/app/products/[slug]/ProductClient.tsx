@@ -5,36 +5,41 @@ import Image from 'next/image'
 import VariantSwatches from '@/components/product/VariantSwatches'
 import { useCart } from '@/app/store/cart'
 import { useUI } from '@/app/store/ui'
+import { Product, ProductVariant } from '@prisma/client'
 
-export function ProductClient({ p }: { p: any }) {
+type ProductWithVariants = Product & {
+  variants: ProductVariant[]
+}
+
+export function ProductClient({ p }: { p: ProductWithVariants }) {
   const sp = useSearchParams()
   const variantFromUrl = sp.get('variant') || undefined
 
-  const [variantId, setVariantId] = useState(p.variants?.[0]?.id)
+  const [variantId, setVariantId] = useState<string | undefined>(
+    p.variants?.[0]?.id
+  )
   const openCart = useUI((s) => s.openCart)
 
   useEffect(() => {
     if (!variantFromUrl || !p.variants?.length) return
-    const ok = p.variants.some((v: any) => v.id === variantFromUrl)
+    const ok = p.variants.some((v) => v.id === variantFromUrl)
     if (ok) setVariantId(variantFromUrl)
   }, [variantFromUrl, p.variants])
 
   const v = useMemo(
     () =>
-      p.variants?.find((x: any) => x.id === variantId) ??
-      p.variants?.[0] ??
-      null,
+      p.variants?.find((x) => x.id === variantId) ?? p.variants?.[0] ?? null,
     [p.variants, variantId]
   )
 
   const add = useCart((s) => s.add)
-  const price = v?.priceUAH ?? p.basePriceUAH
+  const price = v?.priceUAH ?? p.basePriceUAH ?? 0
 
   return (
     <Suspense fallback={<div className="p-6 text-center">Завантаження…</div>}>
       <section className="mx-auto flex flex-col items-center md:items-stretch md:flex-row md:justify-between gap-4 md:gap-[60px]">
         <div className="relative h-[380px] w-full md:h-[580px] md:w-[476px] overflow-hidden bg-gray-100">
-          {v && (
+          {v?.image && (
             <Image
               src={v.image}
               alt={`${p.name} — ${v.color}`}
@@ -58,7 +63,7 @@ export function ProductClient({ p }: { p: any }) {
           {p.variants?.length > 0 && (
             <VariantSwatches
               variants={p.variants}
-              value={variantId!}
+              value={variantId ?? p.variants[0].id}
               onChange={setVariantId}
             />
           )}
@@ -69,11 +74,11 @@ export function ProductClient({ p }: { p: any }) {
             onClick={() => {
               if (!v) return
               add({
-                productId: p.id, // ✅ тепер беремо ID з Prisma
+                productId: p.id,
                 variantId: v.id,
-                name: `${p.name} — ${v.color}`,
+                name: `${p.name} — ${v.color ?? ''}`,
                 priceUAH: price,
-                image: v.image,
+                image: v.image ?? '/img/placeholder.png',
                 qty: 1,
                 slug: p.slug,
               })

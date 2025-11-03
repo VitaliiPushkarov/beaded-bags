@@ -8,8 +8,8 @@ import { useState, useEffect } from 'react'
 import CatalogMenu from './CatalogMenu'
 
 export default function Header() {
-  const { items } = useCart()
-  const count = items.reduce((s, i) => s + i.qty, 0)
+  /* const { items } = useCart() */
+  /* const count = items.reduce((s, i) => s + i.qty, 0) */
 
   const [borderColor, setBorderColor] = useState('white')
   useEffect(() => {
@@ -119,12 +119,12 @@ export default function Header() {
             </Link> */}
             <SearchDialog />
             <CartButton />
-            <a
+            {/* <a
               className="hidden lg:block text-[12px] cursor-pointer hover:opacity-70 font-medium tracking-wide"
               href="/login"
             >
               УВІЙТИ
-            </a>
+            </a> */}
           </nav>
         </div>
       </header>

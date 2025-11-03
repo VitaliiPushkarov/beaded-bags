@@ -106,13 +106,20 @@ export default function CheckoutClient() {
     setLoading(true)
     try {
       const emailClean = form.email.trim()
-      const customer: { name: string; phone: string; email?: string } = {
-        name: `${lettersOnly(form.surname).trim()} ${lettersOnly(
-          form.name
-        ).trim()} ${lettersOnly(form.patronymic).trim()}`
-          .replace(/\s+/g, ' ')
-          .trim(),
+      const customer: {
+        name: string
+        surname: string
+        patronymic?: string
+        phone: string
+        email?: string
+      } = {
+        name: lettersOnly(form.name).trim(),
+        surname: lettersOnly(form.surname).trim(),
+        patronymic: form.patronymic
+          ? lettersOnly(form.patronymic).trim()
+          : undefined,
         phone: normalizeUaPhone(form.phone),
+        email: form.email?.trim() || undefined,
       }
       if (emailClean) customer.email = emailClean
 
@@ -127,7 +134,7 @@ export default function CheckoutClient() {
               cityRef: co.np.cityRef,
               cityName: co.np.cityName,
               warehouseRef: co.np.warehouseRef,
-              warehouseText: co.np.warehouseText,
+              warehouseName: co.np.warehouseText,
             },
           },
           items,

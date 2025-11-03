@@ -6,7 +6,7 @@ import ProductsFilter from './ProductsFilter'
 import AppliedChips from './AppliedChips'
 import ProductsGrid from './ProductsGrid'
 import Breadcrumbs from '../ui/BreadCrumbs'
-import { ProductType } from '@prisma/client'
+import type { Product, ProductVariant, ProductType } from '@prisma/client'
 import { TYPE_LABELS, COLOR_LABELS } from '@/lib/labels'
 
 export type UIFilters = {
@@ -18,7 +18,7 @@ export type UIFilters = {
   color: string
   min: string
   max: string
-  sort: 'new' | 'popular' | 'cheap' | 'exp'
+  sort: 'new' | 'popular' | 'Ціна за спаданням' | 'Ціна за зростанням'
 }
 
 const DEFAULT_FILTERS: UIFilters = {
@@ -33,28 +33,9 @@ const DEFAULT_FILTERS: UIFilters = {
   sort: 'new',
 }
 
-type Variant = {
-  id: string
-  color?: string | null
-  hex?: string | null
-  image?: string | null
-  inStock?: boolean | null
-  priceUAH?: number | null
-}
+type ProductWithVariants = Product & { variants: ProductVariant[] }
 
-type Product = {
-  id: string
-  slug: string
-  name: string
-  description?: string | null
-  basePriceUAH?: number | null
-  inStock?: boolean | null
-  type?: ProductType | string | null
-  color?: string | null
-  variants?: Variant[]
-}
-
-function getMinPrice(p: Product) {
+function getMinPrice(p: ProductWithVariants) {
   const list: number[] = []
   if (typeof p.basePriceUAH === 'number') list.push(p.basePriceUAH)
   p.variants?.forEach((v) => {
@@ -63,85 +44,113 @@ function getMinPrice(p: Product) {
   return list.length ? Math.min(...list) : 0
 }
 
-function isInStock(p: Product) {
+function isInStock(p: ProductWithVariants) {
   if (p.inStock) return true
   return Boolean(p.variants?.some((v) => v.inStock))
 }
 
-function isBeadType(p: Product) {
+function isBeadType(p: ProductWithVariants) {
   const n = (p.name || '').toLowerCase()
   return /bead|beaded|бісер/.test(n)
 }
 
-function matchesColor(p: Product, color: string) {
+function matchesColor(p: ProductWithVariants, color: string) {
   if (!color) return true
-  if (p.color && p.color === color) return true
+
   return !!p.variants?.some((v) => v.color === color)
+}
+
+function hasOnSale(p: unknown): p is { onSale: boolean } {
+  return (
+    typeof p === 'object' &&
+    p !== null &&
+    'onSale' in (p as Record<string, unknown>) &&
+    typeof (p as { onSale: unknown }).onSale === 'boolean'
+  )
+}
+
+function resetKey(source: UIFilters, key: keyof UIFilters): UIFilters {
+  const next: UIFilters = { ...source }
+  // індексно, але без any
+  ;(next as Record<keyof UIFilters, unknown>)[key] = DEFAULT_FILTERS[key]
+  return next
 }
 
 export default function ProductsContainer({
   initialProducts,
   initialFilters,
-  lockType = false,
+  lockedType,
   title = 'Каталог',
 }: {
-  initialProducts: Product[]
+  initialProducts: ProductWithVariants[]
   initialFilters?: Partial<UIFilters>
-  lockType?: boolean
+  lockedType?: ProductType
   title?: string
 }) {
-  const [base] = useState<Product[]>(initialProducts)
-  const [visible, setVisible] = useState<Product[]>(initialProducts)
+  // початковий масив
+  const [base] = useState<ProductWithVariants[]>(initialProducts)
+  const [visible, setVisible] = useState<ProductWithVariants[]>(initialProducts)
   const [loading, setLoading] = useState(false)
 
   const sp = useSearchParams()
   const router = useRouter()
   const pathname = usePathname()
 
-  // 1) UI-стан
-  const [ui, setUI] = useState<UIFilters>({
+  // окремий стан для мобільного фільтру замість __mobile у ui
+  const [mobileOpen, setMobileOpen] = useState(false)
+
+  // 1) UI-стан (те, що юзер крутить у формі)
+  const [ui, setUI] = useState<UIFilters>(() => ({
     ...DEFAULT_FILTERS,
     ...initialFilters,
-  })
-  // 2) застосовані
-  const [applied, setApplied] = useState<UIFilters>({
+    bagTypes: lockedType ?? (initialFilters?.bagTypes as ProductType) ?? '',
+  }))
+
+  // 2) застосовані (те, що реально вплинуло на список)
+  const [applied, setApplied] = useState<UIFilters>(() => ({
     ...DEFAULT_FILTERS,
     ...initialFilters,
-  })
+    bagTypes: lockedType ?? (initialFilters?.bagTypes as ProductType) ?? '',
+  }))
+
   const [hasApplied, setHasApplied] = useState(
-    initialFilters && Object.keys(initialFilters).length > 0
+    Boolean(initialFilters && Object.keys(initialFilters).length > 0)
   )
   const [isDirty, setIsDirty] = useState(false)
 
-  // 3) якщо ми НЕ lockType — підхоплюємо ?type= з URL
+  // якщо НЕ зафіксований тип — підхоплюємо ?type= з URL
   useEffect(() => {
-    if (lockType) return
+    if (lockedType) return
     const t = sp.get('type')
     if (t) {
-      // підхоплюємо з URL, але НЕ показуємо одразу чіпси
       setUI((s) => ({ ...s, bagTypes: t as ProductType }))
       setIsDirty(true)
-      // applied не чіпаємо — хай юзер натисне "Застосувати"
     }
-  }, [sp, lockType])
+  }, [sp, lockedType])
 
+  // live-синк у URL (але це ще не "застосовано")
   useEffect(() => {
-    // live-синхронізація q/color у URL, але без реального застосування
     const params = new URLSearchParams()
     if (ui.q) params.set('q', ui.q)
-    if (!lockType && ui.bagTypes) params.set('type', ui.bagTypes)
+    if (!lockedType && ui.bagTypes) params.set('type', ui.bagTypes)
     if (ui.color) params.set('color', ui.color)
     if (ui.sort !== 'new') params.set('sort', ui.sort)
-    router.replace(`${pathname}?${params.toString()}`)
-  }, [ui, router, pathname, lockType])
+    const qs = params.toString()
+    router.replace(qs ? `${pathname}?${qs}` : pathname)
+  }, [ui, router, pathname, lockedType])
 
-  // 4) застосувати
+  // застосувати
   const apply = () => {
     setLoading(true)
+
+    // якщо тип зафіксований — ми його примусово кладемо в застосовані
+    const toApply: UIFilters = lockedType ? { ...ui, bagTypes: lockedType } : ui
+
     let arr = [...base]
 
-    if (ui.q.trim()) {
-      const q = ui.q.trim().toLowerCase()
+    // пошук
+    if (toApply.q.trim()) {
+      const q = toApply.q.trim().toLowerCase()
       arr = arr.filter((p) => {
         const pool = [p.name?.toLowerCase() || '']
         p.variants?.forEach((v) => v.color && pool.push(v.color.toLowerCase()))
@@ -149,29 +158,34 @@ export default function ProductsContainer({
       })
     }
 
-    if (ui.inStock) arr = arr.filter(isInStock)
+    // наявність
+    if (toApply.inStock) arr = arr.filter(isInStock)
 
-    if (ui.onSale) {
-      arr = arr.filter((p) => (p as any).onSale === true)
+    // акції (тільки якщо є поле onSale)
+    if (toApply.onSale) {
+      arr = arr.filter((p) => hasOnSale(p) && p.onSale === true)
     }
 
-    if (ui.group) {
+    // група
+    if (toApply.group) {
       arr = arr.filter((p) =>
-        ui.group === 'Бісер' ? isBeadType(p) : !isBeadType(p)
+        toApply.group === 'Бісер' ? isBeadType(p) : !isBeadType(p)
       )
     }
 
-    if (ui.bagTypes) {
-      arr = arr.filter((p) => p.type === ui.bagTypes)
+    // тип
+    if (toApply.bagTypes) {
+      arr = arr.filter((p) => p.type === toApply.bagTypes)
     }
 
-    if (ui.color) {
-      arr = arr.filter((p) => matchesColor(p, ui.color))
+    // колір
+    if (toApply.color) {
+      arr = arr.filter((p) => matchesColor(p, toApply.color))
     }
 
-    // price
-    const minNum = ui.min ? Number(ui.min) || 0 : -Infinity
-    const maxNum = ui.max ? Number(ui.max) || Infinity : Infinity
+    // ціна
+    const minNum = toApply.min ? Number(toApply.min) || 0 : -Infinity
+    const maxNum = toApply.max ? Number(toApply.max) || Infinity : Infinity
     arr = arr.filter((p) => {
       const prices: number[] = []
       if (typeof p.basePriceUAH === 'number') prices.push(p.basePriceUAH)
@@ -182,11 +196,12 @@ export default function ProductsContainer({
       return prices.some((price) => price >= minNum && price <= maxNum)
     })
 
-    switch (ui.sort) {
-      case 'cheap':
+    // сортування
+    switch (toApply.sort) {
+      case 'Ціна за спаданням':
         arr.sort((a, b) => getMinPrice(a) - getMinPrice(b))
         break
-      case 'exp':
+      case 'Ціна за зростанням':
         arr.sort((a, b) => getMinPrice(b) - getMinPrice(a))
         break
       case 'popular':
@@ -197,48 +212,51 @@ export default function ProductsContainer({
         break
     }
 
-    setApplied(ui)
+    setApplied(toApply)
     setHasApplied(true)
     setVisible(arr)
     setIsDirty(false)
     setLoading(false)
 
-    // синхронізуємо в URL (опційно)
+    // оновлюємо урл вже з застосованими значеннями
     const params = new URLSearchParams()
-    if (ui.q) params.set('q', ui.q)
-    if (!lockType && ui.bagTypes) params.set('type', ui.bagTypes)
-    if (ui.color) params.set('color', ui.color)
-    if (ui.sort !== 'new') params.set('sort', ui.sort)
-    router.replace(`${pathname}?${params.toString()}`)
+    if (toApply.q) params.set('q', toApply.q)
+    if (!lockedType && toApply.bagTypes) params.set('type', toApply.bagTypes)
+    if (toApply.color) params.set('color', toApply.color)
+    if (toApply.sort !== 'new') params.set('sort', toApply.sort)
+    const qs = params.toString()
+    router.replace(qs ? `${pathname}?${qs}` : pathname)
+
+    // закриємо мобільний фільтр після застосування
+    setMobileOpen(false)
   }
 
   const clearAll = () => {
-    const next = {
+    const next: UIFilters = {
       ...DEFAULT_FILTERS,
-      ...(lockType ? { bagTypes: applied.bagTypes } : {}),
+      ...(lockedType ? { bagTypes: lockedType } : {}),
     }
 
     setUI(next)
     setApplied(next)
     setHasApplied(false)
     setIsDirty(false)
-
     setVisible(base)
-
     router.replace(pathname)
   }
 
-  // 5) обчислення кольорів для селекту
+  // кольори з продуктів
   const colors = useMemo(() => {
     const set = new Set<string>()
     for (const p of base) {
-      if (p.color) set.add(p.color)
-      p.variants?.forEach((v) => v.color && set.add(v.color))
+      p.variants?.forEach((v) => {
+        if (v.color) set.add(v.color)
+      })
     }
     return Array.from(set)
   }, [base])
 
-  // 7) chips
+  // chips (тільки з застосованих)
   const chips = useMemo(() => {
     const out: { key: keyof UIFilters | 'price' | 'sort'; label: string }[] = []
     if (applied.q.trim()) out.push({ key: 'q', label: `“${applied.q.trim()}”` })
@@ -246,7 +264,7 @@ export default function ProductsContainer({
     if (applied.onSale) out.push({ key: 'onSale', label: 'On sale' })
     if (applied.group)
       out.push({ key: 'group', label: `Група: ${applied.group}` })
-    if (applied.bagTypes)
+    if (!lockedType && applied.bagTypes)
       out.push({
         key: 'bagTypes',
         label: `Тип: ${TYPE_LABELS[applied.bagTypes] || applied.bagTypes}`,
@@ -264,28 +282,30 @@ export default function ProductsContainer({
     if (applied.sort !== 'new')
       out.push({ key: 'sort', label: `Сортування: ${applied.sort}` })
     return out
-  }, [applied])
+  }, [applied, lockedType])
 
   const removeChip = (key: string) => {
     let next: UIFilters
 
     if (key === 'price') {
       next = { ...applied, min: '', max: '' }
+    } else if (key === 'sort') {
+      next = { ...applied, sort: DEFAULT_FILTERS.sort }
     } else {
-      next = {
-        ...applied,
-        [key]: DEFAULT_FILTERS[key as keyof UIFilters] as any,
-      }
+      const k = key as keyof UIFilters
+      next = resetKey(applied, k)
     }
 
-    if (lockType && key === 'bagTypes') {
-      next.bagTypes = applied.bagTypes
+    // якщо тип зафіксований сторінкою — не даємо його прибрати
+    if (lockedType && key === 'bagTypes') {
+      next.bagTypes = lockedType
     }
 
     setApplied(next)
     setUI((u) => ({ ...u, ...next }))
     setIsDirty(false)
 
+    // одразу перерахуємо список
     let arr = [...base]
 
     if (next.q.trim()) {
@@ -298,7 +318,7 @@ export default function ProductsContainer({
     }
 
     if (next.inStock) arr = arr.filter(isInStock)
-    if (next.onSale) arr = arr.filter((p) => (p as any).onSale === true)
+    if (next.onSale) arr = arr.filter((p) => hasOnSale(p) && p.onSale === true)
     if (next.group) {
       arr = arr.filter((p) =>
         next.group === 'Бісер' ? isBeadType(p) : !isBeadType(p)
@@ -329,10 +349,11 @@ export default function ProductsContainer({
   return (
     <div className="max-w-[1440px] mx-auto py-10 px-[50px]">
       <Breadcrumbs />
+      {/* mobile header */}
       <div className="lg:hidden flex items-center justify-between py-4">
         <h1 className="text-2xl">{title}</h1>
         <button
-          onClick={() => setUI((u) => ({ ...u, __mobile: true } as any))}
+          onClick={() => setMobileOpen(true)}
           className="uppercase flex items-center gap-2"
         >
           Фільтр +
@@ -351,25 +372,23 @@ export default function ProductsContainer({
             Застосувати
           </button>
         </div>
-        <ProductsFilter
-          value={ui}
-          onChange={(next) => {
-            setUI(next)
-            setIsDirty(true)
-          }}
-          colors={colors}
-          lockType={lockType}
-        />
-        {hasApplied && chips.length > 0 && (
-          <AppliedChips
-            chips={chips}
-            onRemove={removeChip}
-            onClear={clearAll}
-          />
-        )}
       </div>
 
-      {/* Products */}
+      <ProductsFilter
+        value={ui}
+        onChange={(next) => {
+          setUI(next)
+          setIsDirty(true)
+        }}
+        colors={colors}
+        lockType={Boolean(lockedType)}
+        mobileOpen={mobileOpen}
+        onMobileClose={() => setMobileOpen(false)}
+        onApply={apply}
+      />
+      {hasApplied && chips.length > 0 && (
+        <AppliedChips chips={chips} onRemove={removeChip} onClear={clearAll} />
+      )}
       <ProductsGrid products={visible} loading={loading} />
     </div>
   )

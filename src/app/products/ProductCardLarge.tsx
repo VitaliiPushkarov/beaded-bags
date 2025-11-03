@@ -21,6 +21,12 @@ export default function ProductCardLarge({ p }: { p: ProductWithVariants }) {
   const openCart = useUI((s) => s.openCart)
   const price = v?.priceUAH ?? p.basePriceUAH ?? 0
 
+  const getFirstImage = (): string => {
+    const images = (p as unknown as { images?: string[] }).images
+    if (Array.isArray(images) && images.length > 0) return images[0]
+    return '/img/placeholder.png'
+  }
+
   return (
     <article className="border rounded overflow-hidden bg-white">
       {/* зображення прив'язане до варіанту */}
@@ -28,12 +34,7 @@ export default function ProductCardLarge({ p }: { p: ProductWithVariants }) {
         <div className="relative h-[480px] md:h-[460px] lg:h-[501px] bg-gray-100">
           {v && (
             <Image
-              src={
-                v.image ||
-                (Array.isArray((p as any).images)
-                  ? (p as any).images[0]
-                  : '/img/placeholder.png')
-              }
+              src={v.image || getFirstImage()}
               alt={`${p.name} — ${v.color}`}
               fill
               className="object-cover transition-transform duration-300 hover:scale-[1.02]"
@@ -72,11 +73,7 @@ export default function ProductCardLarge({ p }: { p: ProductWithVariants }) {
               variantId: v.id,
               name: `${p.name} — ${v.color}`,
               priceUAH: price,
-              image:
-                v.image ||
-                (Array.isArray((p as any).images)
-                  ? (p as any).images[0]
-                  : '/img/placeholder.png'),
+              image: v.image || getFirstImage(),
               qty: 1,
             })
             openCart()

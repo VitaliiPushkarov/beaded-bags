@@ -2,56 +2,85 @@
 import Link from 'next/link'
 import Image from 'next/image'
 import { useCart } from '@/app/store/cart'
+import { useUI } from '../store/ui'
 
-type Variant = {
-  id: string
+type ProductCardProps = {
+  product: {
+    id: string
+    slug: string
+    name: string
+    basePriceUAH: number | null
+    mainImage?: string | null
+    images?: string[] | null
+    variants?: {
+      id: string
+      image: string | null
+      inStock: boolean
+      priceUAH: number | null
+      color: string | null
+      hex: string | null
+    }[]
+  }
 }
 
-type ProductWithVariants = {
-  id: string
-  slug: string
-  name: string
-  basePriceUAH: number
-  images: string[]
-  variants: Variant[]
-}
+export default function ProductCard({ product }: ProductCardProps) {
+  const add = useCart((s) => s.add)
+  const openCart = useUI((s) => s.openCart)
 
-export default function ProductCard({ p }: { p: ProductWithVariants }) {
-  const { add } = useCart()
+  const firstVariant = product.variants?.[0]
+  const price = firstVariant?.priceUAH ?? product.basePriceUAH ?? 0
+
+  const img =
+    product.mainImage ||
+    (product.images && product.images[0]) ||
+    firstVariant?.image ||
+    '/img/placeholder.png'
+
   return (
-    <div className="p-3">
-      <Link href={`/products/${p.slug}`}>
-        <div className="aspect-square relative mb-3 bg-gray-100">
-          <Image
-            src={p.images[0]}
-            alt={p.name}
-            sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
-            priority={true}
-            fill
-            className="object-cover rounded"
-          />
-        </div>
-        <div className="font-medium">{p.name}</div>
+    <article className="border rounded overflow-hidden bg-white flex flex-col">
+      <Link
+        href={`/products/${product.slug}`}
+        className="block relative h-[320px] bg-gray-100"
+      >
+        <Image
+          src={img}
+          alt={product.name}
+          fill
+          className="object-cover"
+          sizes="(max-width: 768px) 100vw, 320px"
+        />
       </Link>
-      <div className="flex items-center justify-between mt-2">
-        <span>{p.basePriceUAH} грн</span>
-        <button
-          onClick={() =>
-            add({
-              variantId: p.variants[0].id,
-              productId: p.id,
-              slug: p.slug,
-              name: p.name,
-              priceUAH: p.basePriceUAH,
-              qty: 1,
-              image: p.images[0],
-            })
-          }
-          className="text-sm bg-black text-white px-3 py-1.5 rounded"
+      <div className="p-3 flex-1 flex flex-col gap-2">
+        <Link
+          href={`/products/${product.slug}`}
+          className="text-sm font-medium line-clamp-2"
         >
-          У кошик
+          {product.name}
+        </Link>
+        <div className="text-sm text-gray-700">
+          {price.toLocaleString('uk-UA')} ₴
+        </div>
+        <button
+          onClick={() => {
+            // формуємо обʼєкт окремо
+            const item = {
+              productId: product.id,
+              variantId: firstVariant?.id ?? '',
+              name: product.name,
+              priceUAH: price,
+              image: img,
+              qty: 1,
+              slug: product.slug,
+            }
+
+            add(item)
+            openCart()
+          }}
+          className="mt-auto inline-flex items-center justify-center rounded bg-black text-white py-2 text-sm hover:bg-[#FF3D8C] transition"
+        >
+          Додати в кошик
         </button>
       </div>
-    </div>
+    </article>
   )
 }

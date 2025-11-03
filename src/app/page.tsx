@@ -3,7 +3,6 @@
 import HeroImages from '@/components/HeroImages'
 import Bestsellers from '@/components/Bestsellers'
 
-import Footer from '@/components/Footer'
 import ProductsSlider from './products/ProductsSlider'
 
 import Vision from '@/components/Vision'

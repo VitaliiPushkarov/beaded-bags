@@ -3,16 +3,15 @@
 import Link from 'next/link'
 import { useState, useRef } from 'react'
 import { ChevronDown } from 'lucide-react'
-import { ProductType } from '@prisma/client'
-import { TYPE_LABELS } from '@/lib/labels'
+/* import { ProductType } from '@prisma/client' */
 
-const CATEGORIES: ProductType[] = [
+/* const CATEGORIES: ProductType[] = [
   'BAG',
   'BELT_BAG',
   'BACKPACK',
   'SHOPPER',
   'CASE',
-]
+] */
 
 export default function CatalogMegaMenu() {
   const [open, setOpen] = useState(false)
@@ -83,7 +82,7 @@ export default function CatalogMegaMenu() {
               </span>
             </Link>
 
-            <Link className="block hover:opacity-70" href="/products?inStock=1">
+            <Link className="block hover:opacity-70" href="/shop?inStock=1">
               <span
                 className="text-[12px] font-medium tracking-wide uppercase
               "

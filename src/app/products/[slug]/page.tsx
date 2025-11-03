@@ -3,7 +3,11 @@ import { prisma } from '@/lib/prisma'
 import { Suspense } from 'react'
 import Breadcrumbs from '@/components/ui/BreadCrumbs'
 import { ProductClient } from './ProductClient'
-import { ProductType } from '@prisma/client'
+import { Product, ProductVariant, ProductType } from '@prisma/client'
+
+type ProductWithVariants = Product & {
+  variants: ProductVariant[]
+}
 
 const TYPE_TO_ROUTE: Record<ProductType, { label: string; href: string }> = {
   BAG: { label: 'Сумки', href: '/shop/sumky' },
@@ -48,7 +52,7 @@ export default async function ProductPage({
       <Suspense fallback={null}>
         <Breadcrumbs override={crumbs} />
       </Suspense>
-      <ProductClient p={p as any} />
+      <ProductClient p={p as ProductWithVariants} />
     </div>
   )
 }

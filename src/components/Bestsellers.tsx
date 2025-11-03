@@ -4,6 +4,25 @@ import Image from 'next/image'
 import Link from 'next/link'
 import { useState, useEffect } from 'react'
 
+type ApiVariant = {
+  id: string
+  image: string | null
+  priceUAH: number | null
+  inStock: boolean
+  color: string | null
+}
+
+type ApiProduct = {
+  id: string
+  slug: string
+  name: string
+  basePriceUAH: number | null
+  priceUAH?: number | null
+  images?: string[] | null
+  mainImage?: string | null
+  variants?: ApiVariant[]
+}
+
 type BestsellerProduct = {
   id: string
   slug: string
@@ -12,6 +31,7 @@ type BestsellerProduct = {
   priceUAH: number | null
   images: string[] | null
   mainImage: string | null
+  variants?: ApiVariant[]
 }
 
 export default function Bestsellers() {
@@ -21,28 +41,32 @@ export default function Bestsellers() {
   useEffect(() => {
     async function loadProducts() {
       try {
-        const res = await fetch('/api/products?limit=12', {
-          // щоб кеш не віддавав порожні картинки
-          cache: 'no-store',
-        })
-        const data = await res.json()
+        const res = await fetch('/api/products?limit=12', { cache: 'no-store' })
+        const raw: unknown = await res.json()
+        const data: ApiProduct[] = Array.isArray(raw)
+          ? (raw as ApiProduct[])
+          : []
 
-        // нормалізуємо під наш тип
-        const normalized: BestsellerProduct[] = (
-          Array.isArray(data) ? data : []
-        ).map((p: any) => ({
-          id: p.id ?? p.productId ?? crypto.randomUUID(),
-          slug: p.slug,
-          name: p.name,
-          basePriceUAH: p.basePriceUAH ?? null,
-          priceUAH: p.priceUAH ?? null,
-          images: Array.isArray(p.images)
-            ? p.images
-            : p.mainImage
-            ? [p.mainImage]
-            : [],
-          mainImage: p.mainImage ?? null,
-        }))
+        const normalized: BestsellerProduct[] = data.map((p) => {
+          const firstVariant = p.variants?.[0]
+          return {
+            id: p.id,
+            slug: p.slug,
+            name: p.name,
+            basePriceUAH: p.basePriceUAH ?? null,
+            // якщо немає ціни на продукті — беремо перший варіант
+            priceUAH:
+              (typeof p.priceUAH === 'number' ? p.priceUAH : null) ??
+              (typeof p.basePriceUAH === 'number' ? p.basePriceUAH : null) ??
+              (typeof firstVariant?.priceUAH === 'number'
+                ? firstVariant.priceUAH
+                : null) ??
+              null,
+            images: Array.isArray(p.images) ? p.images : [],
+            mainImage: p.mainImage ?? null,
+            variants: Array.isArray(p.variants) ? p.variants : [],
+          }
+        })
 
         setProducts(normalized)
       } catch (err) {
@@ -64,7 +88,6 @@ export default function Bestsellers() {
         <div className="relative">
           <div className="flex gap-5 overflow-x-auto scrollbar-always snap-x pb-2">
             {loading ? (
-              // скелетон
               Array.from({ length: 4 }).map((_, i) => (
                 <div key={i} className="min-w-[260px] snap-start">
                   <div className="relative aspect-[3/4] bg-gray-100 animate-pulse rounded" />
@@ -77,9 +100,20 @@ export default function Bestsellers() {
               </div>
             ) : (
               products.map((p) => {
-                // обираємо перше валідне зображення
                 const imageSrc =
-                  (p.images && p.images[0]) || p.mainImage || placeholder
+                  p.mainImage ||
+                  (p.images && p.images[0]) ||
+                  (p.variants && p.variants[0]?.image) ||
+                  placeholder
+
+                const price =
+                  (typeof p.priceUAH === 'number' ? p.priceUAH : null) ??
+                  (typeof p.basePriceUAH === 'number'
+                    ? p.basePriceUAH
+                    : null) ??
+                  (p.variants && typeof p.variants[0]?.priceUAH === 'number'
+                    ? p.variants[0]!.priceUAH!
+                    : 0)
 
                 return (
                   <div key={p.id} className="min-w-[260px] snap-start">
@@ -96,10 +130,7 @@ export default function Bestsellers() {
                       <div className="mt-3 flex items-center justify-between gap-4">
                         <div className="text-sm truncate">{p.name}</div>
                         <div className="text-sm text-gray-700 whitespace-nowrap">
-                          {(p.priceUAH ?? p.basePriceUAH ?? 0).toLocaleString(
-                            'uk-UA'
-                          )}{' '}
-                          грн
+                          {price.toLocaleString('uk-UA')} грн
                         </div>
                       </div>
                     </Link>
