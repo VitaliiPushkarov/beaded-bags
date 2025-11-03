@@ -51,15 +51,31 @@ export default async function ShopPage({
     type: safeType ?? undefined,
   })
 
-  return (
-    <ProductsContainer
-      initialProducts={products}
-      initialFilters={{
-        q: sp.q ?? '',
-        color: sp.color ?? '',
+  const jsonLd = {
+    '@context': 'https://schema.org',
+    '@type': 'ItemList',
+    itemListElement: products.map((p, i) => ({
+      '@type': 'ListItem',
+      position: i + 1,
+      url: `https://gerdan.online/products/${p.slug}`,
+    })),
+  }
 
-        bagTypes: safeType ?? '',
-      }}
-    />
+  return (
+    <>
+      <ProductsContainer
+        initialProducts={products}
+        initialFilters={{
+          q: sp.q ?? '',
+          color: sp.color ?? '',
+
+          bagTypes: safeType ?? '',
+        }}
+      />
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
+      />
+    </>
   )
 }

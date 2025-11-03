@@ -1,5 +1,3 @@
-// Main page
-
 import HeroImages from '@/components/HeroImages'
 import Bestsellers from '@/components/Bestsellers'
 
@@ -8,9 +6,50 @@ import ProductsSlider from './products/ProductsSlider'
 import Vision from '@/components/Vision'
 import About from '@/components/About'
 
+const SITE_URL = 'https://gerdan.online'
+
 export default function Home() {
+  const organizationJsonLd = {
+    '@context': 'https://schema.org',
+    '@type': 'Organization',
+    name: 'GERDAN',
+    url: SITE_URL,
+    logo: `${SITE_URL}/gerdan.svg`,
+    contactPoint: [
+      {
+        '@type': 'ContactPoint',
+        telephone: '+380955837060',
+        contactType: 'customer support',
+        areaServed: 'UA',
+        availableLanguage: ['uk', 'ru'],
+        sameAs: 'https://www.instagram.com/gerdan.studio/',
+      },
+    ],
+  }
+
+  const webSiteJsonLd = {
+    '@context': 'https://schema.org',
+    '@type': 'WebSite',
+    name: 'GERDAN',
+    url: SITE_URL,
+    potentialAction: {
+      '@type': 'SearchAction',
+      target: `${SITE_URL}/shop?q={search_term_string}`,
+      'query-input': 'required name=search_term_string',
+    },
+  }
+
   return (
     <>
+      {/* JSON-LD скрипти */}
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(organizationJsonLd) }}
+      />
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(webSiteJsonLd) }}
+      />
       <>
         <HeroImages
           leftImg="/img/hero-img-1.png"
