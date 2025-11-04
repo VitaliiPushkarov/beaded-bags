@@ -5,8 +5,8 @@ import Image from 'next/image'
 
 type Props = {
   leftImg: string
-  centerVideo: string // наприклад: "/media/hero.mp4"
-  centerPoster?: string // "/media/hero-poster.jpg"
+  centerVideo: string
+  centerPoster?: string
   rightImg: string
   altLeft?: string
   altRight?: string
@@ -39,7 +39,7 @@ export default function HeroSection({
   }, [])
 
   return (
-    <section className="mx-auto max-w-full">
+    <section className="mx-auto max-w-full relative">
       <div
         className="
           flex md:flex-row lg:gap-[110px] md:gap-[50px] sm:gap-0
@@ -87,13 +87,14 @@ export default function HeroSection({
         </figure>
       </div>
 
-      <div className="flex justify-center -mt-6 md:-mt-50">
+      <div className="md:w-[652px] md:h-[266px] w-full h-[266px] relative md:absolute left-1/2 md:top-9/12 -translate-x-1/2 md:-translate-y-1/3 -mt-[150px]">
         <Image
-          className="z-10"
+          className="z-10 h-full w-full"
           src="/img/signature.png"
           alt="gerdan"
-          width={652}
-          height={266}
+          width={100}
+          height={100}
+          sizes="(max-width: 768px) 90vw, 360px"
         />
       </div>
     </section>

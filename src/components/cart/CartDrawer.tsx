@@ -74,24 +74,25 @@ export default function CartDrawer() {
                 className="grid grid-cols-[96px,1fr,auto] gap-4 items-start border rounded px-3 py-3"
               >
                 <div className="inline-flex gap-6">
-                  <div className="relative h-20 w-24 bg-gray-100 rounded overflow-hidden">
+                  <div className="relative md:h-24 md:w-24 h-[140px] w-[120px] bg-gray-100 rounded overflow-hidden">
                     <Image
                       src={it.image}
                       alt={it.name}
                       fill
                       className="object-cover"
+                      sizes="(max-width: 768px) 100vw, 96px"
                     />
                   </div>
 
-                  <div className="min-w-0">
+                  <div className="min-w-0 flex flex-col items-start">
                     <Link
                       href={`/products/${it.slug}`}
                       onClick={closeCart}
-                      className="block font-medium hover:underline truncate"
+                      className="block font-medium text-[18px] hover:underline "
                     >
                       {it.name}
                     </Link>
-                    <div className="text-sm mt-1 text-gray-600">
+                    <div className="text-lg md:text-sm mt-1 text-gray-600">
                       {it.priceUAH} грн
                     </div>
 

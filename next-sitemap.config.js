@@ -25,8 +25,8 @@ module.exports = {
       },
     ],
     additionalSitemaps: [
-      'https://gerdan.online/sitemap.xml',
       'https://gerdan.online/sitemap-0.xml',
+      'https://gerdan.online/sitemap-products.xml',
     ],
   },
 }

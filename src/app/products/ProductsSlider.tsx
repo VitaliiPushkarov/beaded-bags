@@ -130,7 +130,6 @@ export default function ProductsSlider() {
               touchRatio={1}
               mousewheel={{ forceToAxis: true, sensitivity: 0.8 }}
               spaceBetween={22}
-              loop
               freeMode
               speed={450}
               keyboard={{ enabled: true }}

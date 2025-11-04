@@ -52,13 +52,14 @@ export default function RootLayout({
         <link rel="icon" href="/icon0.svg" type="image/svg+xml" />
         <link rel="icon" href="/icon1.png" type="image/png" sizes="32x32" />
         <link rel="apple-touch-icon" href="/apple-icon.png" sizes="180x180" />
+        {/* JSON-LD WebSite */}
+        <script
+          type="application/ld+json"
+          suppressHydrationWarning
+          dangerouslySetInnerHTML={{ __html: JSON.stringify(WEBSITE_JSONLD) }}
+        />
       </head>
-      {/* JSON-LD WebSite */}
-      <script
-        type="application/ld+json"
-        suppressHydrationWarning
-        dangerouslySetInnerHTML={{ __html: JSON.stringify(WEBSITE_JSONLD) }}
-      />
+
       <body className="min-h-screen text-gray-900 antialiased bg-white font-fixel">
         <Header />
         <main className="max-w-full mx-auto md:py-8">{children}</main>

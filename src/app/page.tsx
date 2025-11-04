@@ -52,10 +52,10 @@ export default function Home() {
       />
       <>
         <HeroImages
-          leftImg="/img/hero-img-1.png"
+          leftImg="/img/hero-img-1.webp"
           centerVideo="/media/hero-vid.mov"
-          centerPoster="/img/hero-img-2.png"
-          rightImg="/img/hero-img-3.png"
+          centerPoster="/img/hero-img-2.webp"
+          rightImg="/img/hero-img-3.webp"
           altLeft="Beaded bag on rock"
           altRight="Model with beaded bag"
         />

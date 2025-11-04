@@ -31,7 +31,7 @@ export default function ProductCardLarge({ p }: { p: ProductWithVariants }) {
     <article className="border rounded overflow-hidden bg-white">
       {/* зображення прив'язане до варіанту */}
       <Link href={`/products/${p.slug}?variant=${variantId}`}>
-        <div className="relative h-[480px] md:h-[460px] lg:h-[501px] bg-gray-100">
+        <div className="relative h-[550px] md:h-[460px] lg:h-[501px] bg-gray-100">
           {v && (
             <Image
               src={v.image || getFirstImage()}
@@ -39,6 +39,7 @@ export default function ProductCardLarge({ p }: { p: ProductWithVariants }) {
               fill
               className="object-cover transition-transform duration-300 hover:scale-[1.02]"
               priority={false}
+              sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
             />
           )}
         </div>
