@@ -94,27 +94,73 @@ export default async function ProductPage({
     product.variants.find((v) => v.image)?.image ?? '/img/placeholder.png'
   const price = firstVariant?.priceUAH ?? product.basePriceUAH ?? 0
 
-  const jsonLd = {
-    '@context': 'https://schema.org',
+  const inStock = product.inStock || product.variants.some((v) => v.inStock)
+  const m = 6
+  const now = new Date()
+  const priceValidUntil = new Date(
+    now.getFullYear(),
+    now.getMonth() + m,
+    now.getDate()
+  )
+    .toISOString()
+    .split('T')[0]
+
+  const productLd = {
+    '@context': 'https://schema.org/',
     '@type': 'Product',
     name: product.name,
-    image: [`https://gerdan.online${image}`],
-    description:
-      product.description ??
-      'Сумка ручної роботи з колекції GERDAN. Український бренд аксесуарів.',
-    sku: firstVariant?.sku ?? undefined,
-    offers: {
-      '@type': 'Offer',
-      priceCurrency: 'UAH',
-      price: price,
-      availability: product.inStock
-        ? 'https://schema.org/InStock'
-        : 'https://schema.org/OutOfStock',
-      url: `https://gerdan.online/products/${product.slug}`,
-    },
+    description: product.description,
+    image: image ? [image] : [],
+    sku: firstVariant?.id ?? product.id,
     brand: {
       '@type': 'Brand',
       name: 'GERDAN',
+    },
+    offers: {
+      '@type': 'Offer',
+      priceCurrency: 'UAH',
+      price,
+      priceValidUntil,
+      availability: inStock
+        ? 'https://schema.org/InStock'
+        : 'https://schema.org/OutOfStock',
+      url: `https://gerdan.online/products/${product.slug}`,
+      shippingDetails: {
+        '@type': 'OfferShippingDetails',
+        shippingRate: {
+          '@type': 'MonetaryAmount',
+          value: '0',
+          currency: 'UAH',
+        },
+        shippingDestination: {
+          '@type': 'DefinedRegion',
+          addressCountry: 'UA',
+        },
+        deliveryTime: {
+          '@type': 'ShippingDeliveryTime',
+          handlingTime: {
+            '@type': 'QuantitativeValue',
+            minValue: 1,
+            maxValue: 2,
+            unitCode: 'd',
+          },
+          transitTime: {
+            '@type': 'QuantitativeValue',
+            minValue: 1,
+            maxValue: 3,
+            unitCode: 'd',
+          },
+        },
+      },
+      hasMerchantReturnPolicy: {
+        '@type': 'MerchantReturnPolicy',
+        applicableCountry: 'UA',
+        returnPolicyCategory:
+          'https://schema.org/MerchantReturnFiniteReturnWindow',
+        merchantReturnDays: 14,
+        returnMethod: 'https://schema.org/ReturnByMail',
+        returnFees: 'https://schema.org/FreeReturn',
+      },
     },
   }
   return (
@@ -122,7 +168,7 @@ export default async function ProductPage({
       {/* JSON-LD для Google */}
       <script
         type="application/ld+json"
-        dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(productLd) }}
       />
       <Suspense fallback={null}>
         <Breadcrumbs override={crumbs} />
