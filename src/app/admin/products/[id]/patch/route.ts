@@ -22,22 +22,33 @@ const ProductSchema = z.object({
   inStock: z.boolean(),
   variants: z.array(VariantSchema).min(1),
 })
-
-export async function POST(req: NextRequest) {
+type RouteParams = { params: Promise<{ id: string }> }
+export async function PATCH(req: NextRequest, { params }: RouteParams) {
   try {
+    const { id } = await params
     const json = await req.json()
     const parsed = ProductSchema.safeParse(json)
 
     if (!parsed.success) {
       return NextResponse.json(
-        { error: parsed.error.flatten() },
+        {
+          error: {
+            /* formErrors: parsed.error.formErrors,
+              fieldErrors: parsed.error.fieldErrors, */
+          },
+        },
         { status: 400 }
       )
     }
 
     const data = parsed.data
 
-    const created = await prisma.product.create({
+    await prisma.productVariant.deleteMany({
+      where: { productId: id },
+    })
+
+    const updated = await prisma.product.update({
+      where: { id },
       data: {
         name: data.name,
         slug: data.slug,
@@ -58,9 +69,24 @@ export async function POST(req: NextRequest) {
       },
     })
 
-    return NextResponse.json({ id: created.id }, { status: 201 })
+    return NextResponse.json({ id: updated.id })
   } catch (err) {
-    console.error('Create product error', err)
+    console.error('Update product error', err)
+    return NextResponse.json(
+      { error: 'Internal Server Error' },
+      { status: 500 }
+    )
+  }
+}
+
+export async function DELETE(_req: NextRequest, { params }: RouteParams) {
+  try {
+    const { id } = await params
+
+    await prisma.product.delete({ where: { id } })
+    return NextResponse.json({ ok: true })
+  } catch (err) {
+    console.error('Delete product error', err)
     return NextResponse.json(
       { error: 'Internal Server Error' },
       { status: 500 }

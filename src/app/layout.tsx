@@ -48,6 +48,7 @@ export default function RootLayout({
   return (
     <html lang="uk">
       <head>
+        <link rel="canonical" href="https://gerdan.online/" />
         <link rel="icon" href="/favicon.ico" sizes="any" />
         <link rel="icon" href="/icon0.svg" type="image/svg+xml" />
         <link rel="icon" href="/icon1.png" type="image/png" sizes="32x32" />
