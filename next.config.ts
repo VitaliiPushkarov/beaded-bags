@@ -1,6 +1,6 @@
 import type { NextConfig } from 'next'
 
-const I18NConfig = {
+/* const I18NConfig = {
   i18n: {
     locales: ['uk', 'en'],
     defaultLocale: 'uk',
@@ -16,10 +16,10 @@ const I18NConfig = {
       },
     ],
   },
-}
+} */
 const nextConfig: NextConfig = {
   transpilePackages: ['swiper'],
-  ...I18NConfig,
+  /* ...I18NConfig, */
 }
 
 export default nextConfig
