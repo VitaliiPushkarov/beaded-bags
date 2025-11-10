@@ -30,8 +30,8 @@ export function norm(s: string) {
     .toLowerCase()
     .normalize('NFC')
     .replace(/[^\p{L}\p{N}\s-]/gu, ' ')
-  // дуже спрощене «наближення» латинки до кирилиці (опційно розширити)
+
   x = x.replace(/[a-z]/g, (ch) => map[ch] ?? ch)
-  // колапс пробілів
+
   return x.replace(/\s+/g, ' ').trim()
 }
