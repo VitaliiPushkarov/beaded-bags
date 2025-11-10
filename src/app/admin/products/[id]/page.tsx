@@ -7,9 +7,9 @@ type PageProps = {
 }
 
 export default async function AdminProductEditPage({ params }: PageProps) {
-  const id = await params
+  const { id } = await params
   const product = await prisma.product.findUnique({
-    where: { id: String(id) },
+    where: { id },
     include: {
       variants: {
         orderBy: { id: 'asc' },

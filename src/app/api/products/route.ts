@@ -1,66 +1,26 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { z } from 'zod'
-import { prisma } from '@/lib/prisma'
-import type { ProductType } from '@prisma/client'
+import { getProducts } from '@/lib/db/products'
 
-const VariantSchema = z.object({
-  id: z.string().optional(),
-  color: z.string().optional().nullable(),
-  hex: z.string().optional().nullable(),
-  image: z.string().optional().nullable(),
-  priceUAH: z.number().nullable(),
-  inStock: z.boolean(),
-  sku: z.string().optional().nullable(),
-})
-
-const ProductSchema = z.object({
-  name: z.string().min(1),
-  slug: z.string().min(1),
-  type: z.custom<ProductType>(),
-  basePriceUAH: z.number().nullable(),
-  description: z.string().optional().nullable(),
-  inStock: z.boolean(),
-  variants: z.array(VariantSchema).min(1),
-})
-
-export async function POST(req: NextRequest) {
+export async function GET(req: NextRequest) {
   try {
-    const json = await req.json()
-    const parsed = ProductSchema.safeParse(json)
+    const url = new URL(req.url)
+    const sp = url.searchParams
 
-    if (!parsed.success) {
-      return NextResponse.json(
-        { error: parsed.error.flatten() },
-        { status: 400 }
-      )
-    }
+    const search = sp.get('q') || undefined
+    const type = sp.get('type') || undefined
+    const color = sp.get('color') || undefined
 
-    const data = parsed.data
+    const limitParam = sp.get('limit')
+    const limit = limitParam ? Number(limitParam) || undefined : undefined
 
-    const created = await prisma.product.create({
-      data: {
-        name: data.name,
-        slug: data.slug,
-        type: data.type,
-        basePriceUAH: data.basePriceUAH,
-        description: data.description ?? null,
-        inStock: data.inStock,
-        variants: {
-          create: data.variants.map((v) => ({
-            color: v.color ?? null,
-            hex: v.hex ?? null,
-            image: v.image ?? null,
-            priceUAH: v.priceUAH,
-            inStock: v.inStock,
-            sku: v.sku ?? null,
-          })),
-        },
-      },
-    })
+    const items = await getProducts({ search, type, color })
 
-    return NextResponse.json({ id: created.id }, { status: 201 })
+    const sliced =
+      typeof limit === 'number' ? items.slice(0, Math.max(0, limit)) : items
+
+    return NextResponse.json(sliced)
   } catch (err) {
-    console.error('Create product error', err)
+    console.error('GET /api/products error', err)
     return NextResponse.json(
       { error: 'Internal Server Error' },
       { status: 500 }

@@ -115,8 +115,16 @@ export default function ProductForm({ initial, mode }: Props) {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(body),
       })
+      const contentType = res.headers.get('content-type') || ''
 
-      const json = (await res.json()) as { error?: string; id?: string }
+      let json: { error?: string; id?: string } = {}
+      if (contentType.includes('application/json')) {
+        json = (await res.json()) as { error?: string; id?: string }
+      } else {
+        console.error('Non-JSON response on save product', await res.text())
+        setError('Сервер повернув неочікувану відповідь')
+        return
+      }
 
       if (!res.ok) {
         setError(json.error || 'Помилка збереження')

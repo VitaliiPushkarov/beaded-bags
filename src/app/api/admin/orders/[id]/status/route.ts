@@ -11,7 +11,7 @@ type PageProps = { params: Promise<{ id: string }> }
 
 export async function PATCH(req: NextRequest, { params }: PageProps) {
   try {
-    const id = await params
+    const { id } = await params
     const json = await req.json()
     const parsed = BodySchema.safeParse(json)
 
@@ -21,7 +21,7 @@ export async function PATCH(req: NextRequest, { params }: PageProps) {
     }
 
     const updated = await prisma.order.update({
-      where: { id: String(id) },
+      where: { id },
       data: { status: parsed.data.status },
     })
 
