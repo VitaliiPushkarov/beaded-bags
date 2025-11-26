@@ -3,7 +3,6 @@ import Bestsellers from '@/components/Bestsellers'
 
 import ProductsSlider from './products/ProductsSlider'
 
-import Vision from '@/components/Vision'
 import About from '@/components/About'
 
 const SITE_URL = 'https://gerdan.online'
@@ -67,16 +66,9 @@ export default function Home() {
         ctaLabel="Дивитися колекцію"
         ctaHref="/products"
       /> */}
-      <Vision />
+      {/* <Vision /> */}
       <Bestsellers />
-      {/*  <section className="max-w-6xl mx-auto px-4 py-12 ">
-        <h3 className="text-2xl font-semibold mb-5">Каталог</h3>
-        <div className="grid sm:grid-cols-2 md:grid-cols-4 gap-4 md:gap-6">
-          {PRODUCTS.slice(0, 4).map((p) => (
-            <ProductCard key={p.id} p={p} />
-          ))}
-        </div>
-      </section> */}
+
       <ProductsSlider />
       <About image="/img/about-section-preview.png" alt="Про нас" />
     </>

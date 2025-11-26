@@ -1,14 +1,19 @@
 'use client'
 import { useEffect, useMemo, useState, Suspense } from 'react'
 import { useSearchParams } from 'next/navigation'
-import Image from 'next/image'
+
 import VariantSwatches from '@/components/product/VariantSwatches'
 import { useCart } from '@/app/store/cart'
 import { useUI } from '@/app/store/ui'
-import { Product, ProductVariant } from '@prisma/client'
+import { Product, ProductVariant, ProductVariantImage } from '@prisma/client'
+import ProductGallery from '@/components/ProductGallery'
+
+type VariantWithImages = ProductVariant & {
+  images: ProductVariantImage[]
+}
 
 type ProductWithVariants = Product & {
-  variants: ProductVariant[]
+  variants: VariantWithImages[]
 }
 
 export function ProductClient({ p }: { p: ProductWithVariants }) {
@@ -20,6 +25,7 @@ export function ProductClient({ p }: { p: ProductWithVariants }) {
   )
   const openCart = useUI((s) => s.openCart)
 
+  //sync variantId with URL param
   useEffect(() => {
     if (!variantFromUrl || !p.variants?.length) return
     const ok = p.variants.some((v) => v.id === variantFromUrl)
@@ -33,24 +39,39 @@ export function ProductClient({ p }: { p: ProductWithVariants }) {
   )
 
   const add = useCart((s) => s.add)
+
+  const galleryImages = useMemo(() => {
+    if (!v) return ['/img/placeholder.png']
+
+    const list: string[] = []
+
+    if (Array.isArray(v.images) && v.images.length > 0) {
+      v.images
+        .sort((a, b) => a.sort - b.sort)
+        .forEach((img) => {
+          if (img.url && !list.includes(img.url)) list.push(img.url)
+        })
+    }
+
+    // fallback – oldschool поле image
+    if (v.image && !list.includes(v.image)) {
+      list.push(v.image)
+    }
+
+    if (!list.length) list.push('/img/placeholder.png')
+
+    return list
+  }, [v])
   const price = v?.priceUAH ?? p.basePriceUAH ?? 0
 
   return (
     <Suspense fallback={<div className="p-6 text-center">Завантаження…</div>}>
       <section className="mx-auto flex flex-col items-center md:items-stretch md:flex-row md:justify-between gap-4 md:gap-[60px]">
-        <div className="relative h-[380px] w-full md:h-[580px] md:w-[476px] overflow-hidden bg-gray-100">
-          {v?.image && (
-            <Image
-              src={v.image}
-              alt={`${p.name} — ${v.color}`}
-              fill
-              className="object-cover"
-              priority
-            />
-          )}
-        </div>
+        {/* Ліва колонка: карусель */}
+        <ProductGallery images={galleryImages} />
 
-        <div className="flex flex-col items-start w-full md:w-[50%]">
+        {/* Права колонка */}
+        <div className="flex flex-col items-start w-full md:w-[33%]">
           <h2 className="text-xl md:text-3xl font-medium font-fixel-display mb-[12px] md:mb-[24px]">
             {p.name}
           </h2>
@@ -59,13 +80,16 @@ export function ProductClient({ p }: { p: ProductWithVariants }) {
             {price} ₴
           </div>
 
-          <div className="mb-3 text-sm text-gray-600">Колір:</div>
-          {p.variants?.length > 0 && (
-            <VariantSwatches
-              variants={p.variants}
-              value={variantId ?? p.variants[0].id}
-              onChange={setVariantId}
-            />
+          {/* свотчі кольорів */}
+          {p.variants.length > 1 && (
+            <>
+              <div className="mb-3 text-sm text-gray-600">Колір:</div>
+              <VariantSwatches
+                variants={p.variants}
+                value={variantId!}
+                onChange={setVariantId}
+              />
+            </>
           )}
 
           <button
@@ -76,9 +100,9 @@ export function ProductClient({ p }: { p: ProductWithVariants }) {
               add({
                 productId: p.id,
                 variantId: v.id,
-                name: `${p.name} — ${v.color ?? ''}`,
+                name: `${p.name}${v.color ? ` — ${v.color}` : ''}`,
                 priceUAH: price,
-                image: v.image ?? '/img/placeholder.png',
+                image: galleryImages[0],
                 qty: 1,
                 slug: p.slug,
               })

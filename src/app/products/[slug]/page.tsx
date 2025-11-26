@@ -3,11 +3,20 @@ import { prisma } from '@/lib/prisma'
 import { Suspense } from 'react'
 import Breadcrumbs from '@/components/ui/BreadCrumbs'
 import { ProductClient } from './ProductClient'
-import type { Product, ProductVariant, ProductType } from '@prisma/client'
+import type {
+  Product,
+  ProductVariant,
+  ProductType,
+  ProductVariantImage,
+} from '@prisma/client'
 import type { Metadata } from 'next'
 
+type VariantWithImages = ProductVariant & {
+  images: ProductVariantImage[]
+}
+
 type ProductWithVariants = Product & {
-  variants: ProductVariant[]
+  variants: VariantWithImages[]
 }
 
 const TYPE_TO_ROUTE: Record<ProductType, { label: string; href: string }> = {
@@ -25,15 +34,29 @@ export async function generateMetadata(props: {
 
   const product = await prisma.product.findUnique({
     where: { slug },
-    include: { variants: true },
+    include: {
+      variants: {
+        include: {
+          images: {
+            orderBy: { sort: 'asc' },
+          },
+        },
+        orderBy: { id: 'asc' },
+      },
+    },
   })
 
   if (!product) return {}
 
   const p = product as ProductWithVariants
 
-  const ogImage =
-    p.variants.find((v) => v.image)?.image ?? '/img/placeholder.png'
+  const allImages = product.variants.flatMap((v) =>
+    v.images.map((img) => img.url)
+  )
+  const mainImage =
+    allImages[0] ||
+    product.variants.find((v) => v.image)?.image ||
+    '/img/placeholder.png'
 
   const title = `${p.name} — GERDAN`
   const description =
@@ -51,7 +74,7 @@ export async function generateMetadata(props: {
       description,
       url: `https://gerdan.online/products/${p.slug}`,
       type: 'website',
-      images: [{ url: ogImage }],
+      images: [{ url: mainImage }],
     },
     other: {
       'og:type': 'product',
@@ -65,10 +88,16 @@ export default async function ProductPage({
   params: Promise<{ slug: string }>
 }) {
   const { slug } = await params
+
   const p = await prisma.product.findUnique({
-    where: { slug: slug },
+    where: { slug },
     include: {
       variants: {
+        include: {
+          images: {
+            orderBy: { sort: 'asc' },
+          },
+        },
         orderBy: { id: 'asc' },
       },
     },
@@ -77,6 +106,7 @@ export default async function ProductPage({
   if (!p) {
     return notFound()
   }
+
   const product = p as ProductWithVariants
 
   const crumbs = [
@@ -84,17 +114,26 @@ export default async function ProductPage({
     { label: 'Каталог', href: '/shop' },
   ] as { label: string; href?: string }[]
 
-  if (p.type && TYPE_TO_ROUTE[p.type]) {
-    crumbs.push(TYPE_TO_ROUTE[p.type])
+  if (product.type && TYPE_TO_ROUTE[product.type]) {
+    crumbs.push(TYPE_TO_ROUTE[product.type])
   }
 
-  crumbs.push({ label: p.name || 'Товар' })
-  const firstVariant = product.variants[0]
-  const image =
-    product.variants.find((v) => v.image)?.image ?? '/img/placeholder.png'
-  const price = firstVariant?.priceUAH ?? product.basePriceUAH ?? 0
+  crumbs.push({ label: product.name || 'Товар' })
 
+  const firstVariant = product.variants[0]
+
+  // всі картинки з усіх варіантів
+  const allImages = product.variants.flatMap((v) =>
+    v.images.map((img) => img.url)
+  )
+  const mainImage =
+    allImages[0] ||
+    product.variants.find((v) => v.image)?.image ||
+    '/img/placeholder.png'
+
+  const price = firstVariant?.priceUAH ?? product.basePriceUAH ?? 0
   const inStock = product.inStock || product.variants.some((v) => v.inStock)
+
   const m = 6
   const now = new Date()
   const priceValidUntil = new Date(
@@ -110,7 +149,7 @@ export default async function ProductPage({
     '@type': 'Product',
     name: product.name,
     description: product.description,
-    image: image ? [image] : [],
+    image: allImages.length ? allImages : [mainImage],
     sku: firstVariant?.id ?? product.id,
     brand: {
       '@type': 'Brand',
@@ -163,9 +202,9 @@ export default async function ProductPage({
       },
     },
   }
+
   return (
-    <div className="max-w-[1440px] mx-auto py-10 px-[50px]">
-      {/* JSON-LD для Google */}
+    <div className="max-w-[1440px] mx-auto py-10 px-[50px] 2xl:h-[80vh]">
       <script
         type="application/ld+json"
         dangerouslySetInnerHTML={{ __html: JSON.stringify(productLd) }}
@@ -173,7 +212,7 @@ export default async function ProductPage({
       <Suspense fallback={null}>
         <Breadcrumbs override={crumbs} />
       </Suspense>
-      <ProductClient p={p as ProductWithVariants} />
+      <ProductClient p={product} />
     </div>
   )
 }

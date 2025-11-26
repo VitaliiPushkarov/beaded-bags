@@ -18,9 +18,11 @@
     "lucide-react": "^0.548.0",
     "next": "15.5.4",
     "next-sitemap": "^4.2.3",
+    "photoswipe": "^5.4.4",
     "react": "19.1.0",
     "react-dom": "19.1.0",
-    "swiper": "11.1.4",
+    "react-photoswipe-gallery": "^4.0.0",
+    "swiper": "^11.1.4",
     "zod": "^4.1.12",
     "zustand": "^5.0.8"
   },
