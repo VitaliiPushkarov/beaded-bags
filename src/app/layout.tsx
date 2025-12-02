@@ -63,7 +63,7 @@ export default function RootLayout({
 
       <body className="min-h-screen text-gray-900 antialiased bg-white font-fixel">
         <Header />
-        <main className="max-w-full mx-auto md:py-8">{children}</main>
+        <main className="max-w-full mx-auto">{children}</main>
         <Analytics />
         <CartDrawer />
         <Footer />

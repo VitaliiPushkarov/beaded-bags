@@ -23,6 +23,8 @@ type ProductFormValues = {
   description: string
   inStock: boolean
   variants: VariantInput[]
+  info?: string
+  dimensions?: string
 }
 
 type Props = {
@@ -199,7 +201,7 @@ export default function ProductForm({ initial, mode }: Props) {
         <label className="block text-sm font-medium">
           Опис
           <textarea
-            className="mt-1 w-full border rounded px-3 py-2 text-sm min-h-[80px]"
+            className="mt-1 w-full border rounded px-3 py-2 text-sm min-h-20"
             value={values.description}
             onChange={(e) =>
               setValues((v) => ({ ...v, description: e.target.value }))
@@ -216,6 +218,25 @@ export default function ProductForm({ initial, mode }: Props) {
             }
           />
           В наявності (загальний прапорець)
+        </label>
+        <label className="block text-sm font-medium">
+          Інфо
+          <textarea
+            className="mt-1 w-full border rounded px-3 py-2 text-sm min-h-20"
+            value={values.info}
+            onChange={(e) => setValues((v) => ({ ...v, info: e.target.value }))}
+          />
+        </label>
+
+        <label className="block text-sm font-medium">
+          Заміри
+          <textarea
+            className="mt-1 w-full border rounded px-3 py-2 text-sm min-h-20"
+            value={values.dimensions}
+            onChange={(e) =>
+              setValues((v) => ({ ...v, dimensions: e.target.value }))
+            }
+          />
         </label>
       </div>
 

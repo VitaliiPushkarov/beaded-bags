@@ -51,7 +51,7 @@ export default function Accordion({
               id={`acc-panel-${it.id}`}
               role="region"
               hidden={!isOpen}
-              className="px-[20px] py-[14px] mt-[15px]"
+              className="px-5 py-3.5 mt-[15px]"
             >
               {it.content}
             </div>

@@ -52,21 +52,14 @@ export default function Home() {
       <>
         <HeroImages
           leftImg="/img/hero-img-1.webp"
-          centerVideo="/media/hero-vid.mov"
+          centerVideo="/media/hero-video.mp4"
           centerPoster="/img/hero-img-2.webp"
-          rightImg="/img/hero-img-3.webp"
+          rightImg="/img/yellow-bag-knitted.png"
           altLeft="Beaded bag on rock"
           altRight="Model with beaded bag"
         />
       </>
-      {/* <CallToAction
-        image="/img/cta-banner.png"
-        title="GERDAN"
-        subtitle="Ручні сумки з бісеру"
-        ctaLabel="Дивитися колекцію"
-        ctaHref="/products"
-      /> */}
-      {/* <Vision /> */}
+
       <Bestsellers />
 
       <ProductsSlider />

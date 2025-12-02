@@ -7,6 +7,7 @@ import { useCart } from '@/app/store/cart'
 import { useUI } from '@/app/store/ui'
 import { Product, ProductVariant, ProductVariantImage } from '@prisma/client'
 import ProductGallery from '@/components/ProductGallery'
+import ProductTabs from '@/components/product/ProductTabs'
 
 type VariantWithImages = ProductVariant & {
   images: ProductVariantImage[]
@@ -53,7 +54,7 @@ export function ProductClient({ p }: { p: ProductWithVariants }) {
         })
     }
 
-    // fallback – oldschool поле image
+    // fallback to variant image
     if (v.image && !list.includes(v.image)) {
       list.push(v.image)
     }
@@ -63,27 +64,46 @@ export function ProductClient({ p }: { p: ProductWithVariants }) {
     return list
   }, [v])
   const price = v?.priceUAH ?? p.basePriceUAH ?? 0
+  const inStock = p.inStock || p.variants.some((vv) => vv.inStock)
 
   return (
     <Suspense fallback={<div className="p-6 text-center">Завантаження…</div>}>
-      <section className="mx-auto flex flex-col items-center md:items-stretch md:flex-row md:justify-between gap-4 md:gap-[60px]">
+      <section className="mx-auto flex flex-col items-center md:items-stretch md:flex-row md:justify-between gap-4 md:gap-10">
         {/* Ліва колонка: карусель */}
         <ProductGallery images={galleryImages} />
 
         {/* Права колонка */}
         <div className="flex flex-col items-start w-full md:w-[33%]">
-          <h2 className="text-xl md:text-3xl font-medium font-fixel-display mb-[12px] md:mb-[24px]">
+          <h2 className=" text-[38px] font-fixel-display font-medium mb-6">
             {p.name}
           </h2>
 
-          <div className="mt-2 text-lg md:text-2xl mb-[12px] md:mb-[24px]">
-            {price} ₴
+          <div className=" text-lg md:text-2xl mb-[34px]">{price} ₴</div>
+          {/* inStock Statu */}
+          <div className="flex items-center gap-2 text-sm mb-3">
+            <span
+              className={`inline-block h-2 w-2 rounded-full ${
+                inStock ? 'bg-green-500' : 'bg-gray-300'
+              }`}
+            />
+            <span className={inStock ? 'text-green-700' : 'text-red-500'}>
+              {inStock
+                ? 'Є в наявності'
+                : 'Відкрито передзамовлення! (відправка протягом 7-14 днів робочих днів з моменту замовлення)'}
+            </span>
           </div>
-
-          {/* свотчі кольорів */}
-          {p.variants.length > 1 && (
+          {/* Divider */}
+          <div className="w-full border-t border-gray-200 mb-3" />
+          {/* Color + variant swatches */}
+          {p.variants.length > 0 && (
             <>
-              <div className="mb-3 text-sm text-gray-600">Колір:</div>
+              <div className="mb-3 flex items-center gap-2 text-sm text-gray-600">
+                <span>Колір:</span>
+                {v?.color && (
+                  <span className="font-medium text-gray-900">{v.color}</span>
+                )}
+              </div>
+
               <VariantSwatches
                 variants={p.variants}
                 value={variantId!}
@@ -92,8 +112,9 @@ export function ProductClient({ p }: { p: ProductWithVariants }) {
             </>
           )}
 
+          {/* Button "Add to cart" */}
           <button
-            className="mt-6 inline-flex items-center justify-center w-full bg-black text-white px-5 py-2 hover:bg-[#FF3D8C] transition disabled:opacity-50 cursor-pointer"
+            className="mt-3 inline-flex items-center justify-center w-full bg-black text-white px-5 py-2 hover:bg-[#FF3D8C] transition disabled:opacity-50 cursor-pointer"
             disabled={!v?.inStock}
             onClick={() => {
               if (!v) return
@@ -109,14 +130,14 @@ export function ProductClient({ p }: { p: ProductWithVariants }) {
               openCart()
             }}
           >
-            Додати в кошик
+            Додати до кошика
           </button>
 
-          {p.description && (
-            <p className="mt-6 text-gray-700 leading-relaxed">
-              {p.description}
-            </p>
-          )}
+          <ProductTabs
+            description={p.description}
+            info={p.info}
+            dimensions={p.dimensions}
+          />
         </div>
       </section>
     </Suspense>

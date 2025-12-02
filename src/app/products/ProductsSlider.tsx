@@ -107,18 +107,18 @@ export default function ProductsSlider() {
             <button
               ref={prevRef}
               aria-label="Prev"
-              className="absolute left-2 sm:left-3 lg:-left-[20px] top-1/2 -translate-y-1/2 z-10 h-[21px] w-[16px]
+              className="absolute left-2 sm:left-3 lg:-left-5 top-1/2 -translate-y-1/2 z-10 h-[21px] w-4
                          hidden md:flex items-center justify-center text-gray-400 hover:text-[#FF3D8C] transition cursor-pointer"
             >
-              <Chevron dir="left" className="h-[21px] w-[16px]" />
+              <Chevron dir="left" className="h-[21px] w-4" />
             </button>
             <button
               ref={nextRef}
               aria-label="Next"
-              className="absolute right-2 sm:right-3 lg:-right-[20px] top-1/2 -translate-y-1/2 z-10 h-[21px] w-[16px]
+              className="absolute right-2 sm:right-3 lg:-right-5 top-1/2 -translate-y-1/2 z-10 h-[21px] w-4
                          hidden md:flex items-center justify-center text-gray-400 hover:text-[#FF3D8C] transition cursor-pointer"
             >
-              <Chevron dir="right" className="h-[21px] w-[16px]" />
+              <Chevron dir="right" className="h-[21px] w-4" />
             </button>
 
             <Swiper

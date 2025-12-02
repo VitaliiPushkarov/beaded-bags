@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { z } from 'zod'
 import { prisma } from '@/lib/prisma'
 import { ProductType } from '@prisma/client'
+import { info } from 'console'
 
 // --------- Zod-схема продукту (БЕЗ variants) ---------
 const ProductSchema = z.object({
@@ -19,7 +20,9 @@ const ProductSchema = z.object({
     })
   ),
   basePriceUAH: z.number().nullable(),
+  info: z.string().optional().nullable(),
   description: z.string().optional().nullable(),
+  dimensions: z.string().optional().nullable(),
   inStock: z.boolean(),
   images: z.array(z.string().url()).optional().default([]),
 })
@@ -46,6 +49,8 @@ export async function POST(req: NextRequest) {
         type: data.type,
         basePriceUAH: data.basePriceUAH,
         description: data.description ?? null,
+        info: data.info ?? null,
+        dimensions: data.dimensions || null,
         inStock: data.inStock,
         variants: {
           create: data.variants.map((v) => ({

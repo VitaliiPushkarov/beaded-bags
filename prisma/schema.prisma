@@ -34,7 +34,9 @@ model Product {
   id           String      @id @default(cuid())
   slug         String      @unique
   name         String
-  description  String?
+  description  String?     // поле ОПИС
+  info         String?     // поле ІНФО
+  dimensions   String?     // поле ЗАМІРИ
   type         ProductType
   basePriceUAH Int?
   inStock      Boolean     @default(true)

@@ -90,7 +90,7 @@ export default function Bestsellers() {
             {loading ? (
               Array.from({ length: 4 }).map((_, i) => (
                 <div key={i} className="min-w-[260px] snap-start">
-                  <div className="relative aspect-[3/4] bg-gray-100 animate-pulse rounded" />
+                  <div className="relative aspect-3/4 bg-gray-100 animate-pulse rounded" />
                   <div className="mt-3 h-4 bg-gray-100 rounded w-3/4 animate-pulse" />
                 </div>
               ))
@@ -118,7 +118,7 @@ export default function Bestsellers() {
                 return (
                   <div key={p.id} className="min-w-[260px] snap-start">
                     <Link href={`/products/${p.slug}`}>
-                      <div className="relative aspect-[3/4] bg-gray-100 overflow-hidden border rounded">
+                      <div className="relative aspect-3/4 bg-gray-100 overflow-hidden border rounded">
                         <Image
                           src={imageSrc}
                           alt={p.name}

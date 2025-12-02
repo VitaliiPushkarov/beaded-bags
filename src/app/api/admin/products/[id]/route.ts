@@ -20,6 +20,8 @@ const ProductSchema = z.object({
   type: z.nativeEnum(ProductType),
   basePriceUAH: z.number().nullable(),
   description: z.string().optional().nullable(),
+  info: z.string().optional().nullable(),
+  dimensions: z.string().optional().nullable(),
   inStock: z.boolean(),
   variants: z.array(VariantSchema).min(1),
 })
@@ -56,6 +58,8 @@ export async function PATCH(
         type: data.type,
         basePriceUAH: data.basePriceUAH,
         description: data.description ?? null,
+        info: data.info ?? null,
+        dimensions: data.dimensions || null,
         inStock: data.inStock,
         variants: {
           create: data.variants.map((v) => ({
