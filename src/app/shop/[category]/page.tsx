@@ -40,10 +40,8 @@ export default async function ShopCategoryPage({
     )
   }
 
-  // для цієї категорії — підтягуємо товари одразу
   const products = await getProducts({ type })
 
-  // показуємо той самий каталог, що і на /shop,
   // але: 1) передаємо lockedType, 2) початкові фільтри вже з типом
   return (
     <ProductsContainer

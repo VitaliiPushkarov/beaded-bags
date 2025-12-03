@@ -39,6 +39,7 @@ export function ProductClient({ p }: { p: ProductWithVariants }) {
     [p.variants, variantId]
   )
 
+  const variantInStock = !!v?.inStock
   const add = useCart((s) => s.add)
 
   const galleryImages = useMemo(() => {
@@ -64,7 +65,6 @@ export function ProductClient({ p }: { p: ProductWithVariants }) {
     return list
   }, [v])
   const price = v?.priceUAH ?? p.basePriceUAH ?? 0
-  const inStock = p.inStock || p.variants.some((vv) => vv.inStock)
 
   return (
     <Suspense fallback={<div className="p-6 text-center">Завантаження…</div>}>
@@ -78,18 +78,20 @@ export function ProductClient({ p }: { p: ProductWithVariants }) {
             {p.name}
           </h2>
 
-          <div className=" text-lg md:text-2xl mb-[34px]">{price} ₴</div>
-          {/* inStock Statu */}
+          <div className=" text-lg md:text-[25px] mb-[34px]">{price} ₴</div>
+          {/* inStock Status */}
           <div className="flex items-center gap-2 text-sm mb-3">
             <span
-              className={`inline-block h-2 w-2 rounded-full ${
-                inStock ? 'bg-green-500' : 'bg-gray-300'
+              className={`inline-block h-2 w-2 rounded-full flex-none ${
+                variantInStock ? 'bg-green-500' : 'bg-red-300'
               }`}
             />
-            <span className={inStock ? 'text-green-700' : 'text-red-500'}>
-              {inStock
+            <span
+              className={variantInStock ? 'text-green-700' : 'text-red-500'}
+            >
+              {variantInStock
                 ? 'Є в наявності'
-                : 'Відкрито передзамовлення! (відправка протягом 7-14 днів робочих днів з моменту замовлення)'}
+                : 'Відкрито передзамовлення! (відправка протягом 7–14 робочих днів з моменту замовлення)'}
             </span>
           </div>
           {/* Divider */}
@@ -114,7 +116,7 @@ export function ProductClient({ p }: { p: ProductWithVariants }) {
 
           {/* Button "Add to cart" */}
           <button
-            className="mt-3 inline-flex items-center justify-center w-full bg-black text-white px-5 py-2 hover:bg-[#FF3D8C] transition disabled:opacity-50 cursor-pointer"
+            className="mt-3 inline-flex items-center justify-center w-full h-10 bg-black text-white px-5 text-[18px] py-2 hover:bg-[#FF3D8C] transition disabled:opacity-50 cursor-pointer"
             disabled={!v?.inStock}
             onClick={() => {
               if (!v) return
@@ -130,7 +132,7 @@ export function ProductClient({ p }: { p: ProductWithVariants }) {
               openCart()
             }}
           >
-            Додати до кошика
+            Додати в кошик
           </button>
 
           <ProductTabs

@@ -1,14 +1,14 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { z } from 'zod'
 import { prisma } from '@/lib/prisma'
-import { ProductType } from '@prisma/client'
-import { info } from 'console'
+import { ProductType, ProductGroup } from '@prisma/client'
 
 // --------- Zod-схема продукту (БЕЗ variants) ---------
 const ProductSchema = z.object({
   name: z.string().min(1),
   slug: z.string().min(1),
-  type: z.nativeEnum(ProductType),
+  type: z.enum(ProductType),
+  group: z.enum(ProductGroup).optional(),
   variants: z.array(
     z.object({
       color: z.string().optional().nullable(),
@@ -47,6 +47,7 @@ export async function POST(req: NextRequest) {
         name: data.name,
         slug: data.slug,
         type: data.type,
+        group: data.group ?? null,
         basePriceUAH: data.basePriceUAH,
         description: data.description ?? null,
         info: data.info ?? null,

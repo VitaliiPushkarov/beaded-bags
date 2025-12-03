@@ -1,5 +1,6 @@
 'use client'
 import { useState } from 'react'
+import { CareInfoBlock } from '@/components/product/CareInfoBlock'
 
 type Props = {
   description?: string | null
@@ -7,7 +8,7 @@ type Props = {
   dimensions?: string | null
 }
 
-export default function ProductTabs({ description, info, dimensions }: Props) {
+export default function ProductTabs({ description, dimensions }: Props) {
   const [tab, setTab] = useState<'description' | 'info' | 'dimensions'>(
     'description'
   )
@@ -19,7 +20,7 @@ export default function ProductTabs({ description, info, dimensions }: Props) {
   ] as const
 
   return (
-    <div className="w-full mt-[27px] pt-6">
+    <div className="w-full mt-[27px]">
       {/* --- HEADER TABS --- */}
       <div className="flex gap-10 mb-6 flex-wrap">
         {tabs.map((t) => (
@@ -39,7 +40,11 @@ export default function ProductTabs({ description, info, dimensions }: Props) {
       {/* --- CONTENT --- */}
       <div className="text-gray-700 leading-relaxed whitespace-pre-line">
         {tab === 'description' && <div>{description}</div>}
-        {tab === 'info' && <div>{info}</div>}
+        {tab === 'info' && (
+          <div>
+            <CareInfoBlock />{' '}
+          </div>
+        )}
         {tab === 'dimensions' && <div>{dimensions}</div>}
       </div>
     </div>

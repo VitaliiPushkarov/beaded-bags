@@ -2,6 +2,7 @@
 
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
+import Image from 'next/image'
 import NovaPoshtaPicker from '@/components/checkout/NovaPoshtaPicker'
 import { useCart } from '../store/cart'
 import { useCheckout } from '@/stores/checkout'
@@ -9,7 +10,6 @@ import { useCheckout } from '@/stores/checkout'
 export default function CheckoutClient() {
   const router = useRouter()
 
-  // локальна форма покупця
   const [form, setForm] = useState({
     name: '',
     surname: '',
@@ -46,17 +46,16 @@ export default function CheckoutClient() {
     /^\d{12}$/.test(d) && d.startsWith('380')
 
   const inputClass = (ok: boolean, wasTouched: boolean) =>
-    'mt-1 w-full rounded border px-3 py-2 outline-none ' +
+    'mt-3 w-full border-b pr-3 py-2 outline-none text-[12px] ' +
     (wasTouched
       ? ok
         ? 'border-emerald-500'
         : 'border-rose-500'
-      : 'border-gray-300')
+      : 'border-black')
 
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
-  // дані з наших сторів
   const cart = useCart()
   const co = useCheckout()
 
@@ -195,7 +194,6 @@ export default function CheckoutClient() {
         {/* Контакти */}
         <div className="space-y-3">
           <div>
-            <label className="text-sm text-gray-600">Імʼя</label>
             <input
               className={inputClass(isNameValid(form.name), touched.name)}
               value={form.name}
@@ -203,7 +201,7 @@ export default function CheckoutClient() {
                 setForm({ ...form, name: lettersOnly(e.target.value) })
               }
               onBlur={() => setTouched({ ...touched, name: true })}
-              placeholder="Ваше імʼя"
+              placeholder="ІМʼЯ*"
             />
             {touched.name && !isNameValid(form.name) && (
               <p className="text-xs text-rose-600 mt-1">
@@ -213,7 +211,6 @@ export default function CheckoutClient() {
           </div>
 
           <div>
-            <label className="text-sm text-gray-600">По батькові</label>
             <input
               className={inputClass(
                 isNameValid(form.patronymic),
@@ -224,7 +221,7 @@ export default function CheckoutClient() {
                 setForm({ ...form, patronymic: lettersOnly(e.target.value) })
               }
               onBlur={() => setTouched({ ...touched, patronymic: true })}
-              placeholder="Ваше по батькові"
+              placeholder="ПО БАТЬКОВІ*"
             />
             {touched.patronymic && !isNameValid(form.patronymic) && (
               <p className="text-xs text-rose-600 mt-1">
@@ -233,7 +230,6 @@ export default function CheckoutClient() {
             )}
           </div>
           <div>
-            <label className="text-sm text-gray-600">Прізвище</label>
             <input
               className={inputClass(isNameValid(form.surname), touched.surname)}
               value={form.surname}
@@ -241,7 +237,7 @@ export default function CheckoutClient() {
                 setForm({ ...form, surname: lettersOnly(e.target.value) })
               }
               onBlur={() => setTouched({ ...touched, surname: true })}
-              placeholder="Ваше прізвище"
+              placeholder="ПРІЗВИЩЕ*"
             />
             {touched.surname && !isNameValid(form.surname) && (
               <p className="text-xs text-rose-600 mt-1">
@@ -250,7 +246,6 @@ export default function CheckoutClient() {
             )}
           </div>
           <div>
-            <label className="text-sm text-gray-600">Телефон</label>
             <input
               className={inputClass(
                 isUaPhoneValid(normalizeUaPhone(form.phone)),
@@ -264,7 +259,7 @@ export default function CheckoutClient() {
                 })
               }
               onBlur={() => setTouched({ ...touched, phone: true })}
-              placeholder="формат 380XXXXXXXXX"
+              placeholder="ТЕЛЕФОН*"
               inputMode="numeric"
             />
             {touched.phone && !isUaPhoneValid(normalizeUaPhone(form.phone)) && (
@@ -274,13 +269,12 @@ export default function CheckoutClient() {
             )}
           </div>
           <div>
-            <label className="text-sm text-gray-600">Email</label>
             <input
               className={inputClass(isEmailValid(form.email), touched.email)}
               value={form.email}
               onChange={(e) => setForm({ ...form, email: e.target.value })}
               onBlur={() => setTouched({ ...touched, email: true })}
-              placeholder="name@example.com"
+              placeholder="EMAIL АДРЕСА*"
             />
             {touched.email && !isEmailValid(form.email) && (
               <p className="text-xs text-rose-600 mt-1">
@@ -301,6 +295,34 @@ export default function CheckoutClient() {
 
       {/* Правий сайдбар з підсумком */}
       <aside className="h-fit lg:sticky lg:top-16 border rounded p-5 space-y-4">
+        {/* Перелік товарів у кошику */}
+        <div className="space-y-3">
+          {cart.items.map((item) => (
+            <div
+              key={`${item.productId}-${item.variantId ?? ''}`}
+              className="flex items-center gap-3"
+            >
+              {item.image && (
+                <div className="relative h-14 w-14 shrink-0 overflow-hidden rounded bg-gray-100">
+                  <Image
+                    src={item.image}
+                    alt={item.name}
+                    fill
+                    className="object-cover"
+                  />
+                </div>
+              )}
+              <div className="flex flex-col text-sm">
+                <span className="line-clamp-2">{item.name}</span>
+                <span className="text-xs text-gray-500">
+                  {item.qty} шт · {item.priceUAH} грн
+                </span>
+              </div>
+            </div>
+          ))}
+        </div>
+
+        {/* Підсумок */}
         <div className="flex items-center justify-between">
           <span>Товарів</span>
           <span>{cart.items.reduce((n, i) => n + i.qty, 0)}</span>

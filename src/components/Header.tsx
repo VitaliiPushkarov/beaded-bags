@@ -104,7 +104,7 @@ export default function Header() {
           </Link>
 
           {/* Right nav */}
-          <nav className="flex items-center gap-[20px]">
+          <nav className="flex items-center gap-5">
             <Link
               href="/info"
               className="hidden lg:inline-block hover:opacity-70 text-[12px] font-medium tracking-wide"

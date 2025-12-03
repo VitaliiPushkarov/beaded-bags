@@ -58,7 +58,7 @@ export default function CartPage() {
         {/* LEFT: таблиця */}
         <div>
           {/* заголовки таблиці */}
-          <div className="hidden lg:grid grid-cols-[2fr_1fr_1fr_1fr] gap-6 uppercase tracking-wide text-sm pb-3 border-b-1 border-black ">
+          <div className="hidden lg:grid grid-cols-[2fr_1fr_1fr_1fr] gap-6 uppercase tracking-wide text-sm pb-3 border-b border-black ">
             <div>Товар</div>
             <div className="text-center">Ціна</div>
             <div className="text-center">Кількість</div>
@@ -72,7 +72,7 @@ export default function CartPage() {
               return (
                 <div
                   key={`${it.productId}-${it.variantId}`}
-                  className="py-6 grid lg:grid-cols-[2fr_1fr_1fr_1fr] gap-6 items-center border-b-1 border-black"
+                  className="py-6 grid lg:grid-cols-[2fr_1fr_1fr_1fr] gap-6 items-center border-b border-black"
                 >
                   {/* Товар */}
                   <div className="flex items-start gap-6 min-w-0">
@@ -135,7 +135,7 @@ export default function CartPage() {
         </div>
 
         {/* RIGHT: сума замовлення */}
-        <aside className="h-fit lg:sticky lg:top-8 border-1 border-black rounded p-6 space-y-6 ">
+        <aside className="h-fit lg:sticky lg:top-8 border border-black rounded p-6 space-y-6 ">
           <h2 className="text-2xl font-fixel-display">Сума замовлення</h2>
 
           <div className="flex items-center justify-between text-lg">

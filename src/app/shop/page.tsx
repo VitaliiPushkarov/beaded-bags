@@ -10,6 +10,15 @@ const ALLOWED_TYPES: ProductType[] = [
   'CASE',
   'BELT_BAG',
 ]
+type ProductGroup = '' | 'Бісер' | 'Плетіння'
+
+function normalizeGroup(raw?: string | null): ProductGroup {
+  if (!raw) return ''
+  const v = raw.toLowerCase()
+  if (v === 'бісер' || v === 'biser') return 'Бісер'
+  if (v === 'плетіння' || v === 'pletinnya') return 'Плетіння'
+  return ''
+}
 
 function normalizeType(raw?: string | null): ProductType | null {
   if (!raw) return null
@@ -20,10 +29,16 @@ function normalizeType(raw?: string | null): ProductType | null {
 export default async function ShopPage({
   searchParams,
 }: {
-  searchParams: Promise<{ q?: string; color?: string; type?: string }>
+  searchParams: Promise<{
+    q?: string
+    color?: string
+    type?: string
+    group?: string
+  }>
 }) {
   const sp = await searchParams
   const safeType = normalizeType(sp.type ?? null)
+  const safeGroup = normalizeGroup(sp.group ?? null)
 
   if (sp.type && !safeType) {
     return (
@@ -68,8 +83,8 @@ export default async function ShopPage({
         initialFilters={{
           q: sp.q ?? '',
           color: sp.color ?? '',
-
           bagTypes: safeType ?? '',
+          group: safeGroup,
         }}
       />
       <script

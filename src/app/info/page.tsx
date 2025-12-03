@@ -111,19 +111,19 @@ export default function InfoPage() {
       <div className="flex gap-4 my-10 flex-col md:flex-row">
         <Link
           href="/oferta"
-          className="w-full h-[40px] bg-gray-900 text-white text-center hover:bg-white hover:text-gray-900 border border-gray-900 flex items-center justify-center "
+          className="w-full h-10 bg-gray-900 text-white text-center hover:bg-white hover:text-gray-900 border border-gray-900 flex items-center justify-center "
         >
           Публічна оферта{' '}
         </Link>
         <Link
           href="/policy"
-          className="w-full h-[40px] bg-gray-900 text-white text-center hover:bg-white hover:text-gray-900 border border-gray-900 flex items-center justify-center"
+          className="w-full h-10 bg-gray-900 text-white text-center hover:bg-white hover:text-gray-900 border border-gray-900 flex items-center justify-center"
         >
           Політика конфіденційності{' '}
         </Link>
         <Link
           href="/cashback"
-          className="w-full h-[40px] bg-gray-900 text-white text-center hover:bg-white hover:text-gray-900 border border-gray-900 flex items-center justify-center"
+          className="w-full h-10 bg-gray-900 text-white text-center hover:bg-white hover:text-gray-900 border border-gray-900 flex items-center justify-center"
         >
           Обмін та повернення{' '}
         </Link>

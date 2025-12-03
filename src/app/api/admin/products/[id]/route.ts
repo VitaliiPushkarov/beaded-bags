@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { z } from 'zod'
 import { prisma } from '@/lib/prisma'
-import { ProductType } from '@prisma/client'
+import { ProductType, ProductGroup } from '@prisma/client'
 
 // --------- Zod-схеми ---------
 const VariantSchema = z.object({
@@ -17,7 +17,8 @@ const VariantSchema = z.object({
 const ProductSchema = z.object({
   name: z.string().min(1),
   slug: z.string().min(1),
-  type: z.nativeEnum(ProductType),
+  type: z.enum(ProductType),
+  group: z.enum(ProductGroup).optional(),
   basePriceUAH: z.number().nullable(),
   description: z.string().optional().nullable(),
   info: z.string().optional().nullable(),
@@ -56,6 +57,7 @@ export async function PATCH(
         name: data.name,
         slug: data.slug,
         type: data.type,
+        group: data.group ?? null,
         basePriceUAH: data.basePriceUAH,
         description: data.description ?? null,
         info: data.info ?? null,

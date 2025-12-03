@@ -7,40 +7,56 @@ interface NovaPoshtaWarehouse {
   Description?: string
   ShortAddress?: string
   CategoryOfWarehouse?: string
+  TypeOfWarehouseRef?: string
 }
+
+// офіційний тип поштоматів у НП
+const POSTOMAT_TYPE_REF = 'f9316480-5f2d-425d-bc2c-ac7cd29decf0'
+
+// робимо ОДИН запит з великим лімітом
+const MAX_LIMIT = 500
 
 export async function GET(req: NextRequest) {
   try {
     const { searchParams } = new URL(req.url)
 
-    // сумісність: якщо ще десь передається cityRef — використаємо його як settlementRef
     const settlementRef =
       searchParams.get('settlementRef') || searchParams.get('cityRef')
     const query = (searchParams.get('query') || '').trim()
-    const page = Number(searchParams.get('page') || 1)
-    const limit = Number(searchParams.get('limit') || 100)
 
     if (!settlementRef) return NextResponse.json({ data: [] })
 
+    // ---- 1. один запит до НП з Limit = 500 ----
     const data = await npCall<NovaPoshtaWarehouse[]>(
       'AddressGeneral',
       'getWarehouses',
       {
         SettlementRef: settlementRef,
         FindByString: query || undefined,
-        Page: page,
-        Limit: Math.min(limit, 200),
+        Page: 1,
+        Limit: MAX_LIMIT,
       }
     )
 
+    // ---- 2. мапимо + визначаємо поштомати ----
     const warehouses = data.map((w) => {
       const number = w.Number
-      const raw = (w.ShortAddress || w.Description || '').trim()
-      const afterCity = raw.replace(/^м\..*?,\s*/i, '') // прибрати "м. місто,"
 
-      const isPostomat = w.CategoryOfWarehouse === 'Postomat'
+      const rawDesc = (w.Description || '').trim()
+      const rawShort = (w.ShortAddress || '').trim()
+      const rawCategory = (w.CategoryOfWarehouse || '').trim().toLowerCase()
 
-      const rest = afterCity || (w.Description || '').replace(/^[^,]+,\s*/, '')
+      // прибираємо "м. Київ," на початку короткої адреси
+      const afterCity = rawShort.replace(/^м\..*?,\s*/i, '')
+
+      const isPostomat =
+        w.TypeOfWarehouseRef === POSTOMAT_TYPE_REF ||
+        /postomat|поштомат/i.test(rawCategory) ||
+        /postomat|поштомат/i.test(rawDesc)
+
+      const rest =
+        afterCity || rawDesc.replace(/^[^,]+,\s*/, '') || rawDesc || rawShort
+
       const label = `${isPostomat ? 'Поштомат' : '№'}${
         isPostomat ? ` ${number}` : number
       }, ${rest}`.replace(/\s+,/g, ',')

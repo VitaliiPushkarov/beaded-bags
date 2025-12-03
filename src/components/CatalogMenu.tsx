@@ -58,10 +58,7 @@ export default function CatalogMegaMenu() {
         >
           {/* Колонка 1 (ліворуч) */}
           <div className="space-y-8">
-            <Link
-              className="block hover:opacity-70"
-              href="/shop?material=Бісер"
-            >
+            <Link className="block hover:opacity-70" href="/shop?group=Бісер">
               <span
                 className="text-[12px] font-medium tracking-wide  uppercase
               "
@@ -72,7 +69,7 @@ export default function CatalogMegaMenu() {
 
             <Link
               className="block hover:opacity-70"
-              href="/shop?material=Плетіння"
+              href="/shop?group=Плетіння"
             >
               <span
                 className="text-[12px] font-medium tracking-wide uppercase
@@ -125,40 +122,6 @@ export default function CatalogMegaMenu() {
               ЧОХЛИ
             </Link>
           </div>
-
-          {/* Колонка 3 (праворуч) */}
-          {/* <div className="space-y-8">
-            <div className="pb-4 border-b">
-              <span className="text-[14px] font-medium underline underline-offset-[10px]">
-                Маленькі
-              </span>
-            </div>
-
-            <Link
-              className="block hover:opacity-70 text-[14px]"
-              href="/products?size=small"
-            >
-              Всі
-            </Link>
-            <Link
-              className="block hover:opacity-70 text-[14px]"
-              href="/products?size=medium"
-            >
-              Середні
-            </Link>
-            <Link
-              className="block hover:opacity-70 text-[14px]"
-              href="/products?size=large"
-            >
-              Великі
-            </Link>
-            <Link
-              className="block hover:opacity-70 text-[14px]"
-              href="/products?for=men"
-            >
-              Для нього
-            </Link>
-          </div> */}
         </div>
       )}
     </div>

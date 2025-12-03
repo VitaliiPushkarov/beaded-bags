@@ -1,6 +1,6 @@
 import { prisma } from '@/lib/prisma'
 import ProductForm from '../ProductsForm'
-import type { ProductType } from '@prisma/client'
+import type { ProductType, ProductGroup } from '@prisma/client'
 
 type PageProps = {
   params: Promise<{ id: string }>
@@ -26,6 +26,7 @@ export default async function AdminProductEditPage({ params }: PageProps) {
     name: product.name,
     slug: product.slug,
     type: product.type as ProductType,
+    group: product.group as ProductGroup,
     basePriceUAH: product.basePriceUAH?.toString() ?? '',
     description: product.description ?? '',
     inStock: product.inStock,

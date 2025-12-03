@@ -31,7 +31,7 @@ export default function CartDrawer() {
       <div
         className={`fixed inset-0 ${
           cartOpen ? '' : 'pointer-events-none'
-        } z-[80]`}
+        } z-80`}
       >
         {/* Backdrop */}
         <div

@@ -1,13 +1,13 @@
 import Image from 'next/image'
 
 type AboutProps = {
-  image: string // /images/about.png
-  alt: string // "About us"
+  image: string
+  alt: string
 }
 
 export default function About({ image, alt }: AboutProps) {
   return (
-    <section className="w-full relative sm:h-[660px]">
+    <section className="w-full relative">
       <Image
         src={image}
         alt={alt}

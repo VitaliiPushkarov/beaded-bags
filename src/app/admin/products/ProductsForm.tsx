@@ -2,7 +2,7 @@
 
 import { useState, FormEvent } from 'react'
 import { useRouter } from 'next/navigation'
-import type { ProductType } from '@prisma/client'
+import type { ProductType, ProductGroup } from '@prisma/client'
 
 type VariantInput = {
   id?: string
@@ -19,6 +19,7 @@ type ProductFormValues = {
   name: string
   slug: string
   type: ProductType
+  group: ProductGroup | ''
   basePriceUAH: string
   description: string
   inStock: boolean
@@ -40,6 +41,8 @@ const TYPE_OPTIONS: ProductType[] = [
   'CASE',
 ]
 
+const GROUP_OPTIONS: ProductGroup[] = ['BEADS', 'WEAVING']
+
 export default function ProductForm({ initial, mode }: Props) {
   const router = useRouter()
   const [values, setValues] = useState<ProductFormValues>(
@@ -47,6 +50,7 @@ export default function ProductForm({ initial, mode }: Props) {
       name: '',
       slug: '',
       type: 'BAG',
+      group: '',
       basePriceUAH: '',
       description: '',
       inStock: true,
@@ -176,6 +180,25 @@ export default function ProductForm({ initial, mode }: Props) {
             }
           >
             {TYPE_OPTIONS.map((t) => (
+              <option key={t} value={t}>
+                {t}
+              </option>
+            ))}
+          </select>
+        </label>
+        <label className="block text-sm font-medium">
+          Група
+          <select
+            className="mt-1 border rounded px-3 py-2 text-sm"
+            value={values.group}
+            onChange={(e) =>
+              setValues((v) => ({
+                ...v,
+                group: e.target.value as ProductGroup,
+              }))
+            }
+          >
+            {GROUP_OPTIONS.map((t) => (
               <option key={t} value={t}>
                 {t}
               </option>

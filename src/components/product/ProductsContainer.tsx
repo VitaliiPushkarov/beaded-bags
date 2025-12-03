@@ -49,9 +49,13 @@ function isInStock(p: ProductWithVariants) {
   return Boolean(p.variants?.some((v) => v.inStock))
 }
 
-function isBeadType(p: ProductWithVariants) {
-  const n = (p.name || '').toLowerCase()
-  return /bead|beaded|бісер/.test(n)
+function matchesGroup(p: ProductWithVariants, group: UIFilters['group']) {
+  if (!group) return true
+  if (!p.group) return false
+
+  if (group === 'Бісер') return p.group === 'BEADS'
+  if (group === 'Плетіння') return p.group === 'WEAVING'
+  return true
 }
 
 function matchesColor(p: ProductWithVariants, color: string) {
@@ -168,9 +172,7 @@ export default function ProductsContainer({
 
     // група
     if (toApply.group) {
-      arr = arr.filter((p) =>
-        toApply.group === 'Бісер' ? isBeadType(p) : !isBeadType(p)
-      )
+      arr = arr.filter((p) => matchesGroup(p, toApply.group))
     }
 
     // тип
@@ -321,7 +323,7 @@ export default function ProductsContainer({
     if (next.onSale) arr = arr.filter((p) => hasOnSale(p) && p.onSale === true)
     if (next.group) {
       arr = arr.filter((p) =>
-        next.group === 'Бісер' ? isBeadType(p) : !isBeadType(p)
+        next.group === 'Бісер' ? matchesGroup(p, '') : !matchesGroup(p, '')
       )
     }
     if (next.bagTypes) {
@@ -367,7 +369,7 @@ export default function ProductsContainer({
           <button
             onClick={apply}
             disabled={!isDirty}
-            className="px-6 py-2 rounded bg-black text-white hover:bg-[#FF3D8C] transition h-[44px] w-[275px] disabled:opacity-50 disabled:cursor-not-allowed"
+            className="px-6 py-2 rounded bg-black text-white hover:bg-[#FF3D8C] transition h-11 w-[275px] disabled:opacity-50 disabled:cursor-not-allowed"
           >
             Застосувати
           </button>
