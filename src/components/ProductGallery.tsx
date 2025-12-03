@@ -45,7 +45,7 @@ export default function PhotoGallery({ images }: PhotoGalleryProps) {
                   <div
                     ref={ref as (node: HTMLDivElement | null) => void}
                     onClick={open}
-                    className="relative h-[380px] md:h-[580px] w-full cursor-pointer overflow-hidden rounded bg-gray-100"
+                    className="relative h-[580px] w-full cursor-pointer overflow-hidden rounded bg-gray-100"
                   >
                     <Image
                       src={src || placeholder}

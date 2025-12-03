@@ -349,7 +349,7 @@ export default function ProductsContainer({
   }
 
   return (
-    <div className="max-w-[1440px] mx-auto py-10 px-[50px]">
+    <div className="max-w-[1440px] mx-auto py-10 px-5 md:px-[50px]">
       <Breadcrumbs />
       {/* mobile header */}
       <div className="lg:hidden flex items-center justify-between py-4">
