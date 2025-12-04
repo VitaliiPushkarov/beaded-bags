@@ -9,6 +9,7 @@ const ALLOWED_TYPES: ProductType[] = [
   'SHOPPER',
   'CASE',
   'BELT_BAG',
+  'ORNAMENTS',
 ]
 type ProductGroup = '' | 'Бісер' | 'Плетіння'
 

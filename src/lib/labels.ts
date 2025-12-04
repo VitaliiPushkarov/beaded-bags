@@ -6,6 +6,7 @@ export const TYPE_LABELS: Record<ProductType, string> = {
   BACKPACK: 'Рюкзачки',
   SHOPPER: 'Шопери',
   CASE: 'Чохли',
+  ORNAMENTS: 'Прикраси',
 }
 
 const UI2DB_RAW: Record<string, ProductType> = {
@@ -15,6 +16,7 @@ const UI2DB_RAW: Record<string, ProductType> = {
   рюкзачки: 'BACKPACK',
   шопери: 'SHOPPER',
   чохли: 'CASE',
+  прикраси: 'ORNAMENTS',
   // англ/ключі
   bag: 'BAG',
   belt_bag: 'BELT_BAG',
@@ -23,12 +25,14 @@ const UI2DB_RAW: Record<string, ProductType> = {
   shopper: 'SHOPPER',
   tote: 'SHOPPER',
   case: 'CASE',
-  // уже enum
+  ornaments: 'ORNAMENTS',
+  // enum
   BAG: 'BAG',
   BELT_BAG: 'BELT_BAG',
   BACKPACK: 'BACKPACK',
   SHOPPER: 'SHOPPER',
   CASE: 'CASE',
+  ORNAMENTS: 'ORNAMENTS',
 }
 
 export const COLOR_LABELS: Record<string, string> = {

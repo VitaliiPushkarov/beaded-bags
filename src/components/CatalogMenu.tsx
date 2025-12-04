@@ -121,6 +121,12 @@ export default function CatalogMegaMenu() {
             >
               ЧОХЛИ
             </Link>
+            <Link
+              href="/shop/prykrasy"
+              className="block hover:opacity-70 text-[12px] font-medium tracking-wide uppercase"
+            >
+              ПРИКРАСИ
+            </Link>
           </div>
         </div>
       )}

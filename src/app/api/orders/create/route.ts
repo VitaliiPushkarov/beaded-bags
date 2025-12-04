@@ -22,7 +22,7 @@ const BodySchema = z.object({
     surname: z.string().min(2),
     patronymic: z.string().optional().nullable(),
     phone: z.string().min(10),
-    email: z.string().email().optional().nullable(),
+    email: z.email().optional().nullable(),
   }),
   shipping: z.object({
     method: z.literal('nova_poshta'),
@@ -34,7 +34,7 @@ const BodySchema = z.object({
     }),
   }),
   // frontend може передати варіант оплати, але ми його зафіксуємо нижче
-  paymentMethod: z.enum(['LIQPAY', 'COD']).optional(),
+  paymentMethod: z.enum(['LIQPAY', 'COD', 'BANK_TRANSFER']).optional(),
 })
 
 export async function POST(req: NextRequest) {
@@ -112,7 +112,10 @@ export async function POST(req: NextRequest) {
       },
     })
 
-    return NextResponse.json({ orderId: created.id }, { status: 201 })
+    return NextResponse.json(
+      { orderId: created.id, orderNumber: created.shortNumber },
+      { status: 201 }
+    )
   } catch (err: unknown) {
     if (err instanceof Error) {
       console.error('Create order error:', err.message)

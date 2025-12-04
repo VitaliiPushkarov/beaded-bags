@@ -136,8 +136,8 @@ export default function ProductsSlider() {
               breakpoints={{
                 0: { slidesPerView: 1, spaceBetween: 16 }, // mobile
                 768: { slidesPerView: 2, spaceBetween: 18 }, // tablet
-                1024: { slidesPerView: 3, spaceBetween: 20 }, // laptop
-                1280: { slidesPerView: 4, spaceBetween: 22 }, // desktop
+                1024: { slidesPerView: 3, spaceBetween: 38 }, // laptop
+                1560: { slidesPerView: 4, spaceBetween: 22 }, // desktop
               }}
               navigation={false} // зовнішні стрілки підключаємо вручну через useEffect
               className=""

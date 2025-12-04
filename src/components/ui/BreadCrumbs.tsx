@@ -21,6 +21,7 @@ const LABELS: Record<string, string> = {
   rjukzachky: 'Рюкзачки',
   shopery: 'Шопери',
   chohly: 'Чохли',
+  prykrasy: 'Прикраси',
   info: 'Інформація',
   checkout: 'Оформлення',
   success: 'Успішна оплата',

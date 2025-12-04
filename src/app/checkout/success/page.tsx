@@ -5,18 +5,17 @@ import Link from 'next/link'
 
 function SuccessInner() {
   const sp = useSearchParams()
-  const orderId = sp.get('orderId') ?? undefined
+  const orderNumber = sp.get('order') ?? undefined
 
   return (
     <section className="max-w-xl mx-auto p-6 text-center">
       <h1 className="text-2xl font-semibold">Дякуємо!</h1>
       <p className="mt-2">
-        Якщо оплата пройшла успішно, замовлення буде підтверджено найближчим
-        часом.
+        Ми скоро зʼявжемося з вами, щоб підтвердити ваше замовлення.
       </p>
-      {orderId && (
+      {orderNumber && (
         <p className="mt-3 text-sm text-gray-600">
-          Номер замовлення: <b>{orderId}</b>
+          Номер замовлення: <b>{String(orderNumber).padStart(6, '0')}</b>
         </p>
       )}
       <div className="mt-6">

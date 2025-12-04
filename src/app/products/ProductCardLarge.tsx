@@ -28,10 +28,10 @@ export default function ProductCardLarge({ p }: { p: ProductWithVariants }) {
   }
 
   return (
-    <article className="border rounded overflow-hidden bg-white">
+    <article className="border overflow-hidden bg-white">
       {/* зображення прив'язане до варіанту */}
       <Link href={`/products/${p.slug}?variant=${variantId}`}>
-        <div className="relative md:h-[550px] h-[460px] lg:h-[501px] bg-gray-100">
+        <div className="relative md:h-[610px] h-[460px] w-full bg-gray-100">
           {v && (
             <Image
               src={v.image || getFirstImage()}
@@ -45,10 +45,12 @@ export default function ProductCardLarge({ p }: { p: ProductWithVariants }) {
         </div>
       </Link>
 
-      <div className="border-t p-3">
+      <div className=" p-3">
         <div className="flex items-center justify-between">
-          <h3 className="text-sm md:text-base truncate">{p.name}</h3>
-          <div className="text-sm md:text-base whitespace-nowrap">
+          <h3 className="text-sm md:text-[33px] font-normal truncate">
+            {p.name}
+          </h3>
+          <div className="text-sm md:text-[26px] font-light whitespace-nowrap">
             {price} ₴
           </div>
         </div>
@@ -63,7 +65,7 @@ export default function ProductCardLarge({ p }: { p: ProductWithVariants }) {
         </div>
 
         {/* швидке додавання в кошик саме обраного кольору */}
-        <button
+        {/*  <button
           className="mt-4 w-full rounded bg-black text-white py-2 text-sm hover:bg-[#FF3D8C] transition disabled:opacity-50 cursor-pointer"
           disabled={!v?.inStock}
           onClick={() => {
@@ -81,7 +83,7 @@ export default function ProductCardLarge({ p }: { p: ProductWithVariants }) {
           }}
         >
           Додати в кошик
-        </button>
+        </button> */}
       </div>
     </article>
   )

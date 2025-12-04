@@ -4,6 +4,7 @@ import Bestsellers from '@/components/Bestsellers'
 import ProductsSlider from './products/ProductsSlider'
 
 import About from '@/components/About'
+import HeroBlock from '@/components/HeroBlock'
 
 const SITE_URL = 'https://gerdan.online'
 
@@ -49,6 +50,8 @@ export default function Home() {
         type="application/ld+json"
         dangerouslySetInnerHTML={{ __html: JSON.stringify(webSiteJsonLd) }}
       />
+      <HeroBlock />
+      <ProductsSlider />
       <>
         <HeroImages
           leftImg="/img/hero-img-1.webp"
@@ -59,7 +62,7 @@ export default function Home() {
           altRight="Model with beaded bag"
         />
       </>
-
+      <ProductsSlider />
       <Bestsellers />
 
       <ProductsSlider />

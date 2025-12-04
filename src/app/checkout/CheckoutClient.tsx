@@ -9,6 +9,7 @@ import { useCheckout } from '@/stores/checkout'
 
 export default function CheckoutClient() {
   const router = useRouter()
+  const clearCart = useCart((s) => s.clear)
 
   const [form, setForm] = useState({
     name: '',
@@ -138,6 +139,7 @@ export default function CheckoutClient() {
           },
           items,
           amountUAH: total,
+          paymentMethod: co.paymentMethod,
         }),
       })
 
@@ -147,35 +149,9 @@ export default function CheckoutClient() {
         console.error(json)
         return
       }
-
-      router.push(`/checkout/success?orderId=${json.orderId}`)
-
-      // Payment LiqPay:
-      const payRes = await fetch('/api/payments/liqpay/create', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          orderId: json.orderId,
-          amountUAH: total,
-          description: `Замовлення #${json.orderId}`,
-          customer: { name: form.name, email: form.email, phone: form.phone },
-        }),
-      })
-      const payJson = await payRes.json()
-      if (!payRes.ok) {
-        setError('Помилка ініціалізації платежу')
-        console.error(payJson)
-        return
-      }
-
-      // Redirect to payment page
-      router.push(
-        `/checkout/pay?data=${encodeURIComponent(
-          payJson.data
-        )}&signature=${encodeURIComponent(
-          payJson.signature
-        )}&url=${encodeURIComponent(payJson.checkoutUrl)}`
-      )
+      clearCart()
+      router.push(`/checkout/success?order=${json.orderNumber}`)
+      return
     } catch (e) {
       console.error(e)
       setError('Невідома помилка мережі')
@@ -288,6 +264,63 @@ export default function CheckoutClient() {
         <div className="space-y-4">
           <h2 className="text-xl font-semibold">Доставка</h2>
           <NovaPoshtaPicker />
+        </div>
+
+        {/* Оплата */}
+        <div className="space-y-4">
+          <h2 className="text-xl font-semibold">Оплата</h2>
+
+          <div className="space-y-3 text-sm">
+            {/* Оплата по реквізитам */}
+            <label className="flex items-start gap-3 cursor-pointer select-none">
+              <input
+                type="radio"
+                name="payment"
+                className="mt-1 w-4 h-4"
+                checked={co.paymentMethod === 'BANK_TRANSFER'}
+                onChange={() => co.setPaymentMethod('BANK_TRANSFER')}
+              />
+
+              <div>
+                <p className="font-medium uppercase">Оплата по реквізитам</p>
+                <p className="text-gray-600">
+                  Після створення замовлення ми надішлемо реквізити для оплати.
+                </p>
+              </div>
+            </label>
+
+            {/* Післяплата */}
+            <label className="flex items-start gap-3 cursor-pointer">
+              <input
+                type="radio"
+                name="payment"
+                className="mt-1 w-4 h-4"
+                checked={co.paymentMethod === 'COD'}
+                onChange={() => co.setPaymentMethod('COD')}
+              />
+              <div>
+                <p className="font-medium uppercase">Післяплата</p>
+                <p className="text-gray-600">
+                  Оплата при отриманні на відділенні Нової Пошти. Комісія НП: 2%
+                  + 20 грн.
+                </p>
+              </div>
+            </label>
+
+            {/* Онлайн оплата — заглушка */}
+            <label className="flex items-start gap-3 opacity-40 cursor-not-allowed">
+              <input
+                type="radio"
+                name="payment"
+                className="mt-1 w-4 h-4"
+                disabled
+              />
+              <div>
+                <p className="font-medium uppercase">Онлайн оплата (скоро)</p>
+                <p className="text-gray-600">Тимчасово недоступно.</p>
+              </div>
+            </label>
+          </div>
         </div>
 
         {error && <p className="text-rose-600">{error}</p>}

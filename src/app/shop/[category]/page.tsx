@@ -9,6 +9,7 @@ const MAP: Record<string, ProductType> = {
   rjukzachky: 'BACKPACK',
   shopery: 'SHOPPER',
   chohly: 'CASE',
+  prykrasy: 'ORNAMENTS',
 }
 
 export default async function ShopCategoryPage({
