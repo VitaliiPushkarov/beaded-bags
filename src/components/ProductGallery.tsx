@@ -1,5 +1,5 @@
 'use client'
-
+import { useState, useEffect } from 'react'
 import Image from 'next/image'
 import { Gallery, Item } from 'react-photoswipe-gallery'
 
@@ -16,7 +16,23 @@ type PhotoGalleryProps = {
 export default function PhotoGallery({ images }: PhotoGalleryProps) {
   const placeholder = '/img/placeholder.png'
   const list = images.length ? images : [placeholder]
+  const [sizes, setSizes] = useState<{ w: number; h: number }[]>([])
 
+  useEffect(() => {
+    Promise.all(
+      list.map(
+        (src) =>
+          new Promise<{ w: number; h: number }>((resolve) => {
+            const img = new window.Image()
+            img.src = src
+            img.onload = () => resolve({ w: img.width, h: img.height })
+            img.onerror = () => resolve({ w: 1600, h: 1600 }) // fallback
+          })
+      )
+    ).then(setSizes)
+  }, [list])
+
+  if (!sizes.length) return null
   return (
     <div className="relative w-full md:w-[66%]">
       <Gallery>
@@ -40,7 +56,12 @@ export default function PhotoGallery({ images }: PhotoGalleryProps) {
         >
           {list.map((src, i) => (
             <SwiperSlide key={i}>
-              <Item original={src} thumbnail={src} width="1600" height="2000">
+              <Item
+                original={src}
+                thumbnail={src}
+                width={sizes[i]?.w}
+                height={sizes[i]?.h}
+              >
                 {({ ref, open }) => (
                   <div
                     ref={ref as (node: HTMLDivElement | null) => void}

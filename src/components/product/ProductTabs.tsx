@@ -8,7 +8,17 @@ type Props = {
   dimensions?: string | null
 }
 
-export default function ProductTabs({ description, dimensions }: Props) {
+function renderHtml(content?: string | null) {
+  if (!content) return null
+  return (
+    <div
+      className="text-gray-700 leading-relaxed whitespace-pre-line [&_p]:mb-3 [&_ul]:list-disc [&_ul]:pl-5 [&_li]:mb-1"
+      dangerouslySetInnerHTML={{ __html: content }}
+    />
+  )
+}
+
+export default function ProductTabs({ description, info, dimensions }: Props) {
   const [tab, setTab] = useState<'description' | 'info' | 'dimensions'>(
     'description'
   )
@@ -38,14 +48,10 @@ export default function ProductTabs({ description, dimensions }: Props) {
       </div>
 
       {/* --- CONTENT --- */}
-      <div className="text-gray-700 leading-relaxed whitespace-pre-line">
-        {tab === 'description' && <div>{description}</div>}
-        {tab === 'info' && (
-          <div>
-            <CareInfoBlock />{' '}
-          </div>
-        )}
-        {tab === 'dimensions' && <div>{dimensions}</div>}
+      <div className="mt-4 text-sm leading-none whitespace-pre-line">
+        {tab === 'description' && renderHtml(description)}
+        {tab === 'info' && (info ? renderHtml(info) : <CareInfoBlock />)}
+        {tab === 'dimensions' && renderHtml(dimensions)}
       </div>
     </div>
   )

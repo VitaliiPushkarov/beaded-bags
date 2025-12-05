@@ -141,6 +141,24 @@ export function ProductClient({ p }: { p: ProductWithVariants }) {
             info={p.info}
             dimensions={p.dimensions}
           />
+          <div className="mt-8 space-y-3 text-sm text-gray-700">
+            <div className="flex items-center gap-2">
+              <span>Відправка протягом 1–3 днів</span>
+            </div>
+
+            <p>
+              Маєте питання? Напишіть нам у{' '}
+              <a
+                href="https://instagram.com/gerdan.studio"
+                target="_blank"
+                rel="noreferrer"
+                className="underline underline-offset-2"
+              >
+                Instagram
+              </a>
+              .
+            </p>
+          </div>
         </div>
       </section>
       <Bestsellers />

@@ -93,7 +93,7 @@ export default function InstagramSlider() {
                   rel="noopener noreferrer"
                   className="block w-full h-full"
                 >
-                  <div className="relative w-full h-[360px] md:h-[480px] 2xl:h-[680px] overflow-hidden">
+                  <div className="relative w-full h-[460px] md:h-[540px] 2xl:h-[680px] overflow-hidden">
                     <Image
                       src={slide.src}
                       alt={slide.alt}

@@ -71,7 +71,10 @@ export default function Bestsellers() {
                   0
 
                 return (
-                  <div key={p.id} className="min-w-[260px] snap-start">
+                  <div
+                    key={p.id}
+                    className="min-w-[260px] snap-start 2xl:w-[560px] 2xl:min-h-[680px]"
+                  >
                     <Link href={`/products/${p.slug}`}>
                       <div className="relative aspect-3/4 bg-gray-100 overflow-hidden border">
                         <Image
@@ -85,7 +88,7 @@ export default function Bestsellers() {
                       <div className="mt-3 flex items-center justify-between gap-4">
                         <div className="text-sm truncate">{p.name}</div>
                         <div className="text-sm text-gray-700 whitespace-nowrap">
-                          {price.toLocaleString('uk-UA')} грн
+                          {price.toLocaleString('uk-UA')} ₴
                         </div>
                       </div>
                     </Link>

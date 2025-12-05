@@ -47,10 +47,8 @@ export default function ProductCardLarge({ p }: { p: ProductWithVariants }) {
 
       <div className=" p-3">
         <div className="flex items-center justify-between">
-          <h3 className="text-sm md:text-[33px] font-normal truncate">
-            {p.name}
-          </h3>
-          <div className="text-sm md:text-[26px] font-light whitespace-nowrap">
+          <h3 className="text-sm md:text-xl font-normal truncate">{p.name}</h3>
+          <div className="text-sm md:text-xl font-light whitespace-nowrap">
             {price} ₴
           </div>
         </div>

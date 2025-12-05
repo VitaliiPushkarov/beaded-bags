@@ -56,7 +56,7 @@ export default function Home() {
           leftImg="/img/hero-img-1.webp"
           centerVideo="/media/hero-video.mp4"
           centerPoster="/img/hero-img-2.webp"
-          rightImg="/img/rightImg.png"
+          rightImg="/img/rightImg.jpg"
           altLeft="Beaded bag on rock"
           altRight="Model with beaded bag"
         />

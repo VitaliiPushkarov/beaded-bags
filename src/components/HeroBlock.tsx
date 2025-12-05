@@ -5,7 +5,7 @@ export default function HeroBlock() {
   return (
     <Link
       href="/shop"
-      className="relative block w-full h-[90vh] overflow-hidden group cursor-pointer"
+      className="relative block w-full md:h-[90vh] h-[600px] overflow-hidden group cursor-pointer"
     >
       {/* Фото */}
       <Image
