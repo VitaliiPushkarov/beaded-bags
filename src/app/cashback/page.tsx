@@ -3,7 +3,7 @@ import Breadcrumbs from '@/components/ui/BreadCrumbs'
 
 export default function CashbackPage() {
   return (
-    <main className="max-w-[1440px] mx-auto py-10 px-[50px]">
+    <main className="max-w-[1440px] mx-auto py-8 px-[50px]">
       <Suspense fallback={null}>
         {' '}
         <Breadcrumbs />

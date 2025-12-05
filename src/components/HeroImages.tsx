@@ -49,7 +49,7 @@ export default function HeroSection({
         "
       >
         {/* Ліве фото */}
-        <figure className="relative h-[600px] sm:h-[460px] lg:h-[610px] 2xl:w-full overflow-hidden 2xl:h-[780px] md:w-[460px] w-full">
+        <figure className="relative h-[600px] sm:h-[460px] lg:h-[610px] 2xl:w-full overflow-hidden 2xl:h-[780px] md:w-[460px] w-full hidden md:block">
           <Image
             src={leftImg}
             alt={altLeft}
@@ -87,7 +87,7 @@ export default function HeroSection({
         </figure>
       </div>
 
-      <div className="md:w-[652px] md:h-[266px] h-[266px] relative md:absolute left-1/2 md:top-11/12 -translate-x-1/2 md:-translate-y-1/3 md:-mt-[150px]">
+      <div className="md:w-[652px] md:h-[266px] w-[320px] h-[266px] top-[420px] absolute left-1/2 md:top-11/12 -translate-x-1/2 md:-translate-y-1/3 md:-mt-[150px] overflow-hidden">
         <Image
           className="z-10 h-full w-full"
           src="/img/signature.png"

@@ -69,17 +69,19 @@ export function ProductClient({ p }: { p: ProductWithVariants }) {
 
   return (
     <Suspense fallback={<div className="p-6 text-center">Завантаження…</div>}>
-      <section className="mx-auto flex flex-col items-center md:items-stretch md:flex-row md:justify-between gap-4 md:gap-10 mb-[60px] px-6">
+      <section className="mx-auto flex flex-col items-center md:items-stretch md:flex-row md:justify-between gap-4 md:gap-10 mb-[60px] md:px-6">
         {/* Ліва колонка: карусель */}
         <ProductGallery images={galleryImages} />
 
         {/* Права колонка */}
         <div className="flex flex-col items-start w-full md:w-[33%]">
-          <h2 className=" md:text-[38px] text-4xl font-fixel-display font-medium mb-6">
+          <h2 className=" md:text-[38px] text-2xl font-fixel-display font-medium md:mb-6 mb-3">
             {p.name}
           </h2>
 
-          <div className=" text-lg md:text-[25px] mb-[34px]">{price} ₴</div>
+          <div className=" text-lg md:text-2xl md:mb-[34px] mb-3">
+            {price} ₴
+          </div>
           {/* inStock Status */}
           <div className="flex items-center gap-2 text-sm mb-3">
             <span

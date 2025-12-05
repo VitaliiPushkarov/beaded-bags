@@ -18,7 +18,7 @@ export default function CallToAction({
   ctaHref = '/products',
 }: CallToActionProps) {
   return (
-    <section className="relative mx-auto max-w-[1440px] px-[50px] py-10">
+    <section className="relative mx-auto max-w-[1440px] px-[50px] py-6">
       <div className="relative h-[62vh] min-h-[420px] overflow-hidden">
         <Image src={image} alt={title} fill priority className="object-cover" />
         <div className="absolute inset-0 bg-black/15" />

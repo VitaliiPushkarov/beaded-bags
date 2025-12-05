@@ -4,7 +4,7 @@ import Breadcrumbs from '@/components/ui/BreadCrumbs'
 
 export default function Contacts() {
   return (
-    <main className="max-w-[1440px] mx-auto py-10 px-[50px]">
+    <main className="max-w-[1440px] mx-auto py-6 px-[50px]">
       <Suspense fallback={null}>
         {' '}
         <Breadcrumbs />{' '}

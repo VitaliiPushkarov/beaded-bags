@@ -51,7 +51,7 @@ export default function CartPage() {
   const total = useCartTotal()
 
   return (
-    <section className="max-w-[1400px] mx-auto px-4 lg:px-6 py-8 lg:py-12">
+    <section className="max-w-[1400px] mx-auto px-4 lg:px-6 py-6 lg:py-12">
       <h1 className="text-4xl lg:text-5xl font-fixel-display mb-8">Кошик</h1>
 
       <div className="grid lg:grid-cols-[1fr_460px] gap-10">

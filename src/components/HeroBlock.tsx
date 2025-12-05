@@ -7,9 +7,9 @@ export default function HeroBlock() {
       href="/shop"
       className="relative block w-full md:h-[90vh] h-[600px] overflow-hidden group cursor-pointer"
     >
-      {/* Фото */}
+      {/* Головне фото */}
       <Image
-        src="/img/hero-block.png"
+        src="/img/hero-block-01.png"
         alt="Gerdan Hero"
         fill
         priority
@@ -17,8 +17,17 @@ export default function HeroBlock() {
         quality={100}
       />
 
-      {/* Легка маска (можна забрати) */}
-      {/* <div className="absolute inset-0 bg-black/10 group-hover:bg-black/20 transition-all"></div> */}
+      {/* Лого поверх фото */}
+      <div className="absolute bottom-10 right-10 md:bottom-16 md:right-16 w-[180px] md:w-[260px] lg:w-[320px]">
+        <Image
+          src="/img/hero-logo-gerdan-w.png"
+          alt="GERDAN Logo"
+          width={400}
+          height={120}
+          className="w-full h-auto object-contain"
+          priority
+        />
+      </div>
     </Link>
   )
 }
