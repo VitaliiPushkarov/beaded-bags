@@ -3,25 +3,34 @@ import { getProducts } from '@/lib/db/products'
 import type { ProductType } from '@prisma/client'
 import Link from 'next/link'
 
-const MAP: Record<string, ProductType> = {
-  sumky: 'BAG',
-  bananky: 'BELT_BAG',
-  rjukzachky: 'BACKPACK',
-  shopery: 'SHOPPER',
-  chohly: 'CASE',
-  prykrasy: 'ORNAMENTS',
+const CATEGORY_META: Record<
+  string,
+  { type?: ProductType; group?: '' | 'Бісер' | 'Плетіння'; title: string }
+> = {
+  sumky: { type: 'BAG', title: 'Сумки' },
+  bananky: { type: 'BELT_BAG', title: 'Бананки' },
+  rjukzachky: { type: 'BACKPACK', title: 'Рюкзачки' },
+  shopery: { type: 'SHOPPER', title: 'Шопери' },
+  chohly: { type: 'CASE', title: 'Чохли' },
+  prykrasy: { type: 'ORNAMENTS', title: 'Прикраси' },
 }
 
 export default async function ShopCategoryPage({
   params,
+  searchParams,
 }: {
   params: Promise<{ category: string }>
+  searchParams: Promise<{
+    q?: string
+    color?: string
+  }>
 }) {
   const { category } = await params
-  const type = MAP[category]
+  const sp = await searchParams
+  const meta = CATEGORY_META[category]
 
   // якщо такої категорії немає — показуємо м’яку заглушку (200), а не редірект
-  if (!type) {
+  if (!meta) {
     return (
       <div className="max-w-6xl mx-auto px-4 py-12">
         <h1 className="text-2xl font-semibold mb-4">
@@ -41,18 +50,25 @@ export default async function ShopCategoryPage({
     )
   }
 
-  const products = await getProducts({ type })
+  const products = await getProducts({
+    search: sp.q,
+    color: sp.color,
+    type: meta.type,
+    group: meta.group,
+  })
 
   // але: 1) передаємо lockedType, 2) початкові фільтри вже з типом
   return (
     <ProductsContainer
       initialProducts={products}
       initialFilters={{
-        q: '',
-        color: '',
-        bagTypes: type,
+        q: sp.q ?? '',
+        color: sp.color ?? '',
+        bagTypes: meta.type ?? '',
+        group: meta.group ?? '',
       }}
-      lockedType={type}
+      lockedType={meta.type}
+      title={meta.title}
     />
   )
 }

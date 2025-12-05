@@ -49,7 +49,7 @@ export default function HeroSection({
         "
       >
         {/* Ліве фото */}
-        <figure className="relative h-[600px] sm:h-[460px] lg:h-[610px] overflow-hidden 2xl:h-[780px] md:w-[460px] w-full">
+        <figure className="relative h-[600px] sm:h-[460px] lg:h-[610px] 2xl:w-full overflow-hidden 2xl:h-[780px] md:w-[460px] w-full">
           <Image
             src={leftImg}
             alt={altLeft}
@@ -61,7 +61,7 @@ export default function HeroSection({
         </figure>
 
         {/* Центр — відео */}
-        <figure className="relative h-[660px] sm:h-[520px] lg:h-[660px] overflow-hidden 2xl:h-[820px] lg:w-[420px] md:w-[320px] w-full">
+        <figure className="relative h-[660px] sm:h-[520px] lg:h-[660px] 2xl:w-[1400px] overflow-hidden 2xl:h-[820px] lg:w-[420px] md:w-[320px] w-full">
           <video
             ref={videoRef}
             className="h-full w-full object-cover"
@@ -76,7 +76,7 @@ export default function HeroSection({
         </figure>
 
         {/* Праве фото */}
-        <figure className="relative h-[600px] sm:h-[460px] lg:h-[610px] lg:w-[460px] overflow-hidden 2xl:h-[780px] md:w-[460px] w-full">
+        <figure className="relative h-[600px] sm:h-[460px] lg:h-[610px] lg:w-[460px] 2xl:w-full overflow-hidden 2xl:h-[780px] md:w-[460px] w-full">
           <Image
             src={rightImg}
             alt={altRight}
@@ -87,7 +87,7 @@ export default function HeroSection({
         </figure>
       </div>
 
-      <div className="md:w-[652px] md:h-[266px] w-full h-[266px] relative md:absolute left-1/2 md:top-11/12 -translate-x-1/2 md:-translate-y-1/3 md:-mt-[150px]">
+      <div className="md:w-[652px] md:h-[266px] h-[266px] relative md:absolute left-1/2 md:top-11/12 -translate-x-1/2 md:-translate-y-1/3 md:-mt-[150px]">
         <Image
           className="z-10 h-full w-full"
           src="/img/signature.png"

@@ -3,72 +3,25 @@
 import Image from 'next/image'
 import Link from 'next/link'
 import { useState, useEffect } from 'react'
+import type { Product, ProductVariant } from '@prisma/client'
 
-type ApiVariant = {
-  id: string
-  image: string | null
-  priceUAH: number | null
-  inStock: boolean
-  color: string | null
-}
-
-type ApiProduct = {
-  id: string
-  slug: string
-  name: string
-  basePriceUAH: number | null
-  priceUAH?: number | null
-  images?: string[] | null
-  mainImage?: string | null
-  variants?: ApiVariant[]
-}
-
-type BestsellerProduct = {
-  id: string
-  slug: string
-  name: string
-  basePriceUAH: number | null
-  priceUAH: number | null
-  images: string[] | null
-  mainImage: string | null
-  variants?: ApiVariant[]
+type ProductWithVariants = Product & {
+  variants: ProductVariant[]
 }
 
 export default function Bestsellers() {
-  const [products, setProducts] = useState<BestsellerProduct[]>([])
+  const [products, setProducts] = useState<ProductWithVariants[]>([])
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
     async function loadProducts() {
       try {
-        const res = await fetch('/api/products?limit=12', { cache: 'no-store' })
-        const raw: unknown = await res.json()
-        const data: ApiProduct[] = Array.isArray(raw)
-          ? (raw as ApiProduct[])
-          : []
-
-        const normalized: BestsellerProduct[] = data.map((p) => {
-          const firstVariant = p.variants?.[0]
-          return {
-            id: p.id,
-            slug: p.slug,
-            name: p.name,
-            basePriceUAH: p.basePriceUAH ?? null,
-            // якщо немає ціни на продукті — беремо перший варіант
-            priceUAH:
-              (typeof p.priceUAH === 'number' ? p.priceUAH : null) ??
-              (typeof p.basePriceUAH === 'number' ? p.basePriceUAH : null) ??
-              (typeof firstVariant?.priceUAH === 'number'
-                ? firstVariant.priceUAH
-                : null) ??
-              null,
-            images: Array.isArray(p.images) ? p.images : [],
-            mainImage: p.mainImage ?? null,
-            variants: Array.isArray(p.variants) ? p.variants : [],
-          }
+        // 👉 limit = 12 => на бекенді це трактуємо як "бестселери"
+        const res = await fetch('/api/products?limit=12', {
+          cache: 'no-store',
         })
-
-        setProducts(normalized)
+        const data = (await res.json()) as ProductWithVariants[]
+        setProducts(data)
       } catch (err) {
         console.error('❌ Failed to load products:', err)
       } finally {
@@ -83,15 +36,16 @@ export default function Bestsellers() {
   return (
     <section className="mx-auto py-12">
       <div className="max-w-full px-6">
-        <h2 className="text-2xl font-semibold mb-5">БЕСТСЕЛЕРИ</h2>
+        <h2 className="text-2xl font-semibold mb-5 uppercase">Новинки</h2>
 
         <div className="relative">
           <div className="flex gap-5 overflow-x-auto scrollbar-always snap-x pb-2">
             {loading ? (
+              // skeletons
               Array.from({ length: 4 }).map((_, i) => (
                 <div key={i} className="min-w-[260px] snap-start">
-                  <div className="relative aspect-3/4 bg-gray-100 animate-pulse rounded" />
-                  <div className="mt-3 h-4 bg-gray-100 rounded w-3/4 animate-pulse" />
+                  <div className="relative aspect-3/4 bg-gray-100 animate-pulse" />
+                  <div className="mt-3 h-4 bg-gray-100 w-3/4 animate-pulse" />
                 </div>
               ))
             ) : products.length === 0 ? (
@@ -100,25 +54,26 @@ export default function Bestsellers() {
               </div>
             ) : (
               products.map((p) => {
+                const firstVariant = p.variants[0]
+
                 const imageSrc =
-                  p.mainImage ||
-                  (p.images && p.images[0]) ||
-                  (p.variants && p.variants[0]?.image) ||
-                  placeholder
+                  firstVariant?.image && firstVariant.image.length > 0
+                    ? firstVariant.image
+                    : placeholder
 
                 const price =
-                  (typeof p.priceUAH === 'number' ? p.priceUAH : null) ??
+                  (typeof firstVariant?.priceUAH === 'number'
+                    ? firstVariant.priceUAH
+                    : null) ??
                   (typeof p.basePriceUAH === 'number'
                     ? p.basePriceUAH
                     : null) ??
-                  (p.variants && typeof p.variants[0]?.priceUAH === 'number'
-                    ? p.variants[0]!.priceUAH!
-                    : 0)
+                  0
 
                 return (
                   <div key={p.id} className="min-w-[260px] snap-start">
                     <Link href={`/products/${p.slug}`}>
-                      <div className="relative aspect-3/4 bg-gray-100 overflow-hidden border rounded">
+                      <div className="relative aspect-3/4 bg-gray-100 overflow-hidden border">
                         <Image
                           src={imageSrc}
                           alt={p.name}

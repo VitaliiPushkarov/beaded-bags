@@ -8,6 +8,7 @@ import { useUI } from '@/app/store/ui'
 import { Product, ProductVariant, ProductVariantImage } from '@prisma/client'
 import ProductGallery from '@/components/ProductGallery'
 import ProductTabs from '@/components/product/ProductTabs'
+import Bestsellers from '@/components/Bestsellers'
 
 type VariantWithImages = ProductVariant & {
   images: ProductVariantImage[]
@@ -68,13 +69,13 @@ export function ProductClient({ p }: { p: ProductWithVariants }) {
 
   return (
     <Suspense fallback={<div className="p-6 text-center">Завантаження…</div>}>
-      <section className="mx-auto flex flex-col items-center md:items-stretch md:flex-row md:justify-between gap-4 md:gap-10">
+      <section className="mx-auto flex flex-col items-center md:items-stretch md:flex-row md:justify-between gap-4 md:gap-10 mb-[60px] px-6">
         {/* Ліва колонка: карусель */}
         <ProductGallery images={galleryImages} />
 
         {/* Права колонка */}
         <div className="flex flex-col items-start w-full md:w-[33%]">
-          <h2 className=" text-[38px] font-fixel-display font-medium mb-6">
+          <h2 className=" md:text-[38px] text-4xl font-fixel-display font-medium mb-6">
             {p.name}
           </h2>
 
@@ -142,6 +143,7 @@ export function ProductClient({ p }: { p: ProductWithVariants }) {
           />
         </div>
       </section>
+      <Bestsellers />
     </Suspense>
   )
 }

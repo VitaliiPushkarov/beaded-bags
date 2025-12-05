@@ -1,29 +1,33 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { getProducts } from '@/lib/db/products'
+import { prisma } from '@/lib/prisma'
+import type { Prisma } from '@prisma/client'
 
 export async function GET(req: NextRequest) {
-  try {
-    const url = new URL(req.url)
-    const sp = url.searchParams
+  const { searchParams } = new URL(req.url)
+  const limitParam = searchParams.get('limit')
+  const limit = limitParam ? Number(limitParam) : null
 
-    const search = sp.get('q') || undefined
-    const type = sp.get('type') || undefined
-    const color = sp.get('color') || undefined
+  const where: Prisma.ProductWhereInput = {}
+  let orderBy: Prisma.ProductOrderByWithRelationInput[] = []
 
-    const limitParam = sp.get('limit')
-    const limit = limitParam ? Number(limitParam) || undefined : undefined
-
-    const items = await getProducts({ search, type, color })
-
-    const sliced =
-      typeof limit === 'number' ? items.slice(0, Math.max(0, limit)) : items
-
-    return NextResponse.json(sliced)
-  } catch (err) {
-    console.error('GET /api/products error', err)
-    return NextResponse.json(
-      { error: 'Internal Server Error' },
-      { status: 500 }
-    )
+  if (limit) {
+    where.sortBestsellers = { not: null, gt: 0 }
+    orderBy = [{ sortBestsellers: 'asc' }, { createdAt: 'desc' }]
+  } else {
+    where.sortSlider = { not: null, gt: 0 }
+    orderBy = [{ sortSlider: 'asc' }, { createdAt: 'desc' }]
   }
+
+  const products = await prisma.product.findMany({
+    where,
+    include: {
+      variants: {
+        orderBy: { id: 'asc' },
+      },
+    },
+    orderBy,
+    ...(limit ? { take: limit } : {}),
+  })
+
+  return NextResponse.json(products)
 }

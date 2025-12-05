@@ -40,7 +40,7 @@ export default function ProductCard({ product }: ProductCardProps) {
     <article className="border rounded overflow-hidden bg-white flex flex-col">
       <Link
         href={`/products/${product.slug}`}
-        className="block relative h-[320px] bg-gray-100"
+        className="block relative h-80 bg-gray-100"
       >
         <Image
           src={img}

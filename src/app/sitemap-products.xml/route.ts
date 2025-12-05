@@ -1,10 +1,6 @@
 import { NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 
-/**
- * Щоб sitemap трохи кешувався на рівні Next
- * (можеш змінити або прибрати, якщо не хочеш кешу)
- */
 export const revalidate = 3600 // 1 година
 
 export async function GET() {
@@ -15,8 +11,6 @@ export async function GET() {
       slug: true,
       updatedAt: true,
     },
-    // якщо треба – можна відфільтрувати тільки активні товари
-    // where: { inStock: true },
   })
 
   const urls = products

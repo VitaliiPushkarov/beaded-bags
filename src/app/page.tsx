@@ -1,10 +1,8 @@
 import HeroImages from '@/components/HeroImages'
 import Bestsellers from '@/components/Bestsellers'
-
 import ProductsSlider from './products/ProductsSlider'
-
-import About from '@/components/About'
 import HeroBlock from '@/components/HeroBlock'
+import InstagramSlider from '@/components/InstagramSlider'
 
 const SITE_URL = 'https://gerdan.online'
 
@@ -51,22 +49,22 @@ export default function Home() {
         dangerouslySetInnerHTML={{ __html: JSON.stringify(webSiteJsonLd) }}
       />
       <HeroBlock />
-      <ProductsSlider />
+      <Bestsellers />
+
       <>
         <HeroImages
           leftImg="/img/hero-img-1.webp"
           centerVideo="/media/hero-video.mp4"
           centerPoster="/img/hero-img-2.webp"
-          rightImg="/img/yellow-bag-knitted.png"
+          rightImg="/img/rightImg.png"
           altLeft="Beaded bag on rock"
           altRight="Model with beaded bag"
         />
       </>
-      <ProductsSlider />
-      <Bestsellers />
 
       <ProductsSlider />
-      <About image="/img/about-section-preview.png" alt="Про нас" />
+      <InstagramSlider />
+      {/* <About image="/img/about-section-preview.png" alt="Про нас" /> */}
     </>
   )
 }

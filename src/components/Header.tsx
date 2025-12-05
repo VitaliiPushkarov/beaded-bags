@@ -111,12 +111,12 @@ export default function Header() {
             >
               ІНФО
             </Link>
-            {/* <Link
+            <Link
               href="/about"
               className="hidden lg:inline-block hover:opacity-70 text-[12px] font-medium tracking-wide"
             >
               ПРО НАС
-            </Link> */}
+            </Link>
             <SearchDialog />
             <CartButton />
             {/* <a

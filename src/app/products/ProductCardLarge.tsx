@@ -4,8 +4,8 @@ import Image from 'next/image'
 import type { Product, ProductVariant } from '@prisma/client'
 import { useMemo, useState } from 'react'
 import VariantSwatches from '@/components/product/VariantSwatches'
-import { useCart } from '@/app/store/cart'
-import { useUI } from '@/app/store/ui'
+/* import { useCart } from '@/app/store/cart'
+import { useUI } from '@/app/store/ui' */
 
 type ProductWithVariants = Product & {
   variants: ProductVariant[]
@@ -17,8 +17,8 @@ export default function ProductCardLarge({ p }: { p: ProductWithVariants }) {
     () => p.variants.find((x) => x.id === variantId) ?? p.variants[0],
     [p.variants, variantId]
   )
-  const add = useCart((s) => s.add)
-  const openCart = useUI((s) => s.openCart)
+  /* const add = useCart((s) => s.add)
+  const openCart = useUI((s) => s.openCart) */
   const price = v?.priceUAH ?? p.basePriceUAH ?? 0
 
   const getFirstImage = (): string => {
@@ -31,7 +31,7 @@ export default function ProductCardLarge({ p }: { p: ProductWithVariants }) {
     <article className="border overflow-hidden bg-white">
       {/* зображення прив'язане до варіанту */}
       <Link href={`/products/${p.slug}?variant=${variantId}`}>
-        <div className="relative md:h-[610px] h-[460px] w-full bg-gray-100">
+        <div className="relative md:h-[560px] h-[460px] bg-gray-100 2xl:h-[720px]">
           {v && (
             <Image
               src={v.image || getFirstImage()}
