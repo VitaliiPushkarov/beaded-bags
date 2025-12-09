@@ -23,6 +23,7 @@ export async function GET(req: NextRequest) {
     include: {
       variants: {
         orderBy: { id: 'asc' },
+        include: { images: true, straps: true },
       },
     },
     orderBy,

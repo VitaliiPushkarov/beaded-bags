@@ -3,7 +3,7 @@
 import Image from 'next/image'
 import { Swiper, SwiperSlide } from 'swiper/react'
 import { A11y, FreeMode, Autoplay } from 'swiper/modules'
-import { useRef } from 'react'
+import { useRef, useState } from 'react'
 import type { Swiper as SwiperType } from 'swiper'
 
 const instSliderImages = [
@@ -45,8 +45,21 @@ const instSliderImages = [
   },
 ]
 
+type LoadedState = {
+  [id: number]: boolean
+}
+
 export default function InstagramSlider() {
   const swiperRef = useRef<SwiperType | null>(null)
+
+  const [loadedSlides, setLoadedSlides] = useState<LoadedState>({})
+
+  const handleImageLoad = (id: number) => {
+    setLoadedSlides((prev) => ({
+      ...prev,
+      [id]: true,
+    }))
+  }
 
   return (
     <section className="w-full py-8">
@@ -94,12 +107,20 @@ export default function InstagramSlider() {
                   className="block w-full h-full"
                 >
                   <div className="relative w-full h-[460px] md:h-[540px] 2xl:h-[680px] overflow-hidden">
+                    <div
+                      className={`absolute inset-0 animate-pulse bg-linear-to-r from-neutral-200 via-neutral-100 to-neutral-300 transition-opacity duration-300 ${
+                        loadedSlides[slide.id] ? 'opacity-0' : 'opacity-100'
+                      }`}
+                    />
                     <Image
                       src={slide.src}
                       alt={slide.alt}
                       fill
                       sizes="(max-width: 768px) 100vw, (max-width: 1024px) 50vw, 20vw"
-                      className="object-cover"
+                      className={`object-cover transition-opacity duration-300 ${
+                        loadedSlides[slide.id] ? 'opacity-100' : 'opacity-0'
+                      }`}
+                      onLoadingComplete={() => handleImageLoad(slide.id)}
                     />
                   </div>
                 </a>

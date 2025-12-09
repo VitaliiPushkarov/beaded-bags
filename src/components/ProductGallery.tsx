@@ -2,6 +2,7 @@
 import { useState, useEffect } from 'react'
 import Image from 'next/image'
 import { Gallery, Item } from 'react-photoswipe-gallery'
+import { Skeleton } from './ui/Skeleton'
 
 import { Swiper, SwiperSlide } from 'swiper/react'
 import { Navigation } from 'swiper/modules'
@@ -32,7 +33,12 @@ export default function PhotoGallery({ images }: PhotoGalleryProps) {
     ).then(setSizes)
   }, [list])
 
-  if (!sizes.length) return null
+  if (!sizes.length)
+    return (
+      <div className="w-full">
+        <Skeleton className="w-full h-[420px] md:h-[580px]" />
+      </div>
+    )
   return (
     <div className="relative w-full md:w-[66%]">
       <Gallery>

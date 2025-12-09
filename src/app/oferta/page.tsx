@@ -8,7 +8,7 @@ export default function Oferta() {
         {' '}
         <Breadcrumbs />
       </Suspense>
-      <p className="my-3 text-center font-medium">Метод оплати LiqPay</p>
+
       <h2 className="font-semibold text-xl text-center">
         ДОГОВІР ПУБЛІЧНОЇ ОФЕРТИ
       </h2>

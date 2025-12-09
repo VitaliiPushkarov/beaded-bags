@@ -26,7 +26,7 @@ export default function VariantSwatches({ variants, value, onChange }: Props) {
               v.color ? v.color + (disabled ? ' — немає в наявності' : '') : ''
             }
             className={clsx(
-              'relative grid place-items-center w-6 h-6  rounded-full  transition bg-white',
+              'relative grid place-items-center w-4 h-4 md:w-6 md:h-6  rounded-full  transition bg-white',
               'border',
               selected ? 'border-black' : 'border-black/10',
               disabled && 'opacity-40 cursor-not-allowed',
@@ -36,7 +36,7 @@ export default function VariantSwatches({ variants, value, onChange }: Props) {
             {/* кружечок кольору */}
             <span
               aria-hidden
-              className="h-5 w-5 md:h-[18px] md:w-[18px] rounded-full ring-1 ring-black/5"
+              className="h-3 w-3 md:h-[18px] md:w-[18px] rounded-full ring-1 ring-black/5"
               style={{ backgroundColor: v.hex ?? '#E5E5E5' }}
             />
 

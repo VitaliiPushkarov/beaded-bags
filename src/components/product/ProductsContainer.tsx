@@ -6,8 +6,9 @@ import ProductsFilter from './ProductsFilter'
 import AppliedChips from './AppliedChips'
 import ProductsGrid from './ProductsGrid'
 import Breadcrumbs from '../ui/BreadCrumbs'
-import type { Product, ProductVariant, ProductType } from '@prisma/client'
+import type { ProductType } from '@prisma/client'
 import { TYPE_LABELS, COLOR_LABELS } from '@/lib/labels'
+import type { ProductWithVariants as CardProductWithVariants } from '@/app/products/ProductCardLarge'
 
 export type UIFilters = {
   q: string
@@ -33,7 +34,7 @@ const DEFAULT_FILTERS: UIFilters = {
   sort: 'new',
 }
 
-type ProductWithVariants = Product & { variants: ProductVariant[] }
+type ProductWithVariants = CardProductWithVariants
 
 function getMinPrice(p: ProductWithVariants) {
   const list: number[] = []

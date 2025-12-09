@@ -52,122 +52,124 @@ export default function CartDrawer() {
                     w-full sm:w-[480px] lg:w-[33.333%]
                     ${cartOpen ? 'translate-x-0' : 'translate-x-full'}`}
         >
-          <div className="flex items-center justify-between px-5 py-4 border-b">
-            <h2 className="text-xl font-medium" suppressHydrationWarning>
-              Кошик {isMounted && items.length ? `(${items.length})` : ''}
-            </h2>
-            <button
-              onClick={closeCart}
-              aria-label="Закрити"
-              className="text-5xl font-light leading-none cursor-pointer"
-            >
-              <span className="text-2xl leading-none">&times;</span>
-            </button>
-          </div>
-
-          <div className="h-[calc(100dvh-220px)] overflow-auto px-5 py-4 space-y-4">
-            {items.length === 0 && <p>Кошик порожній.</p>}
-
-            {items.map((it) => (
-              <div
-                key={`${it.productId}-${it.variantId}`}
-                className="grid grid-cols-[96px,1fr,auto] gap-4 items-start border rounded px-3 py-3"
+          <div className="flex h-full flex-col">
+            {/* Header */}
+            <div className="flex items-center justify-between px-5 py-4 border-b flex-none">
+              <h2 className="text-xl font-medium" suppressHydrationWarning>
+                Кошик {isMounted && items.length ? `(${items.length})` : ''}
+              </h2>
+              <button
+                onClick={closeCart}
+                aria-label="Закрити"
+                className="text-5xl font-light leading-none cursor-pointer"
               >
-                <div className="inline-flex gap-6">
-                  <div className="relative md:h-24 md:w-24 h-[140px] w-[120px] bg-gray-100 rounded overflow-hidden">
-                    <Image
-                      src={it.image}
-                      alt={it.name}
-                      fill
-                      className="object-cover"
-                      sizes="(max-width: 768px) 100vw, 96px"
-                    />
-                  </div>
-
-                  <div className="min-w-0 flex flex-col items-start">
-                    <Link
-                      href={`/products/${it.slug}`}
-                      onClick={closeCart}
-                      className="block font-medium text-[18px] hover:underline "
-                    >
-                      {it.name}
-                    </Link>
-                    <div className="text-lg md:text-sm mt-1 text-gray-600">
-                      {it.priceUAH} грн
-                    </div>
-
-                    <button
-                      onClick={() => {
-                        remove(it.productId, it.variantId)
-                        closeCart()
-                      }}
-                      className="mt-2 text-rose-600 hover:text-rose-700 text-sm cursor-pointer"
-                    >
-                      Видалити
-                    </button>
-                  </div>
-                </div>
-
-                <div className="justify-self-end">
-                  <div className="inline-flex items-center gap-3">
-                    <button
-                      className="h-8 w-8 rounded border cursor-pointer"
-                      onClick={() => {
-                        const next = it.qty - 1
-                        if (next <= 0) {
-                          remove(it.productId, it.variantId)
-                          closeCart()
-                        } else {
-                          setQty(it.productId, it.variantId, next)
-                        }
-                      }}
-                      aria-label="Менше"
-                    >
-                      −
-                    </button>
-                    <span className="w-6 text-center">{it.qty}</span>
-                    <button
-                      className="h-8 w-8 rounded bg-black text-white hover:bg-[#FF3D8C] transition cursor-pointer"
-                      onClick={() =>
-                        setQty(it.productId, it.variantId, it.qty + 1)
-                      }
-                      aria-label="Більше"
-                    >
-                      +
-                    </button>
-                  </div>
-                </div>
-              </div>
-            ))}
-          </div>
-
-          {/* Footer */}
-          <div className="absolute bottom-0 left-0 right-0 border-t px-5 py-4 space-y-3 bg-white">
-            <div
-              className="flex items-center justify-between text-lg"
-              suppressHydrationWarning
-            >
-              <span>Разом:</span>
-              <span className="font-semibold">
-                {isMounted ? total() : 0} грн
-              </span>
+                <span className="text-2xl leading-none">&times;</span>
+              </button>
             </div>
 
-            <Link
-              href="/cart"
-              onClick={closeCart}
-              className="block w-full text-center rounded bg-black text-white py-3 hover:bg-[#FF3D8C] transition"
-            >
-              Переглянути кошик
-            </Link>
+            {/* Scrollable items list */}
+            <div className="flex-1 overflow-auto px-5 py-4 space-y-4">
+              {items.length === 0 && <p>Кошик порожній.</p>}
 
-            <Link
-              href="/checkout"
-              onClick={closeCart}
-              className="block w-full text-center rounded border border-black py-3 hover:bg-black hover:text-white transition"
-            >
-              Оформлення замовлення
-            </Link>
+              {items.map((it) => (
+                <div
+                  key={`${it.productId}-${it.variantId}`}
+                  className="grid grid-cols-[96px,1fr,auto] gap-4 items-start border rounded px-3 py-3"
+                >
+                  <div className="inline-flex gap-6">
+                    <div className="relative md:h-24 md:w-24 h-[140px] w-[120px] bg-gray-100 rounded overflow-hidden">
+                      <Image
+                        src={it.image}
+                        alt={it.name}
+                        fill
+                        className="object-cover"
+                        sizes="(max-width: 768px) 100vw, 96px"
+                      />
+                    </div>
+
+                    <div className="min-w-0 flex flex-col items-start">
+                      <Link
+                        href={`/products/${it.slug}`}
+                        onClick={closeCart}
+                        className="block font-medium text-[18px] hover:underline "
+                      >
+                        {it.name}
+                      </Link>
+                      <div className="text-lg md:text-sm mt-1 text-gray-600">
+                        {it.priceUAH} грн
+                      </div>
+
+                      <button
+                        onClick={() => {
+                          remove(it.productId, it.variantId)
+                        }}
+                        className="mt-2 text-rose-600 hover:text-rose-700 text-sm cursor-pointer"
+                      >
+                        Видалити
+                      </button>
+                    </div>
+                  </div>
+
+                  <div className="justify-self-end">
+                    <div className="inline-flex items-center gap-3">
+                      <button
+                        className="h-8 w-8 rounded border cursor-pointer"
+                        onClick={() => {
+                          const next = it.qty - 1
+                          if (next <= 0) {
+                            remove(it.productId, it.variantId)
+                          } else {
+                            setQty(it.productId, it.variantId, next)
+                          }
+                        }}
+                        aria-label="Менше"
+                      >
+                        −
+                      </button>
+                      <span className="w-6 text-center">{it.qty}</span>
+                      <button
+                        className="h-8 w-8 rounded bg-black text-white hover:bg-[#FF3D8C] transition cursor-pointer"
+                        onClick={() =>
+                          setQty(it.productId, it.variantId, it.qty + 1)
+                        }
+                        aria-label="Більше"
+                      >
+                        +
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+
+            {/* Footer */}
+            <div className="border-t px-5 py-4 space-y-3 bg-white flex-none">
+              <div
+                className="flex items-center justify-between text-lg"
+                suppressHydrationWarning
+              >
+                <span>Разом:</span>
+                <span className="font-semibold">
+                  {isMounted ? total() : 0} грн
+                </span>
+              </div>
+
+              <Link
+                href="/cart"
+                onClick={closeCart}
+                className="block w-full text-center rounded bg-black text-white py-3 hover:bg-[#FF3D8C] transition"
+              >
+                Переглянути кошик
+              </Link>
+
+              <Link
+                href="/checkout"
+                onClick={closeCart}
+                className="block w-full text-center rounded border border-black py-3 hover:bg-black hover:text-white transition"
+              >
+                Оформлення замовлення
+              </Link>
+            </div>
           </div>
         </aside>
       </div>

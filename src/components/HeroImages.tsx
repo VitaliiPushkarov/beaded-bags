@@ -87,7 +87,7 @@ export default function HeroSection({
         </figure>
       </div>
 
-      <div className="md:w-[652px] md:h-[266px] w-[320px] h-[266px] top-[320px] absolute left-1/2 md:top-11/12 -translate-x-1/2 md:-translate-y-1/3 md:-mt-[150px] overflow-hidden">
+      <div className="md:w-[652px] md:h-[266px] w-[320px] h-[266px] top-80 absolute left-1/2 md:top-11/12 -translate-x-1/2 md:-translate-y-1/3 md:-mt-[150px] overflow-hidden">
         <Image
           className="z-10 h-full w-full"
           src="/img/signature.png"

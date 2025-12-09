@@ -19,7 +19,7 @@ export default function Home() {
         telephone: '+380955837060',
         contactType: 'customer support',
         areaServed: 'UA',
-        availableLanguage: ['uk', 'ru'],
+        availableLanguage: ['uk'],
         sameAs: 'https://www.instagram.com/gerdan.studio/',
       },
     ],

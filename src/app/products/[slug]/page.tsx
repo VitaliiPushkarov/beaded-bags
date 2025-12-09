@@ -3,21 +3,9 @@ import { prisma } from '@/lib/prisma'
 import { Suspense } from 'react'
 import Breadcrumbs from '@/components/ui/BreadCrumbs'
 import { ProductClient } from './ProductClient'
-import type {
-  Product,
-  ProductVariant,
-  ProductType,
-  ProductVariantImage,
-} from '@prisma/client'
+import type { ProductType } from '@prisma/client'
+import type { ProductWithVariants } from './ProductClient'
 import type { Metadata } from 'next'
-
-type VariantWithImages = ProductVariant & {
-  images: ProductVariantImage[]
-}
-
-type ProductWithVariants = Product & {
-  variants: VariantWithImages[]
-}
 
 const TYPE_TO_ROUTE: Record<ProductType, { label: string; href: string }> = {
   BAG: { label: 'Сумки', href: '/shop/sumky' },
@@ -26,6 +14,7 @@ const TYPE_TO_ROUTE: Record<ProductType, { label: string; href: string }> = {
   SHOPPER: { label: 'Шопери', href: '/shop/shopery' },
   CASE: { label: 'Чохли', href: '/shop/chohly' },
   ORNAMENTS: { label: 'Прикраси', href: '/shop/prykrasy' },
+  ACCESSORY: { label: 'Аксесуари', href: '/shop/accessories' },
 }
 
 export async function generateMetadata(props: {
@@ -40,6 +29,10 @@ export async function generateMetadata(props: {
         include: {
           images: {
             orderBy: { sort: 'asc' },
+          },
+          straps: true,
+          addonsOnVariant: {
+            include: { addon: true },
           },
         },
         orderBy: { id: 'asc' },
@@ -97,6 +90,10 @@ export default async function ProductPage({
         include: {
           images: {
             orderBy: { sort: 'asc' },
+          },
+          straps: true,
+          addonsOnVariant: {
+            include: { addon: true },
           },
         },
         orderBy: { id: 'asc' },

@@ -13,6 +13,7 @@ const CATEGORY_META: Record<
   shopery: { type: 'SHOPPER', title: 'Шопери' },
   chohly: { type: 'CASE', title: 'Чохли' },
   prykrasy: { type: 'ORNAMENTS', title: 'Прикраси' },
+  accessories: { type: 'ACCESSORY', title: 'Аксесуари' },
 }
 
 export default async function ShopCategoryPage({

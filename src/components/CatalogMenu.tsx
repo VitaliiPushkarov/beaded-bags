@@ -13,7 +13,11 @@ import { ChevronDown } from 'lucide-react'
   'CASE',
 ] */
 
-export default function CatalogMegaMenu() {
+export default function CatalogMegaMenu({
+  onLinkClick,
+}: {
+  onLinkClick?: () => void
+}) {
   const [open, setOpen] = useState(false)
   const closeTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
 
@@ -24,16 +28,31 @@ export default function CatalogMegaMenu() {
     }
     setOpen(true)
   }
-  const scheduleClose = () => {
-    if (closeTimer.current) clearTimeout(closeTimer.current)
-    closeTimer.current = setTimeout(() => setOpen(false), 120)
+  const closeMenu = () => {
+    setOpen(false)
+  }
+
+  const handleLinkClick = () => {
+    closeMenu()
+    if (onLinkClick) {
+      onLinkClick()
+    }
+  }
+
+  const scheduleCloseMenu = () => {
+    if (closeTimer.current) {
+      clearTimeout(closeTimer.current)
+    }
+    closeTimer.current = setTimeout(() => {
+      setOpen(false)
+    }, 200)
   }
 
   return (
     <div
       className="relative"
       onPointerEnter={openMenu}
-      onPointerLeave={scheduleClose}
+      onPointerLeave={scheduleCloseMenu}
     >
       <button
         type="button"
@@ -42,7 +61,9 @@ export default function CatalogMegaMenu() {
         aria-expanded={open}
         aria-haspopup="true"
       >
-        <Link href="/shop">КАТАЛОГ</Link>
+        <Link href="/shop" onClick={handleLinkClick}>
+          КАТАЛОГ
+        </Link>
         <ChevronDown
           className={`w-4 h-4 cursor-pointer transition-transform ${
             open ? 'rotate-180' : ''
@@ -58,7 +79,11 @@ export default function CatalogMegaMenu() {
         >
           {/* Колонка 1 (ліворуч) */}
           <div className="space-y-8">
-            <Link className="block hover:opacity-70" href="/shop?group=Бісер">
+            <Link
+              className="block hover:opacity-70"
+              href="/shop?group=Бісер"
+              onClick={handleLinkClick}
+            >
               <span
                 className="text-[12px] font-medium tracking-wide  uppercase
               "
@@ -70,6 +95,7 @@ export default function CatalogMegaMenu() {
             <Link
               className="block hover:opacity-70"
               href="/shop?group=Плетіння"
+              onClick={handleLinkClick}
             >
               <span
                 className="text-[12px] font-medium tracking-wide uppercase
@@ -79,12 +105,28 @@ export default function CatalogMegaMenu() {
               </span>
             </Link>
 
-            <Link className="block hover:opacity-70" href="/shop?inStock=1">
+            <Link
+              className="block hover:opacity-70"
+              href="/shop?inStock=1"
+              onClick={handleLinkClick}
+            >
               <span
                 className="text-[12px] font-medium tracking-wide uppercase
               "
               >
                 В наявності
+              </span>
+            </Link>
+            <Link
+              className="block hover:opacity-70"
+              href="/shop/accessories"
+              onClick={handleLinkClick}
+            >
+              <span
+                className="text-[12px] font-medium tracking-wide uppercase
+              "
+              >
+                Аксесуари
               </span>
             </Link>
           </div>
@@ -94,36 +136,42 @@ export default function CatalogMegaMenu() {
             <Link
               href="/shop/sumky"
               className="block hover:opacity-70 text-[12px] font-medium tracking-wide uppercase"
+              onClick={handleLinkClick}
             >
               СУМКИ
             </Link>
             <Link
               href="/shop/bananky"
               className="block hover:opacity-70 text-[12px] font-medium tracking-wide uppercase"
+              onClick={handleLinkClick}
             >
               БАНАНКИ
             </Link>
             <Link
               href="/shop/rjukzachky"
               className="block hover:opacity-70 text-[12px] font-medium tracking-wide uppercase"
+              onClick={handleLinkClick}
             >
               РЮКЗАЧКИ
             </Link>
             <Link
               href="/shop/shopery"
               className="block hover:opacity-70 text-[12px] font-medium tracking-wide uppercase"
+              onClick={handleLinkClick}
             >
               ШОПЕРИ
             </Link>
             <Link
               href="/shop/chohly"
               className="block hover:opacity-70 text-[12px] font-medium tracking-wide uppercase"
+              onClick={handleLinkClick}
             >
               ЧОХЛИ
             </Link>
             <Link
               href="/shop/prykrasy"
               className="block hover:opacity-70 text-[12px] font-medium tracking-wide uppercase"
+              onClick={handleLinkClick}
             >
               ПРИКРАСИ
             </Link>

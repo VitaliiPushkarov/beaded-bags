@@ -6,6 +6,7 @@ import SearchDialog from './search/SearchDialog'
 import CartButton from './CartButton'
 import { useState, useEffect } from 'react'
 import CatalogMenu from './CatalogMenu'
+import { usePathname } from 'next/navigation'
 
 export default function Header() {
   /* const { items } = useCart() */
@@ -16,9 +17,9 @@ export default function Header() {
     const handleScroll = () => {
       if (window.scrollY > 80) {
         // Define your scroll threshold
-        setBorderColor('#d9d9d9') // Change to the desired color when scrolled
+        setBorderColor('#d9d9d9')
       } else {
-        setBorderColor('white') // Revert to initial color when not scrolled
+        setBorderColor('white')
       }
     }
 
@@ -31,6 +32,7 @@ export default function Header() {
   }, [])
 
   const [mobileOpen, setMobileOpen] = useState(false)
+  const closeMobileMenu = () => setMobileOpen(false)
 
   useEffect(() => {
     const onEsc = (e: KeyboardEvent) => {
@@ -39,7 +41,11 @@ export default function Header() {
     if (mobileOpen) document.addEventListener('keydown', onEsc)
     return () => document.removeEventListener('keydown', onEsc)
   }, [mobileOpen])
-
+  const pathname = usePathname()
+  useEffect(() => {
+    // Закриваємо мобільне меню при зміні шляху
+    setMobileOpen(false)
+  }, [pathname])
   return (
     <>
       <header
@@ -169,41 +175,64 @@ export default function Header() {
                 Каталог
               </li>
               <li>
-                <Link href="/shop">Всі товари</Link>
+                <Link href="/shop" onClick={closeMobileMenu}>
+                  Всі товари
+                </Link>
               </li>
               <li className="mt-2 font-medium">Сумки</li>
               <ul className="ml-4 space-y-2 text-base">
                 <li>
-                  <Link href="/shop/sumky">Всі</Link>
+                  <Link href="/shop/sumky" onClick={closeMobileMenu}>
+                    Всі
+                  </Link>
                 </li>
                 <li>
-                  <Link href="/shop/bananky">Бананки</Link>
+                  <Link href="/shop/bananky" onClick={closeMobileMenu}>
+                    Бананки
+                  </Link>
                 </li>
                 <li>
-                  <Link href="/shop/rjukzachky">Рюкзачки</Link>
+                  <Link href="/shop/rjukzachky" onClick={closeMobileMenu}>
+                    Рюкзачки
+                  </Link>
                 </li>
                 <li>
-                  <Link href="/shop/chohly">Чохли</Link>
+                  <Link href="/shop/chohly" onClick={closeMobileMenu}>
+                    Чохли
+                  </Link>
                 </li>
                 <li>
-                  <Link href="/shop/shopery">Шопери</Link>
+                  <Link href="/shop/shopery" onClick={closeMobileMenu}>
+                    Шопери
+                  </Link>
                 </li>
               </ul>
-              <li className="mt-4">
-                <Link href="/shop?group=Аксесуари">Аксесуари</Link>
+
+              <li>
+                <Link href="/shop?group=Бісер" onClick={closeMobileMenu}>
+                  Бісер
+                </Link>
               </li>
               <li>
-                <Link href="/shop?group=Бісер">Бісер</Link>
+                <Link href="/shop?group=Плетіння" onClick={closeMobileMenu}>
+                  Плетіння
+                </Link>
               </li>
               <li>
-                <Link href="/shop?group=Плетіння">Плетіння</Link>
+                <Link href="/shop/accessories" onClick={closeMobileMenu}>
+                  Аксесуари
+                </Link>
               </li>
               <li className="mt-6">
-                <Link href="/info">Інфо</Link>
+                <Link href="/info" onClick={closeMobileMenu}>
+                  Інфо
+                </Link>
               </li>
-              {/* <li>
-                <Link href="/about">Про нас</Link>
-              </li> */}
+              <li>
+                <Link href="/about" onClick={closeMobileMenu}>
+                  Про нас
+                </Link>
+              </li>
             </ul>
           </aside>
         </>

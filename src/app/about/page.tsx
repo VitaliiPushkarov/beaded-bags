@@ -1,5 +1,6 @@
 import Image from 'next/image'
 import type { Metadata } from 'next'
+import { Skeleton } from '@/components/ui/Skeleton'
 
 export const metadata: Metadata = {
   title: 'Про нас — GERDAN',
@@ -64,9 +65,11 @@ export default function AboutPage() {
         <section className="flex flex-col justify-between 2xl:justify-center 2xl:mt-[120px] lg:flex-row lg:-mt-[200px] gap-10 ">
           {/* Ліва колонка: текст ABOUT US */}
           <div className="flex flex-col text-white px-10 lg:max-w-[610px] gap-9 lg:gap-[52px] lg:pt-20 ">
-            <h2 className="text-[51px] leading-[1.2] font-bold">ABOUT US</h2>
+            <h2 className="text-3xl md:text-[51px] leading-[1.2] font-bold">
+              ABOUT US
+            </h2>
 
-            <div className="space-y-4 text-sm  text-[20px] leading-tight tracking-tighter">
+            <div className="space-y-4 text-lg  md:text-[20px] leading-tight tracking-tighter">
               <p>
                 Ми — бренд із серця України, з маленького <br></br> міста
                 Кропивницький.
@@ -106,7 +109,8 @@ export default function AboutPage() {
 
           {/* Права колонка: картка з сумкою */}
 
-          <div className="relative aspect-3/4 lg:w-[825px] lg:h-[1015px]  bg-white/95  shadow-[0_20px_60px_rgba(0,0,0,0.5)]">
+          <div className="relative aspect-3/4 lg:w-[825px] lg:h-[1015px] overflow-hidden bg-white/95 shadow-[0_20px_60px_rgba(0,0,0,0.5)]">
+            <Skeleton className="absolute inset-0" />
             <Image
               src="/img/about-us-img.png"
               alt="Beaded bag GERDAN"
@@ -118,15 +122,28 @@ export default function AboutPage() {
         </section>
 
         {/* Нижній слоган */}
-        <section className="relative w-full min-h-[260px] px-10 md:px-0 lg:h-[247px] lg:w-[960px] 2xl:w-[1440px] 2xl:h-[520px] flex justify-center items-center md:mx-auto lg:mt-[180px]">
-          <Image
-            src="/img/about-us-footer-text.png"
-            alt="BEADED BAGS WITH A SOUL"
-            fill
-            className="object-contain
-            lg:object-cover"
-            priority
-          />
+        <section className="relative w-full px-6 md:px-0 flex justify-center items-center md:mx-auto lg:mt-[180px] lg:mb-[180px]">
+          {/* Mobile version */}
+          <div className="relative w-full min-h-[180px] md:hidden">
+            <Image
+              src="/img/about-us-footer-text.png"
+              alt="BEADED BAGS WITH A SOUL"
+              fill
+              priority
+              className="object-contain"
+            />
+          </div>
+
+          {/* Tablet / Desktop version */}
+          <div className="relative hidden md:block lg:h-[270px] lg:w-[1010px] 2xl:w-[1400px] 2xl:h-[360px]">
+            <Image
+              src="/img/about-us-footer-text.png"
+              alt="BEADED BAGS WITH A SOUL"
+              fill
+              priority
+              className="object-contain lg:object-cover"
+            />
+          </div>
         </section>
       </div>
     </div>

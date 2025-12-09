@@ -4,13 +4,8 @@ import { useEffect, useRef, useState } from 'react'
 import { Swiper, SwiperSlide } from 'swiper/react'
 import { Keyboard, A11y, FreeMode, Mousewheel } from 'swiper/modules'
 import type { Swiper as SwiperType } from 'swiper'
-import type { Product, ProductVariant } from '@prisma/client'
-
-import ProductCardLarge from './ProductCardLarge'
-
-type ProductsWithVariants = Product & {
-  variants: ProductVariant[]
-}
+import ProductCardLarge, { type ProductWithVariants } from './ProductCardLarge'
+import { Skeleton } from '@/components/ui/Skeleton'
 
 function Chevron({
   dir = 'left',
@@ -45,18 +40,21 @@ function Chevron({
 }
 
 export default function ProductsSlider() {
-  const [products, setProducts] = useState<ProductsWithVariants[]>([])
-
+  const [products, setProducts] = useState<ProductWithVariants[]>([])
+  const [loading, setLoading] = useState(true)
   const swiperRef = useRef<SwiperType | null>(null)
 
   useEffect(() => {
     async function loadProducts() {
+      setLoading(true)
       try {
         const res = await fetch('/api/products', { cache: 'no-store' })
-        const data = (await res.json()) as ProductsWithVariants[]
+        const data = (await res.json()) as ProductWithVariants[]
         setProducts(data)
       } catch (err) {
         console.error('❌ Failed to load products:', err)
+      } finally {
+        setLoading(false)
       }
     }
     loadProducts()
@@ -67,9 +65,30 @@ export default function ProductsSlider() {
       {/* Mobile: вертикальний список */}
       <div className="md:hidden max-w-full mx-auto px-6 space-y-5">
         <h2 className="text-2xl font-semibold mb-5">КАТАЛОГ</h2>
-        {products.map((p) => (
-          <ProductCardLarge key={p.id} p={p} />
-        ))}
+        {loading ? (
+          Array.from({ length: 3 }).map((_, i) => (
+            <div key={i} className="space-y-3">
+              <Skeleton className="w-full aspect-3/4" />
+              <Skeleton className="w-2/3 h-4" />
+              <Skeleton className="w-1/3 h-4" />
+            </div>
+          ))
+        ) : (
+          <>
+            {/* Показуємо лише перші 6 товарів */}
+            {products.slice(0, 6).map((p) => (
+              <ProductCardLarge key={p.id} p={p} />
+            ))}
+
+            {/* Show catalog link */}
+            <a
+              href="/shop"
+              className="block w-full text-center py-3 mt-4 bg-black text-white rounded-md text-sm font-medium hover:bg-[#FF3D8C] transition"
+            >
+              Показати всі товари
+            </a>
+          </>
+        )}
       </div>
 
       {/* Tablet/Desktop: Swiper */}

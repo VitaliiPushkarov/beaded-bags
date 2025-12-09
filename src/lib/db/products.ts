@@ -69,6 +69,10 @@ export async function getProducts(params: GetProductsParams = {}) {
         orderBy: {
           sortCatalog: 'asc',
         },
+        include: {
+          images: true,
+          straps: true,
+        },
       },
     },
   })

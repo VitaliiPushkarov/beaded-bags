@@ -1,0 +1,2 @@
+-- AlterTable
+ALTER TABLE "ProductAddon" ALTER COLUMN "type" SET DEFAULT 'ACCESSORY';

@@ -1,9 +1,8 @@
-import ProductCardLarge from '@/app/products/ProductCardLarge'
-import { Product, ProductVariant } from '@prisma/client'
+import ProductCardLarge, {
+  ProductWithVariants as ProductsGridWithVariants,
+} from '@/app/products/ProductCardLarge'
 
-type ProductWithVariants = Product & {
-  variants: ProductVariant[]
-}
+type ProductWithVariants = ProductsGridWithVariants
 
 export default function ProductsGrid({
   products,
@@ -14,7 +13,7 @@ export default function ProductsGrid({
 }) {
   if (loading) {
     return (
-      <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-5 mt-6">
+      <div className="grid grid-cols-2 lg:grid-cols-3 gap-5 mt-6">
         {Array.from({ length: 9 }).map((_, i) => (
           <div
             key={i}
@@ -33,7 +32,7 @@ export default function ProductsGrid({
     )
   }
   return (
-    <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-5 mt-6">
+    <div className="grid grid-cols-2 lg:grid-cols-3 gap-5 mt-6">
       {products.map((p) => (
         <ProductCardLarge key={p.id || p.slug} p={p} />
       ))}

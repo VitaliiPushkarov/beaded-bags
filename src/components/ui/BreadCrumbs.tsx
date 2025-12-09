@@ -22,6 +22,8 @@ const LABELS: Record<string, string> = {
   shopery: 'Шопери',
   chohly: 'Чохли',
   prykrasy: 'Прикраси',
+  accessories: 'Аксесуари',
+  about: 'Про нас',
   info: 'Інформація',
   checkout: 'Оформлення',
   success: 'Успішна оплата',
@@ -94,23 +96,6 @@ function BreadcrumbsInner({ override }: { override?: Crumb[] }) {
   }, [pathname, sp, override])
 
   if (crumbs.length <= 1) return null
-
-  /* const jsonLd = (() => {
-    if (typeof window === 'undefined') return null
-    const origin = window.location.origin
-    return {
-      '@context': 'https://schema.org',
-      '@type': 'BreadcrumbList',
-      itemListElement: crumbs.map((c, i) => ({
-        '@type': 'ListItem',
-        position: i + 1,
-        name: c.label,
-        item: c.href
-          ? new URL(c.href, origin).toString()
-          : window.location.href,
-      })),
-    }
-  })() */
 
   return (
     <>

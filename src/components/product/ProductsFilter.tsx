@@ -24,6 +24,7 @@ const TYPE_OPTIONS: ProductType[] = [
   'SHOPPER',
   'CASE',
   'ORNAMENTS',
+  'ACCESSORY',
 ]
 
 type Props = {

@@ -1,14 +1,22 @@
 'use client'
 import Link from 'next/link'
 import Image from 'next/image'
-import type { Product, ProductVariant } from '@prisma/client'
+import type {
+  Product,
+  ProductVariant,
+  ProductVariantImage,
+  ProductVariantStrap,
+} from '@prisma/client'
 import { useMemo, useState } from 'react'
 import VariantSwatches from '@/components/product/VariantSwatches'
 /* import { useCart } from '@/app/store/cart'
 import { useUI } from '@/app/store/ui' */
 
-type ProductWithVariants = Product & {
-  variants: ProductVariant[]
+export type ProductWithVariants = Product & {
+  variants: (ProductVariant & {
+    images: ProductVariantImage[]
+    straps: ProductVariantStrap[]
+  })[]
 }
 
 export default function ProductCardLarge({ p }: { p: ProductWithVariants }) {
@@ -21,33 +29,67 @@ export default function ProductCardLarge({ p }: { p: ProductWithVariants }) {
   const openCart = useUI((s) => s.openCart) */
   const price = v?.priceUAH ?? p.basePriceUAH ?? 0
 
-  const getFirstImage = (): string => {
-    const images = (p as unknown as { images?: string[] }).images
-    if (Array.isArray(images) && images.length > 0) return images[0]
-    return '/img/placeholder.png'
-  }
+  const [isHovered, setIsHovered] = useState(false)
+
+  // Витягуємо зображення саме з варіанту, з урахуванням поля hover та sort
+  const variantImages = (v?.images || [])
+    .slice()
+    .sort((a, b) => (a.sort ?? 0) - (b.sort ?? 0))
+
+  const primaryImage =
+    variantImages[0]?.url || v?.image || '/img/placeholder.png'
+
+  const hoverImage =
+    variantImages.find((img) => img.hover)?.url ||
+    variantImages[1]?.url ||
+    primaryImage
 
   return (
-    <article className="border overflow-hidden bg-white">
+    <article className=" overflow-hidden bg-white mb-8 md:mb-0">
       {/* зображення прив'язане до варіанту */}
       <Link href={`/products/${p.slug}?variant=${variantId}`}>
-        <div className="relative md:h-[560px] h-[460px] bg-gray-100 2xl:h-[720px]">
+        <div
+          className="relative md:h-[560px] h-80 bg-gray-100 2xl:h-[720px] overflow-hidden"
+          onMouseEnter={() => setIsHovered(true)}
+          onMouseLeave={() => setIsHovered(false)}
+        >
           {v && (
-            <Image
-              src={v.image || getFirstImage()}
-              alt={`${p.name} — ${v.color}`}
-              fill
-              className="object-cover transition-transform duration-300 hover:scale-[1.02]"
-              priority={false}
-              sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
-            />
+            <>
+              <Image
+                src={primaryImage}
+                alt={`${p.name} — ${v.color}`}
+                fill
+                className={`object-cover transition-opacity duration-300 ${
+                  isHovered ? 'opacity-0 scale-[1.02]' : 'opacity-100'
+                }`}
+                priority={false}
+                sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
+              />
+              {hoverImage && (
+                <Image
+                  src={hoverImage}
+                  alt={`${p.name} — ${v.color} — view 2`}
+                  fill
+                  className={`object-cover transition-opacity duration-300 ${
+                    isHovered ? 'opacity-100 scale-[1.02]' : 'opacity-0'
+                  }`}
+                  priority={false}
+                  sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
+                />
+              )}
+            </>
           )}
         </div>
       </Link>
 
-      <div className=" p-3">
-        <div className="flex items-center justify-between">
-          <h3 className="text-sm md:text-xl font-normal truncate">{p.name}</h3>
+      <div className=" p-1 md:p-3">
+        <div className="flex items-center justify-between flex-wrap">
+          <Link href={`/products/${p.slug}?variant=${variantId}`}>
+            <h3 className="text-sm md:text-xl font-normal truncate">
+              {p.name}
+            </h3>
+          </Link>
+
           <div className="text-sm md:text-xl font-light whitespace-nowrap">
             {price} ₴
           </div>
