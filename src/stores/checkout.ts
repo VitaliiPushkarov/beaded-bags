@@ -1,6 +1,6 @@
 import { create } from 'zustand'
 
-type UIPaymentMethod = 'BANK_TRANSFER' | 'COD' | 'LIQPAY'
+type UIPaymentMethod = 'BANK_TRANSFER' | 'COD' | 'LIQPAY' | 'WAYFORPAY'
 
 type NPDelivery = {
   areaRef?: string

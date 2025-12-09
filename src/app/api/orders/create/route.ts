@@ -34,7 +34,9 @@ const BodySchema = z.object({
     }),
   }),
   // frontend може передати варіант оплати, але ми його зафіксуємо нижче
-  paymentMethod: z.enum(['LIQPAY', 'COD', 'BANK_TRANSFER']).optional(),
+  paymentMethod: z
+    .enum(['LIQPAY', 'WAYFORPAY', 'COD', 'BANK_TRANSFER'])
+    .optional(),
 })
 
 export async function POST(req: NextRequest) {
@@ -70,7 +72,7 @@ export async function POST(req: NextRequest) {
     const totalUAH = subtotal + deliveryUAH - discountUAH
 
     // важливо: у схемі paymentMethod обов’язковий
-    const paymentMethod = data.paymentMethod ?? 'LIQPAY'
+    const paymentMethod = data.paymentMethod ?? 'WAYFORPAY'
 
     const created = await prisma.order.create({
       data: {

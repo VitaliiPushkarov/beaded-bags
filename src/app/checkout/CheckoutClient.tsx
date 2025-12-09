@@ -149,6 +149,74 @@ export default function CheckoutClient() {
         console.error(json)
         return
       }
+
+      // Якщо обрана онлайн-оплата через WayForPay
+      if (co.paymentMethod === 'WAYFORPAY') {
+        try {
+          const payRes = await fetch('/api/payments/wayforpay/create', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              orderId: json.orderId,
+              amountUAH: total,
+              description: `Замовлення #${json.orderNumber}`,
+              customer: {
+                email: customer.email,
+                phone: customer.phone,
+                firstName: customer.name,
+                lastName: customer.surname,
+              },
+            }),
+          })
+
+          const payJson = await payRes.json()
+          if (!payRes.ok) {
+            console.error(payJson)
+            setError('Помилка створення платежу')
+            return
+          }
+
+          const { payUrl, payload } = payJson as {
+            payUrl: string
+            payload: Record<string, unknown>
+          }
+
+          // Створюємо форму і редіректимо користувача на WayForPay
+          const form = document.createElement('form')
+          form.method = 'POST'
+          form.action = payUrl
+
+          Object.entries(payload).forEach(([key, value]) => {
+            if (value === undefined || value === null) return
+
+            if (Array.isArray(value)) {
+              value.forEach((v) => {
+                const input = document.createElement('input')
+                input.type = 'hidden'
+                input.name = `${key}[]`
+                input.value = String(v)
+                form.appendChild(input)
+              })
+            } else {
+              const input = document.createElement('input')
+              input.type = 'hidden'
+              input.name = key
+              input.value = String(value)
+              form.appendChild(input)
+            }
+          })
+
+          document.body.appendChild(form)
+          form.submit()
+          return
+        } catch (e) {
+          console.error(e)
+          setError('Помилка ініціалізації онлайн-оплати')
+          return
+        }
+      }
+
+      // Інші методи оплати: переходимо на сторінку успіху
       clearCart()
       router.push(`/checkout/success?order=${json.orderNumber}`)
       return
@@ -307,17 +375,20 @@ export default function CheckoutClient() {
               </div>
             </label>
 
-            {/* Онлайн оплата — заглушка */}
-            <label className="flex items-start gap-3 opacity-40 cursor-not-allowed">
+            {/* Онлайн оплата WayForPay */}
+            <label className="flex items-start gap-3 cursor-pointer">
               <input
                 type="radio"
                 name="payment"
                 className="mt-1 w-4 h-4"
-                disabled
+                checked={co.paymentMethod === 'WAYFORPAY'}
+                onChange={() => co.setPaymentMethod('WAYFORPAY')}
               />
               <div>
-                <p className="font-medium uppercase">Онлайн оплата (скоро)</p>
-                <p className="text-gray-600">Тимчасово недоступно.</p>
+                <p className="font-medium uppercase">Онлайн оплата карткою</p>
+                <p className="text-gray-600">
+                  Безпечна оплата банківською карткою через WayForPay.
+                </p>
               </div>
             </label>
           </div>

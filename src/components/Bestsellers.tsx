@@ -57,7 +57,18 @@ export default function Bestsellers() {
               </div>
             ) : (
               products.map((p) => {
-                const firstVariant = p.variants[0]
+                const firstVariant =
+                  p.variants
+                    .filter(
+                      (v) =>
+                        typeof v.sortBestsellers === 'number' &&
+                        v.sortBestsellers > 0
+                    )
+                    .sort(
+                      (a, b) =>
+                        (a.sortBestsellers ?? 9999) -
+                        (b.sortBestsellers ?? 9999)
+                    )[0] || p.variants[0]
 
                 const variantImages = (firstVariant?.images || [])
                   .slice()

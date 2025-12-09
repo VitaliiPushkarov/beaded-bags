@@ -33,6 +33,7 @@ enum OrderStatus {
 
 enum PaymentMethod {
   LIQPAY // online payment
+  WAYFORPAY // online payment
   COD // afterpayment
   BANK_TRANSFER // bank transfer
 }
@@ -174,7 +175,7 @@ model Order {
 
   // оплата
   paymentMethod PaymentMethod
-  paymentId     String? // external id (liqpay)
+  paymentId     String? // external id (wayforpay)
   paymentStatus String? // сирий статус провайдера
   paymentRaw    Json? // payload від провайдера 
 
