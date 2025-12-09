@@ -14,7 +14,7 @@ export async function POST(req: NextRequest) {
 
     const merchantAccount = process.env.WAYFORPAY_MERCHANT_ACCOUNT!
     const merchantSecretKey = process.env.WAYFORPAY_MERCHANT_SECRET_KEY!
-    const baseUrl = process.env.APP_BASE_URL || 'http://localhost:3000'
+    const baseUrl = process.env.APP_BASE_URL || 'http://gerdan.online'
 
     if (!merchantAccount || !merchantSecretKey) {
       return NextResponse.json(
