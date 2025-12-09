@@ -20,8 +20,11 @@ export default function Contacts() {
             <MailIcon size={30} className="mx-auto mb-2" />
             <div className="flex gap-1">
               <p className="font-semibold">Email:</p>
-              <a href="mailto:pushkarov.vitalii@gmail.com">
-                pushkarov.vitalii@gmail.com
+              <a
+                href="mailto:gerdanstudio@gmail.com"
+                className="hover:text-pink-500"
+              >
+                gerdanstudio@gmail.com
               </a>
             </div>
           </div>
@@ -29,7 +32,9 @@ export default function Contacts() {
             <PhoneIcon size={30} className="mx-auto mb-2" />
             <div className="flex gap-1">
               <p className="font-semibold">Phone:</p>
-              <a href="phone:+380955837060">+380955837060</a>
+              <a href="phone:+380955837060" className="hover:text-pink-500">
+                +380955837060
+              </a>
             </div>
           </div>
           <div className="flex items-center justify-center flex-col gap-3">

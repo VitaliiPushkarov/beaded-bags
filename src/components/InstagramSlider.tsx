@@ -3,7 +3,7 @@
 import Image from 'next/image'
 import { Swiper, SwiperSlide } from 'swiper/react'
 import { A11y, FreeMode, Autoplay } from 'swiper/modules'
-import { useRef, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import type { Swiper as SwiperType } from 'swiper'
 
 const instSliderImages = [
@@ -54,6 +54,20 @@ export default function InstagramSlider() {
 
   const [loadedSlides, setLoadedSlides] = useState<LoadedState>({})
 
+  const [isDesktop, setIsDesktop] = useState(false)
+
+  useEffect(() => {
+    const update = () => {
+      if (typeof window !== 'undefined') {
+        setIsDesktop(window.innerWidth >= 768)
+      }
+    }
+
+    update()
+    window.addEventListener('resize', update)
+    return () => window.removeEventListener('resize', update)
+  }, [])
+
   const handleImageLoad = (id: number) => {
     setLoadedSlides((prev) => ({
       ...prev,
@@ -71,14 +85,18 @@ export default function InstagramSlider() {
         >
           <Swiper
             modules={[A11y, FreeMode, Autoplay]}
-            loop
-            freeMode
+            loop={isDesktop}
+            freeMode={isDesktop}
             grabCursor
             speed={10000}
-            autoplay={{
-              delay: 0,
-              disableOnInteraction: false,
-            }}
+            autoplay={
+              isDesktop
+                ? {
+                    delay: 0,
+                    disableOnInteraction: false,
+                  }
+                : false
+            }
             slidesPerView={1}
             spaceBetween={8}
             breakpoints={{

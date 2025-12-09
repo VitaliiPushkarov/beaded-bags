@@ -54,7 +54,7 @@ model Product {
 
   sortCatalog     Int  @default(0)
   sortSlider      Int?
-  sortBestsellers Int?
+  
 
   variants        ProductVariant[]
 
@@ -75,6 +75,7 @@ model ProductVariant {
   inStock     Boolean @default(true)
   priceUAH    Int?
   sortCatalog Int?    @default(0)
+  sortBestsellers Int? @default(0)
 
   images ProductVariantImage[]
   straps ProductVariantStrap[]

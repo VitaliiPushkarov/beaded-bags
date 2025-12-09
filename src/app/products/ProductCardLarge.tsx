@@ -49,7 +49,7 @@ export default function ProductCardLarge({ p }: { p: ProductWithVariants }) {
       {/* зображення прив'язане до варіанту */}
       <Link href={`/products/${p.slug}?variant=${variantId}`}>
         <div
-          className="relative md:h-[560px] h-80 bg-gray-100 2xl:h-[720px] overflow-hidden"
+          className="relative md:h-[560px] aspect-3/4 bg-gray-100 2xl:h-[720px] overflow-hidden"
           onMouseEnter={() => setIsHovered(true)}
           onMouseLeave={() => setIsHovered(false)}
         >
@@ -96,7 +96,7 @@ export default function ProductCardLarge({ p }: { p: ProductWithVariants }) {
         </div>
 
         {/* свотчі — міняють фото та назву */}
-        <div className="mt-3">
+        <div className="mt-2 md:mt-3">
           <VariantSwatches
             variants={p.variants}
             value={variantId!}

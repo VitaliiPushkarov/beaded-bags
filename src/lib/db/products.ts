@@ -15,19 +15,19 @@ export async function getProducts(params: GetProductsParams = {}) {
 
   const where: Prisma.ProductWhereInput = {}
 
-  // 🔹 Фільтр по типу (Сумки / Бананки / Чохли...)
+  // Filter by type
   if (type) {
     where.type = type
   }
 
-  // 🔹 Фільтр по групі (Бісер / Плетіння), якщо ти завів поле group у Product
+  // Filter by group
   if (group === 'Бісер') {
-    where.group = 'BEADS' // або як ти назвав enum/поле в БД
+    where.group = 'BEADS'
   } else if (group === 'Плетіння') {
     where.group = 'WEAVING'
   }
 
-  // 🔹 Пошук по назві
+  // Search
   if (search && search.trim()) {
     where.name = {
       contains: search.trim(),
@@ -35,7 +35,7 @@ export async function getProducts(params: GetProductsParams = {}) {
     }
   }
 
-  // 🔹 Фільтр по кольору (варіанти)
+  // Variant color filter
   if (color && color.trim()) {
     where.variants = {
       some: {
@@ -44,21 +44,25 @@ export async function getProducts(params: GetProductsParams = {}) {
     }
   }
 
-  // 🔹 Сортування — але БЕЗ втрати where
+  // Bestseller filter → now based on variants.sortBestsellers
+  if (forBestsellers) {
+    where.variants = {
+      some: {
+        sortBestsellers: { gt: 0 },
+      },
+    }
+  }
+
+  // ORDERING
   const orderBy: Prisma.ProductOrderByWithRelationInput[] = []
 
   if (forSlider) {
-    // поле в БД: sortSlider
     orderBy.push({ sortSlider: 'asc' })
-  } else if (forBestsellers) {
-    // поле в БД: sortBestsellers
-    orderBy.push({ sortBestsellers: 'asc' })
   } else {
-    // дефолтний порядок каталогу
     orderBy.push({ sortCatalog: 'asc' })
   }
 
-  // запасний порядок — за датою
+  // fallback
   orderBy.push({ createdAt: 'desc' })
 
   const products = await prisma.product.findMany({
@@ -72,10 +76,39 @@ export async function getProducts(params: GetProductsParams = {}) {
         include: {
           images: true,
           straps: true,
+          addonsOnVariant: {
+            include: {
+              addon: true,
+            },
+          },
         },
       },
     },
   })
+
+  // Extra sorting for BESTSELLERS:
+  // sort products by the MINIMUM sortBestsellers value across their variants
+  if (forBestsellers) {
+    return [...products].sort((a, b) => {
+      const minA =
+        a.variants?.reduce((min, v) => {
+          if (typeof v.sortBestsellers === 'number' && v.sortBestsellers > 0) {
+            return Math.min(min, v.sortBestsellers)
+          }
+          return min
+        }, Number.MAX_SAFE_INTEGER) ?? Number.MAX_SAFE_INTEGER
+
+      const minB =
+        b.variants?.reduce((min, v) => {
+          if (typeof v.sortBestsellers === 'number' && v.sortBestsellers > 0) {
+            return Math.min(min, v.sortBestsellers)
+          }
+          return min
+        }, Number.MAX_SAFE_INTEGER) ?? Number.MAX_SAFE_INTEGER
+
+      return minA - minB
+    })
+  }
 
   return products
 }

@@ -75,8 +75,8 @@ export default function ProductsSlider() {
           ))
         ) : (
           <>
-            {/* Показуємо лише перші 6 товарів */}
-            {products.slice(0, 6).map((p) => (
+            {/* Показуємо лише перші 4 товарів */}
+            {products.slice(0, 4).map((p) => (
               <ProductCardLarge key={p.id} p={p} />
             ))}
 

@@ -123,6 +123,12 @@ export default function Header() {
             >
               ПРО НАС
             </Link>
+            <Link
+              href="/contacts"
+              className="hidden lg:inline-block hover:opacity-70 text-[12px] font-medium tracking-wide"
+            >
+              КОНТАКТИ
+            </Link>
             <SearchDialog />
             <CartButton />
             {/* <a
@@ -231,6 +237,11 @@ export default function Header() {
               <li>
                 <Link href="/about" onClick={closeMobileMenu}>
                   Про нас
+                </Link>
+              </li>
+              <li>
+                <Link href="/contacts" onClick={closeMobileMenu}>
+                  Контакти
                 </Link>
               </li>
             </ul>

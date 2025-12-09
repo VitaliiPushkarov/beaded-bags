@@ -69,9 +69,9 @@ export default function ProductsFilter({
       {/* верхній рядок: чекбокси + сортування */}
       <div className="flex justify-between flex-nowrap mb-[26px] uppercase">
         <div>
-          <div className="flex flex-wrap gap-x-10 gap-y-3 mb-[34px]">
+          <div className="flex flex-wrap gap-x-3 gap-y-3 mb-[34px]">
             {/* В наявності */}
-            <label className="flex items-center gap-2 cursor-pointer">
+            <label className="flex items-center md:gap-2 gap-1 cursor-pointer">
               <input
                 type="checkbox"
                 checked={ui.inStock}
@@ -82,7 +82,7 @@ export default function ProductsFilter({
             </label>
 
             {/* On sale */}
-            <label className="flex items-center gap-2 cursor-pointer">
+            <label className="flex items-center md:gap-2 gap-1 cursor-pointer">
               <input
                 type="checkbox"
                 checked={ui.onSale}
@@ -93,7 +93,7 @@ export default function ProductsFilter({
             </label>
 
             {/* сортування */}
-            <label className="inline-flex items-center gap-2 cursor-pointer">
+            <label className="inline-flex items-center md:gap-2 gap-1 cursor-pointer">
               <input
                 type="radio"
                 name={sortName}
@@ -102,7 +102,7 @@ export default function ProductsFilter({
               />
               <span>Новинки</span>
             </label>
-            <label className="inline-flex items-center gap-2 cursor-pointer">
+            <label className="inline-flex items-center md:gap-2 gap-1 cursor-pointer">
               <input
                 type="radio"
                 name={sortName}
@@ -111,33 +111,33 @@ export default function ProductsFilter({
               />
               <span>Популярні</span>
             </label>
-            <label className="inline-flex items-center gap-2 cursor-pointer">
+            <label className="inline-flex items-center md:gap-2 gap-1 cursor-pointer">
               <input
                 type="radio"
                 name={sortName}
                 checked={ui.sort === 'Ціна за спаданням'}
                 onChange={() => onChange({ ...ui, sort: 'Ціна за спаданням' })}
               />
-              <span>↓$</span>
+              <span>↓₴</span>
             </label>
-            <label className="inline-flex items-center gap-2 cursor-pointer">
+            <label className="inline-flex items-center md:gap-2 gap-1 cursor-pointer">
               <input
                 type="radio"
                 name={sortName}
                 checked={ui.sort === 'Ціна за зростанням'}
                 onChange={() => onChange({ ...ui, sort: 'Ціна за зростанням' })}
               />
-              <span>↑$</span>
+              <span>↑₴</span>
             </label>
           </div>
 
-          {/* другий рядок: група / тип / колір / ціна */}
-          <div className="flex flex-wrap gap-y-4 gap-x-10 items-center">
+          {/* другий рядок: група / тип / колір */}
+          <div className="flex flex-col lg:flex-row lg:flex-wrap gap-y-4 gap-x-10 items-start lg:items-center">
             {/* Група */}
             <div className="flex items-center gap-3 cursor-pointer">
               <span className="uppercase tracking-wide">Група:</span>
               <select
-                className="border px-3 py-1 rounded bg-white"
+                className="border px-3 py-1 rounded bg-white w-40"
                 value={ui.group}
                 onChange={(e) =>
                   onChange({
@@ -146,7 +146,7 @@ export default function ProductsFilter({
                   })
                 }
               >
-                <option value="">— Всі —</option>
+                <option value="">Всі</option>
                 <option value="Бісер">Бісер</option>
                 <option value="Плетіння">Плетіння</option>
               </select>
@@ -157,7 +157,7 @@ export default function ProductsFilter({
               <div className="flex items-center gap-3 cursor-pointer">
                 <span className="uppercase tracking-wide">Тип:</span>
                 <select
-                  className="border px-3 py-1 rounded bg-white"
+                  className="border px-3 py-1 rounded bg-white w-40"
                   value={ui.bagTypes || ''}
                   onChange={(e) =>
                     onChange({
@@ -166,7 +166,7 @@ export default function ProductsFilter({
                     })
                   }
                 >
-                  <option value="">— Всі —</option>
+                  <option value="">Всі</option>
                   {TYPE_OPTIONS.map((bt) => (
                     <option key={bt} value={bt}>
                       {TYPE_LABELS[bt] ?? bt}
@@ -180,11 +180,11 @@ export default function ProductsFilter({
             <div className="flex items-center gap-3 cursor-pointer">
               <span className="uppercase tracking-wide">Колір:</span>
               <select
-                className="border px-3 py-1 rounded bg-white"
+                className="border px-3 py-1 rounded bg-white w-40"
                 value={ui.color}
                 onChange={(e) => onChange({ ...ui, color: e.target.value })}
               >
-                <option value="">— Всі —</option>
+                <option value="">Всі</option>
                 {colors.map((c) => (
                   <option key={c} value={c}>
                     {COLOR_LABELS[c] || c}
@@ -192,36 +192,36 @@ export default function ProductsFilter({
                 ))}
               </select>
             </div>
+          </div>
 
-            {/* Ціна */}
-            <div className="flex items-center gap-3">
-              <span>Ціна:</span>
-              <input
-                placeholder="60 грн"
-                inputMode="numeric"
-                value={ui.min}
-                onChange={(e) =>
-                  onChange({
-                    ...ui,
-                    min: e.target.value.replace(/[^\d]/g, ''),
-                  })
-                }
-                className="w-20 border-b border-black bg-transparent outline-none text-gray-700 placeholder-gray-400"
-              />
-              <span>до</span>
-              <input
-                placeholder="3500 грн"
-                inputMode="numeric"
-                value={ui.max}
-                onChange={(e) =>
-                  onChange({
-                    ...ui,
-                    max: e.target.value.replace(/[^\d]/g, ''),
-                  })
-                }
-                className="w-24 border-b border-black bg-transparent outline-none text-gray-700 placeholder-gray-400"
-              />
-            </div>
+          {/* третій рядок: ціна */}
+          <div className="mt-[34px] flex items-center gap-3">
+            <span>Ціна:</span>
+            <input
+              placeholder="60 грн"
+              inputMode="numeric"
+              value={ui.min}
+              onChange={(e) =>
+                onChange({
+                  ...ui,
+                  min: e.target.value.replace(/[^\d]/g, ''),
+                })
+              }
+              className="w-20 border-b border-black bg-transparent outline-none text-gray-700 placeholder-gray-400"
+            />
+            <span>до</span>
+            <input
+              placeholder="3500 грн"
+              inputMode="numeric"
+              value={ui.max}
+              onChange={(e) =>
+                onChange({
+                  ...ui,
+                  max: e.target.value.replace(/[^\d]/g, ''),
+                })
+              }
+              className="w-24 border-b border-black bg-transparent outline-none text-gray-700 placeholder-gray-400"
+            />
           </div>
         </div>
       </div>
