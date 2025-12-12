@@ -25,7 +25,7 @@ export default function AboutPage() {
         </div>
         <div className="relative hidden h-full w-full md:block">
           <Image
-            src="/img/about-bg.png"
+            src="/img/about-bg.jpg"
             alt="GERDAN background texture"
             fill
             priority

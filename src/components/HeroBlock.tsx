@@ -9,7 +9,7 @@ export default function HeroBlock() {
     >
       {/* Mobile */}
       <Image
-        src="/img/hero-block-m.png"
+        src="/img/hero-block-m.jpg"
         alt="Gerdan Hero Mobile"
         fill
         priority
@@ -18,7 +18,7 @@ export default function HeroBlock() {
       />
       {/* Головне фото */}
       <Image
-        src="/img/hero-block-01.png"
+        src="/img/hero-block-01.jpg"
         alt="Gerdan Hero"
         fill
         priority

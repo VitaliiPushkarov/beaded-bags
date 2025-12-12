@@ -87,8 +87,8 @@ export default function PhotoGallery({ images }: PhotoGalleryProps) {
           ))}
           {/* Chevrons */}
           <button
-            className="photo-gallery-prev absolute left-0 top-1/2 -translate-y-1/2 z-10 h-10 w-10
-                   hidden md:flex items-center justify-center text-gray-400 hover:text-black transition cursor-pointer"
+            className="photo-gallery-prev absolute left-0 top-1/2 -translate-y-1/2 z-10 h-14 w-14
+                   hidden md:flex items-center justify-center text-pink-700 hover:text-black transition cursor-pointer"
             aria-label="Попереднє фото"
           >
             <svg width="20" height="20" viewBox="0 0 24 24">
@@ -104,8 +104,8 @@ export default function PhotoGallery({ images }: PhotoGalleryProps) {
           </button>
 
           <button
-            className="photo-gallery-next absolute right-0 top-1/2 -translate-y-1/2 z-10 h-10 w-10
-                   hidden md:flex items-center justify-center text-gray-400 hover:text-black transition cursor-pointer"
+            className="photo-gallery-next absolute right-0 top-1/2 -translate-y-1/2 z-10 h-14 w-14
+                   hidden md:flex items-center justify-center text-pink-700 hover:text-black transition cursor-pointer"
             aria-label="Наступне фото"
           >
             <svg width="20" height="20" viewBox="0 0 24 24">

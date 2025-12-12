@@ -3,6 +3,7 @@ import { Analytics } from '@vercel/analytics/next'
 import Header from '../components/Header'
 import CartDrawer from '@/components/cart/CartDrawer'
 import Footer from '@/components/Footer'
+import { SpeedInsights } from '@vercel/speed-insights/next'
 
 const SITE_URL = 'https://gerdan.online'
 
@@ -62,6 +63,7 @@ export default function RootLayout({
       </head>
 
       <body className="min-h-screen text-gray-900 antialiased bg-white font-fixel">
+        <SpeedInsights />
         <Header />
         <main className="max-w-full mx-auto">{children}</main>
         <Analytics />
