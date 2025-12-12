@@ -12,15 +12,13 @@ export async function GET(req: NextRequest) {
 
   const isBestsellers = !!limit
 
-  // Якщо запит з лімітом — віддаємо бестселери (по sortBestsellers на варіантах),
-  // інакше — слайдер (по sortSlider на продукті)
   if (isBestsellers) {
     where.variants = {
       some: {
         sortBestsellers: { gt: 0 },
       },
     }
-    // Початкове сортування по даті, остаточний порядок бестселерів рахуємо в JS нижче
+
     orderBy = [{ createdAt: 'desc' }]
   } else {
     where.sortSlider = { not: null, gt: 0 }

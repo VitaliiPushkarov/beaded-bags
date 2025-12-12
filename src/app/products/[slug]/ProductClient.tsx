@@ -17,6 +17,7 @@ import {
 import ProductGallery from '@/components/ProductGallery'
 import ProductTabs from '@/components/product/ProductTabs'
 import Bestsellers from '@/components/Bestsellers'
+import YouMayAlsoLike from '@/components/YouMayAlsoLike'
 
 type VariantWithImagesStrapsAndAddons = ProductVariant & {
   images: ProductVariantImage[]
@@ -373,7 +374,7 @@ export function ProductClient({ p }: { p: ProductWithVariants }) {
           </div>
         </div>
       </section>
-      <Bestsellers />
+      <YouMayAlsoLike currentSlug="" />
     </Suspense>
   )
 }
