@@ -12,13 +12,13 @@ const ALLOWED_TYPES: ProductType[] = [
   'ORNAMENTS',
   'ACCESSORY',
 ]
-type ProductGroup = '' | 'Бісер' | 'Плетіння'
+type ProductGroup = '' | 'BEADS' | 'WEAVING'
 
 function normalizeGroup(raw?: string | null): ProductGroup {
   if (!raw) return ''
   const v = raw.toLowerCase()
-  if (v === 'бісер' || v === 'biser') return 'Бісер'
-  if (v === 'плетіння' || v === 'pletinnya') return 'Плетіння'
+  if (v === 'бісер' || v === 'biser') return 'BEADS'
+  if (v === 'плетіння' || v === 'pletinnya') return 'WEAVING'
   return ''
 }
 

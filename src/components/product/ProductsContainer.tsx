@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { useSearchParams, useRouter, usePathname } from 'next/navigation'
 import ProductsFilter from './ProductsFilter'
 import AppliedChips from './AppliedChips'
@@ -14,12 +14,13 @@ export type UIFilters = {
   q: string
   inStock: boolean
   onSale: boolean
-  group: '' | 'Бісер' | 'Плетіння'
+  group: '' | 'BEADS' | 'WEAVING'
   bagTypes: '' | ProductType
   color: string
   min: string
   max: string
-  sort: 'new' | 'popular' | 'Ціна за спаданням' | 'Ціна за зростанням'
+  sortBase: '' | 'new' | 'popular'
+  sortPrice: '' | 'asc' | 'desc'
 }
 
 const DEFAULT_FILTERS: UIFilters = {
@@ -31,7 +32,8 @@ const DEFAULT_FILTERS: UIFilters = {
   color: '',
   min: '',
   max: '',
-  sort: 'new',
+  sortBase: '',
+  sortPrice: '',
 }
 
 type ProductWithVariants = CardProductWithVariants
@@ -53,10 +55,21 @@ function isInStock(p: ProductWithVariants) {
 function matchesGroup(p: ProductWithVariants, group: UIFilters['group']) {
   if (!group) return true
   if (!p.group) return false
+  return p.group === group
+}
 
-  if (group === 'Бісер') return p.group === 'BEADS'
-  if (group === 'Плетіння') return p.group === 'WEAVING'
-  return true
+function normalizeGroupParam(v: string | null): UIFilters['group'] {
+  if (!v) return ''
+  if (v === 'BEADS' || v === 'WEAVING') return v
+  if (v === 'Бісер') return 'BEADS'
+  if (v === 'Плетіння') return 'WEAVING'
+  return ''
+}
+
+function groupLabel(g: UIFilters['group']): string {
+  if (g === 'BEADS') return 'Бісер'
+  if (g === 'WEAVING') return 'Плетіння'
+  return ''
 }
 
 function matchesColor(p: ProductWithVariants, color: string) {
@@ -76,7 +89,7 @@ function hasOnSale(p: unknown): p is { onSale: boolean } {
 
 function resetKey(source: UIFilters, key: keyof UIFilters): UIFilters {
   const next: UIFilters = { ...source }
-  // індексно, але без any
+
   ;(next as Record<keyof UIFilters, unknown>)[key] = DEFAULT_FILTERS[key]
   return next
 }
@@ -85,11 +98,13 @@ export default function ProductsContainer({
   initialProducts,
   initialFilters,
   lockedType,
+  lockedGroup,
   title = 'Каталог',
 }: {
   initialProducts: ProductWithVariants[]
   initialFilters?: Partial<UIFilters>
   lockedType?: ProductType
+  lockedGroup?: UIFilters['group']
   title?: string
 }) {
   // початковий масив
@@ -108,6 +123,7 @@ export default function ProductsContainer({
   const [ui, setUI] = useState<UIFilters>(() => ({
     ...DEFAULT_FILTERS,
     ...initialFilters,
+    group: lockedGroup ?? (initialFilters?.group as UIFilters['group']) ?? '',
     bagTypes: lockedType ?? (initialFilters?.bagTypes as ProductType) ?? '',
   }))
 
@@ -115,6 +131,7 @@ export default function ProductsContainer({
   const [applied, setApplied] = useState<UIFilters>(() => ({
     ...DEFAULT_FILTERS,
     ...initialFilters,
+    group: lockedGroup ?? (initialFilters?.group as UIFilters['group']) ?? '',
     bagTypes: lockedType ?? (initialFilters?.bagTypes as ProductType) ?? '',
   }))
 
@@ -122,34 +139,62 @@ export default function ProductsContainer({
     Boolean(initialFilters && Object.keys(initialFilters).length > 0)
   )
   const [isDirty, setIsDirty] = useState(false)
+  const didInitFromUrlRef = useRef(false)
 
-  // якщо НЕ зафіксований тип — підхоплюємо ?type= з URL
+  // ініціалізація фільтрів з URL (без зациклення)
   useEffect(() => {
-    if (lockedType) return
-    const t = sp.get('type')
-    if (t) {
-      setUI((s) => ({ ...s, bagTypes: t as ProductType }))
-      setIsDirty(true)
+    if (lockedType) {
+      didInitFromUrlRef.current = true
+      return
     }
-  }, [sp, lockedType])
+
+    const t = sp.get('type') as ProductType | null
+    const g = lockedGroup ? '' : normalizeGroupParam(sp.get('group'))
+
+    setUI((prev) => {
+      // не перетираємо вибір юзера
+      const next: UIFilters = { ...prev }
+      if (!next.bagTypes && t) next.bagTypes = t
+      if (!lockedGroup && !next.group && g) next.group = g
+      return next
+    })
+
+    didInitFromUrlRef.current = true
+  }, [sp, lockedType, lockedGroup])
 
   // live-синк у URL (але це ще не "застосовано")
+  // IMPORTANT: avoid infinite navigation loop in dev by only replacing when qs changes
   useEffect(() => {
+    // не запускаємо live-sync, доки не ініціалізувалися з URL
+    if (!didInitFromUrlRef.current) return
+
     const params = new URLSearchParams()
     if (ui.q) params.set('q', ui.q)
+    if (ui.inStock) params.set('inStock', '1')
+    if (ui.onSale) params.set('onSale', '1')
     if (!lockedType && ui.bagTypes) params.set('type', ui.bagTypes)
+    if (!lockedGroup && ui.group) params.set('group', ui.group)
     if (ui.color) params.set('color', ui.color)
-    if (ui.sort !== 'new') params.set('sort', ui.sort)
+    if (ui.sortBase) params.set('sortBase', ui.sortBase)
+    if (ui.sortPrice) params.set('sortPrice', ui.sortPrice)
+
     const qs = params.toString()
+    const current = sp.toString()
+
+    // якщо вже такий самий query — нічого не робимо
+    if (qs === current) return
+
     router.replace(qs ? `${pathname}?${qs}` : pathname)
-  }, [ui, router, pathname, lockedType])
+  }, [ui, router, pathname, lockedType, lockedGroup, sp])
 
   // застосувати
   const apply = () => {
     setLoading(true)
 
     // якщо тип зафіксований — ми його примусово кладемо в застосовані
-    const toApply: UIFilters = lockedType ? { ...ui, bagTypes: lockedType } : ui
+    const toApply: UIFilters = lockedType
+      ? { ...ui, bagTypes: lockedType, group: lockedGroup ?? ui.group }
+      : { ...ui, group: lockedGroup ?? ui.group }
 
     let arr = [...base]
 
@@ -199,20 +244,20 @@ export default function ProductsContainer({
       return prices.some((price) => price >= minNum && price <= maxNum)
     })
 
-    // сортування
-    switch (toApply.sort) {
-      case 'Ціна за спаданням':
-        arr.sort((a, b) => getMinPrice(a) - getMinPrice(b))
-        break
-      case 'Ціна за зростанням':
-        arr.sort((a, b) => getMinPrice(b) - getMinPrice(a))
-        break
-      case 'popular':
-        arr.sort((a, b) => (a.name || '').localeCompare(b.name || ''))
-        break
-      case 'new':
-      default:
-        break
+    // сортування (незалежні контролі)
+    // пріоритет: ціна (якщо вибрана) → інакше popular → інакше (new або без) лишаємо порядок як є
+    if (toApply.sortPrice === 'asc') {
+      arr.sort((a, b) => {
+        const d = getMinPrice(a) - getMinPrice(b)
+        return d !== 0 ? d : (a.name || '').localeCompare(b.name || '')
+      })
+    } else if (toApply.sortPrice === 'desc') {
+      arr.sort((a, b) => {
+        const d = getMinPrice(b) - getMinPrice(a)
+        return d !== 0 ? d : (a.name || '').localeCompare(b.name || '')
+      })
+    } else if (toApply.sortBase === 'popular') {
+      arr.sort((a, b) => (a.name || '').localeCompare(b.name || ''))
     }
 
     setApplied(toApply)
@@ -224,9 +269,13 @@ export default function ProductsContainer({
     // оновлюємо урл вже з застосованими значеннями
     const params = new URLSearchParams()
     if (toApply.q) params.set('q', toApply.q)
+    if (toApply.inStock) params.set('inStock', '1')
+    if (toApply.onSale) params.set('onSale', '1')
     if (!lockedType && toApply.bagTypes) params.set('type', toApply.bagTypes)
+    if (!lockedGroup && toApply.group) params.set('group', toApply.group)
     if (toApply.color) params.set('color', toApply.color)
-    if (toApply.sort !== 'new') params.set('sort', toApply.sort)
+    if (toApply.sortBase) params.set('sortBase', toApply.sortBase)
+    if (toApply.sortPrice) params.set('sortPrice', toApply.sortPrice)
     const qs = params.toString()
     router.replace(qs ? `${pathname}?${qs}` : pathname)
 
@@ -237,6 +286,7 @@ export default function ProductsContainer({
   const clearAll = () => {
     const next: UIFilters = {
       ...DEFAULT_FILTERS,
+      ...(lockedGroup ? { group: lockedGroup } : {}),
       ...(lockedType ? { bagTypes: lockedType } : {}),
     }
 
@@ -261,12 +311,15 @@ export default function ProductsContainer({
 
   // chips (тільки з застосованих)
   const chips = useMemo(() => {
-    const out: { key: keyof UIFilters | 'price' | 'sort'; label: string }[] = []
+    const out: {
+      key: keyof UIFilters | 'price' | 'sortBase' | 'sortPrice'
+      label: string
+    }[] = []
     if (applied.q.trim()) out.push({ key: 'q', label: `“${applied.q.trim()}”` })
     if (applied.inStock) out.push({ key: 'inStock', label: 'В наявності' })
     if (applied.onSale) out.push({ key: 'onSale', label: 'On sale' })
-    if (applied.group)
-      out.push({ key: 'group', label: `Група: ${applied.group}` })
+    if (!lockedGroup && applied.group)
+      out.push({ key: 'group', label: `Група: ${groupLabel(applied.group)}` })
     if (!lockedType && applied.bagTypes)
       out.push({
         key: 'bagTypes',
@@ -282,18 +335,37 @@ export default function ProductsContainer({
         key: 'price',
         label: `Ціна: ${applied.min || '—'} — ${applied.max || '—'}`,
       })
-    if (applied.sort !== 'new')
-      out.push({ key: 'sort', label: `Сортування: ${applied.sort}` })
+    if (applied.sortBase) {
+      out.push({
+        key: 'sortBase',
+        label: `Сортування: ${
+          applied.sortBase === 'new' ? 'Новинки' : 'Популярні'
+        }`,
+      })
+    }
+    if (applied.sortPrice) {
+      out.push({
+        key: 'sortPrice',
+        label: `Сортування: ${
+          applied.sortPrice === 'asc' ? 'Ціна ↑' : 'Ціна ↓'
+        }`,
+      })
+    }
     return out
-  }, [applied, lockedType])
+  }, [applied, lockedType, lockedGroup])
 
   const removeChip = (key: string) => {
     let next: UIFilters
 
     if (key === 'price') {
       next = { ...applied, min: '', max: '' }
+    } else if (key === 'sortBase') {
+      next = { ...applied, sortBase: '' }
+    } else if (key === 'sortPrice') {
+      next = { ...applied, sortPrice: '' }
     } else if (key === 'sort') {
-      next = { ...applied, sort: DEFAULT_FILTERS.sort }
+      // backward compatibility if something still sends 'sort'
+      next = { ...applied, sortBase: '', sortPrice: '' }
     } else {
       const k = key as keyof UIFilters
       next = resetKey(applied, k)
@@ -303,7 +375,9 @@ export default function ProductsContainer({
     if (lockedType && key === 'bagTypes') {
       next.bagTypes = lockedType
     }
-
+    if (lockedGroup && key === 'group') {
+      next.group = lockedGroup
+    }
     setApplied(next)
     setUI((u) => ({ ...u, ...next }))
     setIsDirty(false)
@@ -323,9 +397,7 @@ export default function ProductsContainer({
     if (next.inStock) arr = arr.filter(isInStock)
     if (next.onSale) arr = arr.filter((p) => hasOnSale(p) && p.onSale === true)
     if (next.group) {
-      arr = arr.filter((p) =>
-        next.group === 'Бісер' ? matchesGroup(p, '') : !matchesGroup(p, '')
-      )
+      arr = arr.filter((p) => matchesGroup(p, next.group))
     }
     if (next.bagTypes) {
       arr = arr.filter((p) => p.type === next.bagTypes)
@@ -370,7 +442,7 @@ export default function ProductsContainer({
           <button
             onClick={apply}
             disabled={!isDirty}
-            className="px-6 py-2 rounded bg-black text-white hover:bg-[#FF3D8C] transition h-11 w-[275px] disabled:opacity-50 disabled:cursor-not-allowed"
+            className="px-6 py-2 rounded bg-black text-white hover:bg-[#FF3D8C] transition h-11 w-[275px] disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
           >
             Застосувати
           </button>
@@ -385,6 +457,7 @@ export default function ProductsContainer({
         }}
         colors={colors}
         lockType={Boolean(lockedType)}
+        lockGroup={Boolean(lockedGroup)}
         mobileOpen={mobileOpen}
         onMobileClose={() => setMobileOpen(false)}
         onApply={apply}

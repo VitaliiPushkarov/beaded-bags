@@ -1,4 +1,3 @@
-// After payment success page
 'use client'
 import Link from 'next/link'
 import { useSearchParams } from 'next/navigation'

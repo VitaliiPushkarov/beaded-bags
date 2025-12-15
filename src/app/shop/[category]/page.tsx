@@ -5,7 +5,7 @@ import Link from 'next/link'
 
 const CATEGORY_META: Record<
   string,
-  { type?: ProductType; group?: '' | 'Бісер' | 'Плетіння'; title: string }
+  { type?: ProductType; group?: '' | 'BEADS' | 'WEAVING'; title: string }
 > = {
   sumky: { type: 'BAG', title: 'Сумки' },
   bananky: { type: 'BELT_BAG', title: 'Бананки' },
@@ -30,7 +30,7 @@ export default async function ShopCategoryPage({
   const sp = await searchParams
   const meta = CATEGORY_META[category]
 
-  // якщо такої категорії немає — показуємо м’яку заглушку (200), а не редірект
+  // fallback
   if (!meta) {
     return (
       <div className="max-w-6xl mx-auto px-4 py-12">

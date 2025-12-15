@@ -81,7 +81,7 @@ export default function CatalogMegaMenu({
           <div className="space-y-8">
             <Link
               className="block hover:opacity-70"
-              href="/shop?group=Бісер"
+              href="/shop/group/beads"
               onClick={handleLinkClick}
             >
               <span
@@ -94,7 +94,7 @@ export default function CatalogMegaMenu({
 
             <Link
               className="block hover:opacity-70"
-              href="/shop?group=Плетіння"
+              href="/shop/group/weaving"
               onClick={handleLinkClick}
             >
               <span
@@ -105,7 +105,7 @@ export default function CatalogMegaMenu({
               </span>
             </Link>
 
-            <Link
+            {/* <Link
               className="block hover:opacity-70"
               href="/shop?inStock=1"
               onClick={handleLinkClick}
@@ -116,7 +116,7 @@ export default function CatalogMegaMenu({
               >
                 В наявності
               </span>
-            </Link>
+            </Link> */}
             <Link
               className="block hover:opacity-70"
               href="/shop/accessories"

@@ -5,7 +5,7 @@ type GetProductsParams = {
   search?: string
   color?: string
   type?: ProductType
-  group?: '' | 'Бісер' | 'Плетіння'
+  group?: '' | 'BEADS' | 'WEAVING'
   forSlider?: boolean
   forBestsellers?: boolean
 }
@@ -21,9 +21,9 @@ export async function getProducts(params: GetProductsParams = {}) {
   }
 
   // Filter by group
-  if (group === 'Бісер') {
+  if (group === 'BEADS') {
     where.group = 'BEADS'
-  } else if (group === 'Плетіння') {
+  } else if (group === 'WEAVING') {
     where.group = 'WEAVING'
   }
 

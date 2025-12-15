@@ -9,12 +9,13 @@ export type FiltersValue = {
   q: string
   inStock: boolean
   onSale: boolean
-  group: '' | 'Бісер' | 'Плетіння'
+  group: '' | 'BEADS' | 'WEAVING'
   bagTypes: '' | ProductType
   color: string
   min: string
   max: string
-  sort: 'new' | 'popular' | 'Ціна за спаданням' | 'Ціна за зростанням'
+  sortBase: '' | 'new' | 'popular'
+  sortPrice: '' | 'asc' | 'desc'
 }
 
 const TYPE_OPTIONS: ProductType[] = [
@@ -32,6 +33,7 @@ type Props = {
   onChange: (next: FiltersValue) => void
   colors: string[]
   lockType?: boolean
+  lockGroup?: boolean
 
   mobileOpen?: boolean
   onMobileClose?: () => void
@@ -44,6 +46,7 @@ export default function ProductsFilter({
   onChange,
   colors,
   lockType = false,
+  lockGroup = false,
   mobileOpen = false,
   onMobileClose,
   onApply,
@@ -92,13 +95,19 @@ export default function ProductsFilter({
               On sale
             </label>
 
-            {/* сортування */}
+            {/* сортування: базове (новинки/популярні) */}
             <label className="inline-flex items-center md:gap-2 gap-1 cursor-pointer">
               <input
                 type="radio"
                 name={sortName}
-                checked={ui.sort === 'new'}
-                onChange={() => onChange({ ...ui, sort: 'new' })}
+                checked={ui.sortBase === 'new'}
+                onClick={() =>
+                  onChange({
+                    ...ui,
+                    sortBase: ui.sortBase === 'new' ? '' : 'new',
+                  })
+                }
+                onChange={() => {}}
               />
               <span>Новинки</span>
             </label>
@@ -106,58 +115,82 @@ export default function ProductsFilter({
               <input
                 type="radio"
                 name={sortName}
-                checked={ui.sort === 'popular'}
-                onChange={() => onChange({ ...ui, sort: 'popular' })}
+                checked={ui.sortBase === 'popular'}
+                onClick={() =>
+                  onChange({
+                    ...ui,
+                    sortBase: ui.sortBase === 'popular' ? '' : 'popular',
+                  })
+                }
+                onChange={() => {}}
               />
               <span>Популярні</span>
             </label>
-            <label className="inline-flex items-center md:gap-2 gap-1 cursor-pointer">
-              <input
-                type="radio"
-                name={sortName}
-                checked={ui.sort === 'Ціна за спаданням'}
-                onChange={() => onChange({ ...ui, sort: 'Ціна за спаданням' })}
-              />
-              <span>↓₴</span>
-            </label>
-            <label className="inline-flex items-center md:gap-2 gap-1 cursor-pointer">
-              <input
-                type="radio"
-                name={sortName}
-                checked={ui.sort === 'Ціна за зростанням'}
-                onChange={() => onChange({ ...ui, sort: 'Ціна за зростанням' })}
-              />
-              <span>↑₴</span>
-            </label>
+
+            {/* сортування: за ціною (незалежне) */}
+            <div className="flex flex-wrap gap-x-3 gap-y-3">
+              <label className="inline-flex items-center md:gap-2 gap-1 cursor-pointer">
+                <input
+                  type="radio"
+                  name={`${sortName}-price`}
+                  checked={ui.sortPrice === 'desc'}
+                  onClick={() =>
+                    onChange({
+                      ...ui,
+                      sortPrice: ui.sortPrice === 'desc' ? '' : 'desc',
+                    })
+                  }
+                  onChange={() => {}}
+                />
+                <span>↓₴</span>
+              </label>
+              <label className="inline-flex items-center md:gap-2 gap-1 cursor-pointer">
+                <input
+                  type="radio"
+                  name={`${sortName}-price`}
+                  checked={ui.sortPrice === 'asc'}
+                  onClick={() =>
+                    onChange({
+                      ...ui,
+                      sortPrice: ui.sortPrice === 'asc' ? '' : 'asc',
+                    })
+                  }
+                  onChange={() => {}}
+                />
+                <span>↑₴</span>
+              </label>
+            </div>
           </div>
 
           {/* другий рядок: група / тип / колір */}
           <div className="flex flex-col lg:flex-row lg:flex-wrap gap-y-4 gap-x-10 items-start lg:items-center">
-            {/* Група */}
-            <div className="flex items-center gap-3 cursor-pointer">
-              <span className="uppercase tracking-wide">Група:</span>
-              <select
-                className="border px-3 py-1 rounded bg-white w-40"
-                value={ui.group}
-                onChange={(e) =>
-                  onChange({
-                    ...ui,
-                    group: e.target.value as FiltersValue['group'],
-                  })
-                }
-              >
-                <option value="">Всі</option>
-                <option value="Бісер">Бісер</option>
-                <option value="Плетіння">Плетіння</option>
-              </select>
-            </div>
+            {/* Група - якщо не зафіксований */}
+            {!lockGroup && (
+              <div className="flex items-center gap-3">
+                <span className="uppercase tracking-wide">Група:</span>
+                <select
+                  className="border px-3 py-1 rounded bg-white w-40 cursor-pointer"
+                  value={ui.group}
+                  onChange={(e) =>
+                    onChange({
+                      ...ui,
+                      group: e.target.value as FiltersValue['group'],
+                    })
+                  }
+                >
+                  <option value="">Всі</option>
+                  <option value="BEADS">Бісер</option>
+                  <option value="WEAVING">Плетіння</option>
+                </select>
+              </div>
+            )}
 
             {/* Тип — якщо не зафіксований */}
             {!lockType && (
-              <div className="flex items-center gap-3 cursor-pointer">
+              <div className="flex items-center gap-3">
                 <span className="uppercase tracking-wide">Тип:</span>
                 <select
-                  className="border px-3 py-1 rounded bg-white w-40"
+                  className="border px-3 py-1 rounded bg-white w-40 cursor-pointer"
                   value={ui.bagTypes || ''}
                   onChange={(e) =>
                     onChange({
@@ -177,10 +210,10 @@ export default function ProductsFilter({
             )}
 
             {/* Колір */}
-            <div className="flex items-center gap-3 cursor-pointer">
+            <div className="flex items-center gap-3">
               <span className="uppercase tracking-wide">Колір:</span>
               <select
-                className="border px-3 py-1 rounded bg-white w-40"
+                className="border px-3 py-1 rounded bg-white w-40 cursor-pointer"
                 value={ui.color}
                 onChange={(e) => onChange({ ...ui, color: e.target.value })}
               >
@@ -279,7 +312,7 @@ export default function ProductsFilter({
             <button
               type="button"
               onClick={onApply}
-              className="w-full h-11 rounded bg-black text-white hover:bg-[#FF3D8C] transition disabled:opacity-50"
+              className="w-full h-11 rounded bg-black text-white hover:bg-[#FF3D8C] transition disabled:opacity-50 cursor-pointer"
             >
               Застосувати
             </button>

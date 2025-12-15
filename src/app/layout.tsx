@@ -24,6 +24,7 @@ export const metadata = {
     siteName: 'GERDAN',
     locale: 'uk_UA',
     type: 'website',
+    image: 'https://gerdan.online/icon1.png',
   },
   alternates: {
     canonical: '/',

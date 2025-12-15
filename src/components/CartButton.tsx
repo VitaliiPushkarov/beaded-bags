@@ -17,7 +17,7 @@ export default function CartButton() {
     >
       <Image
         src="/icons/bag-cart.svg"
-        alt=""
+        alt="bag cart icon"
         width={22}
         height={22}
         className="object-contain"

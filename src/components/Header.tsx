@@ -102,7 +102,7 @@ export default function Header() {
           >
             <Image
               src="/gerdan.svg"
-              alt=""
+              alt="website logo"
               width={214}
               height={20}
               className="object-contain"
@@ -215,12 +215,12 @@ export default function Header() {
               </ul>
 
               <li>
-                <Link href="/shop?group=Бісер" onClick={closeMobileMenu}>
+                <Link href="/shop/group/beads" onClick={closeMobileMenu}>
                   Бісер
                 </Link>
               </li>
               <li>
-                <Link href="/shop?group=Плетіння" onClick={closeMobileMenu}>
+                <Link href="/shop/group/weaving" onClick={closeMobileMenu}>
                   Плетіння
                 </Link>
               </li>
