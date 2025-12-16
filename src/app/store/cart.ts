@@ -1,6 +1,7 @@
 'use client'
 import { create } from 'zustand'
 import { persist } from 'zustand/middleware'
+import { pushMetaAddToCart } from '@/lib/analytics/datalayer'
 
 type CartItem = {
   variantId: string
@@ -23,7 +24,7 @@ export const useCart = create<CartState>()(
   persist(
     (set, get) => ({
       items: [],
-      add: (item) =>
+      add: (item) => {
         set((s) => {
           const i = s.items.findIndex(
             (x) =>
@@ -35,7 +36,17 @@ export const useCart = create<CartState>()(
             return { items: copy }
           }
           return { items: [...s.items, item] }
-        }),
+        })
+        pushMetaAddToCart({
+          contentId: item.variantId || item.productId,
+          contentName: item.name,
+          value: Number(item.priceUAH) * Number(item.qty),
+          qty: item.qty,
+          productId: item.productId,
+          variantId: item.variantId,
+          slug: item.slug,
+        })
+      },
       remove: (id, variantId) =>
         set((s) => ({
           items: s.items.filter(

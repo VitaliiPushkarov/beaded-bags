@@ -6,6 +6,7 @@ import Image from 'next/image'
 import NovaPoshtaPicker from '@/components/checkout/NovaPoshtaPicker'
 import { useCart } from '../store/cart'
 import { useCheckout } from '@/stores/checkout'
+import { pushMetaInitiateCheckout } from '@/lib/analytics/datalayer'
 
 export default function CheckoutClient() {
   const router = useRouter()
@@ -216,7 +217,18 @@ export default function CheckoutClient() {
         }
       }
 
-      // Інші методи оплати: переходимо на сторінку успіху
+      // Save last order snapshot for Meta Purchase (used on /success)
+      try {
+        sessionStorage.setItem(
+          'gerdan_last_order_meta',
+          JSON.stringify({
+            value: total,
+            numItems: items.reduce((s, i) => s + i.qty, 0),
+            contentIds: items.map((i) => i.variantId || i.productId),
+          })
+        )
+      } catch {}
+
       clearCart()
       router.push(`/checkout/success?order=${json.orderNumber}`)
       return

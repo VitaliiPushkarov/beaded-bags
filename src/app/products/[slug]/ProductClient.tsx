@@ -1,5 +1,5 @@
 'use client'
-import { useEffect, useMemo, useState, Suspense } from 'react'
+import { useEffect, useMemo, useState, Suspense, useRef } from 'react'
 import { useSearchParams } from 'next/navigation'
 import Image from 'next/image'
 import Link from 'next/link'
@@ -16,8 +16,8 @@ import {
 } from '@prisma/client'
 import ProductGallery from '@/components/ProductGallery'
 import ProductTabs from '@/components/product/ProductTabs'
-import Bestsellers from '@/components/Bestsellers'
 import YouMayAlsoLike from '@/components/YouMayAlsoLike'
+import { pushMetaViewContent } from '@/lib/analytics/datalayer'
 
 type VariantWithImagesStrapsAndAddons = ProductVariant & {
   images: ProductVariantImage[]
@@ -104,6 +104,28 @@ export function ProductClient({ p }: { p: ProductWithVariants }) {
   const basePrice = v?.priceUAH ?? p.basePriceUAH ?? 0
 
   const price = basePrice + addonsTotal
+  // --- Meta Pixel via GTM: ViewContent (fires once per selected variant) ---
+  const viewedKeyRef = useRef<string>('')
+  useEffect(() => {
+    if (!v) return
+
+    const contentId = v.id
+    const contentName = `${p.name}${v.color ? ` — ${v.color}` : ''}`
+    const key = `${p.id}:${contentId}`
+
+    // prevent duplicates on re-renders / StrictMode; also ignore addon changes
+    if (viewedKeyRef.current === key) return
+    viewedKeyRef.current = key
+
+    pushMetaViewContent({
+      contentId,
+      contentName,
+      value: basePrice, // product base price only; addons are separate items
+      productId: p.id,
+      variantId: v.id,
+      slug: p.slug,
+    })
+  }, [p.id, p.name, p.slug, v?.id, v?.color, basePrice])
 
   const galleryImages = useMemo(() => {
     if (!v) return ['/img/placeholder.png']

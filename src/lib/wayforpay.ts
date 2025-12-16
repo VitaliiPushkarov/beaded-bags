@@ -72,7 +72,8 @@ export function buildWayForPayPayload({
     clientFirstName: customer?.firstName,
     clientLastName: customer?.lastName,
     language: 'UA',
-    returnUrl: `${baseUrl}/checkout/success?orderId=${encodeURIComponent(
+    // IMPORTANT: success page expects `order` query param (not `orderId`)
+    returnUrl: `${baseUrl}/checkout/success?order=${encodeURIComponent(
       orderReference
     )}`,
     serviceUrl: `${baseUrl}/api/payments/wayforpay/callback`,

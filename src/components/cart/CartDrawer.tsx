@@ -6,6 +6,8 @@ import Image from 'next/image'
 import { useCart } from '@/app/store/cart'
 import { useUI } from '@/app/store/ui'
 import { useIsMounted } from '@/lib/useIsMounted'
+import { pushMetaInitiateCheckout } from '@/lib/analytics/datalayer'
+import { useRef } from 'react'
 
 export default function CartDrawer() {
   const cartOpen = useUI((s) => s.cartOpen)
@@ -15,6 +17,7 @@ export default function CartDrawer() {
   const setQty = useCart((s) => s.setQty)
   const remove = useCart((s) => s.remove)
   const isMounted = useIsMounted()
+  const checkoutFiredRef = useRef(false)
 
   // lock body scroll when open
   useEffect(() => {
@@ -164,7 +167,19 @@ export default function CartDrawer() {
 
               <Link
                 href="/checkout"
-                onClick={closeCart}
+                onClick={() => {
+                  if (!checkoutFiredRef.current && items.length) {
+                    checkoutFiredRef.current = true
+
+                    pushMetaInitiateCheckout({
+                      contentIds: items.map((i) => i.variantId || i.productId),
+                      value: total(),
+                      numItems: items.reduce((s, i) => s + i.qty, 0),
+                    })
+                  }
+
+                  closeCart()
+                }}
                 className="block w-full text-center rounded border border-black py-3 hover:bg-black hover:text-white transition"
               >
                 Оформлення замовлення

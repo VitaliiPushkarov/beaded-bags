@@ -1,7 +1,9 @@
 'use client'
 import Image from 'next/image'
 import Link from 'next/link'
+import { useRef } from 'react'
 import { useCart } from '../store/cart'
+import { pushMetaInitiateCheckout } from '@/lib/analytics/datalayer'
 
 function QtyBox({
   onDec,
@@ -49,6 +51,8 @@ export default function CartPage() {
   const setQty = useCartSetQty()
   const remove = useCartRemove()
   const total = useCartTotal()
+
+  const checkoutFiredRef = useRef(false)
 
   return (
     <section className="max-w-[1400px] mx-auto px-4 lg:px-6 py-6 lg:py-12">
@@ -170,6 +174,16 @@ export default function CartPage() {
           <div className="w-full">
             <Link
               href="/checkout"
+              onClick={() => {
+                if (!checkoutFiredRef.current && items.length) {
+                  checkoutFiredRef.current = true
+                  pushMetaInitiateCheckout({
+                    contentIds: items.map((i) => i.variantId || i.productId),
+                    value: total(),
+                    numItems: items.reduce((s, i) => s + i.qty, 0),
+                  })
+                }
+              }}
               className="flex justify-center items-center w-full h-14 text-lg rounded bg-black text-white hover:bg-[#FF3D8C] transition cursor-pointer"
             >
               Перейти до оформлення
