@@ -388,10 +388,12 @@ export default function CheckoutClient() {
             </label>
 
             {/* Онлайн оплата WayForPay */}
-            <label className="flex items-start gap-3 cursor-pointer">
+
+            <label className="flex items-start gap-3 cursor-not-allowed opacity-40">
               <input
                 type="radio"
                 name="payment"
+                disabled
                 className="mt-1 w-4 h-4"
                 checked={co.paymentMethod === 'WAYFORPAY'}
                 onChange={() => co.setPaymentMethod('WAYFORPAY')}

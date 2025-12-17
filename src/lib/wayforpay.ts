@@ -61,27 +61,22 @@ export function buildWayForPayPayload({
     merchantDomainName,
     orderReference,
     orderDate,
-    amount, // СТРОКА "2399.00"
+    amount,
     currency,
-    productName, // масив ["..."]
-    productPrice, // масив ["2399.00"]
-    productCount, // масив ["1"]
+    productName,
+    productPrice,
+    productCount,
     merchantSignature,
     clientEmail: customer?.email,
     clientPhone: customer?.phone,
     clientFirstName: customer?.firstName,
     clientLastName: customer?.lastName,
     language: 'UA',
-    // IMPORTANT: success page expects `order` query param (not `orderId`)
     returnUrl: `${baseUrl}/checkout/success?order=${encodeURIComponent(
       orderReference
     )}`,
     serviceUrl: `${baseUrl}/api/payments/wayforpay/callback`,
   }
-
-  // Для дебага (можеш тимчасово розкоментити, щоб побачити рядок підпису)
-  // console.log('WAYFORPAY signatureSource:', signatureSource)
-  // console.log('WAYFORPAY payload:', payload)
 
   return {
     payload,
