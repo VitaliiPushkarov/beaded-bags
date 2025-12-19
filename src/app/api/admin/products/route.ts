@@ -7,8 +7,8 @@ import { ProductType, ProductGroup } from '@prisma/client'
 const ProductSchema = z.object({
   name: z.string().min(1),
   slug: z.string().min(1),
-  type: z.enum(ProductType),
-  group: z.enum(ProductGroup).optional(),
+  type: z.nativeEnum(ProductType),
+  group: z.nativeEnum(ProductGroup).optional(),
   variants: z.array(
     z.object({
       color: z.string().optional().nullable(),

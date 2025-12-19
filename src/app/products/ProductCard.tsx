@@ -62,7 +62,6 @@ export default function ProductCard({ product }: ProductCardProps) {
         </div>
         <button
           onClick={() => {
-            // формуємо обʼєкт окремо
             const item = {
               productId: product.id,
               variantId: firstVariant?.id ?? '',

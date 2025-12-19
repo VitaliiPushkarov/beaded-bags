@@ -17,8 +17,8 @@ const VariantSchema = z.object({
 const ProductSchema = z.object({
   name: z.string().min(1),
   slug: z.string().min(1),
-  type: z.enum(ProductType),
-  group: z.enum(ProductGroup).optional(),
+  type: z.nativeEnum(ProductType),
+  group: z.nativeEnum(ProductGroup).optional().nullable(),
   basePriceUAH: z.number().nullable(),
   description: z.string().optional().nullable(),
   info: z.string().optional().nullable(),
@@ -45,44 +45,103 @@ export async function PATCH(
 
     const data = parsed.data
 
-    // 1) чистимо старі варіанти
-    await prisma.productVariant.deleteMany({
-      where: { productId: id },
-    })
+    // Normalize group: allow null/undefined
+    const nextGroup = data.group ?? null
 
-    // 2) оновлюємо сам продукт + створюємо нові варіанти
-    const updated = await prisma.product.update({
-      where: { id },
-      data: {
-        name: data.name,
-        slug: data.slug,
-        type: data.type,
-        group: data.group ?? null,
-        basePriceUAH: data.basePriceUAH,
-        description: data.description ?? null,
-        info: data.info ?? null,
-        dimensions: data.dimensions || null,
-        inStock: data.inStock,
-        variants: {
-          create: data.variants.map((v) => ({
-            color: v.color ?? null,
-            hex: v.hex ?? null,
-            image: v.image ?? null,
-            priceUAH: v.priceUAH,
-            inStock: v.inStock,
-            sku: v.sku ?? null,
-          })),
+    // Determine which variant IDs should remain
+    const incomingIds = data.variants
+      .map((v) => v.id)
+      .filter((x): x is string => typeof x === 'string' && x.length > 0)
+
+    const result = await prisma.$transaction(async (tx) => {
+      // 1) update product fields (do NOT delete variants)
+      const updated = await tx.product.update({
+        where: { id },
+        data: {
+          name: data.name,
+          slug: data.slug,
+          type: data.type,
+          group: nextGroup,
+          basePriceUAH: data.basePriceUAH,
+          description: data.description ?? null,
+          info: data.info ?? null,
+          dimensions: data.dimensions || null,
+          inStock: data.inStock,
         },
-      },
+        select: { id: true },
+      })
+
+      // 2) upsert variants
+      const createdIds: string[] = []
+      for (const v of data.variants) {
+        if (v.id) {
+          await tx.productVariant.update({
+            where: { id: v.id },
+            data: {
+              productId: id,
+              color: v.color ?? null,
+              hex: v.hex ?? null,
+              image: v.image ?? null,
+              priceUAH: v.priceUAH,
+              inStock: v.inStock,
+              sku: v.sku ?? null,
+            },
+          })
+        } else {
+          const created = await tx.productVariant.create({
+            data: {
+              productId: id,
+              color: v.color ?? null,
+              hex: v.hex ?? null,
+              image: v.image ?? null,
+              priceUAH: v.priceUAH,
+              inStock: v.inStock,
+              sku: v.sku ?? null,
+            },
+            select: { id: true },
+          })
+          createdIds.push(created.id)
+        }
+      }
+
+      // 3) delete variants removed from payload (and their addon links)
+      const keepIds = [...incomingIds, ...createdIds]
+
+      const toDelete = await tx.productVariant.findMany({
+        where: {
+          productId: id,
+          ...(keepIds.length ? { id: { notIn: keepIds } } : {}),
+        },
+        select: { id: true },
+      })
+
+      const toDeleteIds = toDelete.map((x) => x.id)
+
+      if (toDeleteIds.length) {
+        // remove addon relations where these variants participate
+        await tx.productVariantAddon.deleteMany({
+          where: {
+            OR: [
+              { variantId: { in: toDeleteIds } },
+              { addonVariantId: { in: toDeleteIds } },
+            ],
+          },
+        })
+
+        await tx.productVariant.deleteMany({
+          where: { id: { in: toDeleteIds } },
+        })
+      }
+
+      return updated
     })
 
-    return NextResponse.json({ id: updated.id }, { status: 200 })
+    return NextResponse.json({ id: result.id }, { status: 200 })
   } catch (err) {
     console.error('Update product error:', err)
-    return NextResponse.json(
-      { error: 'Internal Server Error' },
-      { status: 500 }
-    )
+    // surface the message to help debugging in dev
+    const msg = err instanceof Error ? err.message : 'Internal Server Error'
+    return NextResponse.json({ error: msg }, { status: 500 })
   }
 }
 
