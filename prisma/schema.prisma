@@ -50,6 +50,7 @@ model Product {
   group        ProductGroup?
   basePriceUAH Int?
   inStock      Boolean       @default(true)
+  isAddon      Boolean       @default(false) // цей товар може показуватись як addon до сумок
   createdAt    DateTime      @default(now())
   updatedAt    DateTime      @updatedAt
 
@@ -80,7 +81,10 @@ model ProductVariant {
 
   images ProductVariantImage[]
   straps ProductVariantStrap[]
-  addonsOnVariant ProductVariantAddon[]
+
+  // relations for addons (bag variant -> addon variants)
+  addonsOnVariant ProductVariantAddon[] @relation("BagVariantAddons")
+  usedAsAddonOnVariants ProductVariantAddon[] @relation("AddonVariantOnBag")
 }
 
 model ProductVariantImage {
@@ -109,32 +113,23 @@ model ProductVariantStrap {
   @@index([variantId, sort])
 }
 
-model ProductAddon {
-  id       String  @id @default(cuid())
-  name     String
-  slug     String  @unique
-  imageUrl String?
-  priceUAH Int
-  active   Boolean @default(true)
-  sort     Int     @default(0)
-
-  type      ProductType @default(ACCESSORY)
-  inStock   Boolean     @default(true)
-  createdAt DateTime    @default(now())
-  updatedAt DateTime    @updatedAt
-
-  variants ProductVariantAddon[]
-}
-
 model ProductVariantAddon {
   id        String  @id @default(cuid())
+
+  // bag (or main product) variant that this addon is attached to
   variantId String
-  variant   ProductVariant @relation(fields: [variantId], references: [id])
+  variant   ProductVariant @relation("BagVariantAddons", fields: [variantId], references: [id])
 
-  addonId String
-  addon   ProductAddon @relation(fields: [addonId], references: [id])
+  // конкретний addon variant (addon itself is also a ProductVariant)
+  addonVariantId String
+  addonVariant   ProductVariant @relation("AddonVariantOnBag", fields: [addonVariantId], references: [id])
 
-  @@unique([variantId, addonId])
+  // optional ordering in UI
+  sort Int @default(0)
+
+  @@unique([variantId, addonVariantId])
+  @@index([variantId, sort])
+  @@index([addonVariantId])
 }
 
 model Customer {

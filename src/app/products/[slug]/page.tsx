@@ -32,7 +32,15 @@ export async function generateMetadata(props: {
           },
           straps: true,
           addonsOnVariant: {
-            include: { addon: true },
+            orderBy: { sort: 'asc' },
+            include: {
+              addonVariant: {
+                include: {
+                  product: true,
+                  images: true,
+                },
+              },
+            },
           },
         },
         orderBy: { id: 'asc' },
@@ -93,7 +101,15 @@ export default async function ProductPage({
           },
           straps: true,
           addonsOnVariant: {
-            include: { addon: true },
+            orderBy: { sort: 'asc' },
+            include: {
+              addonVariant: {
+                include: {
+                  product: true,
+                  images: true,
+                },
+              },
+            },
           },
         },
         orderBy: { id: 'asc' },

@@ -19,19 +19,24 @@ import {
   ProductVariant,
   ProductVariantImage,
   ProductVariantStrap,
-  ProductAddon,
+  ProductVariantAddon,
 } from '@prisma/client'
 import ProductGallery from '@/components/ProductGallery'
 import ProductTabs from '@/components/product/ProductTabs'
 import YouMayAlsoLike from '@/components/YouMayAlsoLike'
 import { pushMetaViewContent } from '@/lib/analytics/datalayer'
 
+type AddonVariantUI = ProductVariant & {
+  product: Product
+  images: ProductVariantImage[]
+}
+
 type VariantWithImagesStrapsAndAddons = ProductVariant & {
   images: ProductVariantImage[]
   straps: ProductVariantStrap[]
-  addonsOnVariant?: {
-    addon: ProductAddon
-  }[]
+  addonsOnVariant?: (ProductVariantAddon & {
+    addonVariant: AddonVariantUI
+  })[]
 }
 
 export type ProductWithVariants = Product & {
@@ -46,7 +51,9 @@ export function ProductClient({ p }: { p: ProductWithVariants }) {
     p.variants?.[0]?.id
   )
   const [strapId, setStrapId] = useState<string | undefined>(undefined)
-  const [selectedAddonIds, setSelectedAddonIds] = useState<string[]>([])
+  const [selectedAddonVariantIds, setSelectedAddonVariantIds] = useState<
+    string[]
+  >([])
   const openCart = useUI((s) => s.openCart)
 
   // --- Preorder lead capture (when out of stock) ---
@@ -57,6 +64,12 @@ export function ProductClient({ p }: { p: ProductWithVariants }) {
   const [preorderStatus, setPreorderStatus] = useState<
     'idle' | 'submitting' | 'success' | 'error'
   >('idle')
+
+  const v = useMemo(
+    () =>
+      p.variants?.find((x) => x.id === variantId) ?? p.variants?.[0] ?? null,
+    [p.variants, variantId]
+  )
 
   const submitPreorder = async (e: FormEvent) => {
     e.preventDefault()
@@ -121,12 +134,6 @@ export function ProductClient({ p }: { p: ProductWithVariants }) {
     if (ok) setVariantId(variantFromUrl)
   }, [variantFromUrl, p.variants])
 
-  const v = useMemo(
-    () =>
-      p.variants?.find((x) => x.id === variantId) ?? p.variants?.[0] ?? null,
-    [p.variants, variantId]
-  )
-
   // Обраний ремінець для поточного варіанту
   const selectedStrap = useMemo(
     () => v?.straps?.find((s) => s.id === strapId) ?? null,
@@ -141,31 +148,46 @@ export function ProductClient({ p }: { p: ProductWithVariants }) {
       setStrapId(undefined)
     }
     // при зміні варіанту скидаємо вибрані прикраси
-    setSelectedAddonIds([])
+    setSelectedAddonVariantIds([])
   }, [v])
 
   const variantInStock = !!v?.inStock
   const add = useCart((s) => s.add)
 
-  // Доступні прикраси/аддони для цього варіанту
-  const availableAddons = useMemo(
-    () =>
-      (v?.addonsOnVariant || [])
-        .map((av) => av.addon)
-        .filter((addon) => addon.active),
-    [v]
-  )
+  // Доступні прикраси/аддони для цього варіанту (addon = ProductVariant)
+  const availableAddons = useMemo(() => {
+    const list = (v?.addonsOnVariant || [])
+      .slice()
+      .sort((a, b) => (a.sort ?? 0) - (b.sort ?? 0))
+      .map((rel) => rel.addonVariant)
+      .filter(Boolean)
+
+    const seen = new Set<string>()
+    return list.filter((av) => {
+      if (seen.has(av.id)) return false
+      seen.add(av.id)
+      return true
+    })
+  }, [v])
+
+  const addonPrice = (av: AddonVariantUI) =>
+    av.priceUAH ?? av.product.basePriceUAH ?? 0
+
+  const addonImageUrl = (av: AddonVariantUI) =>
+    av.images?.slice().sort((a, b) => a.sort - b.sort)[0]?.url ||
+    av.image ||
+    '/img/placeholder.png'
 
   const addonsTotal = useMemo(
     () =>
       availableAddons
-        .filter((a) => selectedAddonIds.includes(a.id))
-        .reduce((sum, a) => sum + (a.priceUAH ?? 0), 0),
-    [availableAddons, selectedAddonIds]
+        .filter((a) => selectedAddonVariantIds.includes(a.id))
+        .reduce((sum, a) => sum + addonPrice(a), 0),
+    [availableAddons, selectedAddonVariantIds]
   )
 
-  const addonsById = useMemo(() => {
-    const map: Record<string, ProductAddon> = {}
+  const addonsByVariantId = useMemo(() => {
+    const map: Record<string, AddonVariantUI> = {}
     availableAddons.forEach((a) => {
       map[a.id] = a
     })
@@ -339,64 +361,63 @@ export function ProductClient({ p }: { p: ProductWithVariants }) {
 
                   <div className="-mx-1 overflow-x-auto">
                     <div className="flex gap-3 px-1 pb-1">
-                      {availableAddons
-                        .slice()
-                        .sort((a, b) => (a.sort ?? 0) - (b.sort ?? 0))
-                        .map((addon) => {
-                          const isSelected = selectedAddonIds.includes(addon.id)
-                          return (
-                            <div
-                              key={addon.id}
-                              className="relative shrink-0 w-[140px]"
+                      {availableAddons.map((addonV) => {
+                        const isSelected = selectedAddonVariantIds.includes(
+                          addonV.id
+                        )
+                        return (
+                          <div
+                            key={addonV.id}
+                            className="relative shrink-0 w-[140px]"
+                          >
+                            {/* Картинка як лінк на сторінку аксесуара */}
+                            <Link
+                              href={`/products/${addonV.product.slug}?variant=${addonV.id}`}
                             >
-                              {/* Картинка як лінк на сторінку аксесуара */}
-                              <Link href={`/accessories/${addon.slug}`}>
-                                <div className="relative w-full aspect-4/5 rounded-lg overflow-hidden bg-gray-100">
-                                  {addon.imageUrl && (
-                                    <Image
-                                      src={addon.imageUrl}
-                                      alt={addon.name}
-                                      fill
-                                      className="object-cover"
-                                    />
-                                  )}
-                                </div>
-                              </Link>
-
-                              {/* Кнопка + / ✓ у верхньому кутку */}
-                              <button
-                                type="button"
-                                onClick={() =>
-                                  setSelectedAddonIds((prev) =>
-                                    prev.includes(addon.id)
-                                      ? prev.filter((id) => id !== addon.id)
-                                      : [...prev, addon.id]
-                                  )
-                                }
-                                className={`absolute top-1 right-1 flex h-8 w-8 items-center justify-center rounded-md border text-base font-medium shadow-sm transition cursor-pointer ${
-                                  selectedAddonIds.includes(addon.id)
-                                    ? 'bg-black text-white border-black'
-                                    : 'bg-white text-gray-800 border-gray-300 hover:border-black'
-                                }`}
-                                style={{
-                                  zIndex: 20, // гарантує видимість
-                                }}
-                              >
-                                {selectedAddonIds.includes(addon.id)
-                                  ? '✓'
-                                  : '+'}
-                              </button>
-
-                              {/* Назва + ціна під картинкою */}
-                              <div className="mt-2 text-xs text-gray-900">
-                                {addon.name}
+                              <div className="relative w-full aspect-4/5 rounded-lg overflow-hidden bg-gray-100">
+                                <Image
+                                  src={addonImageUrl(addonV)}
+                                  alt={addonV.product.name}
+                                  fill
+                                  className="object-cover"
+                                />
                               </div>
-                              <div className="text-xs text-gray-600">
-                                {addon.priceUAH} ₴
-                              </div>
+                            </Link>
+
+                            {/* Кнопка + / ✓ у верхньому кутку */}
+                            <button
+                              type="button"
+                              onClick={() =>
+                                setSelectedAddonVariantIds((prev) =>
+                                  prev.includes(addonV.id)
+                                    ? prev.filter((id) => id !== addonV.id)
+                                    : [...prev, addonV.id]
+                                )
+                              }
+                              className={`absolute top-1 right-1 flex h-8 w-8 items-center justify-center rounded-md border text-base font-medium shadow-sm transition cursor-pointer ${
+                                selectedAddonVariantIds.includes(addonV.id)
+                                  ? 'bg-black text-white border-black'
+                                  : 'bg-white text-gray-800 border-gray-300 hover:border-black'
+                              }`}
+                              style={{
+                                zIndex: 20, // гарантує видимість
+                              }}
+                            >
+                              {selectedAddonVariantIds.includes(addonV.id)
+                                ? '✓'
+                                : '+'}
+                            </button>
+
+                            {/* Назва + ціна під картинкою */}
+                            <div className="mt-2 text-xs text-gray-900">
+                              {addonV.product.name}
                             </div>
-                          )
-                        })}
+                            <div className="text-xs text-gray-600">
+                              {addonPrice(addonV)} ₴
+                            </div>
+                          </div>
+                        )
+                      })}
                     </div>
                   </div>
                 </div>
@@ -423,17 +444,22 @@ export function ProductClient({ p }: { p: ProductWithVariants }) {
               })
 
               // 2) додаємо в кошик кожну обрану прикрасу як окремий товар
-              selectedAddonIds.forEach((addonId) => {
-                const addon = addonsById[addonId]
-                if (!addon) return
+              selectedAddonVariantIds.forEach((addonVariantId) => {
+                const addonV = addonsByVariantId[addonVariantId]
+                if (!addonV) return
+
+                const name = `${addonV.product.name}${
+                  addonV.color ? ` — ${addonV.color}` : ''
+                }`
+
                 add({
-                  productId: addon.id,
-                  variantId: addon.id,
-                  name: addon.name,
-                  priceUAH: addon.priceUAH ?? 0,
-                  image: addon.imageUrl || galleryImages[0],
+                  productId: addonV.product.id,
+                  variantId: addonV.id,
+                  name,
+                  priceUAH: addonPrice(addonV),
+                  image: addonImageUrl(addonV) || galleryImages[0],
                   qty: 1,
-                  slug: addon.slug,
+                  slug: addonV.product.slug,
                 })
               })
 

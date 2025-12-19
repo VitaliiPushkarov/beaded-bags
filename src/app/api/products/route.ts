@@ -34,8 +34,14 @@ export async function GET(req: NextRequest) {
           images: true,
           straps: true,
           addonsOnVariant: {
+            orderBy: { sort: 'asc' },
             include: {
-              addon: true,
+              addonVariant: {
+                include: {
+                  product: true,
+                  images: true,
+                },
+              },
             },
           },
         },
