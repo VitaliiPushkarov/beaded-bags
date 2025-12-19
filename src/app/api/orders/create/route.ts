@@ -1,6 +1,40 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { z } from 'zod'
+
 import { prisma } from '@/lib/prisma'
+
+async function sendTelegram(text: string) {
+  const token = process.env.TELEGRAM_BOT_TOKEN
+  const chatId = process.env.TELEGRAM_CHAT_ID
+  if (!token || !chatId) return
+
+  await fetch(`https://api.telegram.org/bot${token}/sendMessage`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      chat_id: chatId,
+      text,
+      parse_mode: 'HTML',
+      disable_web_page_preview: true,
+    }),
+  })
+}
+
+function formatUAH(v: number) {
+  const n = Math.round(Number(v) || 0)
+  return `${n} ₴`
+}
+function shortNumber(n: number) {
+  const t = Math.round(Number(n) || 0)
+  return `${t}`
+}
+
+function escHtml(s: string) {
+  return s
+    .replaceAll('&', '&amp;')
+    .replaceAll('<', '&lt;')
+    .replaceAll('>', '&gt;')
+}
 
 // те, що приходить з фронта
 const OrderItem = z.object({
@@ -113,6 +147,40 @@ export async function POST(req: NextRequest) {
         items: true,
       },
     })
+
+    // Telegram notification (best-effort)
+    try {
+      const itemsText = created.items
+        .map((i) => {
+          const line = `• ${i.name}${i.color ? ` — ${i.color}` : ''} × ${
+            i.qty
+          } — ${formatUAH(i.priceUAH)}`
+          return escHtml(line)
+        })
+        .join('\n')
+
+      const msg =
+        `🛍 <b>Нове замовлення</b>\n` +
+        `\n<b>Номер:</b> ${escHtml(shortNumber(created.shortNumber))}` +
+        `\n<b>Сума:</b> ${escHtml(formatUAH(created.totalUAH))}` +
+        `\n<b>Оплата:</b> ${escHtml(created.paymentMethod)}\n` +
+        `\n<b>Доставка:</b> Нова пошта` +
+        `\n<b>Місто:</b> ${escHtml(created.npCityName)}` +
+        `\n<b>Відділення:</b> ${escHtml(created.npWarehouseName)}` +
+        `\n<b>Клієнт:</b> ${escHtml(created.customerName)} ${escHtml(
+          created.customerSurname
+        )}` +
+        `\n<b>Телефон:</b> ${escHtml(created.customerPhone)}` +
+        (created.customerEmail
+          ? `\n<b>Email:</b> ${escHtml(created.customerEmail)}`
+          : '') +
+        `\n\n<b>Товари:</b>\n${itemsText}`
+
+      // Do not block order creation response
+      sendTelegram(msg).catch(() => {})
+    } catch {
+      // ignore
+    }
 
     return NextResponse.json(
       { orderId: created.id, orderNumber: created.shortNumber },

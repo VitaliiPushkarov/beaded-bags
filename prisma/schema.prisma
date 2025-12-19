@@ -202,3 +202,25 @@ model OrderItem {
   priceUAH  Int // ціна у момент покупки
   qty       Int // кількість
 }
+model PreorderLead {
+  id           String   @id @default(cuid())
+  createdAt    DateTime @default(now())
+
+  // product context
+  productId    String
+  productSlug  String?
+  productName  String
+  variantId    String
+  variantColor String?
+  strapId      String?
+
+  // lead
+  contactName  String?
+  contact      String
+  comment      String?
+  source       String?
+
+  @@index([createdAt])
+  @@index([productId])
+  @@index([variantId])
+}

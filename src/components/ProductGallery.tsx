@@ -42,54 +42,60 @@ export default function PhotoGallery({ images }: PhotoGalleryProps) {
   return (
     <div className="relative w-full md:w-[66%]">
       <Gallery>
-        <Swiper
-          modules={[Navigation]}
-          navigation={{
-            nextEl: '.photo-gallery-next',
-            prevEl: '.photo-gallery-prev',
-          }}
-          slidesPerView={1}
-          breakpoints={{
-            1024: {
-              slidesPerView: 2,
-              spaceBetween: 30,
-            },
-          }}
-          spaceBetween={16}
-          centeredSlides={false}
-          loop={true}
-          className="w-full overflow-visible relative"
-        >
-          {list.map((src, i) => (
-            <SwiperSlide key={i}>
-              <Item
-                original={src}
-                thumbnail={src}
-                width={sizes[i]?.w}
-                height={sizes[i]?.h}
-              >
-                {({ ref, open }) => (
-                  <div
-                    ref={ref as (node: HTMLDivElement | null) => void}
-                    onClick={open}
-                    className="relative h-[420px] md:h-[580px] w-full cursor-pointer overflow-hidden rounded bg-gray-100"
+        <div className="relative w-full overflow-visible">
+          <div className="w-full overflow-hidden">
+            <Swiper
+              modules={[Navigation]}
+              navigation={{
+                nextEl: '.photo-gallery-next',
+                prevEl: '.photo-gallery-prev',
+              }}
+              slidesPerView={1}
+              breakpoints={{
+                1024: {
+                  slidesPerView: 2,
+                  spaceBetween: 30,
+                },
+              }}
+              spaceBetween={16}
+              centeredSlides={false}
+              loop={true}
+              className="w-full relative"
+            >
+              {list.map((src, i) => (
+                <SwiperSlide key={i}>
+                  <Item
+                    original={src}
+                    thumbnail={src}
+                    width={sizes[i]?.w}
+                    height={sizes[i]?.h}
                   >
-                    <Image
-                      src={src || placeholder}
-                      alt="Фото товару"
-                      fill
-                      className="object-cover"
-                    />
-                  </div>
-                )}
-              </Item>
-            </SwiperSlide>
-          ))}
+                    {({ ref, open }) => (
+                      <div
+                        ref={ref as (node: HTMLDivElement | null) => void}
+                        onClick={open}
+                        className="relative h-[420px] md:h-[580px] w-full cursor-pointer overflow-hidden rounded bg-gray-100"
+                      >
+                        <Image
+                          src={src || placeholder}
+                          alt="Фото товару"
+                          fill
+                          className="object-cover"
+                        />
+                      </div>
+                    )}
+                  </Item>
+                </SwiperSlide>
+              ))}
+            </Swiper>
+          </div>
+
           {/* Chevrons */}
           <button
-            className="photo-gallery-prev absolute left-0 top-1/2 -translate-y-1/2 z-10 h-14 w-14
-                   hidden md:flex items-center justify-center text-pink-700 hover:text-black transition cursor-pointer"
+            className="photo-gallery-prev absolute -left-3 top-1/2 -translate-y-1/2 z-10 bg-white shadow-sm rounded-full border h-10 w-10
+                   hidden md:flex items-center justify-center hover:border-white hover:bg-[#FF3D8C] hover:text-white transition cursor-pointer"
             aria-label="Попереднє фото"
+            type="button"
           >
             <svg width="20" height="20" viewBox="0 0 24 24">
               <path
@@ -104,9 +110,10 @@ export default function PhotoGallery({ images }: PhotoGalleryProps) {
           </button>
 
           <button
-            className="photo-gallery-next absolute right-0 top-1/2 -translate-y-1/2 z-10 h-14 w-14
-                   hidden md:flex items-center justify-center text-pink-700 hover:text-black transition cursor-pointer"
+            className="photo-gallery-next absolute -right-3 top-1/2 -translate-y-1/2 z-10 bg-white shadow-sm rounded-full border h-10 w-10
+                   hidden md:flex items-center justify-center hover:border-white hover:bg-[#FF3D8C] hover:text-white transition cursor-pointer"
             aria-label="Наступне фото"
+            type="button"
           >
             <svg width="20" height="20" viewBox="0 0 24 24">
               <path
@@ -119,7 +126,7 @@ export default function PhotoGallery({ images }: PhotoGalleryProps) {
               />
             </svg>
           </button>
-        </Swiper>
+        </div>
       </Gallery>
     </div>
   )

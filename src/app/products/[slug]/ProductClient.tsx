@@ -1,5 +1,12 @@
 'use client'
-import { useEffect, useMemo, useState, Suspense, useRef } from 'react'
+import {
+  useEffect,
+  useMemo,
+  useState,
+  Suspense,
+  useRef,
+  FormEvent,
+} from 'react'
 import { useSearchParams } from 'next/navigation'
 import Image from 'next/image'
 import Link from 'next/link'
@@ -41,6 +48,71 @@ export function ProductClient({ p }: { p: ProductWithVariants }) {
   const [strapId, setStrapId] = useState<string | undefined>(undefined)
   const [selectedAddonIds, setSelectedAddonIds] = useState<string[]>([])
   const openCart = useUI((s) => s.openCart)
+
+  // --- Preorder lead capture (when out of stock) ---
+  const [preorderOpen, setPreorderOpen] = useState(false)
+  const [leadName, setLeadName] = useState('')
+  const [leadContact, setLeadContact] = useState('')
+  const [leadComment, setLeadComment] = useState('')
+  const [preorderStatus, setPreorderStatus] = useState<
+    'idle' | 'submitting' | 'success' | 'error'
+  >('idle')
+
+  const submitPreorder = async (e: FormEvent) => {
+    e.preventDefault()
+    if (!v) return
+
+    const payload = {
+      productId: p.id,
+      productSlug: p.slug,
+      productName: p.name,
+      variantId: v.id,
+      variantColor: v.color ?? null,
+      strapId: strapId ?? null,
+      contactName: leadName.trim(),
+      contact: leadContact.trim(),
+      comment: leadComment.trim() || null,
+      source: 'product_page',
+      createdAt: new Date().toISOString(),
+    }
+
+    if (!payload.contact) return
+
+    setPreorderStatus('submitting')
+
+    try {
+      const res = await fetch('/api/preorder', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
+      })
+
+      if (res.ok) {
+        setPreorderStatus('success')
+        return
+      }
+
+      // fallback to mailto if endpoint missing / returns error
+      throw new Error('preorder_api_failed')
+    } catch {
+      setPreorderStatus('error')
+
+      const subject = encodeURIComponent(`Передзамовлення: ${p.name}`)
+      const body = encodeURIComponent(
+        `Хочу передзамовити товар.\n\n` +
+          `Товар: ${p.name}\n` +
+          `Варіант: ${v.color ? v.color : v.id}\n` +
+          `Сторінка: ${
+            typeof window !== 'undefined' ? window.location.href : ''
+          }\n\n` +
+          `Ім'я: ${leadName}\n` +
+          `Контакт (телефон/email): ${leadContact}\n` +
+          (leadComment ? `Коментар: ${leadComment}\n` : '')
+      )
+
+      window.location.href = `mailto:hello@gerdan.online?subject=${subject}&body=${body}`
+    }
+  }
 
   //sync variantId with URL param
   useEffect(() => {
@@ -192,7 +264,7 @@ export function ProductClient({ p }: { p: ProductWithVariants }) {
             >
               {variantInStock
                 ? 'Є в наявності'
-                : 'Відкрито передзамовлення! (відправка протягом 7–14 робочих днів з моменту замовлення)'}
+                : 'Відкрито передзамовлення (7–14 робочих днів). Залиште контакт — ми напишемо вам.'}
             </span>
           </div>
           {/* Divider */}
@@ -335,7 +407,7 @@ export function ProductClient({ p }: { p: ProductWithVariants }) {
           {/* Button "Add to cart" */}
           <button
             className="mt-3 inline-flex items-center justify-center w-full h-10 bg-black text-white px-5 text-[18px] py-2 hover:bg-[#FF3D8C] transition disabled:opacity-50 cursor-pointer"
-            disabled={!v?.inStock}
+            disabled={!variantInStock}
             onClick={() => {
               if (!v) return
 
@@ -370,6 +442,117 @@ export function ProductClient({ p }: { p: ProductWithVariants }) {
           >
             Додати в кошик
           </button>
+
+          {!variantInStock && (
+            <button
+              type="button"
+              className="mt-2 inline-flex items-center justify-center w-full h-10 border border-black bg-white text-black px-5 text-[18px] py-2 hover:bg-black hover:text-white transition cursor-pointer"
+              onClick={() => {
+                setPreorderStatus('idle')
+                setPreorderOpen(true)
+              }}
+            >
+              Передзамовити
+            </button>
+          )}
+
+          {/* Preorder modal */}
+          {preorderOpen && (
+            <div className="fixed inset-0 z-60 flex items-center justify-center">
+              <div
+                className="absolute inset-0 bg-black/40"
+                onClick={() => setPreorderOpen(false)}
+                aria-hidden="true"
+              />
+
+              <div className="relative w-[92%] max-w-md rounded-xl bg-white p-5 shadow-xl">
+                <div className="flex items-start justify-between gap-4">
+                  <div>
+                    <div className="text-lg font-medium">Передзамовлення</div>
+                    <div className="mt-1 text-sm text-gray-600">
+                      Залиште контакт — і ми Вам передзвонимо!
+                    </div>
+                    <div className="mt-2 text-xs text-gray-500">
+                      {p.name}
+                      {v?.color ? ` — ${v.color}` : ''}
+                    </div>
+                  </div>
+                  <button
+                    type="button"
+                    className="h-9 w-9 rounded-md border border-gray-200 hover:border-black transition cursor-pointer"
+                    onClick={() => setPreorderOpen(false)}
+                    aria-label="Close"
+                  >
+                    ✕
+                  </button>
+                </div>
+
+                <form className="mt-4 space-y-3" onSubmit={submitPreorder}>
+                  <div>
+                    <label className="block text-xs text-gray-600 mb-1">
+                      Ім’я
+                    </label>
+                    <input
+                      value={leadName}
+                      onChange={(e) => setLeadName(e.target.value)}
+                      className="w-full rounded-md border border-gray-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-black/10"
+                      placeholder="Ваше ім’я"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-xs text-gray-600 mb-1">
+                      Телефон <span className="text-red-500">*</span>
+                    </label>
+                    <input
+                      type="tel"
+                      required
+                      value={leadContact}
+                      onChange={(e) => setLeadContact(e.target.value)}
+                      className="w-full rounded-md border border-gray-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-black/10"
+                      placeholder="+380"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-xs text-gray-600 mb-1">
+                      Коментар
+                    </label>
+                    <textarea
+                      value={leadComment}
+                      onChange={(e) => setLeadComment(e.target.value)}
+                      className="w-full min-h-[90px] rounded-md border border-gray-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-black/10"
+                      placeholder="Наприклад: хочу з ремінцем…, доставка в…"
+                    />
+                  </div>
+
+                  {preorderStatus === 'success' ? (
+                    <div className="rounded-md bg-green-50 border border-green-200 p-3 text-sm text-green-700">
+                      Дякуємо! Ми отримали ваш контакт і скоро з вами
+                      зв’яжемось.
+                    </div>
+                  ) : (
+                    <button
+                      type="submit"
+                      disabled={preorderStatus === 'submitting'}
+                      className="mt-1 inline-flex items-center justify-center w-full h-10 bg-black text-white px-5 text-[16px] py-2 hover:bg-[#FF3D8C] transition disabled:opacity-50 cursor-pointer"
+                    >
+                      {preorderStatus === 'submitting'
+                        ? 'Надсилаємо…'
+                        : 'Надіслати'}
+                    </button>
+                  )}
+
+                  {preorderStatus === 'error' && (
+                    <div className="text-xs text-gray-600">
+                      Якщо форма не відправилась — відкриється лист для швидкого
+                      передзамовлення.
+                    </div>
+                  )}
+                </form>
+              </div>
+            </div>
+          )}
 
           <ProductTabs
             description={p.description}
