@@ -7,6 +7,7 @@ import NovaPoshtaPicker from '@/components/checkout/NovaPoshtaPicker'
 import { useCart } from '../store/cart'
 import { useCheckout } from '@/stores/checkout'
 import { pushMetaInitiateCheckout } from '@/lib/analytics/datalayer'
+import { IMaskInput } from 'react-imask'
 
 export default function CheckoutClient() {
   const router = useRouter()
@@ -302,25 +303,25 @@ export default function CheckoutClient() {
             )}
           </div>
           <div>
-            <input
+            <IMaskInput
+              mask={'+{380} 00 000 00 00'}
+              // keep value as a formatted string; we normalize to digits on submit
+              value={form.phone}
+              unmask={false}
+              inputMode="tel"
+              placeholder="+380 XX XXX XX XX"
               className={inputClass(
                 isUaPhoneValid(normalizeUaPhone(form.phone)),
                 touched.phone
               )}
-              value={form.phone}
-              onChange={(e) =>
-                setForm({
-                  ...form,
-                  phone: e.target.value.replace(/\D/g, '').slice(0, 12),
-                })
+              onAccept={(value) =>
+                setForm({ ...form, phone: String(value ?? '') })
               }
               onBlur={() => setTouched({ ...touched, phone: true })}
-              placeholder="ТЕЛЕФОН*"
-              inputMode="numeric"
             />
             {touched.phone && !isUaPhoneValid(normalizeUaPhone(form.phone)) && (
               <p className="text-xs text-rose-600 mt-1">
-                Номер має містити 12 цифр і починатися з 380
+                Введіть номер у форматі +380 XX XXX XX XX
               </p>
             )}
           </div>

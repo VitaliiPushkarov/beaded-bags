@@ -6,18 +6,35 @@ import { prisma } from '@/lib/prisma'
 async function sendTelegram(text: string) {
   const token = process.env.TELEGRAM_BOT_TOKEN
   const chatId = process.env.TELEGRAM_CHAT_ID
-  if (!token || !chatId) return
+  if (!token || !chatId) {
+    console.warn(
+      'Telegram is not configured: missing TELEGRAM_BOT_TOKEN/TELEGRAM_CHAT_ID'
+    )
+    return
+  }
 
-  await fetch(`https://api.telegram.org/bot${token}/sendMessage`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({
-      chat_id: chatId,
-      text,
-      parse_mode: 'HTML',
-      disable_web_page_preview: true,
-    }),
-  })
+  try {
+    const res = await fetch(
+      `https://api.telegram.org/bot${token}/sendMessage`,
+      {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          chat_id: chatId,
+          text,
+          parse_mode: 'HTML',
+          disable_web_page_preview: true,
+        }),
+      }
+    )
+
+    if (!res.ok) {
+      const body = await res.text().catch(() => '')
+      console.error('Telegram sendMessage failed:', res.status, body)
+    }
+  } catch (e) {
+    console.error('Telegram sendMessage error:', e)
+  }
 }
 
 function formatUAH(v: number) {
@@ -56,7 +73,7 @@ const BodySchema = z.object({
     surname: z.string().min(2),
     patronymic: z.string().optional().nullable(),
     phone: z.string().min(10),
-    email: z.email().optional().nullable(),
+    email: z.string().email().optional().nullable(),
   }),
   shipping: z.object({
     method: z.literal('nova_poshta'),
@@ -176,8 +193,8 @@ export async function POST(req: NextRequest) {
           : '') +
         `\n\n<b>Товари:</b>\n${itemsText}`
 
-      // Do not block order creation response
-      sendTelegram(msg).catch(() => {})
+      // Best-effort: do not block order creation response
+      void sendTelegram(msg)
     } catch {
       // ignore
     }
