@@ -1,6 +1,6 @@
 'use client'
 import { useEffect, useMemo, useState, Suspense, useRef } from 'react'
-import { useSearchParams } from 'next/navigation'
+import { usePathname, useRouter, useSearchParams } from 'next/navigation'
 import Image from 'next/image'
 
 import VariantSwatches from '@/components/product/VariantSwatches'
@@ -37,6 +37,8 @@ export type ProductWithVariants = Product & {
 
 export function ProductClient({ p }: { p: ProductWithVariants }) {
   const sp = useSearchParams()
+  const router = useRouter()
+  const pathname = usePathname()
   const variantFromUrl = sp.get('variant') || undefined
 
   const [variantId, setVariantId] = useState<string | undefined>(
@@ -75,12 +77,26 @@ export function ProductClient({ p }: { p: ProductWithVariants }) {
     addonImageUrl,
   } = useProductAddons(v)
 
-  //sync variantId with URL param
+  // sync URL -> state (on first load / manual URL changes)
   useEffect(() => {
     if (!variantFromUrl || !p.variants?.length) return
-    const ok = p.variants.some((v) => v.id === variantFromUrl)
+    if (variantFromUrl === variantId) return
+    const ok = p.variants.some((vv) => vv.id === variantFromUrl)
     if (ok) setVariantId(variantFromUrl)
-  }, [variantFromUrl, p.variants])
+  }, [variantFromUrl, p.variants, variantId])
+
+  // sync state -> URL (when user selects a variant)
+  useEffect(() => {
+    if (!variantId) return
+
+    const current = sp.get('variant') || ''
+    if (current === variantId) return
+
+    const params = new URLSearchParams(sp.toString())
+    params.set('variant', variantId)
+
+    router.replace(`${pathname}?${params.toString()}`, { scroll: false })
+  }, [variantId, sp, router, pathname])
 
   // Обраний ремінець для поточного варіанту
   const selectedStrap = useMemo(
