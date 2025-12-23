@@ -77,13 +77,20 @@ export function ProductClient({ p }: { p: ProductWithVariants }) {
     addonImageUrl,
   } = useProductAddons(v)
 
-  // sync URL -> state (on first load / manual URL changes)
+  const didInitVariantFromUrlRef = useRef(false)
+
+  // init variant from URL once (URL is source of truth only on initial load)
   useEffect(() => {
-    if (!variantFromUrl || !p.variants?.length) return
-    if (variantFromUrl === variantId) return
-    const ok = p.variants.some((vv) => vv.id === variantFromUrl)
-    if (ok) setVariantId(variantFromUrl)
-  }, [variantFromUrl, p.variants, variantId])
+    if (didInitVariantFromUrlRef.current) return
+    if (!p.variants?.length) return
+
+    if (variantFromUrl) {
+      const ok = p.variants.some((vv) => vv.id === variantFromUrl)
+      if (ok) setVariantId(variantFromUrl)
+    }
+
+    didInitVariantFromUrlRef.current = true
+  }, [variantFromUrl, p.variants])
 
   // sync state -> URL (when user selects a variant)
   useEffect(() => {
