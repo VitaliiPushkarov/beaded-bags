@@ -1,15 +1,7 @@
 'use client'
-import {
-  useEffect,
-  useMemo,
-  useState,
-  Suspense,
-  useRef,
-  FormEvent,
-} from 'react'
+import { useEffect, useMemo, useState, Suspense, useRef } from 'react'
 import { useSearchParams } from 'next/navigation'
 import Image from 'next/image'
-import Link from 'next/link'
 
 import VariantSwatches from '@/components/product/VariantSwatches'
 import { useCart } from '@/app/store/cart'
@@ -25,11 +17,11 @@ import ProductGallery from '@/components/ProductGallery'
 import ProductTabs from '@/components/product/ProductTabs'
 import YouMayAlsoLike from '@/components/YouMayAlsoLike'
 import { pushMetaViewContent } from '@/lib/analytics/datalayer'
-
-type AddonVariantUI = ProductVariant & {
-  product: Product
-  images: ProductVariantImage[]
-}
+import { useProductAddons, type AddonVariantUI } from './useProductAddons'
+import { usePreorder } from './usePreorder'
+import { ProductActions } from './ProductActions'
+import { PreorderModal } from './PreOrderModal'
+import { AddonsSection } from './AddonsSection'
 
 type VariantWithImagesStrapsAndAddons = ProductVariant & {
   images: ProductVariantImage[]
@@ -51,81 +43,37 @@ export function ProductClient({ p }: { p: ProductWithVariants }) {
     p.variants?.[0]?.id
   )
   const [strapId, setStrapId] = useState<string | undefined>(undefined)
-  const [selectedAddonVariantIds, setSelectedAddonVariantIds] = useState<
-    string[]
-  >([])
-  const openCart = useUI((s) => s.openCart)
 
-  // --- Preorder lead capture (when out of stock) ---
-  const [preorderOpen, setPreorderOpen] = useState(false)
-  const [leadName, setLeadName] = useState('')
-  const [leadContact, setLeadContact] = useState('')
-  const [leadComment, setLeadComment] = useState('')
-  const [preorderStatus, setPreorderStatus] = useState<
-    'idle' | 'submitting' | 'success' | 'error'
-  >('idle')
+  const openCart = useUI((s) => s.openCart)
 
   const v = useMemo(
     () =>
       p.variants?.find((x) => x.id === variantId) ?? p.variants?.[0] ?? null,
     [p.variants, variantId]
   )
+  const {
+    preorderOpen,
+    preorderStatus,
+    leadName,
+    setLeadName,
+    leadContact,
+    setLeadContact,
+    leadComment,
+    setLeadComment,
+    openPreorder,
+    closePreorder,
+    submitPreorder,
+  } = usePreorder({ product: p, variant: v, strapId })
 
-  const submitPreorder = async (e: FormEvent) => {
-    e.preventDefault()
-    if (!v) return
-
-    const payload = {
-      productId: p.id,
-      productSlug: p.slug,
-      productName: p.name,
-      variantId: v.id,
-      variantColor: v.color ?? null,
-      strapId: strapId ?? null,
-      contactName: leadName.trim(),
-      contact: leadContact.trim(),
-      comment: leadComment.trim() || null,
-      source: 'product_page',
-      createdAt: new Date().toISOString(),
-    }
-
-    if (!payload.contact) return
-
-    setPreorderStatus('submitting')
-
-    try {
-      const res = await fetch('/api/preorder', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(payload),
-      })
-
-      if (res.ok) {
-        setPreorderStatus('success')
-        return
-      }
-
-      // fallback to mailto if endpoint missing / returns error
-      throw new Error('preorder_api_failed')
-    } catch {
-      setPreorderStatus('error')
-
-      const subject = encodeURIComponent(`Передзамовлення: ${p.name}`)
-      const body = encodeURIComponent(
-        `Хочу передзамовити товар.\n\n` +
-          `Товар: ${p.name}\n` +
-          `Варіант: ${v.color ? v.color : v.id}\n` +
-          `Сторінка: ${
-            typeof window !== 'undefined' ? window.location.href : ''
-          }\n\n` +
-          `Ім'я: ${leadName}\n` +
-          `Контакт (телефон/email): ${leadContact}\n` +
-          (leadComment ? `Коментар: ${leadComment}\n` : '')
-      )
-
-      window.location.href = `mailto:hello@gerdan.online?subject=${subject}&body=${body}`
-    }
-  }
+  const {
+    availableAddons,
+    selectedAddonVariantIds,
+    toggleAddon,
+    addonsTotal,
+    addonsByVariantId,
+    addonPrice,
+    addonImageUrl,
+  } = useProductAddons(v)
 
   //sync variantId with URL param
   useEffect(() => {
@@ -147,57 +95,14 @@ export function ProductClient({ p }: { p: ProductWithVariants }) {
     } else {
       setStrapId(undefined)
     }
-    // при зміні варіанту скидаємо вибрані прикраси
-    setSelectedAddonVariantIds([])
   }, [v])
 
   const variantInStock = !!v?.inStock
   const add = useCart((s) => s.add)
 
-  // Доступні прикраси/аддони для цього варіанту (addon = ProductVariant)
-  const availableAddons = useMemo(() => {
-    const list = (v?.addonsOnVariant || [])
-      .slice()
-      .sort((a, b) => (a.sort ?? 0) - (b.sort ?? 0))
-      .map((rel) => rel.addonVariant)
-      .filter(Boolean)
-
-    const seen = new Set<string>()
-    return list.filter((av) => {
-      if (seen.has(av.id)) return false
-      seen.add(av.id)
-      return true
-    })
-  }, [v])
-
-  const addonPrice = (av: AddonVariantUI) =>
-    av.priceUAH ?? av.product.basePriceUAH ?? 0
-
-  const addonImageUrl = (av: AddonVariantUI) =>
-    av.images?.slice().sort((a, b) => a.sort - b.sort)[0]?.url ||
-    av.image ||
-    '/img/placeholder.png'
-
-  const addonsTotal = useMemo(
-    () =>
-      availableAddons
-        .filter((a) => selectedAddonVariantIds.includes(a.id))
-        .reduce((sum, a) => sum + addonPrice(a), 0),
-    [availableAddons, selectedAddonVariantIds]
-  )
-
-  const addonsByVariantId = useMemo(() => {
-    const map: Record<string, AddonVariantUI> = {}
-    availableAddons.forEach((a) => {
-      map[a.id] = a
-    })
-    return map
-  }, [availableAddons])
-
   // Ціна сумки — статична, прикраси вираховуються окремо
   const basePrice = v?.priceUAH ?? p.basePriceUAH ?? 0
 
-  const price = basePrice + addonsTotal
   // --- Meta Pixel via GTM: ViewContent (fires once per selected variant) ---
   const viewedKeyRef = useRef<string>('')
   useEffect(() => {
@@ -207,7 +112,7 @@ export function ProductClient({ p }: { p: ProductWithVariants }) {
     const contentName = `${p.name}${v.color ? ` — ${v.color}` : ''}`
     const key = `${p.id}:${contentId}`
 
-    // prevent duplicates on re-renders / StrictMode; also ignore addon changes
+    // prevent duplicates on re-renders / StrictMode
     if (viewedKeyRef.current === key) return
     viewedKeyRef.current = key
 
@@ -225,17 +130,22 @@ export function ProductClient({ p }: { p: ProductWithVariants }) {
     if (!v) return ['/img/placeholder.png']
 
     const base: string[] = []
+    const seen = new Set<string>()
 
     if (Array.isArray(v.images) && v.images.length > 0) {
       ;[...v.images]
         .sort((a, b) => a.sort - b.sort)
         .forEach((img) => {
-          if (img.url && !base.includes(img.url)) base.push(img.url)
+          if (!img.url) return
+          if (seen.has(img.url)) return
+          seen.add(img.url)
+          base.push(img.url)
         })
     }
 
     // fallback to variant image
-    if (v.image && !base.includes(v.image)) {
+    if (v.image && !seen.has(v.image)) {
+      seen.add(v.image)
       base.push(v.image)
     }
 
@@ -255,6 +165,43 @@ export function ProductClient({ p }: { p: ProductWithVariants }) {
 
     return base
   }, [v, selectedStrap])
+
+  const handleAddToCart = () => {
+    if (!v) return
+
+    // 1) додаємо в кошик сумку (тільки її ціна)
+    add({
+      productId: p.id,
+      variantId: v.id,
+      name: `${p.name}${v.color ? ` — ${v.color}` : ''}`,
+      priceUAH: basePrice,
+      image: galleryImages[0],
+      qty: 1,
+      slug: p.slug,
+    })
+
+    // 2) додаємо в кошик кожну обрану прикрасу як окремий товар
+    selectedAddonVariantIds.forEach((addonVariantId) => {
+      const addonV = addonsByVariantId[addonVariantId]
+      if (!addonV) return
+
+      const name = `${addonV.product.name}${
+        addonV.color ? ` — ${addonV.color}` : ''
+      }`
+
+      add({
+        productId: addonV.product.id,
+        variantId: addonV.id,
+        name,
+        priceUAH: addonPrice(addonV),
+        image: addonImageUrl(addonV) || galleryImages[0],
+        qty: 1,
+        slug: addonV.product.slug,
+      })
+    })
+
+    openCart()
+  }
 
   return (
     <Suspense fallback={<div className="p-6 text-center">Завантаження…</div>}>
@@ -346,240 +293,37 @@ export function ProductClient({ p }: { p: ProductWithVariants }) {
                   </div>
                 </div>
               )}
-
-              {/* Прикрасити виріб — додаткові прикраси (горизонтальний слайдер) */}
-              {availableAddons.length > 0 && (
-                <div className="mt-6 w-full">
-                  <div className="mb-3 text-sm font-medium text-gray-700">
-                    Прикрасити виріб:
-                  </div>
-
-                  <div className="-mx-1 overflow-x-auto">
-                    <div className="flex gap-3 px-1 pb-1">
-                      {availableAddons.map((addonV) => {
-                        const isSelected = selectedAddonVariantIds.includes(
-                          addonV.id
-                        )
-                        return (
-                          <div
-                            key={addonV.id}
-                            className="relative shrink-0 w-[140px]"
-                          >
-                            {/* Картинка як лінк на сторінку аксесуара */}
-                            <Link
-                              href={`/products/${addonV.product.slug}?variant=${addonV.id}`}
-                            >
-                              <div className="relative w-full aspect-4/5 rounded-lg overflow-hidden bg-gray-100">
-                                <Image
-                                  src={addonImageUrl(addonV)}
-                                  alt={addonV.product.name}
-                                  fill
-                                  className="object-cover"
-                                />
-                              </div>
-                            </Link>
-
-                            {/* Кнопка + / ✓ у верхньому кутку */}
-                            <button
-                              type="button"
-                              onClick={() =>
-                                setSelectedAddonVariantIds((prev) =>
-                                  prev.includes(addonV.id)
-                                    ? prev.filter((id) => id !== addonV.id)
-                                    : [...prev, addonV.id]
-                                )
-                              }
-                              className={`absolute top-1 right-1 flex h-8 w-8 items-center justify-center rounded-md border text-base font-medium shadow-sm transition cursor-pointer ${
-                                selectedAddonVariantIds.includes(addonV.id)
-                                  ? 'bg-black text-white border-black'
-                                  : 'bg-white text-gray-800 border-gray-300 hover:border-black'
-                              }`}
-                              style={{
-                                zIndex: 20, // гарантує видимість
-                              }}
-                            >
-                              {selectedAddonVariantIds.includes(addonV.id)
-                                ? '×'
-                                : '+'}
-                            </button>
-
-                            {/* Назва + ціна під картинкою */}
-                            <div className="mt-2 text-xs text-gray-900">
-                              {addonV.product.name}
-                            </div>
-                            <div className="text-xs text-gray-600">
-                              {addonPrice(addonV)} ₴
-                            </div>
-                          </div>
-                        )
-                      })}
-                    </div>
-                  </div>
-                </div>
-              )}
-              {addonsTotal > 0 && (
-                <div className="mt-3 w-full rounded-md border border-gray-200 bg-gray-50 px-3 py-2 text-sm text-gray-800">
-                  Обрані прикраси:{' '}
-                  <span className="font-medium">+{addonsTotal} ₴</span>
-                </div>
-              )}
+              <AddonsSection
+                availableAddons={availableAddons}
+                selectedAddonVariantIds={selectedAddonVariantIds}
+                toggleAddon={toggleAddon}
+                addonPrice={addonPrice}
+                addonImageUrl={addonImageUrl}
+                addonsTotal={addonsTotal}
+              />
             </>
           )}
 
-          {/* Button "Add to cart" */}
-          <button
-            className="mt-3 inline-flex items-center justify-center w-full h-10 bg-black text-white px-5 text-[18px] py-2 hover:bg-[#FF3D8C] transition disabled:opacity-50 cursor-pointer"
-            disabled={!variantInStock}
-            onClick={() => {
-              if (!v) return
+          <ProductActions
+            variantInStock={variantInStock}
+            onAddToCart={handleAddToCart}
+            onPreorder={openPreorder}
+          />
 
-              // 1) додаємо в кошик сумку (тільки її ціна)
-              add({
-                productId: p.id,
-                variantId: v.id,
-                name: `${p.name}${v.color ? ` — ${v.color}` : ''}`,
-                priceUAH: basePrice,
-                image: galleryImages[0],
-                qty: 1,
-                slug: p.slug,
-              })
-
-              // 2) додаємо в кошик кожну обрану прикрасу як окремий товар
-              selectedAddonVariantIds.forEach((addonVariantId) => {
-                const addonV = addonsByVariantId[addonVariantId]
-                if (!addonV) return
-
-                const name = `${addonV.product.name}${
-                  addonV.color ? ` — ${addonV.color}` : ''
-                }`
-
-                add({
-                  productId: addonV.product.id,
-                  variantId: addonV.id,
-                  name,
-                  priceUAH: addonPrice(addonV),
-                  image: addonImageUrl(addonV) || galleryImages[0],
-                  qty: 1,
-                  slug: addonV.product.slug,
-                })
-              })
-
-              openCart()
-            }}
-          >
-            Додати в кошик
-          </button>
-
-          {!variantInStock && (
-            <button
-              type="button"
-              className="mt-2 inline-flex items-center justify-center w-full h-10 border border-black bg-white text-black px-5 text-[18px] py-2 hover:bg-black hover:text-white transition cursor-pointer"
-              onClick={() => {
-                setPreorderStatus('idle')
-                setPreorderOpen(true)
-              }}
-            >
-              Передзамовити
-            </button>
-          )}
-
-          {/* Preorder modal */}
-          {preorderOpen && (
-            <div className="fixed inset-0 z-60 flex items-center justify-center">
-              <div
-                className="absolute inset-0 bg-black/40"
-                onClick={() => setPreorderOpen(false)}
-                aria-hidden="true"
-              />
-
-              <div className="relative w-[92%] max-w-md rounded-xl bg-white p-5 shadow-xl">
-                <div className="flex items-start justify-between gap-4">
-                  <div>
-                    <div className="text-lg font-medium">Передзамовлення</div>
-                    <div className="mt-1 text-sm text-gray-600">
-                      Залиште контакт — і ми Вам передзвонимо!
-                    </div>
-                    <div className="mt-2 text-xs text-gray-500">
-                      {p.name}
-                      {v?.color ? ` — ${v.color}` : ''}
-                    </div>
-                  </div>
-                  <button
-                    type="button"
-                    className="h-9 w-9 rounded-md border border-gray-200 hover:border-black transition cursor-pointer"
-                    onClick={() => setPreorderOpen(false)}
-                    aria-label="Close"
-                  >
-                    ✕
-                  </button>
-                </div>
-
-                <form className="mt-4 space-y-3" onSubmit={submitPreorder}>
-                  <div>
-                    <label className="block text-xs text-gray-600 mb-1">
-                      Ім’я
-                    </label>
-                    <input
-                      value={leadName}
-                      onChange={(e) => setLeadName(e.target.value)}
-                      className="w-full rounded-md border border-gray-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-black/10"
-                      placeholder="Ваше ім’я"
-                    />
-                  </div>
-
-                  <div>
-                    <label className="block text-xs text-gray-600 mb-1">
-                      Телефон <span className="text-red-500">*</span>
-                    </label>
-                    <input
-                      type="tel"
-                      required
-                      value={leadContact}
-                      onChange={(e) => setLeadContact(e.target.value)}
-                      className="w-full rounded-md border border-gray-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-black/10"
-                      placeholder="+380"
-                    />
-                  </div>
-
-                  <div>
-                    <label className="block text-xs text-gray-600 mb-1">
-                      Коментар
-                    </label>
-                    <textarea
-                      value={leadComment}
-                      onChange={(e) => setLeadComment(e.target.value)}
-                      className="w-full min-h-[90px] rounded-md border border-gray-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-black/10"
-                      placeholder="Наприклад: хочу з ремінцем…, доставка в…"
-                    />
-                  </div>
-
-                  {preorderStatus === 'success' ? (
-                    <div className="rounded-md bg-green-50 border border-green-200 p-3 text-sm text-green-700">
-                      Дякуємо! Ми отримали ваш контакт і скоро з вами
-                      зв’яжемось.
-                    </div>
-                  ) : (
-                    <button
-                      type="submit"
-                      disabled={preorderStatus === 'submitting'}
-                      className="mt-1 inline-flex items-center justify-center w-full h-10 bg-black text-white px-5 text-[16px] py-2 hover:bg-[#FF3D8C] transition disabled:opacity-50 cursor-pointer"
-                    >
-                      {preorderStatus === 'submitting'
-                        ? 'Надсилаємо…'
-                        : 'Надіслати'}
-                    </button>
-                  )}
-
-                  {preorderStatus === 'error' && (
-                    <div className="text-xs text-gray-600">
-                      Якщо форма не відправилась — відкриється лист для швидкого
-                      передзамовлення.
-                    </div>
-                  )}
-                </form>
-              </div>
-            </div>
-          )}
+          <PreorderModal
+            open={preorderOpen}
+            status={preorderStatus}
+            productName={p.name}
+            variantLabel={v?.color ?? undefined}
+            leadName={leadName}
+            setLeadName={setLeadName}
+            leadContact={leadContact}
+            setLeadContact={setLeadContact}
+            leadComment={leadComment}
+            setLeadComment={setLeadComment}
+            onClose={closePreorder}
+            onSubmit={submitPreorder}
+          />
 
           <ProductTabs
             description={p.description}
