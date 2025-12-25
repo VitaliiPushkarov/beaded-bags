@@ -28,6 +28,8 @@ export default function ProductCardLarge({ p }: { p: ProductWithVariants }) {
   /* const add = useCart((s) => s.add)
   const openCart = useUI((s) => s.openCart) */
   const price = v?.priceUAH ?? p.basePriceUAH ?? 0
+  const isInStock = v?.inStock ?? p.inStock
+  const isPreorder = !isInStock
 
   const [isHovered, setIsHovered] = useState(false)
 
@@ -49,10 +51,17 @@ export default function ProductCardLarge({ p }: { p: ProductWithVariants }) {
       {/* зображення прив'язане до варіанту */}
       <Link href={`/products/${p.slug}?variant=${variantId}`}>
         <div
-          className="relative md:h-[560px] aspect-3/4 2xl:aspect-auto bg-gray-100 2xl:h-[720px] overflow-hidden"
+          className="group relative md:h-[560px] aspect-3/4 2xl:aspect-auto bg-gray-100 2xl:h-[720px] overflow-hidden"
           onMouseEnter={() => setIsHovered(true)}
           onMouseLeave={() => setIsHovered(false)}
         >
+          {isPreorder && (
+            <div className="absolute top-2 right-2 z-20">
+              <span className=" text-black text-[10px] md:text-[11px] uppercase tracking-wide px-2 py-1">
+                Доступно до передзамовлення
+              </span>
+            </div>
+          )}
           {v && (
             <>
               <Image

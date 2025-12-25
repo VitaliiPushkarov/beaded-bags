@@ -58,7 +58,7 @@ function SuccessInner() {
           № {orderNumber ? String(orderNumber).padStart(6, '0') : '—'}
         </p>
 
-        <div className="mt-12 sm:mt-14 text-[20px] sm:text-[26px] leading-snug">
+        <div className="mt-12 sm:mt-14 text-[20px] sm:text-[26px] leading-snug whitespace-nowrap">
           <p>Лови 10% знижки на наступне, поки</p>
           <p>очікуєш повідомлення від нас 🤍</p>
         </div>

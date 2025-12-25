@@ -1,7 +1,7 @@
 'use client'
 import Image from 'next/image'
 import Link from 'next/link'
-import { useRef } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { useCart } from '../store/cart'
 import { pushMetaInitiateCheckout } from '@/lib/analytics/datalayer'
 
@@ -53,6 +53,57 @@ export default function CartPage() {
   const total = useCartTotal()
 
   const checkoutFiredRef = useRef(false)
+
+  // PROMO CODE
+  const PROMO_CODE = 'GERDAN10'
+  const PROMO_STORAGE_KEY = 'gerdan_promo_code'
+  const DISCOUNT_PCT = 10
+
+  const [promoInput, setPromoInput] = useState('')
+  const [appliedPromo, setAppliedPromo] = useState<string | null>(null)
+  const [promoTouched, setPromoTouched] = useState(false)
+
+  useEffect(() => {
+    try {
+      const saved = window.localStorage.getItem(PROMO_STORAGE_KEY)
+      if (saved) {
+        setAppliedPromo(saved)
+        setPromoInput(saved)
+      }
+    } catch {}
+  }, [])
+
+  const normalizedPromoInput = promoInput.trim().toUpperCase()
+  const isPromoValid = normalizedPromoInput === PROMO_CODE
+  const isPromoApplied = appliedPromo?.toUpperCase() === PROMO_CODE
+
+  const subtotalUAH = useMemo(() => total(), [total, items])
+
+  const discountUAH = useMemo(() => {
+    if (!isPromoApplied) return 0
+    return Math.round((subtotalUAH * DISCOUNT_PCT) / 100)
+  }, [isPromoApplied, subtotalUAH])
+
+  const finalTotalUAH = useMemo(() => {
+    return Math.max(0, subtotalUAH - discountUAH)
+  }, [subtotalUAH, discountUAH])
+
+  const applyPromo = () => {
+    setPromoTouched(true)
+    if (!isPromoValid) return
+
+    setAppliedPromo(PROMO_CODE)
+    try {
+      window.localStorage.setItem(PROMO_STORAGE_KEY, PROMO_CODE)
+    } catch {}
+  }
+
+  const removePromo = () => {
+    setAppliedPromo(null)
+    try {
+      window.localStorage.removeItem(PROMO_STORAGE_KEY)
+    } catch {}
+  }
 
   return (
     <section className="max-w-[1400px] mx-auto px-4 lg:px-6 py-6 lg:py-12">
@@ -144,8 +195,15 @@ export default function CartPage() {
 
           <div className="flex items-center justify-between text-lg">
             <span>Вартість замовлення</span>
-            <span className="font-semibold">{total()} грн</span>
+            <span className="font-semibold">{subtotalUAH} грн</span>
           </div>
+
+          {isPromoApplied && discountUAH > 0 && (
+            <div className="flex items-center justify-between text-lg">
+              <span className="text-gray-700">Знижка ({DISCOUNT_PCT}%)</span>
+              <span className="font-semibold">−{discountUAH} грн</span>
+            </div>
+          )}
 
           <div>
             <div className="text-sm uppercase tracking-wide text-gray-700">
@@ -160,26 +218,57 @@ export default function CartPage() {
               <input
                 className="flex-1 border border-black rounded-l px-3 py-2 outline-none"
                 placeholder="Введіть код"
+                value={promoInput}
+                onChange={(e) => setPromoInput(e.target.value)}
+                onBlur={() => setPromoTouched(true)}
               />
-              <button className="px-5 border border-l-0 border-black rounded-r hover:bg-black hover:text-white transition cursor-pointer">
-                →
-              </button>
+              {isPromoApplied ? (
+                <button
+                  type="button"
+                  onClick={removePromo}
+                  className="px-5 border border-l-0 border-black rounded-r hover:bg-black hover:text-white transition cursor-pointer"
+                  aria-label="Remove promo"
+                  title="Скасувати промокод"
+                >
+                  ✕
+                </button>
+              ) : (
+                <button
+                  type="button"
+                  onClick={applyPromo}
+                  className="px-5 border border-l-0 border-black rounded-r hover:bg-black hover:text-white transition cursor-pointer"
+                  aria-label="Apply promo"
+                  title="Застосувати промокод"
+                >
+                  →
+                </button>
+              )}
             </div>
+
+            {promoTouched && promoInput.trim() && !isPromoApplied && !isPromoValid && (
+              <p className="mt-2 text-xs text-rose-600">Невірний промокод</p>
+            )}
+
+            {isPromoApplied && (
+              <p className="mt-2 text-xs text-green-700">
+                Промокод застосовано: <span className="font-medium">{PROMO_CODE}</span>
+              </p>
+            )}
           </div>
 
           <div className="flex items-center justify-between text-xl pt-2">
             <span className="uppercase tracking-wide">Разом</span>
-            <span className="font-semibold">{total()} грн</span>
+            <span className="font-semibold">{finalTotalUAH} грн</span>
           </div>
           <div className="w-full">
             <Link
-              href="/checkout"
+              href={isPromoApplied ? `/checkout?promo=${PROMO_CODE}` : '/checkout'}
               onClick={() => {
                 if (!checkoutFiredRef.current && items.length) {
                   checkoutFiredRef.current = true
                   pushMetaInitiateCheckout({
                     contentIds: items.map((i) => i.variantId || i.productId),
-                    value: total(),
+                    value: finalTotalUAH,
                     numItems: items.reduce((s, i) => s + i.qty, 0),
                   })
                 }

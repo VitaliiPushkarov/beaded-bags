@@ -13,7 +13,7 @@ export default function Contacts() {
       <div className="flex flex-col gap-[50px]">
         <div className="flex items-center flex-col justify-center gap-5">
           <h3>Графік роботи:</h3>
-          <p>пн-пт: 10:00 – 19:00, сб: 11:00 – 19:00</p>
+          <p>пн-нд: 11:00 – 20:00</p>
         </div>
         <div className="grid md:grid-cols-2 gap-5 gap-y-10 items-center">
           <div className="flex items-center justify-center flex-col gap-3">
@@ -43,7 +43,7 @@ export default function Contacts() {
               <p className="font-semibold">Юр. адреса:</p>
               <p>
                 Україна, 25031, Кіровоградська обл., місто Кропивницький,
-                вул.Героїв України, будинок 12, корпус 1, квартира 212
+                вул.Героїв України, будинок 12
               </p>
             </div>
           </div>

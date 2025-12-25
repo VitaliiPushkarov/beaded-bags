@@ -80,8 +80,12 @@ export default function InstagramSlider() {
       <div className="mx-auto">
         <div
           className="relative"
-          onMouseEnter={() => swiperRef.current?.autoplay.stop()}
-          onMouseLeave={() => swiperRef.current?.autoplay.start()}
+          onMouseEnter={() => {
+            if (isDesktop) swiperRef.current?.autoplay.stop()
+          }}
+          onMouseLeave={() => {
+            if (isDesktop) swiperRef.current?.autoplay.start()
+          }}
         >
           <Swiper
             modules={[A11y, FreeMode, Autoplay]}
@@ -97,8 +101,8 @@ export default function InstagramSlider() {
                   }
                 : false
             }
-            slidesPerView={1}
-            spaceBetween={8}
+            slidesPerView={1.2}
+            spaceBetween={12}
             breakpoints={{
               768: {
                 slidesPerView: 2,
@@ -109,11 +113,15 @@ export default function InstagramSlider() {
                 spaceBetween: 8,
               },
             }}
+            resistanceRatio={0}
             className="w-full"
             simulateTouch={true}
             followFinger={true}
             onSwiper={(swiper) => {
               swiperRef.current = swiper
+              if (!isDesktop) {
+                swiper.autoplay?.stop()
+              }
             }}
           >
             {instSliderImages.map((slide) => (
