@@ -31,6 +31,9 @@ export default function ProductCardLarge({ p }: { p: ProductWithVariants }) {
   const isInStock = v?.inStock ?? p.inStock
   const isPreorder = !isInStock
 
+  const CARD_SIZES =
+    '(max-width: 640px) 50vw, (max-width: 1024px) 33vw, (max-width: 1280px) 25vw, 20vw'
+
   const [isHovered, setIsHovered] = useState(false)
 
   // Витягуємо зображення саме з варіанту, з урахуванням поля hover та sort
@@ -72,18 +75,18 @@ export default function ProductCardLarge({ p }: { p: ProductWithVariants }) {
                   isHovered ? 'opacity-0 scale-[1.02]' : 'opacity-100'
                 }`}
                 priority={false}
-                sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
+                sizes={CARD_SIZES}
               />
               {hoverImage && (
                 <Image
                   src={hoverImage}
                   alt={`${p.name} — ${v.color} — view 2`}
                   fill
-                  className={`object-cover transition-opacity duration-300 ${
+                  className={`hidden md:block object-cover transition-opacity duration-300 ${
                     isHovered ? 'opacity-100 scale-[1.02]' : 'opacity-0'
                   }`}
                   priority={false}
-                  sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
+                  sizes={CARD_SIZES}
                 />
               )}
             </>
