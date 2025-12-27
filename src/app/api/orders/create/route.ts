@@ -14,6 +14,9 @@ async function sendTelegram(text: string) {
   }
 
   try {
+    const controller = new AbortController()
+    const t = setTimeout(() => controller.abort(), 2000)
+
     const res = await fetch(
       `https://api.telegram.org/bot${token}/sendMessage`,
       {
@@ -25,13 +28,19 @@ async function sendTelegram(text: string) {
           parse_mode: 'HTML',
           disable_web_page_preview: true,
         }),
+        signal: controller.signal,
       }
     )
+
+    clearTimeout(t)
 
     if (!res.ok) {
       const body = await res.text().catch(() => '')
       console.error('Telegram sendMessage failed:', res.status, body)
+      return
     }
+
+    console.info('Telegram sendMessage ok')
   } catch (e) {
     console.error('Telegram sendMessage error:', e)
   }
@@ -193,10 +202,14 @@ export async function POST(req: NextRequest) {
           : '') +
         `\n\n<b>Товари:</b>\n${itemsText}`
 
-      // Best-effort: do not block order creation response
-      void sendTelegram(msg)
-    } catch {
-      // ignore
+      console.info('Telegram: sending order notification', created.id)
+      // Best-effort: attempt send, but never fail the order request
+      await sendTelegram(msg)
+    } catch (e) {
+      console.error(
+        'Telegram: failed to send order notification (non-blocking):',
+        e
+      )
     }
 
     return NextResponse.json(

@@ -19,7 +19,9 @@ export default function InfoPage() {
           <p>Ми надаємо можливість оплати наступними способами:</p>
 
           <p className="font-semibold">Оплата на сайті карткою.</p>
-
+          <p className="text-gray-700">
+            Наразі працюємо над функцією оплати карткою.
+          </p>
           <p className="font-semibold">Оплата при отриманні</p>
           <p className="text-gray-700">
             (післяплата Нова пошта, додаткова комісія: 20 грн + 2% від суми
