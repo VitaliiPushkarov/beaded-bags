@@ -9,6 +9,7 @@ type CartItem = {
   name: string
   priceUAH: number
   qty: number
+  strapName: string | null
   image: string
   slug: string
 }

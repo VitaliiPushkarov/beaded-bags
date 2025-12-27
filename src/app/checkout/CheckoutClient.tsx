@@ -99,6 +99,7 @@ export default function CheckoutClient() {
       image: it.image,
       priceUAH: it.priceUAH,
       qty: it.qty,
+      strapName: it.strapName ?? null,
     }))
 
     const subtotal = items.reduce((s, it) => s + it.priceUAH * it.qty, 0)

@@ -69,6 +69,7 @@ const OrderItem = z.object({
   name: z.string().min(1),
   qty: z.number().int().min(1),
   priceUAH: z.number().min(0),
+  strapName: z.string().optional().nullable(),
   image: z.string().optional().nullable(),
   slug: z.string().optional().nullable(),
   color: z.string().optional().nullable(),
@@ -166,6 +167,7 @@ export async function POST(req: NextRequest) {
             image: it.image ?? null,
             priceUAH: it.priceUAH,
             qty: it.qty,
+            strapName: it.strapName ?? null,
           })),
         },
       },
@@ -178,9 +180,11 @@ export async function POST(req: NextRequest) {
     try {
       const itemsText = created.items
         .map((i) => {
-          const line = `• ${i.name}${i.color ? ` — ${i.color}` : ''} × ${
-            i.qty
-          } — ${formatUAH(i.priceUAH)}`
+          const line =
+            `• ${i.name}` +
+            (i.color ? ` — ${i.color}` : '') +
+            (i.strapName ? `\n  ↳ ремінець: ${i.strapName}` : '') +
+            ` × ${i.qty} — ${formatUAH(i.priceUAH)}`
           return escHtml(line)
         })
         .join('\n')

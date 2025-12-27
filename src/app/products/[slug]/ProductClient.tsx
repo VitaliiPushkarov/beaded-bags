@@ -201,6 +201,7 @@ export function ProductClient({ p }: { p: ProductWithVariants }) {
       image: galleryImages[0],
       qty: 1,
       slug: p.slug,
+      strapName: selectedStrap?.name ?? null,
     })
 
     // 2) додаємо в кошик кожну обрану прикрасу як окремий товар
@@ -220,6 +221,7 @@ export function ProductClient({ p }: { p: ProductWithVariants }) {
         image: addonImageUrl(addonV) || galleryImages[0],
         qty: 1,
         slug: addonV.product.slug,
+        strapName: null,
       })
     })
 

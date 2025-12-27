@@ -70,6 +70,7 @@ export default function ProductCard({ product }: ProductCardProps) {
               image: img,
               qty: 1,
               slug: product.slug,
+              strapName: null,
             }
 
             add(item)
