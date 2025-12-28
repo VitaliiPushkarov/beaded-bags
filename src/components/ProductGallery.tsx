@@ -1,5 +1,5 @@
 'use client'
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useMemo } from 'react'
 import Image from 'next/image'
 import { Gallery, Item } from 'react-photoswipe-gallery'
 import { Skeleton } from './ui/Skeleton'
@@ -16,10 +16,17 @@ type PhotoGalleryProps = {
 
 export default function PhotoGallery({ images }: PhotoGalleryProps) {
   const placeholder = '/img/placeholder.png'
-  const list = images.length ? images : [placeholder]
+  const list = useMemo(() => (images.length ? images : [placeholder]), [images])
   const [sizes, setSizes] = useState<{ w: number; h: number }[]>([])
 
+  const listKey = useMemo(() => list.join('|'), [list])
+
   useEffect(() => {
+    let cancelled = false
+
+    // show skeleton while swapping galleries
+    setSizes([])
+
     Promise.all(
       list.map(
         (src) =>
@@ -30,8 +37,15 @@ export default function PhotoGallery({ images }: PhotoGalleryProps) {
             img.onerror = () => resolve({ w: 1600, h: 1600 }) // fallback
           })
       )
-    ).then(setSizes)
-  }, [list])
+    ).then((result) => {
+      if (cancelled) return
+      setSizes(result)
+    })
+
+    return () => {
+      cancelled = true
+    }
+  }, [listKey])
 
   if (!sizes.length)
     return (
@@ -45,6 +59,7 @@ export default function PhotoGallery({ images }: PhotoGalleryProps) {
         <div className="relative w-full overflow-visible">
           <div className="w-full overflow-hidden">
             <Swiper
+              key={listKey}
               modules={[Navigation]}
               navigation={{
                 nextEl: '.photo-gallery-next',

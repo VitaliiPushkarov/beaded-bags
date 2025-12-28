@@ -30,7 +30,13 @@ export async function generateMetadata(props: {
           images: {
             orderBy: { sort: 'asc' },
           },
-          straps: true,
+          straps: {
+            include: {
+              images: {
+                orderBy: { sort: 'asc' },
+              },
+            },
+          },
           addonsOnVariant: {
             orderBy: { sort: 'asc' },
             include: {
@@ -99,7 +105,13 @@ export default async function ProductPage({
           images: {
             orderBy: { sort: 'asc' },
           },
-          straps: true,
+          straps: {
+            include: {
+              images: {
+                orderBy: { sort: 'asc' },
+              },
+            },
+          },
           addonsOnVariant: {
             orderBy: { sort: 'asc' },
             include: {

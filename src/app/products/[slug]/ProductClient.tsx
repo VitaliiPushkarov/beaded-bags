@@ -23,9 +23,15 @@ import { ProductActions } from './ProductActions'
 import { PreorderModal } from './PreOrderModal'
 import { AddonsSection } from './AddonsSection'
 
+type StrapImageUI = { url: string; sort?: number | null }
+
+type StrapWithImages = ProductVariantStrap & {
+  images?: StrapImageUI[]
+}
+
 type VariantWithImagesStrapsAndAddons = ProductVariant & {
   images: ProductVariantImage[]
-  straps: ProductVariantStrap[]
+  straps: StrapWithImages[]
   addonsOnVariant?: (ProductVariantAddon & {
     addonVariant: AddonVariantUI
   })[]
@@ -155,38 +161,69 @@ export function ProductClient({ p }: { p: ProductWithVariants }) {
     const base: string[] = []
     const seen = new Set<string>()
 
+    // 1) base variant images
     if (Array.isArray(v.images) && v.images.length > 0) {
       ;[...v.images]
         .sort((a, b) => a.sort - b.sort)
         .forEach((img) => {
-          if (!img.url) return
-          if (seen.has(img.url)) return
-          seen.add(img.url)
-          base.push(img.url)
+          const url = img.url?.trim()
+          if (!url) return
+          if (seen.has(url)) return
+          seen.add(url)
+          base.push(url)
         })
     }
 
-    // fallback to variant image
-    if (v.image && !seen.has(v.image)) {
-      seen.add(v.image)
-      base.push(v.image)
+    // fallback to single variant image
+    if (v.image) {
+      const url = v.image.trim()
+      if (url && !seen.has(url)) {
+        seen.add(url)
+        base.push(url)
+      }
     }
 
     if (!base.length) base.push('/img/placeholder.png')
 
-    // Якщо обрано ремінець з власним зображенням — показуємо його першим
+    // 2) strap-specific gallery (preferred)
+    const strapFirst: string[] = []
     if (selectedStrap) {
-      const strapImage = selectedStrap.mainImageUrl || selectedStrap.imageUrl
-      if (strapImage) {
-        const withStrapFirst = [
-          strapImage,
-          ...base.filter((url) => url !== strapImage),
-        ]
-        return withStrapFirst
+      const strapImgs = (selectedStrap.images ?? [])
+        .map((i) => ({
+          url: (i.url ?? '').trim(),
+          sort: typeof i.sort === 'number' ? i.sort : 0,
+        }))
+        .filter((i) => !!i.url)
+        .sort((a, b) => a.sort - b.sort)
+        .map((i) => i.url)
+
+      if (strapImgs.length) {
+        strapFirst.push(...strapImgs)
+      } else {
+        // fallback to single strap image
+        const one = (
+          selectedStrap.mainImageUrl ||
+          selectedStrap.imageUrl ||
+          ''
+        ).trim()
+        if (one) strapFirst.push(one)
       }
     }
 
-    return base
+    if (!strapFirst.length) return base
+
+    // 3) merge (strap images first) with dedupe
+    const merged: string[] = []
+    const mergedSeen = new Set<string>()
+
+    for (const url of [...strapFirst, ...base]) {
+      if (!url) continue
+      if (mergedSeen.has(url)) continue
+      mergedSeen.add(url)
+      merged.push(url)
+    }
+
+    return merged.length ? merged : base
   }, [v, selectedStrap])
 
   const handleAddToCart = () => {

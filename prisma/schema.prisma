@@ -106,13 +106,20 @@ model ProductVariantStrap {
 
   name         String // назва ремінця біля кружечка
   slug         String? // якщо стане в пригоді (фільтри/аналітика)
+  images ProductVariantStrapImage[]
   imageUrl     String? // фото ремінця (можемо використовувати і як прев’ю, і як основне)
   mainImageUrl String? // опціонально: головне фото сумки з цим ремінцем
   sort         Int     @default(0)
 
   @@index([variantId, sort])
 }
-
+model ProductVariantStrapImage {
+  id      String @id @default(cuid())
+  strapId String
+  strap   ProductVariantStrap @relation(fields: [strapId], references: [id], onDelete: Cascade)
+  url     String
+  sort    Int @default(0)
+}
 model ProductVariantAddon {
   id        String  @id @default(cuid())
 
