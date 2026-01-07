@@ -287,9 +287,9 @@ export function ProductClient({ p }: { p: ProductWithVariants }) {
                 <div className="text-sm md:text-lg text-gray-500 line-through">
                   {basePrice} ₴
                 </div>
-                <span className="text-[10px] md:text-xs border border-black rounded-full px-2 py-0.5">
+                {/* <span className="text-[10px] md:text-xs border border-black rounded-full px-2 py-0.5">
                   -{discountUAH} ₴
-                </span>
+                </span> */}
               </>
             )}
           </div>
