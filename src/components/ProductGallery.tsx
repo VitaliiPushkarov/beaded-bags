@@ -96,6 +96,10 @@ export default function PhotoGallery({ images }: PhotoGalleryProps) {
                           alt="Фото товару"
                           fill
                           className="object-cover"
+                          priority={i === 0}
+                          loading={i === 0 ? 'eager' : 'lazy'}
+                          sizes="(min-width: 1024px) 50vw, 100vw"
+                          quality={80}
                         />
                       </div>
                     )}
