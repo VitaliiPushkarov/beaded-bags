@@ -74,7 +74,7 @@ export default function PhotoGallery({ images }: PhotoGalleryProps) {
               }}
               spaceBetween={16}
               centeredSlides={false}
-              loop={true}
+              loop={false}
               className="w-full relative"
             >
               {list.map((src, i) => (
@@ -96,10 +96,11 @@ export default function PhotoGallery({ images }: PhotoGalleryProps) {
                           alt="Фото товару"
                           fill
                           className="object-cover"
-                          priority={i === 0}
-                          loading={i === 0 ? 'eager' : 'lazy'}
-                          sizes="(min-width: 1024px) 50vw, 100vw"
+                          priority={i < 2}
+                          loading={i < 2 ? 'eager' : 'lazy'}
+                          sizes="(min-width: 1024px) 33vw, 100vw"
                           quality={80}
+                          fetchPriority={i < 2 ? 'high' : 'auto'}
                         />
                       </div>
                     )}
