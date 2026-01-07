@@ -8,6 +8,9 @@ export default async function AdminOrdersPage() {
     orders = await prisma.order.findMany({
       orderBy: { createdAt: 'desc' },
       take: 50,
+      include: {
+        items: true,
+      },
     })
   } catch (e) {
     console.error('Failed to load orders for admin page:', e)

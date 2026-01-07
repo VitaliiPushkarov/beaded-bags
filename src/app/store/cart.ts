@@ -3,6 +3,13 @@ import { create } from 'zustand'
 import { persist } from 'zustand/middleware'
 import { pushMetaAddToCart } from '@/lib/analytics/datalayer'
 
+type OrderItemAddon = {
+  addonVariantId: string
+  name: string
+  priceUAH: number
+  qty: number
+}
+
 type CartItem = {
   variantId: string
   productId: string
@@ -12,7 +19,9 @@ type CartItem = {
   strapName: string | null
   image: string
   slug: string
+  addons?: OrderItemAddon[]
 }
+
 type CartState = {
   items: CartItem[]
   add: (item: CartItem) => void

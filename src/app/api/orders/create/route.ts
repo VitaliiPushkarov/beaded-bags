@@ -63,6 +63,13 @@ function escHtml(s: string) {
 }
 
 // те, що приходить з фронта
+const OrderItemAddon = z.object({
+  addonVariantId: z.string().min(1),
+  name: z.string().min(1),
+  priceUAH: z.number().min(0),
+  qty: z.number().int().min(1),
+})
+
 const OrderItem = z.object({
   productId: z.string().optional().nullable(),
   variantId: z.string().optional().nullable(),
@@ -73,6 +80,7 @@ const OrderItem = z.object({
   image: z.string().optional().nullable(),
   slug: z.string().optional().nullable(),
   color: z.string().optional().nullable(),
+  addons: z.array(OrderItemAddon).optional().nullable(),
 })
 
 const BodySchema = z.object({
@@ -168,6 +176,7 @@ export async function POST(req: NextRequest) {
             priceUAH: it.priceUAH,
             qty: it.qty,
             strapName: it.strapName ?? null,
+            addons: it.addons ?? [],
           })),
         },
       },
@@ -180,10 +189,18 @@ export async function POST(req: NextRequest) {
     try {
       const itemsText = created.items
         .map((i) => {
+          const addonsText = Array.isArray((i as any).addons)
+            ? ((i as any).addons as any[])
+                .map((a) => a?.name)
+                .filter(Boolean)
+                .join(', ')
+            : ''
+
           const line =
             `• ${i.name}` +
             (i.color ? ` — ${i.color}` : '') +
             (i.strapName ? `\n  ↳ ремінець: ${i.strapName}` : '') +
+            (addonsText ? `\n  ↳ додатково: ${addonsText}` : '') +
             ` × ${i.qty} — ${formatUAH(i.priceUAH)}`
           return escHtml(line)
         })

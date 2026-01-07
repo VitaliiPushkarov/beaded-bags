@@ -59,8 +59,8 @@ export default function ProductCardLarge({ p }: { p: ProductWithVariants }) {
           onMouseLeave={() => setIsHovered(false)}
         >
           {isPreorder && (
-            <div className="absolute top-2 right-2 z-20">
-              <span className=" text-black text-[10px] md:text-[11px] uppercase tracking-wide px-2 py-1">
+            <div className="absolute md:top-2 right-2 z-20">
+              <span className=" text-black text-[10px] md:text-[11px] uppercase tracking-tight md:tracking-wide md:px-2 md:py-1">
                 Доступно до передзамовлення
               </span>
             </div>

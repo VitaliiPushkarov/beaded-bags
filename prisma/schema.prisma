@@ -204,6 +204,7 @@ model OrderItem {
   priceUAH  Int // ціна у момент покупки
   qty       Int // кількість
   strapName String?
+  addons Json?
 }
 model PreorderLead {
   id           String   @id @default(cuid())

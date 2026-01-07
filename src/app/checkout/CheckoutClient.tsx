@@ -8,6 +8,7 @@ import { useCart } from '../store/cart'
 import { useCheckout } from '@/stores/checkout'
 import { pushMetaInitiateCheckout } from '@/lib/analytics/datalayer'
 import { IMaskInput } from 'react-imask'
+import { OrderItemInput } from '@/lib/order-types'
 
 export default function CheckoutClient() {
   const router = useRouter()
@@ -100,6 +101,7 @@ export default function CheckoutClient() {
       priceUAH: it.priceUAH,
       qty: it.qty,
       strapName: it.strapName ?? null,
+      addons: it.addons ?? [],
     }))
 
     const subtotal = items.reduce((s, it) => s + it.priceUAH * it.qty, 0)

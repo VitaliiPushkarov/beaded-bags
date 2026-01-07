@@ -1,4 +1,5 @@
 import { prisma } from '@/lib/prisma'
+import Link from 'next/link'
 import ProductForm from '../ProductsForm'
 import type { ProductType, ProductGroup } from '@prisma/client'
 
@@ -61,7 +62,19 @@ export default async function AdminProductEditPage({ params }: PageProps) {
   )
 
   if (!product) {
-    return <div>Товар не знайдено</div>
+    return (
+      <div className="max-w-5xl mx-auto p-4 sm:p-6">
+        <div className="border rounded bg-white p-4">
+          <div className="text-lg font-medium">Товар не знайдено</div>
+          <Link
+            href="/admin/products"
+            className="mt-2 inline-block underline text-sm"
+          >
+            ← Назад до товарів
+          </Link>
+        </div>
+      </div>
+    )
   }
 
   async function upsertVariantAddon(input: {
@@ -166,16 +179,41 @@ export default async function AdminProductEditPage({ params }: PageProps) {
   }
 
   return (
-    <div>
-      <h1 className="text-2xl font-semibold mb-4">Редагування товару</h1>
-      <ProductForm
-        mode="edit"
-        initial={initial as any}
-        addonVariantOptions={addonVariantOptions}
-        upsertVariantAddon={upsertVariantAddon}
-        updateVariantAddonSort={updateVariantAddonSort}
-        deleteVariantAddon={deleteVariantAddon}
-      />
+    <div className="max-w-6xl mx-auto p-4 sm:p-6">
+      {/* Top bar */}
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between mb-4">
+        <div>
+          <Link href="/admin/products" className="text-sm underline">
+            ← Назад до товарів
+          </Link>
+          <h1 className="mt-2 text-2xl font-semibold leading-tight">
+            Редагування товару
+          </h1>
+          <div className="mt-1 text-sm text-gray-600 wrap-break-word">
+            <span className="font-medium text-gray-800">{product.name}</span>
+            <span className="mx-2 text-gray-400">•</span>
+            <span>slug: {product.slug}</span>
+          </div>
+        </div>
+
+        <div className="text-sm text-gray-600">
+          <div>
+            <span className="text-gray-500">ID:</span> {product.id}
+          </div>
+        </div>
+      </div>
+
+      {/* Form card */}
+      <div className="border rounded bg-white p-4 sm:p-6">
+        <ProductForm
+          mode="edit"
+          initial={initial as any}
+          addonVariantOptions={addonVariantOptions}
+          upsertVariantAddon={upsertVariantAddon}
+          updateVariantAddonSort={updateVariantAddonSort}
+          deleteVariantAddon={deleteVariantAddon}
+        />
+      </div>
     </div>
   )
 }
