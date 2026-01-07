@@ -129,8 +129,11 @@ export function ProductClient({ p }: { p: ProductWithVariants }) {
   const variantInStock = !!v?.inStock
   const add = useCart((s) => s.add)
 
-  // Ціна сумки — статична, прикраси вираховуються окремо
+  // Pricing (variant fixed discount in UAH)
   const basePrice = v?.priceUAH ?? p.basePriceUAH ?? 0
+  const discountUAH = Math.max(0, v?.discountUAH ?? 0)
+  const finalPrice = Math.max(0, basePrice - discountUAH)
+  const hasDiscount = discountUAH > 0 && finalPrice < basePrice
 
   // --- Meta Pixel via GTM: ViewContent (fires once per selected variant) ---
   const viewedKeyRef = useRef<string>('')
@@ -148,12 +151,12 @@ export function ProductClient({ p }: { p: ProductWithVariants }) {
     pushMetaViewContent({
       contentId,
       contentName,
-      value: basePrice, // product base price only; addons are separate items
+      value: finalPrice, // final product price (addons are separate items)
       productId: p.id,
       variantId: v.id,
       slug: p.slug,
     })
-  }, [p.id, p.name, p.slug, v?.id, v?.color, basePrice])
+  }, [p.id, p.name, p.slug, v?.id, v?.color, finalPrice])
 
   const galleryImages = useMemo(() => {
     if (!v) return ['/img/placeholder.png']
@@ -234,7 +237,7 @@ export function ProductClient({ p }: { p: ProductWithVariants }) {
       productId: p.id,
       variantId: v.id,
       name: `${p.name}${v.color ? ` — ${v.color}` : ''}`,
-      priceUAH: basePrice,
+      priceUAH: finalPrice,
       image: galleryImages[0],
       qty: 1,
       slug: p.slug,
@@ -277,7 +280,19 @@ export function ProductClient({ p }: { p: ProductWithVariants }) {
             {p.name}
           </h2>
 
-          <div className=" text-lg md:text-2xl mb-1">{basePrice} ₴</div>
+          <div className="mb-1 flex items-baseline gap-2">
+            <div className="text-lg md:text-2xl">{finalPrice} ₴</div>
+            {hasDiscount && (
+              <>
+                <div className="text-sm md:text-lg text-gray-500 line-through">
+                  {basePrice} ₴
+                </div>
+                <span className="text-[10px] md:text-xs border border-black rounded-full px-2 py-0.5">
+                  -{discountUAH} ₴
+                </span>
+              </>
+            )}
+          </div>
           {/* inStock Status */}
           <div className="flex items-center gap-2 text-sm mb-3">
             <span

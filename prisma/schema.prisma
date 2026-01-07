@@ -76,6 +76,7 @@ model ProductVariant {
   image       String?
   inStock     Boolean @default(true)
   priceUAH    Int?
+  discountUAH Int? @default(0)
   sortCatalog Int?    @default(0)
   sortBestsellers Int? @default(0)
 

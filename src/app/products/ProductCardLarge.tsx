@@ -27,7 +27,10 @@ export default function ProductCardLarge({ p }: { p: ProductWithVariants }) {
   )
   /* const add = useCart((s) => s.add)
   const openCart = useUI((s) => s.openCart) */
-  const price = v?.priceUAH ?? p.basePriceUAH ?? 0
+  const basePrice = v?.priceUAH ?? p.basePriceUAH ?? 0
+  const discountUAH = Math.max(0, v?.discountUAH ?? 0)
+  const finalPrice = Math.max(0, basePrice - discountUAH)
+  const hasDiscount = discountUAH > 0 && finalPrice < basePrice
   const isInStock = v?.inStock ?? p.inStock
   const isPreorder = !isInStock
 
@@ -102,8 +105,18 @@ export default function ProductCardLarge({ p }: { p: ProductWithVariants }) {
             </h3>
           </Link>
 
-          <div className="text-sm md:text-xl font-light whitespace-nowrap">
-            {price} ₴
+          <div className="whitespace-nowrap flex items-baseline gap-2">
+            <div className="text-sm md:text-xl font-light">{finalPrice} ₴</div>
+            {hasDiscount && (
+              <>
+                <div className="text-xs md:text-base text-gray-500 line-through">
+                  {basePrice} ₴
+                </div>
+                <span className="text-[10px] md:text-xs border border-black rounded-full px-2 py-0.5">
+                  -{discountUAH} ₴
+                </span>
+              </>
+            )}
           </div>
         </div>
 

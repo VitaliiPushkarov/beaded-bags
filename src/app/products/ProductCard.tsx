@@ -17,6 +17,7 @@ type ProductCardProps = {
       image: string | null
       inStock: boolean
       priceUAH: number | null
+      discountUAH?: number | null
       color: string | null
       hex: string | null
     }[]
@@ -28,7 +29,10 @@ export default function ProductCard({ product }: ProductCardProps) {
   const openCart = useUI((s) => s.openCart)
 
   const firstVariant = product.variants?.[0]
-  const price = firstVariant?.priceUAH ?? product.basePriceUAH ?? 0
+  const basePrice = firstVariant?.priceUAH ?? product.basePriceUAH ?? 0
+  const discountUAH = Math.max(0, firstVariant?.discountUAH ?? 0)
+  const price = Math.max(0, basePrice - discountUAH)
+  const hasDiscount = discountUAH > 0 && price < basePrice
 
   const img =
     product.mainImage ||
@@ -57,8 +61,18 @@ export default function ProductCard({ product }: ProductCardProps) {
         >
           {product.name}
         </Link>
-        <div className="text-sm text-gray-700">
-          {price.toLocaleString('uk-UA')} ₴
+        <div className="text-sm text-gray-700 flex items-baseline gap-2">
+          <span>{price.toLocaleString('uk-UA')} ₴</span>
+          {hasDiscount && (
+            <>
+              <span className="text-xs text-gray-500 line-through">
+                {basePrice.toLocaleString('uk-UA')} ₴
+              </span>
+              <span className="text-[10px] border border-black rounded-full px-2 py-0.5">
+                -{discountUAH.toLocaleString('uk-UA')} ₴
+              </span>
+            </>
+          )}
         </div>
         <button
           onClick={() => {
