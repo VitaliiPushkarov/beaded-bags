@@ -5,12 +5,39 @@ import { ChevronLeft, ChevronRight } from 'lucide-react'
 
 export default function YouMayAlsoLike({
   currentSlug,
+  currentId,
+  currentType,
+  currentGroup,
+  pinnedSlugs,
+  limit = 12,
 }: {
   currentSlug: string
+  currentId?: string
+  currentType?: string
+  currentGroup?: string
+  pinnedSlugs?: string[]
+  limit?: number
 }) {
   const scrollerRef = useRef<HTMLDivElement | null>(null)
   const [items, setItems] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
+
+  const normalizeSlug = (s: unknown) => {
+    if (!s) return ''
+    const raw = String(s)
+      .split('?')[0]
+      .split('#')[0]
+      .replace(/^\/+|\/+$/g, '')
+      .trim()
+    try {
+      return decodeURIComponent(raw).toLowerCase()
+    } catch {
+      return raw.toLowerCase()
+    }
+  }
+
+  const currentSlugNorm = normalizeSlug(currentSlug)
+  const pinnedNorm = (pinnedSlugs ?? []).map(normalizeSlug).filter(Boolean)
 
   useEffect(() => {
     let cancelled = false
@@ -27,10 +54,58 @@ export default function YouMayAlsoLike({
           : json?.items ?? json?.products ?? []
 
         if (!cancelled) {
-          const filtered = list.filter(
-            (x: any) => x?.slug && x.slug !== currentSlug
-          )
-          setItems(filtered.slice(0, 12)) // візьмемо 10–12, щоб було що крутити
+          // 1) Exclude current product robustly
+          const filtered = (list || []).filter((x: any) => {
+            const slugNorm = normalizeSlug(x?.slug)
+            if (!slugNorm) return false
+            if (currentId && x?.id && String(x.id) === String(currentId))
+              return false
+            if (slugNorm === currentSlugNorm) return false
+            return true
+          })
+
+          // 2) De-duplicate by id/slug
+          const seen = new Set<string>()
+          const deduped: any[] = []
+          for (const x of filtered) {
+            const key = String(x?.id ?? '') || normalizeSlug(x?.slug)
+            if (!key) continue
+            if (seen.has(key)) continue
+            seen.add(key)
+            deduped.push(x)
+          }
+
+          // 3) Rank: pinned first, then same type, then same group
+          const score = (x: any) => {
+            const slugNorm = normalizeSlug(x?.slug)
+            if (pinnedNorm.length && pinnedNorm.includes(slugNorm)) return 300
+            if (
+              currentType &&
+              x?.type &&
+              String(x.type) === String(currentType)
+            )
+              return 200
+            if (
+              currentGroup &&
+              x?.group &&
+              String(x.group) === String(currentGroup)
+            )
+              return 100
+            return 0
+          }
+
+          const ranked = [...deduped].sort((a, b) => {
+            const d = score(b) - score(a)
+            if (d !== 0) return d
+            // stable-ish fallback: newest first if available
+            const da = a?.createdAt ? new Date(a.createdAt).getTime() : 0
+            const db = b?.createdAt ? new Date(b.createdAt).getTime() : 0
+            if (db !== da) return db - da
+            return String(a?.slug ?? '').localeCompare(String(b?.slug ?? ''))
+          })
+
+          // 4) If pinned provided, keep only up to limit
+          setItems(ranked.slice(0, limit))
         }
       } catch (e) {
         if (!cancelled) setItems([])
@@ -43,7 +118,7 @@ export default function YouMayAlsoLike({
     return () => {
       cancelled = true
     }
-  }, [currentSlug])
+  }, [currentSlug, currentId, currentType, currentGroup, limit, pinnedSlugs])
 
   const scrollByAmount = (dir: 'left' | 'right') => {
     const el = scrollerRef.current
@@ -101,7 +176,6 @@ export default function YouMayAlsoLike({
 
             const href = `/products/${p.slug}`
 
-            // намагаємось знайти картинку/ціну максимально гнучко
             const image =
               p?.image ||
               p?.mainImage ||

@@ -439,7 +439,12 @@ export function ProductClient({ p }: { p: ProductWithVariants }) {
           </div>
         </div>
       </section>
-      <YouMayAlsoLike currentSlug="" />
+      <YouMayAlsoLike
+        currentSlug={p.slug}
+        currentId={p.id}
+        currentType={p.type}
+        currentGroup={p.group ?? undefined}
+      />
     </Suspense>
   )
 }
