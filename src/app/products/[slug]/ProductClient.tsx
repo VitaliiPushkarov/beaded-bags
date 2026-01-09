@@ -135,6 +135,11 @@ export function ProductClient({ p }: { p: ProductWithVariants }) {
   const finalPrice = Math.max(0, basePrice - discountUAH)
   const hasDiscount = discountUAH > 0 && finalPrice < basePrice
 
+  // Optional per-variant shipping note (add `shippingNote` to ProductVariant to use this)
+  const shippingNote =
+    ((v as any)?.shippingNote as string | undefined | null) ||
+    'Відправка протягом 1–3 днів'
+
   // --- Meta Pixel via GTM: ViewContent (fires once per selected variant) ---
   const viewedKeyRef = useRef<string>('')
   useEffect(() => {
@@ -280,17 +285,24 @@ export function ProductClient({ p }: { p: ProductWithVariants }) {
             {p.name}
           </h2>
 
-          <div className="mb-1 flex items-baseline gap-2">
-            <div className="text-lg md:text-2xl">{finalPrice} ₴</div>
+          <div className="mb-1">
+            <div className="flex items-baseline gap-2">
+              <div className="text-lg md:text-2xl">{finalPrice} ₴</div>
+              {hasDiscount && (
+                <>
+                  <div className="text-sm md:text-lg text-gray-500 line-through">
+                    {basePrice} ₴
+                  </div>
+                  {/* <span className="text-[10px] md:text-xs border border-black rounded-full px-2 py-0.5">
+                    -{discountUAH} ₴
+                  </span> */}
+                </>
+              )}
+            </div>
             {hasDiscount && (
-              <>
-                <div className="text-sm md:text-lg text-gray-500 line-through">
-                  {basePrice} ₴
-                </div>
-                {/* <span className="text-[10px] md:text-xs border border-black rounded-full px-2 py-0.5">
-                  -{discountUAH} ₴
-                </span> */}
-              </>
+              <div className="text-[11px] md:text-xs text-gray-600 mt-1">
+                Пропозиція діє до 10.01
+              </div>
             )}
           </div>
           {/* inStock Status */}
@@ -409,7 +421,7 @@ export function ProductClient({ p }: { p: ProductWithVariants }) {
           />
           <div className="mt-8 space-y-3 text-sm text-gray-700">
             <div className="flex items-center gap-2">
-              <span>Відправка протягом 1–3 днів</span>
+              <span>{shippingNote}</span>
             </div>
 
             <p>

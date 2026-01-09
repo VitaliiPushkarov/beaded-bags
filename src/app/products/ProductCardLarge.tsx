@@ -105,17 +105,26 @@ export default function ProductCardLarge({ p }: { p: ProductWithVariants }) {
             </h3>
           </Link>
 
-          <div className="whitespace-nowrap flex items-baseline gap-2">
-            <div className="text-sm md:text-xl font-light">{finalPrice} ₴</div>
+          <div className="whitespace-nowrap flex flex-col items-end">
+            <div className="flex items-baseline gap-2">
+              <div className="text-sm md:text-xl font-light">
+                {finalPrice} ₴
+              </div>
+              {hasDiscount && (
+                <>
+                  <div className="text-xs md:text-base text-gray-500 line-through">
+                    {basePrice} ₴
+                  </div>
+                  {/* <span className="text-[10px] md:text-xs border border-black rounded-full px-2 py-0.5">
+                    -{discountUAH} ₴
+                  </span> */}
+                </>
+              )}
+            </div>
             {hasDiscount && (
-              <>
-                <div className="text-xs md:text-base text-gray-500 line-through">
-                  {basePrice} ₴
-                </div>
-                {/* <span className="text-[10px] md:text-xs border border-black rounded-full px-2 py-0.5">
-                  -{discountUAH} ₴
-                </span> */}
-              </>
+              <div className="text-[11px] md:text-xs text-gray-600">
+                Пропозиція діє до 10.01
+              </div>
             )}
           </div>
         </div>

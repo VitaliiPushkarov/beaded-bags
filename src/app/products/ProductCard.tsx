@@ -61,17 +61,24 @@ export default function ProductCard({ product }: ProductCardProps) {
         >
           {product.name}
         </Link>
-        <div className="text-sm text-gray-700 flex items-baseline gap-2">
-          <span>{price.toLocaleString('uk-UA')} ₴</span>
+        <div className="text-sm text-gray-700">
+          <div className="flex items-baseline gap-2">
+            <span>{price.toLocaleString('uk-UA')} ₴</span>
+            {hasDiscount && (
+              <>
+                <span className="text-xs text-gray-500 line-through">
+                  {basePrice.toLocaleString('uk-UA')} ₴
+                </span>
+                {/*  <span className="text-[10px] border border-black rounded-full px-2 py-0.5">
+                  -{discountUAH.toLocaleString('uk-UA')} ₴
+                </span> */}
+              </>
+            )}
+          </div>
           {hasDiscount && (
-            <>
-              <span className="text-xs text-gray-500 line-through">
-                {basePrice.toLocaleString('uk-UA')} ₴
-              </span>
-              <span className="text-[10px] border border-black rounded-full px-2 py-0.5">
-                -{discountUAH.toLocaleString('uk-UA')} ₴
-              </span>
-            </>
+            <div className="text-[11px] text-gray-600">
+              Пропозиція діє до 10.01
+            </div>
           )}
         </div>
         <button

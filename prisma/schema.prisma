@@ -79,6 +79,7 @@ model ProductVariant {
   discountUAH Int? @default(0)
   sortCatalog Int?    @default(0)
   sortBestsellers Int? @default(0)
+  shippingNote String?
 
   images ProductVariantImage[]
   straps ProductVariantStrap[]
