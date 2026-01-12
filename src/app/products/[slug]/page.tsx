@@ -136,18 +136,6 @@ export default async function ProductPage({
   }
 
   const product = p as ProductWithVariants
-  // Debug log (enable by setting DEBUG_PRODUCT_PAGE=1 in env)
-  if (process.env.DEBUG_PRODUCT_PAGE === '1') {
-    const first = product.variants?.[0]
-    const note = (first as any)?.shippingNote
-    console.info('[ProductPage debug]', {
-      slug: product.slug,
-      productId: product.id,
-      firstVariantId: first?.id,
-      firstVariantShippingNote: note,
-      variantsCount: product.variants?.length ?? 0,
-    })
-  }
 
   const crumbs = [
     { label: 'Головна', href: '/' },
