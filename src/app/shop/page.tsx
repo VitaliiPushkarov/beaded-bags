@@ -3,6 +3,8 @@ import { getProducts } from '@/lib/db/products'
 import type { ProductType } from '@prisma/client'
 import Link from 'next/link'
 
+export const revalidate = 60
+
 const ALLOWED_TYPES: ProductType[] = [
   'BAG',
   'BACKPACK',

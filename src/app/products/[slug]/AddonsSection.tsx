@@ -24,18 +24,18 @@ export function AddonsSection(props: {
     addonsTotal,
   } = props
 
-  if (!availableAddons.length) return null
+  const inStockAddons = availableAddons.filter((a) => a.inStock)
+
+  if (!inStockAddons.length) return null
 
   return (
     <>
       <div className="mt-6 w-full">
-        <div className="mb-3 text-sm font-medium text-gray-700">
-          Прикрасити виріб:
-        </div>
+        <div className="mb-3 text-sm font-medium text-gray-700">Доповнити:</div>
 
         <div className="-mx-1 overflow-x-auto">
           <div className="flex gap-3 px-1 pb-1">
-            {availableAddons.map((addonV) => {
+            {inStockAddons.map((addonV) => {
               const isSelected = selectedAddonVariantIds.includes(addonV.id)
               return (
                 <div key={addonV.id} className="relative shrink-0 w-[140px]">

@@ -8,10 +8,11 @@ type GetProductsParams = {
   group?: '' | 'BEADS' | 'WEAVING'
   forSlider?: boolean
   forBestsellers?: boolean
+  take?: number
 }
 
-export async function getProducts(params: GetProductsParams = {}) {
-  const { search, color, type, group, forSlider, forBestsellers } = params
+function buildWhere(params: GetProductsParams): Prisma.ProductWhereInput {
+  const { search, color, type, group, forBestsellers } = params
 
   const where: Prisma.ProductWhereInput = {}
 
@@ -53,7 +54,14 @@ export async function getProducts(params: GetProductsParams = {}) {
     }
   }
 
-  // ORDERING
+  return where
+}
+
+function buildOrderBy(
+  params: GetProductsParams
+): Prisma.ProductOrderByWithRelationInput[] {
+  const { forSlider } = params
+
   const orderBy: Prisma.ProductOrderByWithRelationInput[] = []
 
   if (forSlider) {
@@ -65,9 +73,19 @@ export async function getProducts(params: GetProductsParams = {}) {
   // fallback
   orderBy.push({ createdAt: 'desc' })
 
+  return orderBy
+}
+
+export async function getProducts(params: GetProductsParams = {}) {
+  const { search, color, type, group, forSlider, forBestsellers } = params
+
+  const where = buildWhere(params)
+  const orderBy = buildOrderBy(params)
+
   const products = await prisma.product.findMany({
     where,
     orderBy,
+    take: params.take,
     include: {
       variants: {
         orderBy: {
@@ -117,4 +135,44 @@ export async function getProducts(params: GetProductsParams = {}) {
   }
 
   return products
+}
+
+// Lightweight products for catalog/home/cards (minimal payload)
+export async function getProductsLite(params: GetProductsParams = {}) {
+  const where = buildWhere(params)
+  const orderBy = buildOrderBy(params)
+
+  const take =
+    typeof params.take === 'number'
+      ? Math.min(Math.max(params.take, 1), 60)
+      : undefined
+
+  const items = await prisma.product.findMany({
+    where,
+    orderBy,
+    take,
+    select: {
+      id: true,
+      slug: true,
+      name: true,
+      type: true,
+      group: true,
+      inStock: true,
+      basePriceUAH: true,
+      variants: {
+        orderBy: { sortCatalog: 'asc' },
+        select: {
+          id: true,
+          color: true,
+          hex: true,
+          image: true,
+          priceUAH: true,
+          discountUAH: true,
+          inStock: true,
+        },
+      },
+    },
+  })
+
+  return items
 }

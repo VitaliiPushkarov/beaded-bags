@@ -147,13 +147,13 @@ export default function CatalogMegaMenu({
             >
               БАНАНКИ
             </Link>
-            <Link
+            {/* <Link
               href="/shop/rjukzachky"
               className="block hover:opacity-70 text-[12px] font-medium tracking-wide uppercase"
               onClick={handleLinkClick}
             >
               РЮКЗАЧКИ
-            </Link>
+            </Link> */}
             <Link
               href="/shop/shopery"
               className="block hover:opacity-70 text-[12px] font-medium tracking-wide uppercase"

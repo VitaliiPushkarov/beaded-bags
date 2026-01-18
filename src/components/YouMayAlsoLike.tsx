@@ -9,7 +9,7 @@ export default function YouMayAlsoLike({
   currentType,
   currentGroup,
   pinnedSlugs,
-  limit = 12,
+  limit = 20,
 }: {
   currentSlug: string
   currentId?: string
@@ -45,7 +45,19 @@ export default function YouMayAlsoLike({
     async function load() {
       try {
         setLoading(true)
-        const res = await fetch('/api/products', { cache: 'no-store' })
+        const qs = new URLSearchParams({
+          lite: '1',
+          limit: String(limit),
+          excludeSlug: currentSlugNorm,
+        })
+
+        if (currentId) qs.set('excludeId', String(currentId))
+        if (currentType) qs.set('type', String(currentType))
+        if (currentGroup) qs.set('group', String(currentGroup))
+
+        const res = await fetch(`/api/products?${qs.toString()}`, {
+          next: { revalidate: 120 },
+        })
         const json = await res.json()
 
         // підтримка різних форматів відповіді:
@@ -136,7 +148,7 @@ export default function YouMayAlsoLike({
       <button
         type="button"
         onClick={() => scrollByAmount('left')}
-        className="hidden md:flex absolute -left-3 top-1/2 -translate-y-1/2 z-10 h-10 w-10 items-center justify-center rounded-full border bg-white shadow-sm hover:border-black transition cursor-pointer"
+        className="hidden md:flex absolute -left-3 top-1/2 -translate-y-1/2 z-10 h-10 w-10 items-center justify-center rounded-full border bg-white shadow-sm hover:bg-[#FF3D8C] hover:text-white transition cursor-pointer"
         aria-label="Prev"
       >
         <ChevronLeft className="h-5 w-5" />
@@ -145,7 +157,7 @@ export default function YouMayAlsoLike({
       <button
         type="button"
         onClick={() => scrollByAmount('right')}
-        className="hidden md:flex absolute -right-3 top-1/2 -translate-y-1/2 z-10 h-10 w-10 items-center justify-center rounded-full border bg-white shadow-sm hover:border-black transition cursor-pointer"
+        className="hidden md:flex absolute -right-3 top-1/2 -translate-y-1/2 z-10 h-10 w-10 items-center justify-center rounded-full border bg-white shadow-sm hover:bg-[#FF3D8C] hover:text-white transition cursor-pointer"
         aria-label="Next"
       >
         <ChevronRight className="h-5 w-5" />

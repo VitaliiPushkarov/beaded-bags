@@ -7,7 +7,7 @@ import type {
   ProductVariantImage,
   ProductVariantStrap,
 } from '@prisma/client'
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import VariantSwatches from '@/components/product/VariantSwatches'
 /* import { useCart } from '@/app/store/cart'
 import { useUI } from '@/app/store/ui' */
@@ -25,6 +25,16 @@ export default function ProductCardLarge({ p }: { p: ProductWithVariants }) {
     () => p.variants.find((x) => x.id === variantId) ?? p.variants[0],
     [p.variants, variantId]
   )
+
+  // If the selected variant was filtered out (e.g. by "in stock"), fall back to the first available one
+  const activeVariantId = v?.id ?? p.variants[0]?.id
+
+  useEffect(() => {
+    if (!p.variants?.length) return
+    const exists = variantId && p.variants.some((x) => x.id === variantId)
+    if (!exists) setVariantId(p.variants[0].id)
+  }, [p.variants, variantId])
+
   /* const add = useCart((s) => s.add)
   const openCart = useUI((s) => s.openCart) */
   const basePrice = v?.priceUAH ?? p.basePriceUAH ?? 0
@@ -55,7 +65,7 @@ export default function ProductCardLarge({ p }: { p: ProductWithVariants }) {
   return (
     <article className=" overflow-hidden bg-white mb-8 md:mb-0">
       {/* зображення прив'язане до варіанту */}
-      <Link href={`/products/${p.slug}?variant=${variantId}`}>
+      <Link href={`/products/${p.slug}?variant=${activeVariantId ?? ''}`}>
         <div
           className="group relative md:h-[560px] aspect-3/4 2xl:aspect-auto bg-gray-100 2xl:h-[720px] overflow-hidden"
           onMouseEnter={() => setIsHovered(true)}
@@ -99,7 +109,7 @@ export default function ProductCardLarge({ p }: { p: ProductWithVariants }) {
 
       <div className=" p-1 md:p-3">
         <div className="flex items-center justify-between flex-wrap">
-          <Link href={`/products/${p.slug}?variant=${variantId}`}>
+          <Link href={`/products/${p.slug}?variant=${activeVariantId ?? ''}`}>
             <h3 className="text-sm md:text-xl font-normal truncate">
               {p.name}
             </h3>
@@ -133,7 +143,7 @@ export default function ProductCardLarge({ p }: { p: ProductWithVariants }) {
         <div className="mt-2 md:mt-3">
           <VariantSwatches
             variants={p.variants}
-            value={variantId!}
+            value={activeVariantId ?? ''}
             onChange={setVariantId}
           />
         </div>

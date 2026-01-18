@@ -64,7 +64,7 @@ export default function CartDrawer() {
               <button
                 onClick={closeCart}
                 aria-label="Закрити"
-                className="text-5xl font-light leading-none cursor-pointer"
+                className="text-5xl font-light leading-none cursor-pointer flex items-center"
               >
                 <span className="text-2xl leading-none">&times;</span>
               </button>

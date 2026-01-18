@@ -48,8 +48,28 @@ function getMinPrice(p: ProductWithVariants) {
 }
 
 function isInStock(p: ProductWithVariants) {
-  if (p.inStock) return true
-  return Boolean(p.variants?.some((v) => v.inStock))
+  // Variant-first stock model:
+  // - If variants exist, stock is true only when at least one variant is in stock.
+  // - Only fall back to product-level inStock for products without variants.
+  if (p.variants && p.variants.length > 0) {
+    return p.variants.some((v) => v.inStock === true)
+  }
+  return p.inStock === true
+}
+
+function withOnlyInStockVariants(
+  p: ProductWithVariants
+): ProductWithVariants | null {
+  // If there are no variants, keep the product intact (product-level stock applies).
+  if (!p.variants || p.variants.length === 0) return p
+
+  const nextVariants = p.variants.filter((v) => v.inStock === true)
+
+  // If no variants are in stock — drop the product from the in-stock view
+  if (nextVariants.length === 0) return null
+
+  // Return a shallow copy so we never mutate `base`
+  return { ...(p as any), variants: nextVariants } as ProductWithVariants
 }
 
 function matchesGroup(p: ProductWithVariants, group: UIFilters['group']) {
@@ -78,12 +98,12 @@ function matchesColor(p: ProductWithVariants, color: string) {
   return !!p.variants?.some((v) => v.color === color)
 }
 
-function hasOnSale(p: unknown): p is { onSale: boolean } {
-  return (
-    typeof p === 'object' &&
-    p !== null &&
-    'onSale' in (p as Record<string, unknown>) &&
-    typeof (p as { onSale: unknown }).onSale === 'boolean'
+function isOnSale(p: ProductWithVariants) {
+  // New logic: a product is "On sale" if any variant has a positive discount
+  return Boolean(
+    p.variants?.some(
+      (v) => (typeof v.discountUAH === 'number' ? v.discountUAH : 0) > 0
+    )
   )
 }
 
@@ -140,6 +160,8 @@ export default function ProductsContainer({
   )
   const [isDirty, setIsDirty] = useState(false)
   const didInitFromUrlRef = useRef(false)
+  const lastQsRef = useRef<string>('')
+  const qDebounceRef = useRef<number | null>(null)
 
   // ініціалізація фільтрів з URL (без зациклення)
   useEffect(() => {
@@ -184,6 +206,36 @@ export default function ProductsContainer({
     // якщо вже такий самий query — нічого не робимо
     if (qs === current) return
 
+    // debounce only for text search to avoid constant navigation while typing
+    const prevQs = lastQsRef.current
+    lastQsRef.current = qs
+
+    // Determine if the only meaningful change is `q` (search input)
+    const prevParams = new URLSearchParams(prevQs)
+    const nextParams = new URLSearchParams(qs)
+
+    const prevQ = prevParams.get('q') || ''
+    const nextQ = nextParams.get('q') || ''
+
+    prevParams.delete('q')
+    nextParams.delete('q')
+
+    const onlyQChanged =
+      prevParams.toString() === nextParams.toString() && prevQ !== nextQ
+
+    if (onlyQChanged) {
+      if (qDebounceRef.current) window.clearTimeout(qDebounceRef.current)
+      qDebounceRef.current = window.setTimeout(() => {
+        router.replace(qs ? `${pathname}?${qs}` : pathname)
+      }, 300)
+      return
+    }
+
+    // immediate for non-text filters
+    if (qDebounceRef.current) {
+      window.clearTimeout(qDebounceRef.current)
+      qDebounceRef.current = null
+    }
     router.replace(qs ? `${pathname}?${qs}` : pathname)
   }, [ui, router, pathname, lockedType, lockedGroup, sp])
 
@@ -209,11 +261,16 @@ export default function ProductsContainer({
     }
 
     // наявність
-    if (toApply.inStock) arr = arr.filter(isInStock)
+    if (toApply.inStock) {
+      arr = arr
+        .filter(isInStock)
+        .map(withOnlyInStockVariants)
+        .filter((p): p is ProductWithVariants => Boolean(p))
+    }
 
-    // акції (тільки якщо є поле onSale)
+    // акції (variant-level discount)
     if (toApply.onSale) {
-      arr = arr.filter((p) => hasOnSale(p) && p.onSale === true)
+      arr = arr.filter(isOnSale)
     }
 
     // група
@@ -394,8 +451,12 @@ export default function ProductsContainer({
       })
     }
 
-    if (next.inStock) arr = arr.filter(isInStock)
-    if (next.onSale) arr = arr.filter((p) => hasOnSale(p) && p.onSale === true)
+    if (next.inStock)
+      arr = arr
+        .filter(isInStock)
+        .map(withOnlyInStockVariants)
+        .filter((p): p is ProductWithVariants => Boolean(p))
+    if (next.onSale) arr = arr.filter(isOnSale)
     if (next.group) {
       arr = arr.filter((p) => matchesGroup(p, next.group))
     }

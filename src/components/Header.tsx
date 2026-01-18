@@ -110,7 +110,7 @@ export default function Header() {
           </Link>
 
           {/* Right nav */}
-          <nav className="flex items-center gap-5">
+          <nav className="flex items-center md:gap-5 gap-1">
             <Link
               href="/info"
               className="hidden lg:inline-block hover:opacity-70 text-[12px] font-medium tracking-wide"
@@ -153,7 +153,7 @@ export default function Header() {
             id="mobile-menu"
             role="dialog"
             aria-modal="true"
-            className="fixed left-0 top-0 w-80 h-full bg-white p-6 overflow-y-auto z-50"
+            className="fixed left-0 top-0 w-90 h-full bg-white p-6 overflow-y-auto z-50"
           >
             <button
               onClick={() => setMobileOpen(false)}
@@ -176,70 +176,73 @@ export default function Header() {
                 />
               </svg>
             </button>
-            <ul className="space-y-4 text-lg">
-              <li className="font-semibold uppercase tracking-wider text-gray-600">
-                Каталог
+            <ul className="flex flex-col gap-1 text-[14px] text-lg">
+              <li className="font-semibold uppercase tracking-wider  mb-6">
+                Меню
               </li>
-              <li>
+              <li className="font-medium border-b py-4 border-gray-300">
                 <Link href="/shop" onClick={closeMobileMenu}>
                   Всі товари
                 </Link>
               </li>
-              <li className="mt-2 font-medium">Сумки</li>
-              <ul className="ml-4 space-y-2 text-base">
-                <li>
-                  <Link href="/shop/sumky" onClick={closeMobileMenu}>
-                    Всі
-                  </Link>
-                </li>
-                <li>
-                  <Link href="/shop/bananky" onClick={closeMobileMenu}>
-                    Бананки
-                  </Link>
-                </li>
-                <li>
-                  <Link href="/shop/rjukzachky" onClick={closeMobileMenu}>
-                    Рюкзачки
-                  </Link>
-                </li>
-                <li>
-                  <Link href="/shop/chohly" onClick={closeMobileMenu}>
-                    Чохли
-                  </Link>
-                </li>
-                <li>
-                  <Link href="/shop/shopery" onClick={closeMobileMenu}>
-                    Шопери
-                  </Link>
-                </li>
-              </ul>
 
-              <li>
+              <li className="border-b py-4 border-gray-300">
+                <Link href="/shop/sumky" onClick={closeMobileMenu}>
+                  Сумки
+                </Link>
+              </li>
+              <li className="border-b py-4 border-gray-300">
+                <Link href="/shop/bananky" onClick={closeMobileMenu}>
+                  Бананки
+                </Link>
+              </li>
+              {/* <li className="border-b py-4 border-gray-300">
+                <Link href="/shop/rjukzachky" onClick={closeMobileMenu}>
+                  Рюкзачки
+                </Link>
+              </li> */}
+              <li className="border-b py-4 border-gray-300">
+                <Link href="/shop/chohly" onClick={closeMobileMenu}>
+                  Чохли
+                </Link>
+              </li>
+              <li className="border-b py-4 border-gray-300">
+                <Link href="/shop/shopery" onClick={closeMobileMenu}>
+                  Шопери
+                </Link>
+              </li>
+
+              <li className="border-b py-4 border-gray-300">
                 <Link href="/shop/group/beads" onClick={closeMobileMenu}>
                   Бісер
                 </Link>
               </li>
-              <li>
+              <li className="border-b py-4 border-gray-300">
+                <Link href="/shop/group/beads" onClick={closeMobileMenu}>
+                  Прикраси
+                </Link>
+              </li>
+              <li className="border-b py-4 border-gray-300">
                 <Link href="/shop/group/weaving" onClick={closeMobileMenu}>
                   Плетіння
                 </Link>
               </li>
-              <li>
+              <li className="border-b py-4 border-gray-300">
                 <Link href="/shop/accessories" onClick={closeMobileMenu}>
                   Аксесуари
                 </Link>
               </li>
-              <li className="mt-6">
+              <li className=" border-b py-4 border-gray-300">
                 <Link href="/info" onClick={closeMobileMenu}>
                   Інфо
                 </Link>
               </li>
-              <li>
+              <li className="border-b py-4 border-gray-300">
                 <Link href="/about" onClick={closeMobileMenu}>
                   Про нас
                 </Link>
               </li>
-              <li>
+              <li className="border-b py-4 border-gray-300">
                 <Link href="/contacts" onClick={closeMobileMenu}>
                   Контакти
                 </Link>
