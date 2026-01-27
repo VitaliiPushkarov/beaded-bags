@@ -2,7 +2,6 @@
 import { useState, useEffect, useMemo } from 'react'
 import Image from 'next/image'
 import { Gallery, Item } from 'react-photoswipe-gallery'
-import { Skeleton } from './ui/Skeleton'
 
 import { Swiper, SwiperSlide } from 'swiper/react'
 import { Navigation } from 'swiper/modules'
@@ -18,7 +17,6 @@ export default function PhotoGallery({ images }: PhotoGalleryProps) {
   const placeholder = '/img/placeholder.png'
   const list = useMemo(() => (images.length ? images : [placeholder]), [images])
   const [sizes, setSizes] = useState<{ w: number; h: number }[]>([])
-  const [firstLoaded, setFirstLoaded] = useState(false)
 
   const listKey = useMemo(() => list.join('|'), [list])
 
@@ -26,7 +24,6 @@ export default function PhotoGallery({ images }: PhotoGalleryProps) {
     let cancelled = false
 
     // Always render immediately with fallback sizes to avoid LCP delay
-    setFirstLoaded(false)
     setSizes(list.map(() => ({ w: 1600, h: 1600 })))
 
     const run = () => {
@@ -63,12 +60,7 @@ export default function PhotoGallery({ images }: PhotoGalleryProps) {
   return (
     <div className="relative w-full md:w-[66%]">
       <Gallery>
-        <div className="relative w-full overflow-visible">
-          {!firstLoaded && (
-            <div className="absolute inset-0 z-[1]">
-              <Skeleton className="w-full h-[420px] md:h-[580px]" />
-            </div>
-          )}
+        <div className="relative w-full">
           <div className="w-full overflow-hidden">
             <Swiper
               key={listKey}
@@ -87,10 +79,13 @@ export default function PhotoGallery({ images }: PhotoGalleryProps) {
               spaceBetween={16}
               centeredSlides={false}
               loop={false}
-              className="w-full relative"
+              className="w-full relative transform-gpu backface-visibility:hidden"
             >
               {list.map((src, i) => (
-                <SwiperSlide key={i}>
+                <SwiperSlide
+                  key={i}
+                  className="transform-gpu backface-visibility:hidden"
+                >
                   <Item
                     original={src}
                     thumbnail={src}
@@ -101,7 +96,7 @@ export default function PhotoGallery({ images }: PhotoGalleryProps) {
                       <div
                         ref={ref as (node: HTMLDivElement | null) => void}
                         onClick={open}
-                        className="relative h-[420px] md:h-[580px] w-full cursor-pointer overflow-hidden rounded bg-white md:bg-gray-100"
+                        className="relative h-[420px] md:h-[580px] w-full cursor-pointer overflow-hidden rounded bg-white will-change-transform transform-gpu backface-visibility:hidden"
                       >
                         <Image
                           src={src || placeholder}
@@ -113,9 +108,6 @@ export default function PhotoGallery({ images }: PhotoGalleryProps) {
                           sizes="(min-width: 1024px) 33vw, 100vw"
                           quality={80}
                           fetchPriority={i === 0 ? 'high' : 'auto'}
-                          onLoadingComplete={() => {
-                            if (i === 0) setFirstLoaded(true)
-                          }}
                         />
                       </div>
                     )}
