@@ -1,14 +1,15 @@
 'use client'
 
-import { useState } from 'react'
+import { useMemo, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import Image from 'next/image'
 import NovaPoshtaPicker from '@/components/checkout/NovaPoshtaPicker'
 import { useCart } from '../store/cart'
 import { useCheckout } from '@/stores/checkout'
-import { pushMetaInitiateCheckout } from '@/lib/analytics/datalayer'
 import { IMaskInput } from 'react-imask'
-import { OrderItemInput } from '@/lib/order-types'
+
+import { usePromo } from '@/lib/usePromo'
+import { isPromoApplied, calcDiscountUAH, PROMO_CODE } from '@/lib/promo'
 
 export default function CheckoutClient() {
   const router = useRouter()
@@ -63,6 +64,24 @@ export default function CheckoutClient() {
   const cart = useCart()
   const co = useCheckout()
 
+  const promo = usePromo()
+  const promoOn = isPromoApplied(promo)
+
+  const subtotalUAH = useMemo(
+    () => cart.items.reduce((s, i) => s + i.priceUAH * i.qty, 0),
+    [cart.items],
+  )
+
+  const discountUAH = useMemo(
+    () => calcDiscountUAH(subtotalUAH, promoOn),
+    [subtotalUAH, promoOn],
+  )
+
+  const finalTotalUAH = useMemo(
+    () => Math.max(0, subtotalUAH - discountUAH),
+    [subtotalUAH, discountUAH],
+  )
+
   const submitOrder = async () => {
     setError(null)
     const fioValid =
@@ -106,7 +125,9 @@ export default function CheckoutClient() {
 
     const subtotal = items.reduce((s, it) => s + it.priceUAH * it.qty, 0)
     const shipping = 0 // TODO: розрахунок тарифу
-    const total = subtotal + shipping
+
+    const discountUAH = calcDiscountUAH(subtotal, promoOn)
+    const total = Math.max(0, subtotal - discountUAH) + shipping
 
     setLoading(true)
     try {
@@ -144,6 +165,7 @@ export default function CheckoutClient() {
           },
           items,
           amountUAH: total,
+          promoCode: promoOn ? PROMO_CODE : null,
           paymentMethod: co.paymentMethod,
         }),
       })
@@ -229,7 +251,7 @@ export default function CheckoutClient() {
             value: total,
             numItems: items.reduce((s, i) => s + i.qty, 0),
             contentIds: items.map((i) => i.variantId || i.productId),
-          })
+          }),
         )
       } catch {}
 
@@ -247,7 +269,7 @@ export default function CheckoutClient() {
   return (
     <section className="max-w-[1000px] mx-auto grid lg:grid-cols-[1fr_360px] gap-10 px-4 py-10">
       <div className="space-y-8">
-        <h1 className="text-3xl font-fixel-display font-bold">
+        <h1 className="text-2xl mb-1 md:text-3xl font-fixel-display font-bold">
           Оформлення замовлення
         </h1>
 
@@ -274,7 +296,7 @@ export default function CheckoutClient() {
             <input
               className={inputClass(
                 isNameValid(form.patronymic),
-                touched.patronymic
+                touched.patronymic,
               )}
               value={form.patronymic}
               onChange={(e) =>
@@ -315,7 +337,7 @@ export default function CheckoutClient() {
               placeholder="+380 XX XXX XX XX"
               className={inputClass(
                 isUaPhoneValid(normalizeUaPhone(form.phone)),
-                touched.phone
+                touched.phone,
               )}
               onAccept={(value) =>
                 setForm({ ...form, phone: String(value ?? '') })
@@ -450,10 +472,20 @@ export default function CheckoutClient() {
           <span>{cart.items.reduce((n, i) => n + i.qty, 0)}</span>
         </div>
         <div className="flex items-center justify-between">
+          <span>Вартість</span>
+          <span className="font-semibold">{subtotalUAH} грн</span>
+        </div>
+
+        {discountUAH > 0 && (
+          <div className="flex items-center justify-between text-sm text-gray-600">
+            <span>Знижка (промокод)</span>
+            <span>- {discountUAH} грн</span>
+          </div>
+        )}
+
+        <div className="flex items-center justify-between">
           <span>До сплати</span>
-          <span className="font-semibold">
-            {cart.items.reduce((s, i) => s + i.priceUAH * i.qty, 0)} грн
-          </span>
+          <span className="font-semibold">{finalTotalUAH} грн</span>
         </div>
 
         <button

@@ -23,7 +23,7 @@ export default function ProductCardLarge({ p }: { p: ProductWithVariants }) {
   const [variantId, setVariantId] = useState(p.variants[0]?.id)
   const v = useMemo(
     () => p.variants.find((x) => x.id === variantId) ?? p.variants[0],
-    [p.variants, variantId]
+    [p.variants, variantId],
   )
 
   // If the selected variant was filtered out (e.g. by "in stock"), fall back to the first available one
@@ -133,7 +133,7 @@ export default function ProductCardLarge({ p }: { p: ProductWithVariants }) {
             </div>
             {hasDiscount && (
               <div className="text-[11px] md:text-xs text-gray-600">
-                Пропозиція діє до 10.01
+                Пропозиція діє до 30.01
               </div>
             )}
           </div>

@@ -8,7 +8,7 @@ async function sendTelegram(text: string) {
   const chatId = process.env.TELEGRAM_CHAT_ID
   if (!token || !chatId) {
     console.warn(
-      'Telegram is not configured: missing TELEGRAM_BOT_TOKEN/TELEGRAM_CHAT_ID'
+      'Telegram is not configured: missing TELEGRAM_BOT_TOKEN/TELEGRAM_CHAT_ID',
     )
     return
   }
@@ -29,7 +29,7 @@ async function sendTelegram(text: string) {
           disable_web_page_preview: true,
         }),
         signal: controller.signal,
-      }
+      },
     )
 
     clearTimeout(t)
@@ -54,7 +54,16 @@ function shortNumber(n: number) {
   const t = Math.round(Number(n) || 0)
   return `${t}`
 }
-
+function paymentMethodName(method: string) {
+  switch (method) {
+    case 'COD':
+      return 'Післяплата'
+    case 'BANK_TRANSFER':
+      return 'Банківський переказ'
+    default:
+      return method
+  }
+}
 function escHtml(s: string) {
   return s
     .replaceAll('&', '&amp;')
@@ -116,7 +125,7 @@ export async function POST(req: NextRequest) {
     if (!parsed.success) {
       return NextResponse.json(
         { error: parsed.error.flatten() },
-        { status: 400 }
+        { status: 400 },
       )
     }
 
@@ -125,13 +134,13 @@ export async function POST(req: NextRequest) {
     // перерахунок суми на бекенді
     const subtotal = data.items.reduce(
       (sum, item) => sum + item.priceUAH * item.qty,
-      0
+      0,
     )
 
     if (Math.round(subtotal) !== Math.round(data.amountUAH)) {
       return NextResponse.json(
         { error: { _errors: ['amountUAH mismatch'] } },
-        { status: 400 }
+        { status: 400 },
       )
     }
 
@@ -210,13 +219,13 @@ export async function POST(req: NextRequest) {
         `🛍 <b>Нове замовлення</b>\n` +
         `\n<b>Номер:</b> ${escHtml(shortNumber(created.shortNumber))}` +
         `\n<b>Сума:</b> ${escHtml(formatUAH(created.totalUAH))}` +
-        `\n<b>Оплата:</b> ${escHtml(created.paymentMethod)}\n` +
+        `\n<b>Оплата:</b> ${escHtml(paymentMethodName(created.paymentMethod))}\n` +
         `\n<b>Доставка:</b> Нова пошта` +
         `\n<b>Місто:</b> ${escHtml(created.npCityName)}` +
         `\n<b>Відділення:</b> ${escHtml(created.npWarehouseName)}` +
         `\n<b>Клієнт:</b> ${escHtml(created.customerName)} ${escHtml(
-          created.customerSurname
-        )}` +
+          created.customerSurname,
+        )} ${escHtml(created.customerPatronymic ?? '')}` +
         `\n<b>Телефон:</b> ${escHtml(created.customerPhone)}` +
         (created.customerEmail
           ? `\n<b>Email:</b> ${escHtml(created.customerEmail)}`
@@ -229,13 +238,13 @@ export async function POST(req: NextRequest) {
     } catch (e) {
       console.error(
         'Telegram: failed to send order notification (non-blocking):',
-        e
+        e,
       )
     }
 
     return NextResponse.json(
       { orderId: created.id, orderNumber: created.shortNumber },
-      { status: 201 }
+      { status: 201 },
     )
   } catch (err: unknown) {
     if (err instanceof Error) {
@@ -245,7 +254,7 @@ export async function POST(req: NextRequest) {
     }
     return NextResponse.json(
       { error: 'Internal Server Error' },
-      { status: 500 }
+      { status: 500 },
     )
   }
 }

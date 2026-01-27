@@ -4,6 +4,12 @@ import Link from 'next/link'
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { useCart } from '../store/cart'
 import { pushMetaInitiateCheckout } from '@/lib/analytics/datalayer'
+import {
+  PROMO_CODE,
+  PROMO_STORAGE_KEY,
+  DISCOUNT_PCT,
+  emitPromoChanged,
+} from '@/lib/promo'
 
 function QtyBox({
   onDec,
@@ -54,11 +60,6 @@ export default function CartPage() {
 
   const checkoutFiredRef = useRef(false)
 
-  // PROMO CODE
-  const PROMO_CODE = 'GERDAN10'
-  const PROMO_STORAGE_KEY = 'gerdan_promo_code'
-  const DISCOUNT_PCT = 10
-
   const [promoInput, setPromoInput] = useState('')
   const [appliedPromo, setAppliedPromo] = useState<string | null>(null)
   const [promoTouched, setPromoTouched] = useState(false)
@@ -95,6 +96,7 @@ export default function CartPage() {
     setAppliedPromo(PROMO_CODE)
     try {
       window.localStorage.setItem(PROMO_STORAGE_KEY, PROMO_CODE)
+      emitPromoChanged()
     } catch {}
   }
 
@@ -102,6 +104,7 @@ export default function CartPage() {
     setAppliedPromo(null)
     try {
       window.localStorage.removeItem(PROMO_STORAGE_KEY)
+      emitPromoChanged()
     } catch {}
   }
 
@@ -245,13 +248,17 @@ export default function CartPage() {
               )}
             </div>
 
-            {promoTouched && promoInput.trim() && !isPromoApplied && !isPromoValid && (
-              <p className="mt-2 text-xs text-rose-600">Невірний промокод</p>
-            )}
+            {promoTouched &&
+              promoInput.trim() &&
+              !isPromoApplied &&
+              !isPromoValid && (
+                <p className="mt-2 text-xs text-rose-600">Невірний промокод</p>
+              )}
 
             {isPromoApplied && (
               <p className="mt-2 text-xs text-green-700">
-                Промокод застосовано: <span className="font-medium">{PROMO_CODE}</span>
+                Промокод застосовано:{' '}
+                <span className="font-medium">{PROMO_CODE}</span>
               </p>
             )}
           </div>
@@ -262,7 +269,9 @@ export default function CartPage() {
           </div>
           <div className="w-full">
             <Link
-              href={isPromoApplied ? `/checkout?promo=${PROMO_CODE}` : '/checkout'}
+              href={
+                isPromoApplied ? `/checkout?promo=${PROMO_CODE}` : '/checkout'
+              }
               onClick={() => {
                 if (!checkoutFiredRef.current && items.length) {
                   checkoutFiredRef.current = true

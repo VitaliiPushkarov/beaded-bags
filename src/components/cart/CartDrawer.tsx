@@ -1,13 +1,14 @@
 'use client'
 
-import { useEffect } from 'react'
+import { useEffect, useMemo, useRef } from 'react'
 import Link from 'next/link'
 import Image from 'next/image'
 import { useCart } from '@/app/store/cart'
 import { useUI } from '@/app/store/ui'
 import { useIsMounted } from '@/lib/useIsMounted'
 import { pushMetaInitiateCheckout } from '@/lib/analytics/datalayer'
-import { useRef } from 'react'
+import { usePromo } from '@/lib/usePromo'
+import { isPromoApplied, calcDiscountUAH, PROMO_CODE } from '@/lib/promo'
 
 export default function CartDrawer() {
   const cartOpen = useUI((s) => s.cartOpen)
@@ -18,6 +19,24 @@ export default function CartDrawer() {
   const remove = useCart((s) => s.remove)
   const isMounted = useIsMounted()
   const checkoutFiredRef = useRef(false)
+
+  const promo = usePromo()
+  const promoOn = isPromoApplied(promo)
+
+  const subtotalUAH = useMemo(
+    () => (isMounted ? total() : 0),
+    [isMounted, items, total],
+  )
+
+  const discountUAH = useMemo(
+    () => calcDiscountUAH(subtotalUAH, promoOn),
+    [subtotalUAH, promoOn],
+  )
+
+  const finalTotalUAH = useMemo(
+    () => Math.max(0, subtotalUAH - discountUAH),
+    [subtotalUAH, discountUAH],
+  )
 
   // lock body scroll when open
   useEffect(() => {
@@ -147,14 +166,22 @@ export default function CartDrawer() {
 
             {/* Footer */}
             <div className="border-t px-5 py-4 space-y-3 bg-white flex-none">
+              {discountUAH > 0 && (
+                <div
+                  className="flex items-center justify-between text-sm text-gray-600"
+                  suppressHydrationWarning
+                >
+                  <span>Знижка (промокод)</span>
+                  <span>- {discountUAH} грн</span>
+                </div>
+              )}
+
               <div
                 className="flex items-center justify-between text-lg"
                 suppressHydrationWarning
               >
                 <span>Разом:</span>
-                <span className="font-semibold">
-                  {isMounted ? total() : 0} грн
-                </span>
+                <span className="font-semibold">{finalTotalUAH} грн</span>
               </div>
 
               <Link
@@ -166,14 +193,14 @@ export default function CartDrawer() {
               </Link>
 
               <Link
-                href="/checkout"
+                href={promoOn ? `/checkout?promo=${PROMO_CODE}` : '/checkout'}
                 onClick={() => {
                   if (!checkoutFiredRef.current && items.length) {
                     checkoutFiredRef.current = true
 
                     pushMetaInitiateCheckout({
                       contentIds: items.map((i) => i.variantId || i.productId),
-                      value: total(),
+                      value: finalTotalUAH,
                       numItems: items.reduce((s, i) => s + i.qty, 0),
                     })
                   }
