@@ -18,45 +18,57 @@ export default function PhotoGallery({ images }: PhotoGalleryProps) {
   const placeholder = '/img/placeholder.png'
   const list = useMemo(() => (images.length ? images : [placeholder]), [images])
   const [sizes, setSizes] = useState<{ w: number; h: number }[]>([])
+  const [firstLoaded, setFirstLoaded] = useState(false)
 
   const listKey = useMemo(() => list.join('|'), [list])
 
   useEffect(() => {
     let cancelled = false
 
-    // show skeleton while swapping galleries
-    setSizes([])
+    // Always render immediately with fallback sizes to avoid LCP delay
+    setFirstLoaded(false)
+    setSizes(list.map(() => ({ w: 1600, h: 1600 })))
 
-    Promise.all(
-      list.map(
-        (src) =>
-          new Promise<{ w: number; h: number }>((resolve) => {
-            const img = new window.Image()
-            img.src = src
-            img.onload = () => resolve({ w: img.width, h: img.height })
-            img.onerror = () => resolve({ w: 1600, h: 1600 }) // fallback
-          })
-      )
-    ).then((result) => {
-      if (cancelled) return
-      setSizes(result)
-    })
+    const run = () => {
+      // Compute real sizes in the background (PhotoSwipe), without blocking render
+      Promise.all(
+        list.map(
+          (src) =>
+            new Promise<{ w: number; h: number }>((resolve) => {
+              const img = new window.Image()
+              img.src = src
+              img.onload = () =>
+                resolve({ w: img.width || 1600, h: img.height || 1600 })
+              img.onerror = () => resolve({ w: 1600, h: 1600 })
+            }),
+        ),
+      ).then((result) => {
+        if (cancelled) return
+        setSizes(result)
+      })
+    }
+
+    // Delay size-preload work to idle time so it doesn't compete with LCP image
+    if (typeof (window as any).requestIdleCallback === 'function') {
+      ;(window as any).requestIdleCallback(run, { timeout: 1500 })
+    } else {
+      setTimeout(run, 200)
+    }
 
     return () => {
       cancelled = true
     }
-  }, [listKey])
+  }, [listKey, list])
 
-  if (!sizes.length)
-    return (
-      <div className="w-full">
-        <Skeleton className="w-full h-[420px] md:h-[580px]" />
-      </div>
-    )
   return (
     <div className="relative w-full md:w-[66%]">
       <Gallery>
         <div className="relative w-full overflow-visible">
+          {!firstLoaded && (
+            <div className="absolute inset-0 z-[1]">
+              <Skeleton className="w-full h-[420px] md:h-[580px]" />
+            </div>
+          )}
           <div className="w-full overflow-hidden">
             <Swiper
               key={listKey}
@@ -82,25 +94,28 @@ export default function PhotoGallery({ images }: PhotoGalleryProps) {
                   <Item
                     original={src}
                     thumbnail={src}
-                    width={sizes[i]?.w}
-                    height={sizes[i]?.h}
+                    width={sizes[i]?.w ?? 1600}
+                    height={sizes[i]?.h ?? 1600}
                   >
                     {({ ref, open }) => (
                       <div
                         ref={ref as (node: HTMLDivElement | null) => void}
                         onClick={open}
-                        className="relative h-[420px] md:h-[580px] w-full cursor-pointer overflow-hidden rounded bg-gray-100"
+                        className="relative h-[420px] md:h-[580px] w-full cursor-pointer overflow-hidden rounded bg-white md:bg-gray-100"
                       >
                         <Image
                           src={src || placeholder}
                           alt="Фото товару"
                           fill
-                          className="object-cover"
-                          priority={i < 2}
-                          loading={i < 2 ? 'eager' : 'lazy'}
+                          className="object-contain md:object-cover"
+                          priority={i === 0}
+                          loading={i === 0 ? 'eager' : 'lazy'}
                           sizes="(min-width: 1024px) 33vw, 100vw"
                           quality={80}
-                          fetchPriority={i < 2 ? 'high' : 'auto'}
+                          fetchPriority={i === 0 ? 'high' : 'auto'}
+                          onLoadingComplete={() => {
+                            if (i === 0) setFirstLoaded(true)
+                          }}
                         />
                       </div>
                     )}

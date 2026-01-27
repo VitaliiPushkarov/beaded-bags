@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, SyntheticEvent } from 'react'
+import { useEffect, useState, SyntheticEvent } from 'react'
 import { useRouter } from 'next/navigation'
 import type { ProductType, ProductGroup } from '@prisma/client'
 
@@ -117,11 +117,72 @@ export default function ProductForm({
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [uploadingIndex, setUploadingIndex] = useState<number | null>(null)
+  const [dragImg, setDragImg] = useState<{
+    variantIndex: number
+    imgIndex: number
+  } | null>(null)
+  const [dragOver, setDragOver] = useState<{
+    variantIndex: number
+    imgIndex: number
+  } | null>(null)
+
+  // Normalize variant images on edit:
+  // - ensure `images` is always an array
+  // - if `images` is empty but `image` exists, seed gallery with main image
+  // - if `image` is empty but `images` has items, set main to the first image
+  useEffect(() => {
+    setValues((prev) => {
+      const nextVariants = prev.variants.map((v) => {
+        const images = normalizeImages(v.images)
+        const seededImages = images.length === 0 && v.image ? [v.image] : images
+
+        const main = v.image || seededImages[0] || ''
+
+        // return same object if nothing changes (avoid rerenders)
+        if (v.images === seededImages && v.image === main) {
+          return v
+        }
+
+        return {
+          ...v,
+          images: seededImages,
+          image: main,
+        }
+      })
+
+      // If no variant changed, return prev
+      const changed = nextVariants.some((v, i) => v !== prev.variants[i])
+      if (!changed) return prev
+
+      return { ...prev, variants: nextVariants }
+    })
+    // run once on mount
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
 
   const onVariantChange = (index: number, patch: Partial<VariantInput>) => {
     setValues((prev) => {
       const nextVariants = [...prev.variants]
-      nextVariants[index] = { ...nextVariants[index], ...patch }
+      const cur = nextVariants[index]
+      if (!cur) return prev
+
+      const merged = { ...cur, ...patch }
+
+      // Normalize images/main relationship
+      const images = normalizeImages(merged.images)
+      let image = merged.image || ''
+
+      // If current main was removed from images, fallback to first image
+      if (image && images.length > 0 && !images.includes(image)) {
+        image = images[0] || ''
+      }
+
+      // If main is empty but images exist, set main
+      if (!image && images.length > 0) {
+        image = images[0] || ''
+      }
+
+      nextVariants[index] = { ...merged, images, image }
       return { ...prev, variants: nextVariants }
     })
   }
@@ -164,6 +225,52 @@ export default function ProductForm({
       variants: prev.variants.filter((_, i) => i !== index),
     }))
   }
+  const normalizeImages = (input: unknown): string[] => {
+    if (!input) return []
+
+    // already string[]
+    if (Array.isArray(input) && input.every((x) => typeof x === 'string')) {
+      return (input as string[]).filter(Boolean)
+    }
+
+    // array of objects (Prisma relation)
+    if (Array.isArray(input)) {
+      return (input as any[])
+        .map((x) => {
+          if (typeof x === 'string') return x
+          if (x && typeof x === 'object') {
+            return (
+              x.url ||
+              x.secure_url ||
+              x.src ||
+              x.imageUrl ||
+              x.path ||
+              x.publicUrl ||
+              ''
+            )
+          }
+          return ''
+        })
+        .filter(Boolean)
+    }
+
+    // string: JSON array or comma/newline separated
+    if (typeof input === 'string') {
+      const s = input.trim()
+      if (!s) return []
+      try {
+        const parsed = JSON.parse(s)
+        return normalizeImages(parsed)
+      } catch {
+        return s
+          .split(/\s*,\s*|\n+/)
+          .map((x) => x.trim())
+          .filter(Boolean)
+      }
+    }
+
+    return []
+  }
   const uploadVariantImage = async (index: number, file: File) => {
     setError(null)
     setUploadingIndex(index)
@@ -205,7 +312,7 @@ export default function ProductForm({
           color: v.color,
           hex: v.hex,
           image: v.image,
-          images: v.images ?? [],
+          images: normalizeImages(v.images),
           priceUAH: v.priceUAH ? Number(v.priceUAH) : null,
           discountUAH: v.discountUAH ? Number(v.discountUAH) : null,
           shippingNote: v.shippingNote || null,
@@ -291,121 +398,156 @@ export default function ProductForm({
     return uploadJson.secure_url
   }
 
+  const reorder = <T,>(arr: T[], from: number, to: number) => {
+    const next = [...arr]
+    const [item] = next.splice(from, 1)
+    next.splice(to, 0, item)
+    return next
+  }
+
   return (
-    <form onSubmit={onSubmit} className="space-y-6 max-w-3xl">
-      <div className="space-y-2">
-        <label className="block text-sm font-medium">
-          Назва
-          <input
-            className="mt-1 w-full border rounded px-3 py-2 text-sm"
-            value={values.name}
-            onChange={(e) => setValues((v) => ({ ...v, name: e.target.value }))}
-            required
-          />
-        </label>
+    <form onSubmit={onSubmit} className="space-y-8 max-w-4xl">
+      <div className="rounded-xl border bg-white p-4 sm:p-6 space-y-6">
+        <div className="flex items-start justify-between gap-4">
+          <div>
+            <h1 className="text-lg sm:text-xl font-semibold">Товар</h1>
+            <p className="text-xs text-gray-500 mt-1">
+              Основні налаштування товару: назва, URL, тип, група та базова ціна
+            </p>
+          </div>
+        </div>
 
-        <label className="block text-sm font-medium">
-          Slug (URL)
-          <input
-            className="mt-1 w-full border rounded px-3 py-2 text-sm"
-            value={values.slug}
-            onChange={(e) => setValues((v) => ({ ...v, slug: e.target.value }))}
-            required
-          />
-        </label>
+        <div className="grid gap-4">
+          <label className="block text-sm font-semibold">
+            Назва
+            <input
+              className="mt-2 w-full border rounded-lg px-3 py-2.5 text-base font-medium"
+              value={values.name}
+              onChange={(e) =>
+                setValues((v) => ({ ...v, name: e.target.value }))
+              }
+              required
+            />
+          </label>
 
-        <label className="block text-sm font-medium">
-          Тип
-          <select
-            className="mt-1 border rounded px-3 py-2 text-sm"
-            value={values.type}
-            onChange={(e) =>
-              setValues((v) => ({ ...v, type: e.target.value as ProductType }))
-            }
-          >
-            {TYPE_OPTIONS.map((t) => (
-              <option key={t} value={t}>
-                {t}
-              </option>
-            ))}
-          </select>
-        </label>
-        <label className="block text-sm font-medium">
-          Група
-          <select
-            className="mt-1 border rounded px-3 py-2 text-sm"
-            value={values.group}
-            onChange={(e) =>
-              setValues((v) => ({
-                ...v,
-                group: e.target.value as ProductGroup | '',
-              }))
-            }
-          >
-            <option value="">— Без групи — </option>
-            {GROUP_OPTIONS.map((t) => (
-              <option key={t} value={t}>
-                {t}
-              </option>
-            ))}
-          </select>
-        </label>
+          <label className="block text-sm font-medium">
+            Slug (URL)
+            <input
+              className="mt-2 w-full border rounded-lg px-3 py-2 text-sm"
+              value={values.slug}
+              onChange={(e) =>
+                setValues((v) => ({ ...v, slug: e.target.value }))
+              }
+              required
+            />
+          </label>
 
-        <label className="block text-sm font-medium">
-          Базова ціна (UAH)
-          <input
-            className="mt-1 w-full border rounded px-3 py-2 text-sm"
-            inputMode="numeric"
-            value={values.basePriceUAH}
-            onChange={(e) =>
-              setValues((v) => ({
-                ...v,
-                basePriceUAH: e.target.value.replace(/[^\d]/g, ''),
-              }))
-            }
-          />
-        </label>
+          <div className="grid gap-4 sm:grid-cols-3">
+            <label className="block text-sm font-medium">
+              Тип
+              <select
+                className="mt-2 w-full border rounded-lg px-3 py-2 text-sm"
+                value={values.type}
+                onChange={(e) =>
+                  setValues((v) => ({
+                    ...v,
+                    type: e.target.value as ProductType,
+                  }))
+                }
+              >
+                {TYPE_OPTIONS.map((t) => (
+                  <option key={t} value={t}>
+                    {t}
+                  </option>
+                ))}
+              </select>
+            </label>
 
-        <label className="block text-sm font-medium">
-          Опис
-          <textarea
-            className="mt-1 w-full border rounded px-3 py-2 text-sm min-h-20"
-            value={values.description}
-            onChange={(e) =>
-              setValues((v) => ({ ...v, description: e.target.value }))
-            }
-          />
-        </label>
+            <label className="block text-sm font-medium">
+              Група
+              <select
+                className="mt-2 w-full border rounded-lg px-3 py-2 text-sm"
+                value={values.group}
+                onChange={(e) =>
+                  setValues((v) => ({
+                    ...v,
+                    group: e.target.value as ProductGroup | '',
+                  }))
+                }
+              >
+                <option value="">— Без групи — </option>
+                {GROUP_OPTIONS.map((t) => (
+                  <option key={t} value={t}>
+                    {t}
+                  </option>
+                ))}
+              </select>
+            </label>
 
-        <label className="inline-flex items-center gap-2 text-sm">
-          <input
-            type="checkbox"
-            checked={values.inStock}
-            onChange={(e) =>
-              setValues((v) => ({ ...v, inStock: e.target.checked }))
-            }
-          />
-          В наявності (загальний прапорець)
-        </label>
-        <label className="block text-sm font-medium">
-          Інфо
-          <textarea
-            className="mt-1 w-full border rounded px-3 py-2 text-sm min-h-20"
-            value={values.info}
-            onChange={(e) => setValues((v) => ({ ...v, info: e.target.value }))}
-          />
-        </label>
+            <label className="block text-sm font-semibold">
+              Базова ціна (UAH)
+              <input
+                className="mt-2 w-full border rounded-lg px-3 py-2.5 text-base font-semibold"
+                inputMode="numeric"
+                value={values.basePriceUAH}
+                onChange={(e) =>
+                  setValues((v) => ({
+                    ...v,
+                    basePriceUAH: e.target.value.replace(/[^\d]/g, ''),
+                  }))
+                }
+              />
+            </label>
+          </div>
 
-        <label className="block text-sm font-medium">
-          Заміри
-          <textarea
-            className="mt-1 w-full border rounded px-3 py-2 text-sm min-h-20"
-            value={values.dimensions}
-            onChange={(e) =>
-              setValues((v) => ({ ...v, dimensions: e.target.value }))
-            }
-          />
-        </label>
+          <div className="grid gap-4 sm:grid-cols-2">
+            <label className="block text-sm font-medium">
+              Опис
+              <textarea
+                className="mt-2 w-full border rounded-lg px-3 py-2 text-sm min-h-24"
+                value={values.description}
+                onChange={(e) =>
+                  setValues((v) => ({ ...v, description: e.target.value }))
+                }
+              />
+            </label>
+
+            <div className="grid gap-4">
+              <label className="inline-flex items-center gap-2 text-sm font-medium mt-1">
+                <input
+                  type="checkbox"
+                  checked={values.inStock}
+                  onChange={(e) =>
+                    setValues((v) => ({ ...v, inStock: e.target.checked }))
+                  }
+                />
+                В наявності (загальний прапорець)
+              </label>
+
+              <label className="block text-sm font-medium">
+                Інфо
+                <textarea
+                  className="mt-2 w-full border rounded-lg px-3 py-2 text-sm min-h-20"
+                  value={values.info}
+                  onChange={(e) =>
+                    setValues((v) => ({ ...v, info: e.target.value }))
+                  }
+                />
+              </label>
+
+              <label className="block text-sm font-medium">
+                Заміри
+                <textarea
+                  className="mt-2 w-full border rounded-lg px-3 py-2 text-sm min-h-20"
+                  value={values.dimensions}
+                  onChange={(e) =>
+                    setValues((v) => ({ ...v, dimensions: e.target.value }))
+                  }
+                />
+              </label>
+            </div>
+          </div>
+        </div>
       </div>
 
       {/* Варіанти */}
@@ -425,7 +567,7 @@ export default function ProductForm({
           {values.variants.map((v, index) => (
             <div
               key={index}
-              className="border rounded p-3 grid gap-2 md:grid-cols-2"
+              className="border rounded-xl p-4 grid gap-4 md:grid-cols-2 bg-white"
             >
               <div className="md:col-span-2 flex items-center justify-between">
                 <div className="text-sm font-semibold">
@@ -533,118 +675,194 @@ export default function ProductForm({
                     Підтримується локальний шлях типу{' '}
                     <span className="font-mono">/img/...</span>
                   </div>
-                  <div className="mt-2 flex items-center gap-2">
-                    <label className="inline-flex items-center px-3 py-1.5 border rounded text-xs cursor-pointer hover:bg-gray-50">
-                      <input
-                        type="file"
-                        accept="image/*"
-                        className="hidden"
-                        onChange={(e) => {
-                          const f = e.target.files?.[0]
-                          if (!f) return
-                          uploadVariantImage(index, f)
-                          e.currentTarget.value = ''
-                        }}
-                        disabled={uploadingIndex === index}
-                      />
-                      Завантажити main фото
+                </label>
+                <div className="mt-3 rounded-xl border p-4 bg-white">
+                  <div className="flex items-center justify-between gap-3">
+                    <div>
+                      <div className="text-sm font-semibold">
+                        Галерея фото (для слайдера)
+                      </div>
+                      <div className="text-[11px] text-gray-500 mt-1">
+                        Перетягуй фото, щоб змінити порядок. Натисни “Зробити
+                        main”, щоб змінити головне фото.
+                      </div>
+                    </div>
+
+                    <label
+                      htmlFor={`variant-${index}-gallery-upload`}
+                      className="shrink-0 inline-flex items-center justify-center px-3 py-2 rounded-lg border text-sm font-medium hover:bg-gray-50 cursor-pointer"
+                    >
+                      Вибрати файли
                     </label>
 
-                    {uploadingIndex === index && (
-                      <span className="text-xs text-gray-500">
-                        Завантаження…
-                      </span>
-                    )}
-                  </div>
-                </label>
-                <div className="mt-3 rounded border p-2">
-                  <div className="text-xs font-medium mb-2">
-                    Галерея фото (для слайдера)
-                  </div>
+                    <input
+                      id={`variant-${index}-gallery-upload`}
+                      type="file"
+                      accept="image/*"
+                      multiple
+                      className="sr-only"
+                      onChange={async (e) => {
+                        const input = e.currentTarget
+                        const files = Array.from(input.files ?? [])
+                        if (!files.length) return
 
-                  <input
-                    type="file"
-                    accept="image/*"
-                    multiple
-                    onChange={(e) => {
-                      const input = e.currentTarget
-                      const files = Array.from(input.files ?? [])
-                      if (!files.length) return
+                        // reset immediately so the same file can be selected again
+                        input.value = ''
 
-                      input.value = ''
-                      ;(async () => {
-                        for (const file of files) {
-                          const url = await uploadToCloudinary(file)
+                        try {
+                          setUploadingIndex(index)
 
-                          const nextImages = [...(v.images || []), url]
+                          const uploadedUrls: string[] = []
+                          for (const file of files) {
+                            const url = await uploadToCloudinary(file)
+                            uploadedUrls.push(url)
+                          }
 
-                          onVariantChange(index, {
-                            images: nextImages,
-                            image: v.image || url,
+                          setValues((prev) => {
+                            const nextVariants = [...prev.variants]
+                            const cur = nextVariants[index]
+                            if (!cur) return prev
+
+                            const prevImages = normalizeImages(cur.images)
+                            const merged = [...prevImages, ...uploadedUrls]
+
+                            nextVariants[index] = {
+                              ...cur,
+                              images: merged,
+                              image: cur.image || merged[0] || '',
+                            }
+
+                            return { ...prev, variants: nextVariants }
                           })
+                        } catch (err) {
+                          const msg =
+                            err instanceof Error ? err.message : 'Upload error'
+                          setError(msg)
+                        } finally {
+                          setUploadingIndex(null)
                         }
-                      })()
-                    }}
-                    className="text-xs"
-                  />
+                      }}
+                    />
+                  </div>
+
+                  {uploadingIndex === index && (
+                    <div className="mt-3 text-sm text-gray-600">
+                      Завантаження фото…
+                    </div>
+                  )}
 
                   {v.images?.length ? (
-                    <div className="mt-3 grid grid-cols-3 gap-2">
-                      {v.images.map((url, i) => (
-                        <div
-                          key={url}
-                          className="relative border rounded overflow-hidden"
-                        >
-                          <img
-                            src={url}
-                            alt=""
-                            className="w-full h-24 object-cover"
-                          />
-                          <button
-                            type="button"
-                            className="absolute top-1 right-1 bg-white/90 border rounded px-2 py-0.5 text-xs"
-                            onClick={() => {
-                              const next = v.images.filter(
-                                (_, idx) => idx !== i,
-                              )
-                              const nextMain =
-                                v.image === url ? next[0] || '' : v.image
+                    <div className="mt-4 grid grid-cols-2 sm:grid-cols-3 gap-3">
+                      {v.images.map((url, i) => {
+                        const isDragOver =
+                          dragOver?.variantIndex === index &&
+                          dragOver?.imgIndex === i
+
+                        return (
+                          <div
+                            key={`${url}-${i}`}
+                            className={`relative border rounded-lg overflow-hidden cursor-move bg-white transition ${
+                              isDragOver
+                                ? 'ring-2 ring-black'
+                                : 'hover:ring-2 hover:ring-gray-300'
+                            }`}
+                            draggable
+                            onDragStart={() => {
+                              setDragImg({ variantIndex: index, imgIndex: i })
+                              setDragOver({ variantIndex: index, imgIndex: i })
+                            }}
+                            onDragEnter={() => {
+                              if (!dragImg) return
+                              if (dragImg.variantIndex !== index) return
+                              setDragOver({ variantIndex: index, imgIndex: i })
+                            }}
+                            onDragLeave={() => {
+                              setDragOver(null)
+                            }}
+                            onDragOver={(e) => e.preventDefault()}
+                            onDrop={() => {
+                              if (!dragImg) return
+                              if (dragImg.variantIndex !== index) return
+
+                              const from = dragImg.imgIndex
+                              const to = i
+                              if (from === to) {
+                                setDragImg(null)
+                                setDragOver(null)
+                                return
+                              }
+
+                              const next = [...(v.images || [])]
+                              const [moved] = next.splice(from, 1)
+                              next.splice(to, 0, moved)
+
                               onVariantChange(index, {
                                 images: next,
-                                image: nextMain,
+                                // keep current main URL, but the preview will update if main changes
+                                image: v.image,
                               })
+
+                              setDragImg(null)
+                              setDragOver(null)
                             }}
+                            onDragEnd={() => {
+                              setDragImg(null)
+                              setDragOver(null)
+                            }}
+                            title="Перетягни, щоб змінити порядок"
                           >
-                            ×
-                          </button>
+                            <img
+                              src={url}
+                              alt=""
+                              className="w-full h-32 object-cover"
+                              loading="lazy"
+                            />
 
-                          {v.image === url && (
-                            <div className="absolute bottom-0 left-0 right-0 text-[10px] bg-black/60 text-white px-1 py-0.5">
-                              main
-                            </div>
-                          )}
-
-                          {v.image !== url && (
                             <button
                               type="button"
-                              className="absolute bottom-1 left-1 bg-white/90 border rounded px-2 py-0.5 text-[11px]"
-                              onClick={() =>
-                                onVariantChange(index, { image: url })
-                              }
+                              className="absolute top-2 right-2 bg-white/95 border rounded-md px-2 py-0.5 text-sm hover:bg-white"
+                              onClick={() => {
+                                const next = v.images.filter(
+                                  (_, idx) => idx !== i,
+                                )
+                                const nextMain =
+                                  v.image === url ? next[0] || '' : v.image
+                                onVariantChange(index, {
+                                  images: next,
+                                  image: nextMain,
+                                })
+                              }}
+                              aria-label="Видалити фото"
                             >
-                              Зробити main
+                              ×
                             </button>
-                          )}
-                        </div>
-                      ))}
+
+                            {v.image === url ? (
+                              <div className="absolute bottom-0 left-0 right-0 text-[11px] bg-black/65 text-white px-2 py-1">
+                                main
+                              </div>
+                            ) : (
+                              <button
+                                type="button"
+                                className="absolute bottom-2 left-2 bg-white/95 border rounded-md px-2 py-1 text-[11px] hover:bg-white"
+                                onClick={() =>
+                                  onVariantChange(index, { image: url })
+                                }
+                              >
+                                Зробити main
+                              </button>
+                            )}
+                          </div>
+                        )
+                      })}
                     </div>
                   ) : (
-                    <div className="text-[11px] text-gray-500 mt-2">
+                    <div className="text-sm text-gray-500 mt-4">
                       Ще немає фото в галереї
                     </div>
                   )}
                 </div>
-                {v.image ? (
+                {/* {v.image ? (
                   <div className="mt-2">
                     <div className="text-[11px] text-gray-500 mb-1">
                       Превʼю main фото
@@ -652,7 +870,7 @@ export default function ProductForm({
                     <img
                       src={v.image}
                       alt=""
-                      className="w-full max-w-[220px] h-auto rounded border"
+                      className="w-full max-w-[160px] h-auto rounded border"
                       loading="lazy"
                     />
                   </div>
@@ -660,7 +878,7 @@ export default function ProductForm({
                   <div className="mt-2 text-[11px] text-gray-500">
                     Main фото ще не додано
                   </div>
-                )}
+                )} */}
 
                 <label className="inline-flex items-center gap-2 text-xs">
                   <input

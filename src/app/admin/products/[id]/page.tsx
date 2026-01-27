@@ -15,6 +15,9 @@ export default async function AdminProductEditPage({ params }: PageProps) {
       variants: {
         orderBy: { id: 'asc' },
         include: {
+          images: {
+            orderBy: { sort: 'asc' },
+          },
           addonsOnVariant: {
             orderBy: { sort: 'asc' },
             include: {
@@ -58,7 +61,7 @@ export default async function AdminProductEditPage({ params }: PageProps) {
         v.images?.slice().sort((a, b) => a.sort - b.sort)[0]?.url ||
         v.image ||
         '',
-    }))
+    })),
   )
 
   if (!product) {
@@ -154,33 +157,42 @@ export default async function AdminProductEditPage({ params }: PageProps) {
     basePriceUAH: product.basePriceUAH?.toString() ?? '',
     description: product.description ?? '',
     inStock: product.inStock,
-    variants: product.variants.map((v) => ({
-      id: v.id,
-      color: v.color ?? '',
-      hex: v.hex ?? '',
-      image: v.image ?? '',
-      priceUAH: v.priceUAH?.toString() ?? '',
-      inStock: v.inStock,
-      sku: v.sku ?? '',
-      addons:
-        (v as any).addonsOnVariant?.map((rel: any) => ({
-          id: rel.id,
-          sort: rel.sort ?? 0,
-          addonVariantId: rel.addonVariantId,
-          addonProductName: rel.addonVariant?.product?.name ?? '',
-          addonProductSlug: rel.addonVariant?.product?.slug ?? '',
-          addonColor: rel.addonVariant?.color ?? '',
-          addonPriceUAH:
-            rel.addonVariant?.priceUAH ??
-            rel.addonVariant?.product?.basePriceUAH ??
-            0,
-        })) ?? [],
-    })),
+    variants: product.variants.map((v) => {
+      const images =
+        v.images
+          ?.slice()
+          .sort((a, b) => a.sort - b.sort)
+          .map((x) => x.url) ?? []
+      const main = v.image ?? images[0] ?? ''
+
+      return {
+        id: v.id,
+        color: v.color ?? '',
+        hex: v.hex ?? '',
+        image: main,
+        images,
+        priceUAH: v.priceUAH?.toString() ?? '',
+        inStock: v.inStock,
+        sku: v.sku ?? '',
+        addons:
+          (v as any).addonsOnVariant?.map((rel: any) => ({
+            id: rel.id,
+            sort: rel.sort ?? 0,
+            addonVariantId: rel.addonVariantId,
+            addonProductName: rel.addonVariant?.product?.name ?? '',
+            addonProductSlug: rel.addonVariant?.product?.slug ?? '',
+            addonColor: rel.addonVariant?.color ?? '',
+            addonPriceUAH:
+              rel.addonVariant?.priceUAH ??
+              rel.addonVariant?.product?.basePriceUAH ??
+              0,
+          })) ?? [],
+      }
+    }),
   }
 
   return (
     <div className="max-w-6xl mx-auto p-4 sm:p-6">
-      {/* Top bar */}
       <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between mb-4">
         <div>
           <Link href="/admin/products" className="text-sm underline">
@@ -203,7 +215,6 @@ export default async function AdminProductEditPage({ params }: PageProps) {
         </div>
       </div>
 
-      {/* Form card */}
       <div className="border rounded bg-white p-4 sm:p-6">
         <ProductForm
           mode="edit"
