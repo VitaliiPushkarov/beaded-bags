@@ -28,17 +28,17 @@ export default function VariantSwatches({ variants, value, onChange }: Props) {
                 : ''
             }
             className={clsx(
-              'relative grid place-items-center w-4 h-4 md:w-6 md:h-6  rounded-full  transition bg-white',
+              'relative grid place-items-center w-5 h-5 md:w-6 md:h-6  rounded-full  transition bg-white',
               'border',
               selected ? 'border-black' : 'border-black/10',
               outOfStock && 'opacity-40',
-              'cursor-pointer hover:scale-[1.02]'
+              'cursor-pointer hover:scale-[1.02]',
             )}
           >
             {/* кружечок кольору */}
             <span
               aria-hidden
-              className="h-3 w-3 md:h-[18px] md:w-[18px] rounded-full ring-1 ring-black/5"
+              className="h-4 w-4  md:h-[18px] md:w-[18px] rounded-full ring-1 ring-black/5"
               style={{ backgroundColor: v.hex ?? '#E5E5E5' }}
             />
             {outOfStock && (

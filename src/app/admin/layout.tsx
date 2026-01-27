@@ -5,7 +5,7 @@ export default function AdminLayout({ children }: { children: ReactNode }) {
   return (
     <div className="min-h-screen flex flex-col bg-gray-50">
       <header className="border-b bg-white">
-        <div className="max-w-5xl mx-auto px-6 py-3 flex items-center justify-between">
+        <div className="px-4 lg:px-[50px] mx-auto py-3 flex items-center justify-between">
           <Link href="/admin" className="font-semibold">
             GERDAN Admin
           </Link>
@@ -18,7 +18,7 @@ export default function AdminLayout({ children }: { children: ReactNode }) {
           </nav>
         </div>
       </header>
-      <main className="flex-1 max-w-5xl mx-auto px-6 py-6">{children}</main>
+      <main className="px-4 lg:px-[50px] flex-1 py-6">{children}</main>
     </div>
   )
 }

@@ -9,13 +9,13 @@ export default function AdminDashboard() {
       </p>
       <ul className="space-y-2 flex flex-col">
         <Link href="/admin/products">
-          <li className="border rounded p-3 bg-white hover:bg-red-300">
-            👜 <strong>Товари:</strong> — <code>/admin/products</code>
+          <li className="border rounded p-3 text-center bg-white hover:bg-red-300">
+            👜 <strong>Товари</strong>
           </li>
         </Link>
         <Link href="/admin/orders">
-          <li className="border rounded p-3 bg-white hover:bg-red-300">
-            📦 <strong>Замовлення:</strong> — <code>/admin/orders</code>
+          <li className="border rounded p-3 text-center bg-white hover:bg-red-300">
+            📦 <strong>Замовлення</strong>
           </li>
         </Link>
       </ul>

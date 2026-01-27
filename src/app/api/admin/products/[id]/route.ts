@@ -3,34 +3,47 @@ import { z } from 'zod'
 import { prisma } from '@/lib/prisma'
 import { ProductType, ProductGroup } from '@prisma/client'
 
+const ImagePath = z
+  .string()
+  .trim()
+  .min(1)
+  .refine(
+    (s) =>
+      s.startsWith('/') || s.startsWith('http://') || s.startsWith('https://'),
+    'Invalid image path',
+  )
+
 // --------- Zod-схеми ---------
 const VariantSchema = z.object({
   id: z.string().optional(),
   color: z.string().optional().nullable(),
   hex: z.string().optional().nullable(),
-  image: z.string().optional().nullable(),
-  priceUAH: z.number().nullable(),
-  inStock: z.boolean(),
-  sku: z.string().optional().nullable(),
+  image: ImagePath.optional().nullable(),
+  images: z.array(ImagePath).optional().default([]),
+  priceUAH: z.coerce.number().nullable(),
+  discountUAH: z.coerce.number().optional().nullable(),
+  inStock: z.coerce.boolean(),
+  sku: z.string().trim().optional().nullable(),
+  shippingNote: z.string().trim().optional().nullable(),
 })
 
 const ProductSchema = z.object({
   name: z.string().min(1),
   slug: z.string().min(1),
-  type: z.nativeEnum(ProductType),
-  group: z.nativeEnum(ProductGroup).optional().nullable(),
-  basePriceUAH: z.number().nullable(),
+  type: z.enum(ProductType),
+  group: z.enum(ProductGroup).optional().nullable(),
+  basePriceUAH: z.coerce.number().nullable(),
   description: z.string().optional().nullable(),
   info: z.string().optional().nullable(),
   dimensions: z.string().optional().nullable(),
-  inStock: z.boolean(),
+  inStock: z.coerce.boolean(),
   variants: z.array(VariantSchema).min(1),
 })
 
 // --------- PATCH: оновлення товару ---------
 export async function PATCH(
   req: NextRequest,
-  { params }: { params: Promise<{ id: string }> }
+  { params }: { params: Promise<{ id: string }> },
 ) {
   try {
     const { id } = await params
@@ -46,7 +59,7 @@ export async function PATCH(
     const data = parsed.data
 
     // Normalize group: allow null/undefined
-    const nextGroup = data.group ?? null
+    const nextGroup = (data.group ?? null) as ProductGroup | null
 
     // Determine which variant IDs should remain
     const incomingIds = data.variants
@@ -60,7 +73,7 @@ export async function PATCH(
         data: {
           name: data.name,
           slug: data.slug,
-          type: data.type,
+          type: data.type as ProductType,
           group: nextGroup,
           basePriceUAH: data.basePriceUAH,
           description: data.description ?? null,
@@ -82,9 +95,15 @@ export async function PATCH(
               color: v.color ?? null,
               hex: v.hex ?? null,
               image: v.image ?? null,
+              images: {
+                deleteMany: {},
+                create: (v.images ?? []).map((url) => ({ url })),
+              },
               priceUAH: v.priceUAH,
+              discountUAH: v.discountUAH ?? null,
               inStock: v.inStock,
               sku: v.sku ?? null,
+              shippingNote: v.shippingNote ?? null,
             },
           })
         } else {
@@ -94,9 +113,14 @@ export async function PATCH(
               color: v.color ?? null,
               hex: v.hex ?? null,
               image: v.image ?? null,
+              images: {
+                create: (v.images ?? []).map((url) => ({ url })),
+              },
               priceUAH: v.priceUAH,
+              discountUAH: v.discountUAH ?? null,
               inStock: v.inStock,
               sku: v.sku ?? null,
+              shippingNote: v.shippingNote ?? null,
             },
             select: { id: true },
           })
@@ -148,7 +172,7 @@ export async function PATCH(
 // --------- DELETE: видалення товару ---------
 export async function DELETE(
   _req: NextRequest,
-  { params }: { params: Promise<{ id: string }> }
+  { params }: { params: Promise<{ id: string }> },
 ) {
   try {
     const { id } = await params
@@ -160,7 +184,7 @@ export async function DELETE(
     console.error('Delete product error:', err)
     return NextResponse.json(
       { error: 'Internal Server Error' },
-      { status: 500 }
+      { status: 500 },
     )
   }
 }
@@ -168,14 +192,21 @@ export async function DELETE(
 // --------- GET: один товар ---------
 export async function GET(
   _req: NextRequest,
-  { params }: { params: Promise<{ id: string }> }
+  { params }: { params: Promise<{ id: string }> },
 ) {
   try {
     const { id } = await params
 
     const product = await prisma.product.findUnique({
       where: { id },
-      include: { variants: { orderBy: { id: 'asc' } } },
+      include: {
+        variants: {
+          orderBy: { id: 'asc' },
+          include: {
+            images: true,
+          },
+        },
+      },
     })
 
     if (!product) {
@@ -187,7 +218,7 @@ export async function GET(
     console.error('GET product error', err)
     return NextResponse.json(
       { error: 'Internal Server Error' },
-      { status: 500 }
+      { status: 500 },
     )
   }
 }
