@@ -1,10 +1,6 @@
-'use client'
-
 import Image from 'next/image'
 import Link from 'next/link'
-import { useState, useEffect } from 'react'
 import type { Product, ProductVariant } from '@prisma/client'
-import { Skeleton } from './ui/Skeleton'
 
 type ProductWithVariants = Product & {
   variants: (ProductVariant & {
@@ -12,28 +8,18 @@ type ProductWithVariants = Product & {
   })[]
 }
 
-export default function Bestsellers() {
-  const [products, setProducts] = useState<ProductWithVariants[]>([])
-  const [loading, setLoading] = useState(true)
-  const [hovered, setHovered] = useState<Record<string, boolean>>({})
+const BASE_URL = process.env.NEXT_PUBLIC_SITE_URL ?? 'https://gerdan.online'
 
-  useEffect(() => {
-    async function loadProducts() {
-      try {
-        // 👉 limit = 12 => на бекенді це трактуємо як "бестселери"
-        const res = await fetch('/api/products?limit=12', {
-          cache: 'no-store',
-        })
-        const data = (await res.json()) as ProductWithVariants[]
-        setProducts(data)
-      } catch (err) {
-        console.error('❌ Failed to load products:', err)
-      } finally {
-        setLoading(false)
-      }
-    }
-    loadProducts()
-  }, [])
+async function getBestsellers(): Promise<ProductWithVariants[]> {
+  const res = await fetch(`${BASE_URL}/api/products?limit=12`, {
+    next: { revalidate: 300 },
+  })
+  if (!res.ok) return []
+  return (await res.json()) as ProductWithVariants[]
+}
+
+export default async function Bestsellers() {
+  const products = await getBestsellers()
 
   const placeholder = '/img/placeholder.png'
 
@@ -44,14 +30,7 @@ export default function Bestsellers() {
 
         <div className="relative flex flex-col gap-2">
           <div className="flex gap-5 overflow-x-auto scrollbar-always snap-x pb-2">
-            {loading ? (
-              Array.from({ length: 4 }).map((_, i) => (
-                <div key={i} className="min-w-[260px] snap-start">
-                  <Skeleton className="aspect-3/4" />
-                  <Skeleton className="mt-3 h-4 w-3/4" />
-                </div>
-              ))
-            ) : products.length === 0 ? (
+            {products.length === 0 ? (
               <div className="text-gray-500 text-sm">
                 Поки що немає бестселерів.
               </div>
@@ -98,35 +77,21 @@ export default function Bestsellers() {
                   >
                     <Link href={`/products/${p.slug}`}>
                       <div
-                        className="relative aspect-3/4 bg-gray-100 overflow-hidden border"
-                        onMouseEnter={() =>
-                          setHovered((prev) => ({ ...prev, [p.id]: true }))
-                        }
-                        onMouseLeave={() =>
-                          setHovered((prev) => ({ ...prev, [p.id]: false }))
-                        }
+                        className="group relative aspect-3/4 bg-gray-100 overflow-hidden border"
                       >
                         <Image
                           src={primaryImage}
                           alt={p.name}
                           fill
                           sizes="(max-width: 768px) 60vw, 260px"
-                          className={`object-cover transition-opacity duration-300 ${
-                            hovered[p.id]
-                              ? 'opacity-0 scale-[1.02]'
-                              : 'opacity-100'
-                          }`}
+                          className="object-cover transition-opacity duration-300 group-hover:opacity-0 group-hover:scale-[1.02]"
                         />
                         <Image
                           src={hoverImage}
                           alt={`${p.name} hover`}
                           fill
                           sizes="(max-width: 768px) 60vw, 260px"
-                          className={`object-cover transition-opacity duration-300 ${
-                            hovered[p.id]
-                              ? 'opacity-100 scale-[1.02]'
-                              : 'opacity-0'
-                          }`}
+                          className="object-cover transition-opacity duration-300 opacity-0 group-hover:opacity-100 group-hover:scale-[1.02]"
                         />
                       </div>
                       <div className="mt-3 flex items-center justify-between gap-4">

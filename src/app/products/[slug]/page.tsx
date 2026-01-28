@@ -6,7 +6,7 @@ import { Suspense } from 'react'
 import Breadcrumbs from '@/components/ui/BreadCrumbs'
 import { ProductClient } from './ProductClient'
 import type { ProductType } from '@prisma/client'
-import type { ProductWithVariants } from './ProductClient'
+import type { ProductWithVariants } from './productTypes'
 import type { Metadata } from 'next'
 
 const TYPE_TO_ROUTE: Record<ProductType, { label: string; href: string }> = {

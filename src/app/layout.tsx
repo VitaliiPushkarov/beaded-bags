@@ -26,9 +26,6 @@ export const metadata = {
     type: 'website',
     image: 'https://gerdan.online/icon1.png',
   },
-  alternates: {
-    canonical: '/',
-  },
 }
 
 const WEBSITE_JSONLD = {
@@ -51,11 +48,7 @@ export default function RootLayout({
   return (
     <html lang="uk">
       <head>
-        <link rel="canonical" href="https://gerdan.online/" />
         <link rel="icon" href="/favicon.ico" sizes="any" />
-        <link rel="icon" href="/icon0.svg" type="image/svg+xml" />
-        <link rel="icon" href="/icon1.png" type="image/png" sizes="32x32" />
-        <link rel="apple-touch-icon" href="/apple-icon.png" sizes="180x180" />
         {/* JSON-LD WebSite */}
         <script
           type="application/ld+json"

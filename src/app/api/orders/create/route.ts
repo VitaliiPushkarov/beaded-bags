@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { z } from 'zod'
 
 import { prisma } from '@/lib/prisma'
+import { PROMO_CODE, calcDiscountUAH } from '@/lib/promo'
 
 async function sendTelegram(text: string) {
   const token = process.env.TELEGRAM_BOT_TOKEN
@@ -95,6 +96,7 @@ const OrderItem = z.object({
 const BodySchema = z.object({
   items: z.array(OrderItem).min(1),
   amountUAH: z.number().min(0),
+  promoCode: z.string().optional().nullable(),
   customer: z.object({
     name: z.string().min(2),
     surname: z.string().min(2),
@@ -137,17 +139,19 @@ export async function POST(req: NextRequest) {
       0,
     )
 
-    if (Math.round(subtotal) !== Math.round(data.amountUAH)) {
+    // поки доставка 0
+    const deliveryUAH = 0
+    const promoOn =
+      data.promoCode?.trim().toUpperCase() === PROMO_CODE ? true : false
+    const discountUAH = calcDiscountUAH(subtotal, promoOn)
+    const totalUAH = Math.max(0, subtotal + deliveryUAH - discountUAH)
+
+    if (Math.round(totalUAH) !== Math.round(data.amountUAH)) {
       return NextResponse.json(
         { error: { _errors: ['amountUAH mismatch'] } },
         { status: 400 },
       )
     }
-
-    // поки доставка 0
-    const deliveryUAH = 0
-    const discountUAH = 0
-    const totalUAH = subtotal + deliveryUAH - discountUAH
 
     // важливо: у схемі paymentMethod обов’язковий
     const paymentMethod = data.paymentMethod ?? 'WAYFORPAY'

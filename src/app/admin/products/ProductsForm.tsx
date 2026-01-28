@@ -4,6 +4,53 @@ import { useEffect, useState, SyntheticEvent } from 'react'
 import { useRouter } from 'next/navigation'
 import type { ProductType, ProductGroup } from '@prisma/client'
 
+const normalizeImages = (input: unknown): string[] => {
+  if (!input) return []
+
+  // already string[]
+  if (Array.isArray(input) && input.every((x) => typeof x === 'string')) {
+    return (input as string[]).filter(Boolean)
+  }
+
+  // array of objects (Prisma relation)
+  if (Array.isArray(input)) {
+    return (input as any[])
+      .map((x) => {
+        if (typeof x === 'string') return x
+        if (x && typeof x === 'object') {
+          return (
+            x.url ||
+            x.secure_url ||
+            x.src ||
+            x.imageUrl ||
+            x.path ||
+            x.publicUrl ||
+            ''
+          )
+        }
+        return ''
+      })
+      .filter(Boolean)
+  }
+
+  // string: JSON array or comma/newline separated
+  if (typeof input === 'string') {
+    const s = input.trim()
+    if (!s) return []
+    try {
+      const parsed = JSON.parse(s)
+      return normalizeImages(parsed)
+    } catch {
+      return s
+        .split(/\s*,\s*|\n+/)
+        .map((x) => x.trim())
+        .filter(Boolean)
+    }
+  }
+
+  return []
+}
+
 type VariantAddonLinkInput = {
   id: string
   sort: number
@@ -90,10 +137,20 @@ export default function ProductForm({
 }: Props) {
   const router = useRouter()
   const [values, setValues] = useState<ProductFormValues>(
-    initial ?? {
-      name: '',
-      slug: '',
-      type: 'BAG',
+    initial
+      ? {
+          ...initial,
+          variants: (initial.variants || []).map((v) => {
+            const images = normalizeImages(v.images)
+            const seededImages = images.length === 0 && v.image ? [v.image] : images
+            const main = v.image || seededImages[0] || ''
+            return { ...v, images: seededImages, image: main }
+          }),
+        }
+      : {
+          name: '',
+          slug: '',
+          type: 'BAG',
       group: '',
       basePriceUAH: '',
       description: '',
@@ -193,7 +250,9 @@ export default function ProductForm({
   ) => {
     setValues((prev) => {
       const nextVariants = [...prev.variants]
-      nextVariants[index] = { ...nextVariants[index], addons: nextAddons }
+      const cur = nextVariants[index]
+      if (!cur) return prev
+      nextVariants[index] = { ...cur, addons: nextAddons }
       return { ...prev, variants: nextVariants }
     })
   }
@@ -225,53 +284,6 @@ export default function ProductForm({
       variants: prev.variants.filter((_, i) => i !== index),
     }))
   }
-  const normalizeImages = (input: unknown): string[] => {
-    if (!input) return []
-
-    // already string[]
-    if (Array.isArray(input) && input.every((x) => typeof x === 'string')) {
-      return (input as string[]).filter(Boolean)
-    }
-
-    // array of objects (Prisma relation)
-    if (Array.isArray(input)) {
-      return (input as any[])
-        .map((x) => {
-          if (typeof x === 'string') return x
-          if (x && typeof x === 'object') {
-            return (
-              x.url ||
-              x.secure_url ||
-              x.src ||
-              x.imageUrl ||
-              x.path ||
-              x.publicUrl ||
-              ''
-            )
-          }
-          return ''
-        })
-        .filter(Boolean)
-    }
-
-    // string: JSON array or comma/newline separated
-    if (typeof input === 'string') {
-      const s = input.trim()
-      if (!s) return []
-      try {
-        const parsed = JSON.parse(s)
-        return normalizeImages(parsed)
-      } catch {
-        return s
-          .split(/\s*,\s*|\n+/)
-          .map((x) => x.trim())
-          .filter(Boolean)
-      }
-    }
-
-    return []
-  }
-
   const onSubmit = async (e: SyntheticEvent) => {
     e.preventDefault()
     setSaving(true)
@@ -541,12 +553,15 @@ export default function ProductForm({
         </div>
 
         <div className="space-y-3">
-          {values.variants.map((v, index) => (
-            <div
-              key={index}
-              className="p-4 sm:p-6 grid gap-4 sm:gap-6 gap-y-8 sm:gap-y-10 md:grid-cols-2 bg-white"
-            >
-              <div className="md:col-span-2 flex items-center justify-between">
+          {values.variants.map((v, index) => {
+            const images = normalizeImages(v.images)
+
+            return (
+              <div
+                key={index}
+                className="p-4 sm:p-6 grid gap-4 sm:gap-6 gap-y-8 sm:gap-y-10 md:grid-cols-2 bg-white"
+              >
+                <div className="md:col-span-2 flex items-center justify-between">
                 <div className="text-sm font-light">Варіант #{index + 1}</div>
                 <button
                   type="button"
@@ -636,9 +651,9 @@ export default function ProductForm({
                   </div>
                 )}
 
-                {v.images?.length ? (
+                {images.length ? (
                   <div className="mt-4 grid  sm:grid-cols-3 md:grid-cols-4 gap-4 sm:gap-6">
-                    {v.images.map((url, i) => {
+                    {images.map((url, i) => {
                       const isDragOver =
                         dragOver?.variantIndex === index &&
                         dragOver?.imgIndex === i
@@ -677,7 +692,7 @@ export default function ProductForm({
                               return
                             }
 
-                            const next = [...(v.images || [])]
+                            const next = [...images]
                             const [moved] = next.splice(from, 1)
                             next.splice(to, 0, moved)
 
@@ -707,9 +722,7 @@ export default function ProductForm({
                             type="button"
                             className="absolute top-2 right-2 bg-white/95 border rounded-md px-2 py-0.5 text-sm  cursor-pointer border-blue-700 text-blue-700 hover:text-white hover:bg-blue-700 "
                             onClick={() => {
-                              const next = v.images.filter(
-                                (_, idx) => idx !== i,
-                              )
+                              const next = images.filter((_, idx) => idx !== i)
                               const nextMain =
                                 v.image === url ? next[0] || '' : v.image
                               onVariantChange(index, {
@@ -1012,7 +1025,8 @@ export default function ProductForm({
                   )}
               </div>
             </div>
-          ))}
+            )
+          })}
         </div>
       </div>
 

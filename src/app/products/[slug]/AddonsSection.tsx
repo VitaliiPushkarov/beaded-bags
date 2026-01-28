@@ -49,6 +49,8 @@ export function AddonsSection(props: {
                         alt={addonV.product.name}
                         fill
                         className="object-cover"
+                        sizes="(max-width: 768px) 40vw, 140px"
+                        loading="lazy"
                       />
                     </div>
                   </Link>

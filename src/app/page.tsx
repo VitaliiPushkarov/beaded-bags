@@ -6,6 +6,12 @@ import InstagramSlider from '@/components/InstagramSlider'
 
 const SITE_URL = 'https://gerdan.online'
 
+export const metadata = {
+  alternates: {
+    canonical: '/',
+  },
+}
+
 export default function Home() {
   const organizationJsonLd = {
     '@context': 'https://schema.org',

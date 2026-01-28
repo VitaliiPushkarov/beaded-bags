@@ -105,7 +105,7 @@ export default function PhotoGallery({ images }: PhotoGalleryProps) {
                           className="object-contain md:object-cover"
                           priority={i === 0}
                           loading={i === 0 ? 'eager' : 'lazy'}
-                          sizes="(min-width: 1024px) 33vw, 100vw"
+                          sizes="(min-width: 1024px) 66vw, 100vw"
                           quality={80}
                           fetchPriority={i === 0 ? 'high' : 'auto'}
                         />
