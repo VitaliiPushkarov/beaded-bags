@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { useSearchParams, useRouter, usePathname } from 'next/navigation'
 import ProductsFilter from './ProductsFilter'
 import AppliedChips from './AppliedChips'
@@ -58,7 +58,7 @@ function isInStock(p: ProductWithVariants) {
 }
 
 function withOnlyInStockVariants(
-  p: ProductWithVariants
+  p: ProductWithVariants,
 ): ProductWithVariants | null {
   // If there are no variants, keep the product intact (product-level stock applies).
   if (!p.variants || p.variants.length === 0) return p
@@ -102,8 +102,8 @@ function isOnSale(p: ProductWithVariants) {
   // New logic: a product is "On sale" if any variant has a positive discount
   return Boolean(
     p.variants?.some(
-      (v) => (typeof v.discountUAH === 'number' ? v.discountUAH : 0) > 0
-    )
+      (v) => (typeof v.discountUAH === 'number' ? v.discountUAH : 0) > 0,
+    ),
   )
 }
 
@@ -156,17 +156,15 @@ export default function ProductsContainer({
   }))
 
   const [hasApplied, setHasApplied] = useState(
-    Boolean(initialFilters && Object.keys(initialFilters).length > 0)
+    Boolean(initialFilters && Object.keys(initialFilters).length > 0),
   )
   const [isDirty, setIsDirty] = useState(false)
-  const didInitFromUrlRef = useRef(false)
-  const lastQsRef = useRef<string>('')
-  const qDebounceRef = useRef<number | null>(null)
+  const [didInitFromUrl, setDidInitFromUrl] = useState(false)
 
   // ініціалізація фільтрів з URL (без зациклення)
   useEffect(() => {
     if (lockedType) {
-      didInitFromUrlRef.current = true
+      setDidInitFromUrl(true)
       return
     }
 
@@ -181,63 +179,8 @@ export default function ProductsContainer({
       return next
     })
 
-    didInitFromUrlRef.current = true
+    setDidInitFromUrl(true)
   }, [sp, lockedType, lockedGroup])
-
-  // live-синк у URL (але це ще не "застосовано")
-  // IMPORTANT: avoid infinite navigation loop in dev by only replacing when qs changes
-  useEffect(() => {
-    // не запускаємо live-sync, доки не ініціалізувалися з URL
-    if (!didInitFromUrlRef.current) return
-
-    const params = new URLSearchParams()
-    if (ui.q) params.set('q', ui.q)
-    if (ui.inStock) params.set('inStock', '1')
-    if (ui.onSale) params.set('onSale', '1')
-    if (!lockedType && ui.bagTypes) params.set('type', ui.bagTypes)
-    if (!lockedGroup && ui.group) params.set('group', ui.group)
-    if (ui.color) params.set('color', ui.color)
-    if (ui.sortBase) params.set('sortBase', ui.sortBase)
-    if (ui.sortPrice) params.set('sortPrice', ui.sortPrice)
-
-    const qs = params.toString()
-    const current = sp.toString()
-
-    // якщо вже такий самий query — нічого не робимо
-    if (qs === current) return
-
-    // debounce only for text search to avoid constant navigation while typing
-    const prevQs = lastQsRef.current
-    lastQsRef.current = qs
-
-    // Determine if the only meaningful change is `q` (search input)
-    const prevParams = new URLSearchParams(prevQs)
-    const nextParams = new URLSearchParams(qs)
-
-    const prevQ = prevParams.get('q') || ''
-    const nextQ = nextParams.get('q') || ''
-
-    prevParams.delete('q')
-    nextParams.delete('q')
-
-    const onlyQChanged =
-      prevParams.toString() === nextParams.toString() && prevQ !== nextQ
-
-    if (onlyQChanged) {
-      if (qDebounceRef.current) window.clearTimeout(qDebounceRef.current)
-      qDebounceRef.current = window.setTimeout(() => {
-        router.replace(qs ? `${pathname}?${qs}` : pathname)
-      }, 300)
-      return
-    }
-
-    // immediate for non-text filters
-    if (qDebounceRef.current) {
-      window.clearTimeout(qDebounceRef.current)
-      qDebounceRef.current = null
-    }
-    router.replace(qs ? `${pathname}?${qs}` : pathname)
-  }, [ui, router, pathname, lockedType, lockedGroup, sp])
 
   // застосувати
   const apply = () => {
@@ -331,6 +274,8 @@ export default function ProductsContainer({
     if (!lockedType && toApply.bagTypes) params.set('type', toApply.bagTypes)
     if (!lockedGroup && toApply.group) params.set('group', toApply.group)
     if (toApply.color) params.set('color', toApply.color)
+    if (toApply.min) params.set('min', toApply.min)
+    if (toApply.max) params.set('max', toApply.max)
     if (toApply.sortBase) params.set('sortBase', toApply.sortBase)
     if (toApply.sortPrice) params.set('sortPrice', toApply.sortPrice)
     const qs = params.toString()
@@ -480,6 +425,21 @@ export default function ProductsContainer({
     })
 
     setVisible(arr)
+
+    // update URL to reflect the new state (including min/max)
+    const params = new URLSearchParams()
+    if (next.q) params.set('q', next.q)
+    if (next.inStock) params.set('inStock', '1')
+    if (next.onSale) params.set('onSale', '1')
+    if (!lockedType && next.bagTypes) params.set('type', next.bagTypes)
+    if (!lockedGroup && next.group) params.set('group', next.group)
+    if (next.color) params.set('color', next.color)
+    if (next.min) params.set('min', next.min)
+    if (next.max) params.set('max', next.max)
+    if (next.sortBase) params.set('sortBase', next.sortBase)
+    if (next.sortPrice) params.set('sortPrice', next.sortPrice)
+    const qs = params.toString()
+    router.replace(qs ? `${pathname}?${qs}` : pathname)
   }
 
   return (

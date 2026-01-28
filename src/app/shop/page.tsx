@@ -1,4 +1,5 @@
 import ProductsContainer from '@/components/product/ProductsContainer'
+import { Suspense } from 'react'
 import { getProducts } from '@/lib/db/products'
 import type { ProductType } from '@prisma/client'
 import Link from 'next/link'
@@ -33,14 +34,14 @@ function normalizeType(raw?: string | null): ProductType | null {
 export default async function ShopPage({
   searchParams,
 }: {
-  searchParams: Promise<{
+  searchParams?: {
     q?: string
     color?: string
     type?: string
     group?: string
-  }>
+  }
 }) {
-  const sp = await searchParams
+  const sp = searchParams ?? {}
   const safeType = normalizeType(sp.type ?? null)
   const safeGroup = normalizeGroup(sp.group ?? null)
 
@@ -68,12 +69,13 @@ export default async function ShopPage({
     search: sp.q,
     color: sp.color,
     type: safeType ?? undefined,
+    group: safeGroup || undefined,
   })
 
   const jsonLd = {
     '@context': 'https://schema.org',
     '@type': 'ItemList',
-    itemListElement: products.map((p, i) => ({
+    itemListElement: products.slice(0, 24).map((p, i) => ({
       '@type': 'ListItem',
       position: i + 1,
       url: `https://gerdan.online/products/${p.slug}`,
@@ -82,15 +84,17 @@ export default async function ShopPage({
 
   return (
     <>
-      <ProductsContainer
-        initialProducts={products}
-        initialFilters={{
-          q: sp.q ?? '',
-          color: sp.color ?? '',
-          bagTypes: safeType ?? '',
-          group: safeGroup,
-        }}
-      />
+      <Suspense fallback={<div className="max-w-6xl mx-auto px-4 py-8" />}>
+        <ProductsContainer
+          initialProducts={products}
+          initialFilters={{
+            q: sp.q ?? '',
+            color: sp.color ?? '',
+            bagTypes: safeType ?? '',
+            group: safeGroup,
+          }}
+        />
+      </Suspense>
       <script
         type="application/ld+json"
         dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}

@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useRef } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import Image from 'next/image'
 
 type Props = {
@@ -21,22 +21,59 @@ export default function HeroSection({
   altRight = '',
 }: Props) {
   const videoRef = useRef<HTMLVideoElement>(null)
+  const [isMobile, setIsMobile] = useState(false)
+  const [mobileVideoActive, setMobileVideoActive] = useState(false)
 
-  // Автовідтворення лише коли секція в полі зору
+  // On mobile we don't load the hero video at all (poster only) to improve PSI.
   useEffect(() => {
+    const mq = window.matchMedia('(max-width: 767px)')
+    const update = () => {
+      const next = mq.matches
+      setIsMobile(next)
+      // If we leave mobile, reset the tap-to-play state
+      if (!next) setMobileVideoActive(false)
+    }
+    update()
+
+    // Safari < 14 fallback
+    if (typeof mq.addEventListener === 'function') {
+      mq.addEventListener('change', update)
+      return () => mq.removeEventListener('change', update)
+    }
+    mq.addListener(update)
+    return () => mq.removeListener(update)
+  }, [])
+
+  // Автовідтворення лише коли секція в полі зору (desktop/tablet only)
+  useEffect(() => {
+    if (isMobile) return
     const el = videoRef.current
     if (!el) return
+
     const io = new IntersectionObserver(
       ([entry]) => {
         if (!el) return
         if (entry.isIntersecting) el.play().catch(() => {})
         else el.pause()
       },
-      { threshold: 0.25 }
+      { threshold: 0.25 },
     )
+
     io.observe(el)
     return () => io.disconnect()
-  }, [])
+  }, [isMobile])
+
+  const activateMobileVideo = () => {
+    setMobileVideoActive(true)
+    // Start playback on the next tick after the <video> mounts
+    requestAnimationFrame(() => {
+      const el = videoRef.current
+      if (!el) return
+      el.play().catch(() => {
+        // Autoplay can still be blocked in some cases; user can tap the native play control if needed.
+      })
+    })
+  }
 
   return (
     <section className="mx-auto max-w-full relative">
@@ -62,15 +99,69 @@ export default function HeroSection({
 
         {/* Центр — відео */}
         <figure className="relative h-[660px] sm:h-[520px] lg:h-[660px] 2xl:w-[1400px] overflow-hidden 2xl:h-[820px] lg:w-[420px] md:w-[320px] w-full">
+          {/* Mobile: poster first (no mp4). Tap to load + play video */}
+          <div className="absolute inset-0 md:hidden">
+            {!mobileVideoActive ? (
+              <button
+                type="button"
+                onClick={activateMobileVideo}
+                className="relative h-full w-full"
+                aria-label="Play video"
+              >
+                <Image
+                  src={centerPoster || leftImg}
+                  alt=""
+                  fill
+                  priority
+                  sizes="100vw"
+                  className="object-cover"
+                />
+                {/* Play badge */}
+                <span className="absolute inset-0 flex items-center justify-center">
+                  <span className="flex items-center justify-center w-14 h-14 rounded-full bg-black/55">
+                    <svg
+                      width="22"
+                      height="22"
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      xmlns="http://www.w3.org/2000/svg"
+                      aria-hidden="true"
+                    >
+                      <path d="M9 7L18 12L9 17V7Z" fill="white" />
+                    </svg>
+                  </span>
+                </span>
+              </button>
+            ) : (
+              <video
+                ref={videoRef}
+                className="h-full w-full object-cover"
+                src={centerVideo}
+                poster={centerPoster}
+                muted
+                playsInline
+                loop
+                preload="none"
+                controls={false}
+                // ensure playback starts even if RAF happens before media is ready
+                onCanPlay={() => {
+                  const el = videoRef.current
+                  if (el && el.paused) el.play().catch(() => {})
+                }}
+              />
+            )}
+          </div>
+
+          {/* Desktop/tablet: video (autoplay via IntersectionObserver) */}
           <video
             ref={videoRef}
-            className="h-full w-full object-cover"
+            className="h-full w-full object-cover hidden md:block"
             src={centerVideo}
             poster={centerPoster}
             muted
             playsInline
             loop
-            preload="metadata"
+            preload="none"
             controls={false}
           />
         </figure>
