@@ -58,7 +58,7 @@ export default function PhotoGallery({ images }: PhotoGalleryProps) {
   }, [listKey, list])
 
   return (
-    <div className="relative w-full md:w-[66%]">
+    <div className="relative w-full">
       <Gallery>
         <div className="relative w-full">
           <div className="w-full overflow-hidden">

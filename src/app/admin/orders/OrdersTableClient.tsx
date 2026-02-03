@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import type { Order, OrderStatus } from '@prisma/client'
 import { useRouter } from 'next/navigation'
 
@@ -107,6 +107,11 @@ function getOrderItems(o: Order): NormalizedOrderItem[] {
 export default function OrdersTableClient({ orders }: Props) {
   const router = useRouter()
   const [savingId, setSavingId] = useState<string | null>(null)
+  const [localOrders, setLocalOrders] = useState<Order[]>(orders)
+
+  useEffect(() => {
+    setLocalOrders(orders)
+  }, [orders])
 
   const onStatusChange = async (id: string, status: OrderStatus) => {
     setSavingId(id)
@@ -120,6 +125,9 @@ export default function OrdersTableClient({ orders }: Props) {
         console.error(await res.json())
         return
       }
+      setLocalOrders((prev) =>
+        prev.map((o) => (o.id === id ? { ...o, status } : o)),
+      )
       router.refresh()
     } catch (err) {
       console.error(err)
@@ -132,7 +140,7 @@ export default function OrdersTableClient({ orders }: Props) {
     <div className="border rounded bg-white">
       {/* Mobile cards */}
       <div className="md:hidden divide-y">
-        {orders.map((o) => {
+        {localOrders.map((o) => {
           const items = getOrderItems(o)
           return (
             <div key={o.id} className="p-4">
@@ -257,7 +265,7 @@ export default function OrdersTableClient({ orders }: Props) {
             </tr>
           </thead>
           <tbody>
-            {orders.map((o) => (
+            {localOrders.map((o) => (
               <tr key={o.id} className="border-t">
                 <td className="p-2">{o.id.slice(0, 8)}…</td>
                 <td className="p-2">

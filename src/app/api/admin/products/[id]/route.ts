@@ -66,7 +66,8 @@ export async function PATCH(
       .map((v) => v.id)
       .filter((x): x is string => typeof x === 'string' && x.length > 0)
 
-    const result = await prisma.$transaction(async (tx) => {
+    const result = await prisma.$transaction(
+      async (tx) => {
       // 1) update product fields (do NOT delete variants)
       const updated = await tx.product.update({
         where: { id },
@@ -157,8 +158,13 @@ export async function PATCH(
         })
       }
 
-      return updated
-    })
+        return updated
+      },
+      {
+        // Admin edits can touch many variants + images; allow more time than default 5s.
+        timeout: 15000,
+      },
+    )
 
     return NextResponse.json({ id: result.id }, { status: 200 })
   } catch (err) {

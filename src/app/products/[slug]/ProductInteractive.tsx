@@ -40,7 +40,7 @@ const PreorderModal = dynamic(
 
 function ProductGalleryFallback({ src }: { src: string }) {
   return (
-    <div className="relative w-full md:w-[66%]">
+    <div className="relative w-full">
       <div className="relative h-[420px] md:h-[580px] w-full overflow-hidden rounded bg-white">
         <Image
           src={src}
@@ -296,11 +296,22 @@ export function ProductInteractive({ p }: { p: ProductWithVariants }) {
     <>
       <section className="mx-auto flex flex-col items-center md:items-stretch md:flex-row md:justify-between gap-4 md:gap-10 mb-[60px] md:px-6">
         {/* Ліва колонка: карусель */}
-        {galleryReady ? (
-          <ProductGallery images={galleryImages} />
-        ) : (
-          <ProductGalleryFallback src={galleryImages[0]} />
-        )}
+        <div className="relative w-full md:w-[66%] h-[420px] md:h-[580px]">
+          <div
+            className={`absolute inset-0 transition-opacity duration-300 ${
+              galleryReady ? 'opacity-0 pointer-events-none' : 'opacity-100'
+            }`}
+          >
+            <ProductGalleryFallback src={galleryImages[0]} />
+          </div>
+          <div
+            className={`absolute inset-0 transition-opacity duration-300 ${
+              galleryReady ? 'opacity-100' : 'opacity-0 pointer-events-none'
+            }`}
+          >
+            <ProductGallery images={galleryImages} />
+          </div>
+        </div>
 
         {/* Права колонка */}
         <div className="flex flex-col items-start w-full lg:w-[33%]">

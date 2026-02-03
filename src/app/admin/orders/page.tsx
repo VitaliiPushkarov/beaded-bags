@@ -1,6 +1,8 @@
 import { prisma } from '@/lib/prisma'
 import OrdersTableClient from './OrdersTableClient'
 
+export const dynamic = 'force-dynamic'
+
 export default async function AdminOrdersPage() {
   let orders: Awaited<ReturnType<typeof prisma.order.findMany>> = []
 
