@@ -62,7 +62,7 @@ export function ProductInteractive({ p }: { p: ProductWithVariants }) {
   const variantFromUrl = sp.get('variant') || undefined
 
   const [variantId, setVariantId] = useState<string | undefined>(
-    p.variants?.[0]?.id
+    p.variants?.[0]?.id,
   )
   const [strapId, setStrapId] = useState<string | undefined>(undefined)
   const [galleryReady, setGalleryReady] = useState(false)
@@ -72,7 +72,7 @@ export function ProductInteractive({ p }: { p: ProductWithVariants }) {
   const v = useMemo(
     () =>
       p.variants?.find((x) => x.id === variantId) ?? p.variants?.[0] ?? null,
-    [p.variants, variantId]
+    [p.variants, variantId],
   )
   const {
     preorderOpen,
@@ -133,7 +133,7 @@ export function ProductInteractive({ p }: { p: ProductWithVariants }) {
   // Обраний ремінець для поточного варіанту
   const selectedStrap = useMemo(
     () => v?.straps?.find((s) => s.id === strapId) ?? null,
-    [v, strapId]
+    [v, strapId],
   )
 
   // Коли змінюється варіант — автоматично обираємо перший ремінець (якщо є)
@@ -332,7 +332,7 @@ export function ProductInteractive({ p }: { p: ProductWithVariants }) {
             </div>
             {hasDiscount && (
               <div className="text-[11px] md:text-xs text-gray-600 mt-1">
-                Пропозиція діє до 10.01
+                Пропозиція діє до 15.02.2026
               </div>
             )}
           </div>

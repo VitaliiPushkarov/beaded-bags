@@ -77,7 +77,7 @@ export default function ProductCard({ product }: ProductCardProps) {
           </div>
           {hasDiscount && (
             <div className="text-[11px] text-gray-600">
-              Пропозиція діє до 10.01
+              Пропозиція діє до 15.02.2026
             </div>
           )}
         </div>

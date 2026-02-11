@@ -133,7 +133,7 @@ export default function ProductCardLarge({ p }: { p: ProductWithVariants }) {
             </div>
             {hasDiscount && (
               <div className="text-[11px] md:text-xs text-gray-600">
-                Пропозиція діє до 30.01
+                Пропозиція діє до 15.02.2026
               </div>
             )}
           </div>
