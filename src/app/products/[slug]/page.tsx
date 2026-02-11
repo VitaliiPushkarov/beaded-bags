@@ -8,6 +8,7 @@ import { ProductClient } from './ProductClient'
 import type { ProductType } from '@prisma/client'
 import type { ProductWithVariants } from './productTypes'
 import type { Metadata } from 'next'
+import { calcDiscountedPrice } from '@/lib/pricing'
 
 const TYPE_TO_ROUTE: Record<ProductType, { label: string; href: string }> = {
   BAG: { label: 'Сумки', href: '/shop/sumky' },
@@ -159,7 +160,11 @@ export default async function ProductPage({
     product.variants.find((v) => v.image)?.image ||
     '/img/placeholder.png'
 
-  const price = firstVariant?.priceUAH ?? product.basePriceUAH ?? 0
+  const { finalPriceUAH: price } = calcDiscountedPrice({
+    basePriceUAH: firstVariant?.priceUAH ?? product.basePriceUAH ?? 0,
+    discountPercent: firstVariant?.discountPercent,
+    discountUAH: firstVariant?.discountUAH,
+  })
   const inStock = product.inStock || product.variants.some((v) => v.inStock)
 
   const m = 6

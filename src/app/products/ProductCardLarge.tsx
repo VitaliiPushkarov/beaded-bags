@@ -9,6 +9,7 @@ import type {
 } from '@prisma/client'
 import { useEffect, useMemo, useState } from 'react'
 import VariantSwatches from '@/components/product/VariantSwatches'
+import { calcDiscountedPrice } from '@/lib/pricing'
 /* import { useCart } from '@/app/store/cart'
 import { useUI } from '@/app/store/ui' */
 
@@ -37,10 +38,12 @@ export default function ProductCardLarge({ p }: { p: ProductWithVariants }) {
 
   /* const add = useCart((s) => s.add)
   const openCart = useUI((s) => s.openCart) */
-  const basePrice = v?.priceUAH ?? p.basePriceUAH ?? 0
-  const discountUAH = Math.max(0, v?.discountUAH ?? 0)
-  const finalPrice = Math.max(0, basePrice - discountUAH)
-  const hasDiscount = discountUAH > 0 && finalPrice < basePrice
+  const { basePriceUAH, finalPriceUAH, hasDiscount, discountPercent } =
+    calcDiscountedPrice({
+      basePriceUAH: v?.priceUAH ?? p.basePriceUAH ?? 0,
+      discountPercent: v?.discountPercent,
+      discountUAH: v?.discountUAH ?? 0,
+    })
   const isInStock = v?.inStock ?? p.inStock
   const isPreorder = !isInStock
 
@@ -118,22 +121,22 @@ export default function ProductCardLarge({ p }: { p: ProductWithVariants }) {
           <div className="whitespace-nowrap flex flex-col items-end">
             <div className="flex items-baseline gap-2">
               <div className="text-sm md:text-xl font-light">
-                {finalPrice} ₴
+                {finalPriceUAH} ₴
               </div>
               {hasDiscount && (
                 <>
                   <div className="text-xs md:text-base text-gray-500 line-through">
-                    {basePrice} ₴
+                    {basePriceUAH} ₴
                   </div>
-                  {/* <span className="text-[10px] md:text-xs border border-black rounded-full px-2 py-0.5">
-                    -{discountUAH} ₴
-                  </span> */}
+                  <span className="text-[10px] md:text-xs border border-black rounded-full px-2 py-0.5 self-center">
+                    -{discountPercent}%
+                  </span>
                 </>
               )}
             </div>
             {hasDiscount && (
               <div className="text-[11px] md:text-xs text-gray-600">
-                Пропозиція діє до 15.02.2026
+                {p.offerNote?.trim() || 'Пропозиція діє до 15.02.2026'}
               </div>
             )}
           </div>

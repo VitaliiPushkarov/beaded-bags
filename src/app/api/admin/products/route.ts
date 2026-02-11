@@ -26,6 +26,7 @@ const ProductCreateSchema = z.object({
   info: z.string().trim().optional().nullable(),
   description: z.string().trim().optional().nullable(),
   dimensions: z.string().trim().optional().nullable(),
+  offerNote: z.string().trim().optional().nullable(),
   inStock: z.coerce.boolean(),
 
   variants: z
@@ -35,24 +36,31 @@ const ProductCreateSchema = z.object({
         hex: z.string().trim().optional().nullable(),
         // in our project we often store local paths
         image: ImagePath.optional().nullable(),
+        images: z.array(ImagePath).optional().default([]),
 
         priceUAH: z.coerce.number(),
+        discountPercent: z.coerce.number().optional().nullable(),
         discountUAH: z.coerce.number().optional().nullable(),
         inStock: z.coerce.boolean(),
         sku: z.string().trim().optional().nullable(),
 
         // Optional per-variant shipping text (e.g. "Відправка протягом 1–3 днів")
-        shippingText: z.string().trim().optional().nullable(),
+        shippingNote: z.string().trim().optional().nullable(),
       }),
     )
     .min(1, 'At least one variant is required'),
 })
 
+function sanitizeDiscountPercent(input: number | null | undefined) {
+  if (typeof input !== 'number' || !Number.isFinite(input)) return null
+  return Math.max(0, Math.min(100, Math.round(input)))
+}
+
 // --------- GET: list products for admin ---------
 export async function GET() {
   try {
     const products = await prisma.product.findMany({
-      orderBy: [{ createdAt: 'desc' }],
+      orderBy: [{ name: 'asc' }, { createdAt: 'desc' }],
       select: {
         id: true,
         name: true,
@@ -61,6 +69,7 @@ export async function GET() {
         group: true,
         inStock: true,
         basePriceUAH: true,
+        offerNote: true,
         createdAt: true,
         updatedAt: true,
         variants: {
@@ -71,6 +80,7 @@ export async function GET() {
             hex: true,
             image: true,
             priceUAH: true,
+            discountPercent: true,
             discountUAH: true,
             inStock: true,
             sku: true,
@@ -114,6 +124,7 @@ export async function POST(req: NextRequest) {
         description: data.description ?? null,
         info: data.info ?? null,
         dimensions: data.dimensions ?? null,
+        offerNote: data.offerNote ?? null,
         inStock: data.inStock,
 
         variants: {
@@ -121,11 +132,15 @@ export async function POST(req: NextRequest) {
             color: v.color ?? null,
             hex: v.hex ?? null,
             image: v.image ?? null,
+            images: {
+              create: (v.images ?? []).map((url) => ({ url })),
+            },
             priceUAH: v.priceUAH,
+            discountPercent: sanitizeDiscountPercent(v.discountPercent),
             discountUAH: v.discountUAH ?? null,
             inStock: v.inStock,
             sku: v.sku ?? null,
-            shippingText: v.shippingText ?? null,
+            shippingNote: v.shippingNote ?? null,
 
             // sensible default order for new variants
             sortCatalog: idx + 1,

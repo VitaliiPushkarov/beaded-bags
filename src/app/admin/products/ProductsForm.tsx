@@ -68,7 +68,8 @@ type VariantInput = {
   image: string
   images: string[]
   priceUAH: string
-  discountUAH: string
+  discountPercent: string
+  discountUAH?: string
   shippingNote: string
   inStock: boolean
   sku: string
@@ -87,6 +88,7 @@ type ProductFormValues = {
   variants: VariantInput[]
   info?: string
   dimensions?: string
+  offerNote?: string
 }
 
 type AddonVariantOption = {
@@ -155,13 +157,14 @@ export default function ProductForm({
       basePriceUAH: '',
       description: '',
       inStock: true,
-      variants: [
+          variants: [
         {
           color: '',
           hex: '',
           image: '',
           images: [],
           priceUAH: '',
+          discountPercent: '',
           discountUAH: '',
           shippingNote: '',
           inStock: true,
@@ -268,6 +271,7 @@ export default function ProductForm({
           image: '',
           images: [],
           priceUAH: '',
+          discountPercent: '',
           discountUAH: '',
           shippingNote: '',
           inStock: true,
@@ -294,6 +298,7 @@ export default function ProductForm({
         ...values,
         group: values.group || null,
         basePriceUAH: values.basePriceUAH ? Number(values.basePriceUAH) : null,
+        offerNote: values.offerNote?.trim() || null,
         variants: values.variants.map((v) => ({
           id: v.id,
           color: v.color,
@@ -301,6 +306,9 @@ export default function ProductForm({
           image: v.image,
           images: normalizeImages(v.images),
           priceUAH: v.priceUAH ? Number(v.priceUAH) : null,
+          discountPercent: v.discountPercent
+            ? Math.max(0, Math.min(100, Number(v.discountPercent)))
+            : null,
           discountUAH: v.discountUAH ? Number(v.discountUAH) : null,
           shippingNote: v.shippingNote || null,
           inStock: v.inStock,
@@ -532,6 +540,18 @@ export default function ProductForm({
                   onChange={(e) =>
                     setValues((v) => ({ ...v, dimensions: e.target.value }))
                   }
+                />
+              </label>
+
+              <label className="block text-sm font-medium">
+                Текст акції під ціною
+                <input
+                  className="mt-2 w-full border rounded-lg px-3 py-2 text-sm border-blue-300"
+                  value={values.offerNote || ''}
+                  onChange={(e) =>
+                    setValues((v) => ({ ...v, offerNote: e.target.value }))
+                  }
+                  placeholder="Пропозиція діє до ..."
                 />
               </label>
             </div>
@@ -824,14 +844,14 @@ export default function ProductForm({
                 </label>
 
                 <label className="block text-sm font-medium ">
-                  Знижка (UAH)
+                  Знижка (%)
                   <input
                     className="mt-1 w-full border rounded px-2 py-1 text-sm border-blue-300"
                     inputMode="numeric"
-                    value={v.discountUAH}
+                    value={v.discountPercent}
                     onChange={(e) =>
                       onVariantChange(index, {
-                        discountUAH: e.target.value.replace(/[^\d]/g, ''),
+                        discountPercent: e.target.value.replace(/[^\d]/g, ''),
                       })
                     }
                     placeholder="0"

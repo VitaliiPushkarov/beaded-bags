@@ -9,6 +9,7 @@ import Breadcrumbs from '../ui/BreadCrumbs'
 import type { ProductType } from '@prisma/client'
 import { TYPE_LABELS, COLOR_LABELS } from '@/lib/labels'
 import type { ProductWithVariants as CardProductWithVariants } from '@/app/products/ProductCardLarge'
+import { resolveDiscountPercent } from '@/lib/pricing'
 
 export type UIFilters = {
   q: string
@@ -99,10 +100,15 @@ function matchesColor(p: ProductWithVariants, color: string) {
 }
 
 function isOnSale(p: ProductWithVariants) {
-  // New logic: a product is "On sale" if any variant has a positive discount
+  // A product is "On sale" if any variant has a positive discount percent.
   return Boolean(
     p.variants?.some(
-      (v) => (typeof v.discountUAH === 'number' ? v.discountUAH : 0) > 0,
+      (v) =>
+        resolveDiscountPercent({
+          basePriceUAH: v.priceUAH ?? p.basePriceUAH ?? 0,
+          discountPercent: v.discountPercent,
+          discountUAH: v.discountUAH ?? 0,
+        }) > 0,
     ),
   )
 }

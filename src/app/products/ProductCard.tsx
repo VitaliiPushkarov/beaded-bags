@@ -3,6 +3,7 @@ import Link from 'next/link'
 import Image from 'next/image'
 import { useCart } from '@/app/store/cart'
 import { useUI } from '../store/ui'
+import { calcDiscountedPrice } from '@/lib/pricing'
 
 type ProductCardProps = {
   product: {
@@ -10,6 +11,7 @@ type ProductCardProps = {
     slug: string
     name: string
     basePriceUAH: number | null
+    offerNote?: string | null
     mainImage?: string | null
     images?: string[] | null
     variants?: {
@@ -17,6 +19,7 @@ type ProductCardProps = {
       image: string | null
       inStock: boolean
       priceUAH: number | null
+      discountPercent?: number | null
       discountUAH?: number | null
       color: string | null
       hex: string | null
@@ -29,10 +32,12 @@ export default function ProductCard({ product }: ProductCardProps) {
   const openCart = useUI((s) => s.openCart)
 
   const firstVariant = product.variants?.[0]
-  const basePrice = firstVariant?.priceUAH ?? product.basePriceUAH ?? 0
-  const discountUAH = Math.max(0, firstVariant?.discountUAH ?? 0)
-  const price = Math.max(0, basePrice - discountUAH)
-  const hasDiscount = discountUAH > 0 && price < basePrice
+  const { basePriceUAH, finalPriceUAH, hasDiscount, discountPercent } =
+    calcDiscountedPrice({
+      basePriceUAH: firstVariant?.priceUAH ?? product.basePriceUAH ?? 0,
+      discountPercent: firstVariant?.discountPercent,
+      discountUAH: firstVariant?.discountUAH ?? 0,
+    })
 
   const img =
     product.mainImage ||
@@ -63,21 +68,21 @@ export default function ProductCard({ product }: ProductCardProps) {
         </Link>
         <div className="text-sm text-gray-700">
           <div className="flex items-baseline gap-2">
-            <span>{price.toLocaleString('uk-UA')} ₴</span>
+            <span>{finalPriceUAH.toLocaleString('uk-UA')} ₴</span>
             {hasDiscount && (
               <>
                 <span className="text-xs text-gray-500 line-through">
-                  {basePrice.toLocaleString('uk-UA')} ₴
+                  {basePriceUAH.toLocaleString('uk-UA')} ₴
                 </span>
-                {/*  <span className="text-[10px] border border-black rounded-full px-2 py-0.5">
-                  -{discountUAH.toLocaleString('uk-UA')} ₴
-                </span> */}
+                <span className="text-[10px] border border-black rounded-full px-2 py-0.5 self-center">
+                  -{discountPercent}%
+                </span>
               </>
             )}
           </div>
           {hasDiscount && (
             <div className="text-[11px] text-gray-600">
-              Пропозиція діє до 15.02.2026
+              {product.offerNote?.trim() || 'Пропозиція діє до 15.02.2026'}
             </div>
           )}
         </div>
@@ -87,7 +92,7 @@ export default function ProductCard({ product }: ProductCardProps) {
               productId: product.id,
               variantId: firstVariant?.id ?? '',
               name: product.name,
-              priceUAH: price,
+              priceUAH: finalPriceUAH,
               image: img,
               qty: 1,
               slug: product.slug,

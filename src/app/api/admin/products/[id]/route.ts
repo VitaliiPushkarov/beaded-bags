@@ -21,6 +21,7 @@ const VariantSchema = z.object({
   image: ImagePath.optional().nullable(),
   images: z.array(ImagePath).optional().default([]),
   priceUAH: z.coerce.number().nullable(),
+  discountPercent: z.coerce.number().optional().nullable(),
   discountUAH: z.coerce.number().optional().nullable(),
   inStock: z.coerce.boolean(),
   sku: z.string().trim().optional().nullable(),
@@ -36,9 +37,15 @@ const ProductSchema = z.object({
   description: z.string().optional().nullable(),
   info: z.string().optional().nullable(),
   dimensions: z.string().optional().nullable(),
+  offerNote: z.string().optional().nullable(),
   inStock: z.coerce.boolean(),
   variants: z.array(VariantSchema).min(1),
 })
+
+function sanitizeDiscountPercent(input: number | null | undefined) {
+  if (typeof input !== 'number' || !Number.isFinite(input)) return null
+  return Math.max(0, Math.min(100, Math.round(input)))
+}
 
 // --------- PATCH: оновлення товару ---------
 export async function PATCH(
@@ -80,6 +87,7 @@ export async function PATCH(
           description: data.description ?? null,
           info: data.info ?? null,
           dimensions: data.dimensions || null,
+          offerNote: data.offerNote ?? null,
           inStock: data.inStock,
         },
         select: { id: true },
@@ -101,6 +109,7 @@ export async function PATCH(
                 create: (v.images ?? []).map((url) => ({ url })),
               },
               priceUAH: v.priceUAH,
+              discountPercent: sanitizeDiscountPercent(v.discountPercent),
               discountUAH: v.discountUAH ?? null,
               inStock: v.inStock,
               sku: v.sku ?? null,
@@ -118,6 +127,7 @@ export async function PATCH(
                 create: (v.images ?? []).map((url) => ({ url })),
               },
               priceUAH: v.priceUAH,
+              discountPercent: sanitizeDiscountPercent(v.discountPercent),
               discountUAH: v.discountUAH ?? null,
               inStock: v.inStock,
               sku: v.sku ?? null,

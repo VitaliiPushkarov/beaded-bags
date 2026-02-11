@@ -158,6 +158,7 @@ export async function getProductsLite(params: GetProductsParams = {}) {
       type: true,
       group: true,
       inStock: true,
+      offerNote: true,
       basePriceUAH: true,
       variants: {
         orderBy: { sortCatalog: 'asc' },
@@ -167,6 +168,7 @@ export async function getProductsLite(params: GetProductsParams = {}) {
           hex: true,
           image: true,
           priceUAH: true,
+          discountPercent: true,
           discountUAH: true,
           inStock: true,
         },

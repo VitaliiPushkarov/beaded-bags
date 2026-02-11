@@ -2,6 +2,7 @@ import { prisma } from '@/lib/prisma'
 import Link from 'next/link'
 import ProductForm from '../ProductsForm'
 import type { ProductType, ProductGroup } from '@prisma/client'
+import { resolveDiscountPercent } from '@/lib/pricing'
 
 type PageProps = {
   params: Promise<{ id: string }>
@@ -156,6 +157,9 @@ export default async function AdminProductEditPage({ params }: PageProps) {
     group: product.group as ProductGroup,
     basePriceUAH: product.basePriceUAH?.toString() ?? '',
     description: product.description ?? '',
+    info: product.info ?? '',
+    dimensions: product.dimensions ?? '',
+    offerNote: product.offerNote ?? '',
     inStock: product.inStock,
     variants: product.variants.map((v) => {
       const images =
@@ -172,6 +176,13 @@ export default async function AdminProductEditPage({ params }: PageProps) {
         image: main,
         images,
         priceUAH: v.priceUAH?.toString() ?? '',
+        discountPercent: resolveDiscountPercent({
+          basePriceUAH: v.priceUAH ?? product.basePriceUAH ?? 0,
+          discountPercent: v.discountPercent,
+          discountUAH: v.discountUAH,
+        }).toString(),
+        discountUAH: v.discountUAH?.toString() ?? '',
+        shippingNote: v.shippingNote ?? '',
         inStock: v.inStock,
         sku: v.sku ?? '',
         addons:
