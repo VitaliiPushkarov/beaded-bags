@@ -40,11 +40,8 @@ export default function Contacts() {
           <div className="flex items-center justify-center flex-col gap-3">
             <Building size={30} className="mx-auto mb-2" />
             <div className="flex gap-1">
-              <p className="font-semibold">Юр. адреса:</p>
-              <p>
-                Україна, 25031, Кіровоградська обл., місто Кропивницький,
-                вул.Героїв України, будинок 12
-              </p>
+              <p className="font-semibold">Адреса:</p>
+              <p>вул.Велика Перспективна 62, Кропивницький, Україна</p>
             </div>
           </div>
         </div>
