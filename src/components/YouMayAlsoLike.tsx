@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react'
 import Link from 'next/link'
 import Image from 'next/image'
 import { ChevronLeft, ChevronRight } from 'lucide-react'
+import { calcDiscountedPrice } from '@/lib/pricing'
 
 export default function YouMayAlsoLike({
   currentSlug,
@@ -56,7 +57,7 @@ export default function YouMayAlsoLike({
         if (currentGroup) qs.set('group', String(currentGroup))
 
         const res = await fetch(`/api/products?${qs.toString()}`, {
-          next: { revalidate: 120 },
+          cache: 'no-store',
         })
         const json = await res.json()
 
@@ -195,11 +196,18 @@ export default function YouMayAlsoLike({
               p?.variants?.[0]?.images?.[0]?.url ||
               '/img/placeholder.png'
 
-            const price =
-              p?.basePriceUAH ??
-              p?.priceUAH ??
-              p?.variants?.[0]?.priceUAH ??
-              null
+            const firstVariant = p?.variants?.[0]
+            const hasAnyPrice =
+              typeof firstVariant?.priceUAH === 'number' ||
+              typeof p?.basePriceUAH === 'number' ||
+              typeof p?.priceUAH === 'number'
+            const { basePriceUAH, finalPriceUAH, hasDiscount, discountPercent } =
+              calcDiscountedPrice({
+                basePriceUAH:
+                  firstVariant?.priceUAH ?? p?.basePriceUAH ?? p?.priceUAH ?? 0,
+                discountPercent: firstVariant?.discountPercent,
+                discountUAH: firstVariant?.discountUAH ?? 0,
+              })
 
             return (
               <div
@@ -225,9 +233,19 @@ export default function YouMayAlsoLike({
                     <div className="text-sm text-gray-900 truncate">
                       {p?.name}
                     </div>
-                    {price !== null && (
-                      <div className="text-sm text-gray-900 whitespace-nowrap">
-                        {price} ₴
+                    {hasAnyPrice && (
+                      <div className="text-sm text-gray-900 whitespace-nowrap flex items-baseline gap-1.5">
+                        <span>{finalPriceUAH.toLocaleString('uk-UA')} ₴</span>
+                        {hasDiscount && (
+                          <>
+                            <span className="text-xs text-gray-500 line-through">
+                              {basePriceUAH.toLocaleString('uk-UA')} ₴
+                            </span>
+                            <span className="text-[10px] border border-black rounded-full px-1.5 py-0.5 self-center">
+                              -{discountPercent}%
+                            </span>
+                          </>
+                        )}
                       </div>
                     )}
                   </div>

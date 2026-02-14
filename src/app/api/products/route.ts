@@ -54,6 +54,8 @@ export async function GET(req: NextRequest) {
             id: true,
             image: true,
             priceUAH: true,
+            discountPercent: true,
+            discountUAH: true,
             images: {
               take: 1,
               orderBy: { id: 'asc' },

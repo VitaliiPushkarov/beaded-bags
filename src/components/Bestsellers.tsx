@@ -1,6 +1,7 @@
 import Image from 'next/image'
 import Link from 'next/link'
 import type { Product, ProductVariant } from '@prisma/client'
+import { calcDiscountedPrice } from '@/lib/pricing'
 
 type ProductWithVariants = Product & {
   variants: (ProductVariant & {
@@ -12,7 +13,7 @@ const BASE_URL = process.env.NEXT_PUBLIC_SITE_URL ?? 'https://gerdan.online'
 
 async function getBestsellers(): Promise<ProductWithVariants[]> {
   const res = await fetch(`${BASE_URL}/api/products?limit=12`, {
-    next: { revalidate: 300 },
+    cache: 'no-store',
   })
   if (!res.ok) return []
   return (await res.json()) as ProductWithVariants[]
@@ -61,14 +62,19 @@ export default async function Bestsellers() {
                   variantImages[1]?.url ||
                   primaryImage
 
-                const price =
-                  (typeof firstVariant?.priceUAH === 'number'
-                    ? firstVariant.priceUAH
-                    : null) ??
-                  (typeof p.basePriceUAH === 'number'
-                    ? p.basePriceUAH
-                    : null) ??
-                  0
+                const { basePriceUAH, finalPriceUAH, hasDiscount, discountPercent } =
+                  calcDiscountedPrice({
+                    basePriceUAH:
+                      (typeof firstVariant?.priceUAH === 'number'
+                        ? firstVariant.priceUAH
+                        : null) ??
+                      (typeof p.basePriceUAH === 'number'
+                        ? p.basePriceUAH
+                        : null) ??
+                      0,
+                    discountPercent: firstVariant?.discountPercent,
+                    discountUAH: firstVariant?.discountUAH ?? 0,
+                  })
 
                 return (
                   <div
@@ -96,8 +102,18 @@ export default async function Bestsellers() {
                       </div>
                       <div className="mt-3 flex items-center justify-between gap-4">
                         <div className="text-sm truncate">{p.name}</div>
-                        <div className="text-sm text-gray-700 whitespace-nowrap">
-                          {price.toLocaleString('uk-UA')} ₴
+                        <div className="text-sm text-gray-700 whitespace-nowrap flex items-baseline gap-2">
+                          <span>{finalPriceUAH.toLocaleString('uk-UA')} ₴</span>
+                          {hasDiscount && (
+                            <>
+                              <span className="text-xs text-gray-500 line-through">
+                                {basePriceUAH.toLocaleString('uk-UA')} ₴
+                              </span>
+                              <span className="text-[10px] border border-black rounded-full px-2 py-0.5 self-center">
+                                -{discountPercent}%
+                              </span>
+                            </>
+                          )}
                         </div>
                       </div>
                     </Link>
