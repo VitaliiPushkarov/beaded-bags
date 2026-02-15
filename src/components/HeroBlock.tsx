@@ -14,7 +14,7 @@ export default function HeroBlock() {
         fill
         priority
         className="object-cover object-center md:hidden"
-        quality={100}
+        quality={70}
       />
       {/* Головне фото */}
       <Image

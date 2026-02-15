@@ -1,11 +1,33 @@
 'use client'
 import { Suspense, useEffect, useRef } from 'react'
-import { useSearchParams } from 'next/navigation'
+import { useRouter, useSearchParams } from 'next/navigation'
 import { pushMetaPurchase } from '@/lib/analytics/datalayer'
+import { useCart } from '@/app/store/cart'
+
+const CHECKOUT_FORM_DRAFT_KEY = 'gerdan_checkout_form_draft'
 
 function SuccessInner() {
+  const router = useRouter()
   const sp = useSearchParams()
-  const orderNumber = sp.get('order') ?? undefined
+  const orderRaw = sp.get('order')
+  const orderNumber = orderRaw && orderRaw.trim() ? orderRaw.trim() : undefined
+  const clearCart = useCart((s) => s.clear)
+
+  useEffect(() => {
+    // LiqPay cancel flow can return to success page with an empty order query.
+    // In that case, send user to homepage instead of showing a fake success state.
+    if (orderNumber === undefined) {
+      router.replace('/')
+    }
+  }, [orderNumber, router])
+
+  useEffect(() => {
+    if (!orderNumber) return
+    clearCart()
+    try {
+      sessionStorage.removeItem(CHECKOUT_FORM_DRAFT_KEY)
+    } catch {}
+  }, [orderNumber, clearCart])
 
   // --- Meta Pixel via GTM: Purchase ---
   // Expecting a snapshot saved during checkout in sessionStorage under `gerdan_last_order_meta`.

@@ -1,7 +1,7 @@
 'use client'
 
-import { useMemo, useState } from 'react'
-import { useRouter } from 'next/navigation'
+import { useEffect, useMemo, useState } from 'react'
+import { useRouter, useSearchParams } from 'next/navigation'
 import Image from 'next/image'
 import NovaPoshtaPicker from '@/components/checkout/NovaPoshtaPicker'
 import { useCart } from '../store/cart'
@@ -11,17 +11,67 @@ import { IMaskInput } from 'react-imask'
 import { usePromo } from '@/lib/usePromo'
 import { isPromoApplied, calcDiscountUAH, PROMO_CODE } from '@/lib/promo'
 
-export default function CheckoutClient() {
-  const router = useRouter()
-  const clearCart = useCart((s) => s.clear)
+type CheckoutFormState = {
+  name: string
+  surname: string
+  patronymic: string
+  phone: string
+  email: string
+}
 
-  const [form, setForm] = useState({
+const CHECKOUT_FORM_DRAFT_KEY = 'gerdan_checkout_form_draft'
+
+function emptyCheckoutForm(): CheckoutFormState {
+  return {
     name: '',
     surname: '',
     patronymic: '',
     phone: '',
     email: '',
-  })
+  }
+}
+
+function loadCheckoutFormDraft(): CheckoutFormState {
+  if (typeof window === 'undefined') return emptyCheckoutForm()
+  try {
+    const raw = sessionStorage.getItem(CHECKOUT_FORM_DRAFT_KEY)
+    if (!raw) return emptyCheckoutForm()
+    const parsed = JSON.parse(raw) as Partial<CheckoutFormState>
+    return {
+      name: String(parsed.name ?? ''),
+      surname: String(parsed.surname ?? ''),
+      patronymic: String(parsed.patronymic ?? ''),
+      phone: String(parsed.phone ?? ''),
+      email: String(parsed.email ?? ''),
+    }
+  } catch {
+    return emptyCheckoutForm()
+  }
+}
+
+function saveCheckoutFormDraft(form: CheckoutFormState) {
+  if (typeof window === 'undefined') return
+  try {
+    sessionStorage.setItem(CHECKOUT_FORM_DRAFT_KEY, JSON.stringify(form))
+  } catch {}
+}
+
+function clearCheckoutFormDraft() {
+  if (typeof window === 'undefined') return
+  try {
+    sessionStorage.removeItem(CHECKOUT_FORM_DRAFT_KEY)
+  } catch {}
+}
+
+export default function CheckoutClient() {
+  const router = useRouter()
+  const sp = useSearchParams()
+  const paymentResult = sp.get('payment')
+  const clearCart = useCart((s) => s.clear)
+
+  const [form, setForm] = useState<CheckoutFormState>(() =>
+    loadCheckoutFormDraft(),
+  )
 
   const [touched, setTouched] = useState({
     name: false,
@@ -61,6 +111,20 @@ export default function CheckoutClient() {
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
+  useEffect(() => {
+    saveCheckoutFormDraft(form)
+  }, [form])
+
+  useEffect(() => {
+    if (paymentResult === 'cancelled') {
+      setError('Оплату скасовано. Дані клієнта збережено, спробуйте ще раз.')
+      return
+    }
+    if (paymentResult === 'failed') {
+      setError('Оплата не пройшла. Дані клієнта збережено, спробуйте ще раз.')
+    }
+  }, [paymentResult])
+
   const cart = useCart()
   const co = useCheckout()
 
@@ -81,6 +145,28 @@ export default function CheckoutClient() {
     () => Math.max(0, subtotalUAH - discountUAH),
     [subtotalUAH, discountUAH],
   )
+
+  const saveLastOrderMeta = (
+    total: number,
+    checkoutItems: Array<{
+      productId?: string | null
+      variantId?: string | null
+      qty: number
+    }>,
+  ) => {
+    try {
+      sessionStorage.setItem(
+        'gerdan_last_order_meta',
+        JSON.stringify({
+          value: total,
+          numItems: checkoutItems.reduce((s, i) => s + i.qty, 0),
+          contentIds: checkoutItems
+            .map((i) => i.variantId || i.productId)
+            .filter((id): id is string => typeof id === 'string' && id.length > 0),
+        }),
+      )
+    } catch {}
+  }
 
   const submitOrder = async () => {
     setError(null)
@@ -177,22 +263,13 @@ export default function CheckoutClient() {
         return
       }
 
-      // Якщо обрана онлайн-оплата через WayForPay
-      if (co.paymentMethod === 'WAYFORPAY') {
+      if (co.paymentMethod === 'LIQPAY') {
         try {
-          const payRes = await fetch('/api/payments/wayforpay/create', {
+          const payRes = await fetch('/api/payments/liqpay/create', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
               orderId: json.orderId,
-              amountUAH: total,
-              description: `Замовлення #${json.orderNumber}`,
-              customer: {
-                email: customer.email,
-                phone: customer.phone,
-                firstName: customer.name,
-                lastName: customer.surname,
-              },
             }),
           })
 
@@ -203,38 +280,37 @@ export default function CheckoutClient() {
             return
           }
 
-          const { payUrl, payload } = payJson as {
-            payUrl: string
-            payload: Record<string, unknown>
+          const { checkoutUrl, data, signature } = payJson as {
+            checkoutUrl: string
+            data: string
+            signature: string
           }
 
-          // Створюємо форму і редіректимо користувача на WayForPay
-          const form = document.createElement('form')
-          form.method = 'POST'
-          form.action = payUrl
+          if (!checkoutUrl || !data || !signature) {
+            setError('Неповні дані платежу від сервера')
+            return
+          }
 
-          Object.entries(payload).forEach(([key, value]) => {
-            if (value === undefined || value === null) return
+          saveLastOrderMeta(total, items)
 
-            if (Array.isArray(value)) {
-              value.forEach((v) => {
-                const input = document.createElement('input')
-                input.type = 'hidden'
-                input.name = `${key}[]`
-                input.value = String(v)
-                form.appendChild(input)
-              })
-            } else {
-              const input = document.createElement('input')
-              input.type = 'hidden'
-              input.name = key
-              input.value = String(value)
-              form.appendChild(input)
-            }
-          })
+          const payForm = document.createElement('form')
+          payForm.method = 'POST'
+          payForm.action = checkoutUrl
 
-          document.body.appendChild(form)
-          form.submit()
+          const dataInput = document.createElement('input')
+          dataInput.type = 'hidden'
+          dataInput.name = 'data'
+          dataInput.value = data
+          payForm.appendChild(dataInput)
+
+          const signatureInput = document.createElement('input')
+          signatureInput.type = 'hidden'
+          signatureInput.name = 'signature'
+          signatureInput.value = signature
+          payForm.appendChild(signatureInput)
+
+          document.body.appendChild(payForm)
+          payForm.submit()
           return
         } catch (e) {
           console.error(e)
@@ -244,18 +320,10 @@ export default function CheckoutClient() {
       }
 
       // Save last order snapshot for Meta Purchase (used on /success)
-      try {
-        sessionStorage.setItem(
-          'gerdan_last_order_meta',
-          JSON.stringify({
-            value: total,
-            numItems: items.reduce((s, i) => s + i.qty, 0),
-            contentIds: items.map((i) => i.variantId || i.productId),
-          }),
-        )
-      } catch {}
+      saveLastOrderMeta(total, items)
 
       clearCart()
+      clearCheckoutFormDraft()
       router.push(`/checkout/success?order=${json.orderNumber}`)
       return
     } catch (e) {
@@ -377,6 +445,25 @@ export default function CheckoutClient() {
           <h2 className="text-xl font-semibold">Оплата</h2>
 
           <div className="space-y-3 text-sm">
+            {/* Онлайн оплата LiqPay */}
+            <label className="flex items-start gap-3 cursor-pointer">
+              <input
+                type="radio"
+                name="payment"
+                className="mt-1 w-4 h-4"
+                checked={co.paymentMethod === 'LIQPAY'}
+                onChange={() => co.setPaymentMethod('LIQPAY')}
+              />
+              <div>
+                <p className="font-medium uppercase">
+                  Онлайн оплата (LiqPay)
+                </p>
+                <p className="text-gray-600">
+                  Картка, Apple Pay або Google Pay на сторінці LiqPay checkout.
+                </p>
+              </div>
+            </label>
+
             {/* Оплата по реквізитам */}
             <label className="flex items-start gap-3 cursor-pointer select-none">
               <input
@@ -409,25 +496,6 @@ export default function CheckoutClient() {
                 <p className="text-gray-600">
                   Оплата при отриманні на відділенні Нової Пошти. Комісія НП: 2%
                   + 20 грн.
-                </p>
-              </div>
-            </label>
-
-            {/* Онлайн оплата WayForPay */}
-
-            <label className="flex items-start gap-3 cursor-not-allowed opacity-40">
-              <input
-                type="radio"
-                name="payment"
-                disabled
-                className="mt-1 w-4 h-4"
-                checked={co.paymentMethod === 'WAYFORPAY'}
-                onChange={() => co.setPaymentMethod('WAYFORPAY')}
-              />
-              <div>
-                <p className="font-medium uppercase">Онлайн оплата карткою</p>
-                <p className="text-gray-600">
-                  Безпечна оплата банківською карткою через WayForPay.
                 </p>
               </div>
             </label>

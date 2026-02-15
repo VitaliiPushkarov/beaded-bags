@@ -1,6 +1,6 @@
 import { create } from 'zustand'
 
-type UIPaymentMethod = 'BANK_TRANSFER' | 'COD' | 'LIQPAY' | 'WAYFORPAY'
+type UIPaymentMethod = 'BANK_TRANSFER' | 'COD' | 'LIQPAY'
 
 type NPDelivery = {
   areaRef?: string
@@ -23,7 +23,7 @@ type CheckoutState = {
 export const useCheckout = create<CheckoutState>()((set) => ({
   deliveryMethod: 'np_warehouse',
   np: {},
-  paymentMethod: 'BANK_TRANSFER',
+  paymentMethod: 'LIQPAY',
   setPaymentMethod: (paymentMethod) => set({ paymentMethod }),
   setDeliveryMethod: (deliveryMethod) => set({ deliveryMethod }),
   setNP: (p) => set((s) => ({ np: { ...s.np, ...p } })),

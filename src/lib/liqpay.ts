@@ -10,7 +10,8 @@ export interface LiqPayBasePayload {
   order_id: string
   result_url: string
   server_url: string
-  sandbox?: 0 | 1
+  // LiqPay API technical flag for non-live mode
+  sandbox?: 1
   language?: string
   sender_email?: string
   sender_phone?: string
@@ -23,8 +24,8 @@ export function liqpayEncode(obj: unknown): string {
 
 export function liqpaySign(privateKey: string, data: string): string {
   const str = privateKey + data + privateKey
-  const sha1 = crypto.createHash('sha1').update(str).digest()
-  return Buffer.from(sha1).toString('base64')
+  const hash = crypto.createHash('sha1').update(str).digest()
+  return Buffer.from(hash).toString('base64')
 }
 
 export function buildLiqPayPayload(args: {
@@ -35,6 +36,7 @@ export function buildLiqPayPayload(args: {
   description: string
   resultUrl: string // sendback URL
   serverUrl: string // webhook LiqPay
+  mode?: 'live' | 'development'
   customer?: { name?: string; email?: string; phone?: string }
 }): { data: string; signature: string } {
   const payload: LiqPayBasePayload = {
@@ -47,8 +49,11 @@ export function buildLiqPayPayload(args: {
     order_id: args.orderId,
     result_url: args.resultUrl,
     server_url: args.serverUrl,
-    sandbox: 1, // ← testing mode, прибрати в продакшн
     language: 'uk',
+  }
+
+  if (args.mode === 'development') {
+    payload.sandbox = 1
   }
 
   if (args.customer?.email) payload.sender_email = args.customer.email

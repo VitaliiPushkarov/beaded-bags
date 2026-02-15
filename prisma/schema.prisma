@@ -181,7 +181,7 @@ model Order {
 
   // оплата
   paymentMethod PaymentMethod
-  paymentId     String? // external id (wayforpay)
+  paymentId     String? // external id from payment provider
   paymentStatus String? // сирий статус провайдера
   paymentRaw    Json? // payload від провайдера 
 

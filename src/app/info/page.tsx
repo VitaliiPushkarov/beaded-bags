@@ -20,7 +20,8 @@ export default function InfoPage() {
 
           <p className="font-semibold">Оплата на сайті карткою.</p>
           <p className="text-gray-700">
-            Наразі працюємо над функцією оплати карткою.
+            Онлайн-оплата працює через LiqPay checkout: банківська картка,
+            Apple Pay та Google Pay (на сумісних пристроях/браузерах).
           </p>
           <p className="font-semibold">Оплата при отриманні</p>
           <p className="text-gray-700">
