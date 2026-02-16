@@ -1,8 +1,18 @@
-import HeroImages from '@/components/HeroImages'
+import dynamic from 'next/dynamic'
 import Bestsellers from '@/components/Bestsellers'
-import ProductsSlider from './products/ProductsSlider'
 import HeroBlock from '@/components/HeroBlock'
-import InstagramSlider from '@/components/InstagramSlider'
+
+const HeroImages = dynamic(() => import('@/components/HeroImages'), {
+  loading: () => <section className="h-[520px] md:h-[620px]" />,
+})
+
+const ProductsSlider = dynamic(() => import('./products/ProductsSlider'), {
+  loading: () => <section className="h-[520px] md:h-[650px]" />,
+})
+
+const InstagramSlider = dynamic(() => import('@/components/InstagramSlider'), {
+  loading: () => <section className="h-[380px] md:h-[460px]" />,
+})
 
 const SITE_URL = 'https://gerdan.online'
 

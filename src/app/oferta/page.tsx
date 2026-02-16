@@ -1,5 +1,15 @@
 import { Suspense } from 'react'
 import Breadcrumbs from '@/components/ui/BreadCrumbs'
+import type { Metadata } from 'next'
+
+export const metadata: Metadata = {
+  title: 'Публічна оферта',
+  description:
+    'Договір публічної оферти про замовлення, продаж та доставку товарів GERDAN.',
+  alternates: {
+    canonical: '/oferta',
+  },
+}
 
 export default function Oferta() {
   return (

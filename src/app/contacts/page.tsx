@@ -1,6 +1,16 @@
 import { Building, MailIcon, PhoneIcon } from 'lucide-react'
 import { Suspense } from 'react'
 import Breadcrumbs from '@/components/ui/BreadCrumbs'
+import type { Metadata } from 'next'
+
+export const metadata: Metadata = {
+  title: 'Контакти',
+  description:
+    'Контакти GERDAN: графік роботи, телефон, email та адреса магазину.',
+  alternates: {
+    canonical: '/contacts',
+  },
+}
 
 export default function Contacts() {
   return (

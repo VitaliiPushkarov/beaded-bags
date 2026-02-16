@@ -16,6 +16,9 @@ export default function Footer() {
           <Link href="/policy" className="hover:text-gray-900">
             Політика конфіденційності
           </Link>
+          <Link href="/blog" className="hover:text-gray-900">
+            Блог
+          </Link>
         </div>
       </div>
     </footer>

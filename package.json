@@ -6,8 +6,7 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "eslint . --cache",
-    "postbuild": "next-sitemap"
+    "lint": "eslint . --cache"
   },
   "dependencies": {
     "@neondatabase/serverless": "^1.0.2",

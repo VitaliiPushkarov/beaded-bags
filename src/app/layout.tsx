@@ -5,10 +5,11 @@ import CartDrawer from '@/components/cart/CartDrawer'
 import Footer from '@/components/Footer'
 import { SpeedInsights } from '@vercel/speed-insights/next'
 import Script from 'next/script'
+import type { Metadata } from 'next'
 
 const SITE_URL = 'https://gerdan.online'
 
-export const metadata = {
+export const metadata: Metadata = {
   title: {
     default: 'GERDAN — Сумки з бісеру, шопери та аксесуари ручної роботи',
     template: '%s | GERDAN',
@@ -16,6 +17,10 @@ export const metadata = {
   description:
     'Інтернет-магазин GERDAN — сучасні сумки з бісеру, шопери та аксесуари ручної роботи. Український бренд із душею.',
   metadataBase: new URL('https://gerdan.online'),
+  robots: {
+    index: true,
+    follow: true,
+  },
   openGraph: {
     title: 'GERDAN — Сумки з бісеру та аксесуари ручної роботи',
     description:
@@ -24,7 +29,14 @@ export const metadata = {
     siteName: 'GERDAN',
     locale: 'uk_UA',
     type: 'website',
-    image: 'https://gerdan.online/icon1.png',
+    images: ['https://gerdan.online/icon1.png'],
+  },
+  twitter: {
+    card: 'summary_large_image',
+    title: 'GERDAN — Сумки з бісеру та аксесуари ручної роботи',
+    description:
+      'Сучасні аксесуари ручної роботи. Купуйте українське — підтримуйте ремесло.',
+    images: ['https://gerdan.online/icon1.png'],
   },
 }
 

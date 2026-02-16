@@ -129,6 +129,12 @@ export default function Header() {
             >
               КОНТАКТИ
             </Link>
+            <Link
+              href="/blog"
+              className="hidden lg:inline-block hover:opacity-70 text-[12px] font-medium tracking-wide"
+            >
+              БЛОГ
+            </Link>
             <SearchDialog />
             <CartButton />
             {/* <a
@@ -245,6 +251,11 @@ export default function Header() {
               <li className="border-b py-4 border-gray-300">
                 <Link href="/contacts" onClick={closeMobileMenu}>
                   Контакти
+                </Link>
+              </li>
+              <li className="border-b py-4 border-gray-300">
+                <Link href="/blog" onClick={closeMobileMenu}>
+                  Блог
                 </Link>
               </li>
             </ul>

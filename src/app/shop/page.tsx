@@ -3,6 +3,7 @@ import { Suspense } from 'react'
 import { getProducts } from '@/lib/db/products'
 import type { ProductType } from '@prisma/client'
 import Link from 'next/link'
+import type { Metadata } from 'next'
 
 export const revalidate = 60
 
@@ -16,12 +17,30 @@ const ALLOWED_TYPES: ProductType[] = [
   'ACCESSORY',
 ]
 type ProductGroup = '' | 'BEADS' | 'WEAVING'
+type ShopSearchParams = {
+  q?: string
+  color?: string
+  type?: string
+  group?: string
+}
+
+const TYPE_TO_CATEGORY: Record<ProductType, string> = {
+  BAG: 'sumky',
+  BELT_BAG: 'bananky',
+  BACKPACK: 'rjukzachky',
+  SHOPPER: 'shopery',
+  CASE: 'chohly',
+  ORNAMENTS: 'prykrasy',
+  ACCESSORY: 'accessories',
+}
 
 function normalizeGroup(raw?: string | null): ProductGroup {
   if (!raw) return ''
-  const v = raw.toLowerCase()
-  if (v === 'бісер' || v === 'biser') return 'BEADS'
-  if (v === 'плетіння' || v === 'pletinnya') return 'WEAVING'
+  const v = raw.trim().toLowerCase()
+  if (v === 'beads' || v === 'bead' || v === 'бісер' || v === 'biser')
+    return 'BEADS'
+  if (v === 'weaving' || v === 'плетіння' || v === 'pletinnya')
+    return 'WEAVING'
   return ''
 }
 
@@ -31,17 +50,40 @@ function normalizeType(raw?: string | null): ProductType | null {
   return ALLOWED_TYPES.includes(t) ? t : null
 }
 
+function canonicalForShopFilters(sp: ShopSearchParams): string {
+  const safeType = normalizeType(sp.type ?? null)
+  const safeGroup = normalizeGroup(sp.group ?? null)
+
+  // If type/group are combined, keep canonical at /shop to avoid ambiguous mapping.
+  if (safeType && safeGroup) return '/shop'
+
+  if (safeType) return `/shop/${TYPE_TO_CATEGORY[safeType]}`
+  if (safeGroup) return `/shop/group/${safeGroup.toLowerCase()}`
+  return '/shop'
+}
+
+export async function generateMetadata({
+  searchParams,
+}: {
+  searchParams: Promise<ShopSearchParams>
+}): Promise<Metadata> {
+  const sp = await searchParams
+  return {
+    title: 'Каталог',
+    description:
+      'Каталог сумок, шоперів та аксесуарів GERDAN. Фільтруйте за типом, кольором та групою.',
+    alternates: {
+      canonical: canonicalForShopFilters(sp),
+    },
+  }
+}
+
 export default async function ShopPage({
   searchParams,
 }: {
-  searchParams?: {
-    q?: string
-    color?: string
-    type?: string
-    group?: string
-  }
+  searchParams: Promise<ShopSearchParams>
 }) {
-  const sp = searchParams ?? {}
+  const sp = await searchParams
   const safeType = normalizeType(sp.type ?? null)
   const safeGroup = normalizeGroup(sp.group ?? null)
 

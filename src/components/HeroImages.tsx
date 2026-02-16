@@ -112,7 +112,6 @@ export default function HeroSection({
                   src={centerPoster || leftImg}
                   alt=""
                   fill
-                  priority
                   sizes="100vw"
                   className="object-cover"
                 />

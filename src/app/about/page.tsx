@@ -115,7 +115,6 @@ export default function AboutPage() {
               src="/img/about-us-img.png"
               alt="Beaded bag GERDAN"
               fill
-              priority
               className="object-cover"
             />
           </div>
@@ -129,7 +128,6 @@ export default function AboutPage() {
               src="/img/about-us-footer-text.png"
               alt="BEADED BAGS WITH A SOUL"
               fill
-              priority
               className="object-contain"
             />
           </div>
@@ -140,7 +138,6 @@ export default function AboutPage() {
               src="/img/about-us-footer-text.png"
               alt="BEADED BAGS WITH A SOUL"
               fill
-              priority
               className="object-contain lg:object-cover"
             />
           </div>

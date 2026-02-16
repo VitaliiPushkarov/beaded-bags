@@ -13,8 +13,9 @@ export default function HeroBlock() {
         alt="Gerdan Hero Mobile"
         fill
         priority
+        sizes="100vw"
         className="object-cover object-center md:hidden"
-        quality={70}
+        quality={65}
       />
       {/* Головне фото */}
       <Image
@@ -23,8 +24,8 @@ export default function HeroBlock() {
         fill
         priority
         className="object-cover object-center hidden md:block"
-        quality={100}
-        sizes="(max-width: 768px) 100vw"
+        quality={85}
+        sizes="100vw"
       />
 
       {/* Лого поверх фото */}

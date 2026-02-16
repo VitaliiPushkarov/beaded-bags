@@ -7,6 +7,7 @@ import { TYPE_LABELS } from '@/lib/labels'
 import type { ProductType } from '@prisma/client'
 
 type Crumb = { label: string; href?: string }
+const SITE_URL = 'https://gerdan.online'
 
 const nice = (s: string) =>
   decodeURIComponent(s)
@@ -32,6 +33,7 @@ const LABELS: Record<string, string> = {
   policy: 'Політика конфіденційності',
   cashback: 'Обмін та повернення',
   contacts: 'Контакти',
+  blog: 'Блог',
 }
 
 function typeLabel(t?: string | null) {
@@ -95,6 +97,20 @@ function BreadcrumbsInner({ override }: { override?: Crumb[] }) {
     return acc
   }, [pathname, sp, override])
 
+  const jsonLd = useMemo(() => {
+    if (crumbs.length <= 1) return null
+    return {
+      '@context': 'https://schema.org',
+      '@type': 'BreadcrumbList',
+      itemListElement: crumbs.map((crumb, index) => ({
+        '@type': 'ListItem',
+        position: index + 1,
+        name: crumb.label,
+        item: `${SITE_URL}${crumb.href ?? pathname ?? '/'}`,
+      })),
+    }
+  }, [crumbs, pathname])
+
   if (crumbs.length <= 1) return null
 
   return (
@@ -122,14 +138,12 @@ function BreadcrumbsInner({ override }: { override?: Crumb[] }) {
         </ol>
       </nav>
 
-      {/* JSON-LD для SEO */}
-      {/* {jsonLd && (
+      {jsonLd && (
         <script
           type="application/ld+json"
-          // eslint-disable-next-line react/no-danger
           dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
         />
-      )} */}
+      )}
     </>
   )
 }

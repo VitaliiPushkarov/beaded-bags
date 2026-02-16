@@ -1,6 +1,7 @@
 import ProductsContainer from '@/components/product/ProductsContainer'
 import { getProducts } from '@/lib/db/products'
 import Link from 'next/link'
+import type { Metadata } from 'next'
 
 type DbGroup = '' | 'BEADS' | 'WEAVING'
 type UiGroup = '' | 'Бісер' | 'Плетіння'
@@ -36,13 +37,46 @@ function titleForGroup(g: DbGroup): string {
   return 'Група'
 }
 
+function groupCanonicalSlug(g: DbGroup): string {
+  if (g === 'BEADS') return 'beads'
+  if (g === 'WEAVING') return 'weaving'
+  return ''
+}
+
+type ShopGroupPageProps = {
+  params: Promise<{ group: string }>
+  searchParams: Promise<{ q?: string; color?: string }>
+}
+
+export async function generateMetadata({
+  params,
+}: ShopGroupPageProps): Promise<Metadata> {
+  const { group } = await params
+  const dbGroup = normalizeGroupParam(group)
+
+  if (!dbGroup) {
+    return {
+      title: 'Групу не знайдено',
+      robots: {
+        index: false,
+        follow: false,
+      },
+    }
+  }
+
+  return {
+    title: titleForGroup(dbGroup),
+    description: `Каталог товарів групи "${titleForGroup(dbGroup)}" від GERDAN.`,
+    alternates: {
+      canonical: `/shop/group/${groupCanonicalSlug(dbGroup)}`,
+    },
+  }
+}
+
 export default async function ShopGroupPage({
   params,
   searchParams,
-}: {
-  params: Promise<{ group: string }>
-  searchParams: Promise<{ q?: string; color?: string }>
-}) {
+}: ShopGroupPageProps) {
   const { group } = await params
   const sp = await searchParams
 

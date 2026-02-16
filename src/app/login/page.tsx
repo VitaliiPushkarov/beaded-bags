@@ -5,6 +5,10 @@ export const metadata: Metadata = {
   title: 'Увійти — GERDAN',
   description:
     'Сторінка авторизації тимчасово в розробці. Незабаром тут зʼявиться вхід до особистого кабінету.',
+  robots: {
+    index: false,
+    follow: false,
+  },
 }
 
 export default function LoginPlaceholder() {

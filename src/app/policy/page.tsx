@@ -1,5 +1,15 @@
 import { Suspense } from 'react'
 import Breadcrumbs from '@/components/ui/BreadCrumbs'
+import type { Metadata } from 'next'
+
+export const metadata: Metadata = {
+  title: 'Політика конфіденційності',
+  description:
+    'Політика конфіденційності інтернет-магазину GERDAN щодо збору та обробки персональних даних.',
+  alternates: {
+    canonical: '/policy',
+  },
+}
 
 export default function Policy() {
   return (
