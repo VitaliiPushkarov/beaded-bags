@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { z } from 'zod'
 import { prisma } from '@/lib/prisma'
 import { ProductType, ProductGroup } from '@prisma/client'
+import { revalidateProductCache } from '@/lib/revalidate-products'
 
 // Accept both absolute URLs and local paths like "/img/foo.jpg".
 const ImagePath = z
@@ -147,7 +148,16 @@ export async function POST(req: NextRequest) {
           })),
         },
       },
-      select: { id: true },
+      select: { id: true, slug: true, type: true, group: true },
+    })
+
+    revalidateProductCache({
+      reason: 'create',
+      after: {
+        slug: created.slug,
+        type: created.type,
+        group: created.group,
+      },
     })
 
     return NextResponse.json({ id: created.id }, { status: 201 })

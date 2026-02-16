@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { z } from 'zod'
 import { prisma } from '@/lib/prisma'
 import { ProductType, ProductGroup } from '@prisma/client'
+import { revalidateProductCache } from '@/lib/revalidate-products'
 
 const ImagePath = z
   .string()
@@ -54,6 +55,14 @@ export async function PATCH(
 ) {
   try {
     const { id } = await params
+    const existing = await prisma.product.findUnique({
+      where: { id },
+      select: { slug: true, type: true, group: true },
+    })
+
+    if (!existing) {
+      return NextResponse.json({ error: 'Product not found' }, { status: 404 })
+    }
 
     const json = await req.json()
     const parsed = ProductSchema.safeParse(json)
@@ -75,98 +84,98 @@ export async function PATCH(
 
     const result = await prisma.$transaction(
       async (tx) => {
-      // 1) update product fields (do NOT delete variants)
-      const updated = await tx.product.update({
-        where: { id },
-        data: {
-          name: data.name,
-          slug: data.slug,
-          type: data.type as ProductType,
-          group: nextGroup,
-          basePriceUAH: data.basePriceUAH,
-          description: data.description ?? null,
-          info: data.info ?? null,
-          dimensions: data.dimensions || null,
-          offerNote: data.offerNote ?? null,
-          inStock: data.inStock,
-        },
-        select: { id: true },
-      })
-
-      // 2) upsert variants
-      const createdIds: string[] = []
-      for (const v of data.variants) {
-        if (v.id) {
-          await tx.productVariant.update({
-            where: { id: v.id },
-            data: {
-              productId: id,
-              color: v.color ?? null,
-              hex: v.hex ?? null,
-              image: v.image ?? null,
-              images: {
-                deleteMany: {},
-                create: (v.images ?? []).map((url) => ({ url })),
-              },
-              priceUAH: v.priceUAH,
-              discountPercent: sanitizeDiscountPercent(v.discountPercent),
-              discountUAH: v.discountUAH ?? null,
-              inStock: v.inStock,
-              sku: v.sku ?? null,
-              shippingNote: v.shippingNote ?? null,
-            },
-          })
-        } else {
-          const created = await tx.productVariant.create({
-            data: {
-              productId: id,
-              color: v.color ?? null,
-              hex: v.hex ?? null,
-              image: v.image ?? null,
-              images: {
-                create: (v.images ?? []).map((url) => ({ url })),
-              },
-              priceUAH: v.priceUAH,
-              discountPercent: sanitizeDiscountPercent(v.discountPercent),
-              discountUAH: v.discountUAH ?? null,
-              inStock: v.inStock,
-              sku: v.sku ?? null,
-              shippingNote: v.shippingNote ?? null,
-            },
-            select: { id: true },
-          })
-          createdIds.push(created.id)
-        }
-      }
-
-      // 3) delete variants removed from payload (and their addon links)
-      const keepIds = [...incomingIds, ...createdIds]
-
-      const toDelete = await tx.productVariant.findMany({
-        where: {
-          productId: id,
-          ...(keepIds.length ? { id: { notIn: keepIds } } : {}),
-        },
-        select: { id: true },
-      })
-
-      const toDeleteIds = toDelete.map((x) => x.id)
-
-      if (toDeleteIds.length) {
-        // remove addon relations where these variants participate
-        await tx.productVariantAddon.deleteMany({
-          where: {
-            OR: [
-              { variantId: { in: toDeleteIds } },
-              { addonVariantId: { in: toDeleteIds } },
-            ],
+        // 1) update product fields (do NOT delete variants)
+        const updated = await tx.product.update({
+          where: { id },
+          data: {
+            name: data.name,
+            slug: data.slug,
+            type: data.type as ProductType,
+            group: nextGroup,
+            basePriceUAH: data.basePriceUAH,
+            description: data.description ?? null,
+            info: data.info ?? null,
+            dimensions: data.dimensions || null,
+            offerNote: data.offerNote ?? null,
+            inStock: data.inStock,
           },
+          select: { id: true },
         })
 
-        await tx.productVariant.deleteMany({
-          where: { id: { in: toDeleteIds } },
+        // 2) upsert variants
+        const createdIds: string[] = []
+        for (const v of data.variants) {
+          if (v.id) {
+            await tx.productVariant.update({
+              where: { id: v.id },
+              data: {
+                productId: id,
+                color: v.color ?? null,
+                hex: v.hex ?? null,
+                image: v.image ?? null,
+                images: {
+                  deleteMany: {},
+                  create: (v.images ?? []).map((url) => ({ url })),
+                },
+                priceUAH: v.priceUAH,
+                discountPercent: sanitizeDiscountPercent(v.discountPercent),
+                discountUAH: v.discountUAH ?? null,
+                inStock: v.inStock,
+                sku: v.sku ?? null,
+                shippingNote: v.shippingNote ?? null,
+              },
+            })
+          } else {
+            const created = await tx.productVariant.create({
+              data: {
+                productId: id,
+                color: v.color ?? null,
+                hex: v.hex ?? null,
+                image: v.image ?? null,
+                images: {
+                  create: (v.images ?? []).map((url) => ({ url })),
+                },
+                priceUAH: v.priceUAH,
+                discountPercent: sanitizeDiscountPercent(v.discountPercent),
+                discountUAH: v.discountUAH ?? null,
+                inStock: v.inStock,
+                sku: v.sku ?? null,
+                shippingNote: v.shippingNote ?? null,
+              },
+              select: { id: true },
+            })
+            createdIds.push(created.id)
+          }
+        }
+
+        // 3) delete variants removed from payload (and their addon links)
+        const keepIds = [...incomingIds, ...createdIds]
+
+        const toDelete = await tx.productVariant.findMany({
+          where: {
+            productId: id,
+            ...(keepIds.length ? { id: { notIn: keepIds } } : {}),
+          },
+          select: { id: true },
         })
-      }
+
+        const toDeleteIds = toDelete.map((x) => x.id)
+
+        if (toDeleteIds.length) {
+          // remove addon relations where these variants participate
+          await tx.productVariantAddon.deleteMany({
+            where: {
+              OR: [
+                { variantId: { in: toDeleteIds } },
+                { addonVariantId: { in: toDeleteIds } },
+              ],
+            },
+          })
+
+          await tx.productVariant.deleteMany({
+            where: { id: { in: toDeleteIds } },
+          })
+        }
 
         return updated
       },
@@ -175,6 +184,16 @@ export async function PATCH(
         timeout: 15000,
       },
     )
+
+    revalidateProductCache({
+      reason: 'update',
+      before: existing,
+      after: {
+        slug: data.slug,
+        type: data.type,
+        group: nextGroup,
+      },
+    })
 
     return NextResponse.json({ id: result.id }, { status: 200 })
   } catch (err) {
@@ -192,8 +211,21 @@ export async function DELETE(
 ) {
   try {
     const { id } = await params
+    const existing = await prisma.product.findUnique({
+      where: { id },
+      select: { slug: true, type: true, group: true },
+    })
+
+    if (!existing) {
+      return NextResponse.json({ error: 'Product not found' }, { status: 404 })
+    }
 
     await prisma.product.delete({ where: { id } })
+
+    revalidateProductCache({
+      reason: 'delete',
+      before: existing,
+    })
 
     return NextResponse.json({ ok: true }, { status: 200 })
   } catch (err) {
