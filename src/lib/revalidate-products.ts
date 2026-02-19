@@ -40,6 +40,7 @@ function addSnapshotPaths(paths: Set<string>, snapshot?: ProductRevalidatePayloa
 
 export function revalidateProductCache({ reason, before, after }: RevalidateInput) {
   const paths = new Set<string>()
+  paths.add('/admin/products')
 
   const slugChanged = (before?.slug ?? null) !== (after?.slug ?? null)
   const typeChanged = (before?.type ?? null) !== (after?.type ?? null)

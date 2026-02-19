@@ -4,6 +4,8 @@ import type { ProductType } from '@prisma/client'
 import Link from 'next/link'
 import type { Metadata } from 'next'
 
+export const revalidate = 300
+
 const CATEGORY_META: Record<
   string,
   {

@@ -344,8 +344,7 @@ export default function ProductForm({
         return
       }
 
-      router.push('/admin/products')
-      router.refresh()
+      router.replace('/admin/products')
     } catch (err) {
       console.error(err)
       setError('Мережева помилка')
