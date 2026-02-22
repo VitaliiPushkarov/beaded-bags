@@ -110,9 +110,10 @@ model ProductVariantStrap {
 
   name         String // назва ремінця біля кружечка
   slug         String? // якщо стане в пригоді (фільтри/аналітика)
+  extraPriceUAH Int    @default(0) // націнка за конкретний ремінець
   images ProductVariantStrapImage[]
   imageUrl     String? // фото ремінця (можемо використовувати і як прев’ю, і як основне)
-  mainImageUrl String? // опціонально: головне фото сумки з цим ремінцем
+  mainImageUrl String? // опціонально: головне фото сумки з цим ремінцем  
   sort         Int     @default(0)
 
   @@index([variantId, sort])

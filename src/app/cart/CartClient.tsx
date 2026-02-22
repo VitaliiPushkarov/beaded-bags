@@ -129,7 +129,7 @@ export default function CartPage() {
               const line = it.priceUAH * it.qty
               return (
                 <div
-                  key={`${it.productId}-${it.variantId}`}
+                  key={`${it.productId}-${it.variantId}-${it.strapId ?? ''}`}
                   className="py-6 grid lg:grid-cols-[2fr_1fr_1fr_1fr] gap-6 items-center border-b border-black"
                 >
                   {/* Товар */}
@@ -149,9 +149,16 @@ export default function CartPage() {
                       >
                         {it.name}
                       </Link>
+                      {it.strapName && (
+                        <div className="mt-1 text-sm text-gray-600">
+                          Ремінець: {it.strapName}
+                        </div>
+                      )}
                       <div className="mt-2 text-gray-700">В наявності</div>
                       <button
-                        onClick={() => remove(it.productId, it.variantId)}
+                        onClick={() =>
+                          remove(it.productId, it.variantId, it.strapId)
+                        }
                         className="mt-3 text-black underline underline-offset-4 hover:no-underline cursor-pointer"
                       >
                         Видалити
@@ -171,13 +178,18 @@ export default function CartPage() {
                       onDec={() => {
                         const n = it.qty - 1
                         if (n <= 0) {
-                          remove(it.productId, it.variantId)
+                          remove(it.productId, it.variantId, it.strapId)
                         } else {
-                          setQty(it.productId, it.variantId, n)
+                          setQty(it.productId, it.variantId, n, it.strapId)
                         }
                       }}
                       onInc={() =>
-                        setQty(it.productId, it.variantId, it.qty + 1)
+                        setQty(
+                          it.productId,
+                          it.variantId,
+                          it.qty + 1,
+                          it.strapId,
+                        )
                       }
                     />
                   </div>

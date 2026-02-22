@@ -65,7 +65,9 @@ export function ProductInteractive({ p }: { p: ProductWithVariants }) {
   const [variantId, setVariantId] = useState<string | undefined>(
     p.variants?.[0]?.id,
   )
-  const [strapId, setStrapId] = useState<string | undefined>(undefined)
+  const [strapId, setStrapId] = useState<string | undefined>(
+    p.variants?.[0]?.straps?.[0]?.id,
+  )
   const [galleryReady, setGalleryReady] = useState(false)
 
   const openCart = useUI((s) => s.openCart)
@@ -136,6 +138,11 @@ export function ProductInteractive({ p }: { p: ProductWithVariants }) {
     () => v?.straps?.find((s) => s.id === strapId) ?? null,
     [v, strapId],
   )
+  const selectedStrapExtraPriceUAH = useMemo(() => {
+    const raw = Number(selectedStrap?.extraPriceUAH ?? 0)
+    if (!Number.isFinite(raw)) return 0
+    return Math.max(0, Math.round(raw))
+  }, [selectedStrap])
 
   // Коли змінюється варіант — автоматично обираємо перший ремінець (якщо є)
   useEffect(() => {
@@ -156,6 +163,8 @@ export function ProductInteractive({ p }: { p: ProductWithVariants }) {
       discountPercent: v?.discountPercent,
       discountUAH: v?.discountUAH ?? 0,
     })
+  const basePriceWithStrapUAH = basePriceUAH + selectedStrapExtraPriceUAH
+  const finalPriceWithStrapUAH = finalPriceUAH + selectedStrapExtraPriceUAH
 
   // Optional per-variant shipping note (add `shippingNote` to ProductVariant to use this)
   const shippingNote =
@@ -178,12 +187,12 @@ export function ProductInteractive({ p }: { p: ProductWithVariants }) {
     pushMetaViewContent({
       contentId,
       contentName,
-      value: finalPriceUAH, // final product price (addons are separate items)
+      value: finalPriceWithStrapUAH, // final product price (addons are separate items)
       productId: p.id,
       variantId: v.id,
       slug: p.slug,
     })
-  }, [p.id, p.name, p.slug, v?.id, v?.color, finalPriceUAH])
+  }, [p.id, p.name, p.slug, v?.id, v?.color, finalPriceWithStrapUAH])
 
   const galleryImages = useMemo(() => {
     if (!v) return ['/img/placeholder.png']
@@ -264,10 +273,11 @@ export function ProductInteractive({ p }: { p: ProductWithVariants }) {
       productId: p.id,
       variantId: v.id,
       name: `${p.name}${v.color ? ` — ${v.color}` : ''}`,
-      priceUAH: finalPriceUAH,
+      priceUAH: finalPriceWithStrapUAH,
       image: galleryImages[0],
       qty: 1,
       slug: p.slug,
+      strapId: selectedStrap?.id ?? null,
       strapName: selectedStrap?.name ?? null,
     })
 
@@ -288,6 +298,7 @@ export function ProductInteractive({ p }: { p: ProductWithVariants }) {
         image: addonImageUrl(addonV) || galleryImages[0],
         qty: 1,
         slug: addonV.product.slug,
+        strapId: null,
         strapName: null,
       })
     })
@@ -324,11 +335,11 @@ export function ProductInteractive({ p }: { p: ProductWithVariants }) {
 
           <div className="mb-1">
             <div className="flex items-baseline gap-2">
-              <div className="text-lg md:text-2xl">{finalPriceUAH} ₴</div>
+              <div className="text-lg md:text-2xl">{finalPriceWithStrapUAH} ₴</div>
               {hasDiscount && (
                 <>
                   <div className="text-sm md:text-lg text-gray-500 line-through">
-                    {basePriceUAH} ₴
+                    {basePriceWithStrapUAH} ₴
                   </div>
                   <span className="text-[10px] md:text-xs border border-black rounded-full px-2 py-0.5 self-center">
                     -{discountPercent}%
@@ -417,6 +428,11 @@ export function ProductInteractive({ p }: { p: ProductWithVariants }) {
                         )
                       })}
                   </div>
+                  {selectedStrapExtraPriceUAH > 0 && (
+                    <div className="mt-2 text-xs text-gray-600">
+                      + {selectedStrapExtraPriceUAH} грн за ремінець
+                    </div>
+                  )}
                 </div>
               )}
               <AddonsSection

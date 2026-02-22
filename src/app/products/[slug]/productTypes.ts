@@ -11,6 +11,7 @@ export type StrapImageUI = { url: string; sort?: number | null }
 
 export type StrapWithImages = ProductVariantStrap & {
   images?: StrapImageUI[]
+  extraPriceUAH?: number | null
 }
 
 export type VariantWithImagesStrapsAndAddons = ProductVariant & {

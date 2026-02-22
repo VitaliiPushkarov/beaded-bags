@@ -16,6 +16,7 @@ type CartItem = {
   name: string
   priceUAH: number
   qty: number
+  strapId: string | null
   strapName: string | null
   image: string
   slug: string
@@ -25,11 +26,19 @@ type CartItem = {
 type CartState = {
   items: CartItem[]
   add: (item: CartItem) => void
-  remove: (id: string, variantId: string) => void
-  setQty: (id: string, variantId: string, qty: number) => void
+  remove: (id: string, variantId: string, strapId?: string | null) => void
+  setQty: (
+    id: string,
+    variantId: string,
+    qty: number,
+    strapId?: string | null,
+  ) => void
   clear: () => void
   total: () => number
 }
+
+const normalizeStrapId = (strapId: string | null | undefined) => strapId ?? null
+
 export const useCart = create<CartState>()(
   persist(
     (set, get) => ({
@@ -38,7 +47,9 @@ export const useCart = create<CartState>()(
         set((s) => {
           const i = s.items.findIndex(
             (x) =>
-              x.productId === item.productId && x.variantId === item.variantId
+              x.productId === item.productId &&
+              x.variantId === item.variantId &&
+              normalizeStrapId(x.strapId) === normalizeStrapId(item.strapId)
           )
           if (i >= 0) {
             const copy = [...s.items]
@@ -57,16 +68,25 @@ export const useCart = create<CartState>()(
           slug: item.slug,
         })
       },
-      remove: (id, variantId) =>
+      remove: (id, variantId, strapId) =>
         set((s) => ({
           items: s.items.filter(
-            (i) => !(i.productId === id && i.variantId === variantId)
+            (i) =>
+              !(
+                i.productId === id &&
+                i.variantId === variantId &&
+                normalizeStrapId(i.strapId) === normalizeStrapId(strapId)
+              )
           ),
         })),
-      setQty: (id, variantId, qty) =>
+      setQty: (id, variantId, qty, strapId) =>
         set((s) => ({
           items: s.items.map((i) =>
-            i.productId === id && i.variantId === variantId ? { ...i, qty } : i
+            i.productId === id &&
+            i.variantId === variantId &&
+            normalizeStrapId(i.strapId) === normalizeStrapId(strapId)
+              ? { ...i, qty }
+              : i
           ),
         })),
       clear: () => set({ items: [] }),

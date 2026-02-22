@@ -511,7 +511,7 @@ export default function CheckoutClient() {
         <div className="space-y-3">
           {cart.items.map((item) => (
             <div
-              key={`${item.productId}-${item.variantId ?? ''}`}
+              key={`${item.productId}-${item.variantId ?? ''}-${item.strapId ?? ''}`}
               className="flex items-center gap-3"
             >
               {item.image && (
@@ -526,6 +526,11 @@ export default function CheckoutClient() {
               )}
               <div className="flex flex-col text-sm">
                 <span className="line-clamp-2">{item.name}</span>
+                {item.strapName && (
+                  <span className="text-xs text-gray-500">
+                    Ремінець: {item.strapName}
+                  </span>
+                )}
                 <span className="text-xs text-gray-500">
                   {item.qty} шт · {item.priceUAH} грн
                 </span>

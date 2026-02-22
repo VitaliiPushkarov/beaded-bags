@@ -95,7 +95,7 @@ export default function CartDrawer() {
 
               {items.map((it) => (
                 <div
-                  key={`${it.productId}-${it.variantId}`}
+                  key={`${it.productId}-${it.variantId}-${it.strapId ?? ''}`}
                   className="grid grid-cols-[96px,1fr,auto] gap-4 items-start border rounded px-3 py-3"
                 >
                   <div className="inline-flex gap-6">
@@ -120,10 +120,15 @@ export default function CartDrawer() {
                       <div className="text-lg md:text-sm mt-1 text-gray-600">
                         {it.priceUAH} грн
                       </div>
+                      {it.strapName && (
+                        <div className="text-xs mt-1 text-gray-600">
+                          Ремінець: {it.strapName}
+                        </div>
+                      )}
 
                       <button
                         onClick={() => {
-                          remove(it.productId, it.variantId)
+                          remove(it.productId, it.variantId, it.strapId)
                         }}
                         className="mt-2 text-rose-600 hover:text-rose-700 text-sm cursor-pointer"
                       >
@@ -139,9 +144,9 @@ export default function CartDrawer() {
                         onClick={() => {
                           const next = it.qty - 1
                           if (next <= 0) {
-                            remove(it.productId, it.variantId)
+                            remove(it.productId, it.variantId, it.strapId)
                           } else {
-                            setQty(it.productId, it.variantId, next)
+                            setQty(it.productId, it.variantId, next, it.strapId)
                           }
                         }}
                         aria-label="Менше"
@@ -151,9 +156,14 @@ export default function CartDrawer() {
                       <span className="w-6 text-center">{it.qty}</span>
                       <button
                         className="h-8 w-8 rounded bg-black text-white hover:bg-[#FF3D8C] transition cursor-pointer"
-                        onClick={() =>
-                          setQty(it.productId, it.variantId, it.qty + 1)
-                        }
+                        onClick={() => {
+                          setQty(
+                            it.productId,
+                            it.variantId,
+                            it.qty + 1,
+                            it.strapId,
+                          )
+                        }}
                         aria-label="Більше"
                       >
                         +
