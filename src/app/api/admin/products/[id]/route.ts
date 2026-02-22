@@ -14,6 +14,13 @@ const ImagePath = z
     'Invalid image path',
   )
 
+const StrapSchema = z.object({
+  id: z.string().optional(),
+  name: z.string().trim().min(1),
+  extraPriceUAH: z.coerce.number().int().min(0).optional().default(0),
+  sort: z.coerce.number().int().optional().default(0),
+})
+
 // --------- Zod-схеми ---------
 const VariantSchema = z.object({
   id: z.string().optional(),
@@ -27,6 +34,7 @@ const VariantSchema = z.object({
   inStock: z.coerce.boolean(),
   sku: z.string().trim().optional().nullable(),
   shippingNote: z.string().trim().optional().nullable(),
+  straps: z.array(StrapSchema).optional().default([]),
 })
 
 const ProductSchema = z.object({
@@ -34,6 +42,7 @@ const ProductSchema = z.object({
   slug: z.string().min(1),
   type: z.enum(ProductType),
   group: z.enum(ProductGroup).optional().nullable(),
+  sortCatalog: z.coerce.number().int().optional().nullable(),
   basePriceUAH: z.coerce.number().nullable(),
   description: z.string().optional().nullable(),
   info: z.string().optional().nullable(),
@@ -46,6 +55,11 @@ const ProductSchema = z.object({
 function sanitizeDiscountPercent(input: number | null | undefined) {
   if (typeof input !== 'number' || !Number.isFinite(input)) return null
   return Math.max(0, Math.min(100, Math.round(input)))
+}
+
+function sanitizeSortCatalog(input: number | null | undefined) {
+  if (typeof input !== 'number' || !Number.isFinite(input)) return 0
+  return Math.max(0, Math.round(input))
 }
 
 // --------- PATCH: оновлення товару ---------
@@ -92,6 +106,7 @@ export async function PATCH(
             slug: data.slug,
             type: data.type as ProductType,
             group: nextGroup,
+            sortCatalog: sanitizeSortCatalog(data.sortCatalog),
             basePriceUAH: data.basePriceUAH,
             description: data.description ?? null,
             info: data.info ?? null,
@@ -125,6 +140,55 @@ export async function PATCH(
                 shippingNote: v.shippingNote ?? null,
               },
             })
+
+            const keepStrapIds: string[] = []
+            const straps = v.straps ?? []
+            for (let i = 0; i < straps.length; i++) {
+              const strap = straps[i]
+              if (strap.id) {
+                const updated = await tx.productVariantStrap.updateMany({
+                  where: { id: strap.id, variantId: v.id },
+                  data: {
+                    name: strap.name,
+                    extraPriceUAH: strap.extraPriceUAH ?? 0,
+                    sort: strap.sort ?? i,
+                  },
+                })
+
+                if (updated.count > 0) {
+                  keepStrapIds.push(strap.id)
+                } else {
+                  const createdStrap = await tx.productVariantStrap.create({
+                    data: {
+                      variantId: v.id,
+                      name: strap.name,
+                      extraPriceUAH: strap.extraPriceUAH ?? 0,
+                      sort: strap.sort ?? i,
+                    },
+                    select: { id: true },
+                  })
+                  keepStrapIds.push(createdStrap.id)
+                }
+              } else {
+                const createdStrap = await tx.productVariantStrap.create({
+                  data: {
+                    variantId: v.id,
+                    name: strap.name,
+                    extraPriceUAH: strap.extraPriceUAH ?? 0,
+                    sort: strap.sort ?? i,
+                  },
+                  select: { id: true },
+                })
+                keepStrapIds.push(createdStrap.id)
+              }
+            }
+
+            await tx.productVariantStrap.deleteMany({
+              where: {
+                variantId: v.id,
+                ...(keepStrapIds.length ? { id: { notIn: keepStrapIds } } : {}),
+              },
+            })
           } else {
             const created = await tx.productVariant.create({
               data: {
@@ -141,6 +205,13 @@ export async function PATCH(
                 inStock: v.inStock,
                 sku: v.sku ?? null,
                 shippingNote: v.shippingNote ?? null,
+                straps: {
+                  create: (v.straps ?? []).map((s, i) => ({
+                    name: s.name,
+                    extraPriceUAH: s.extraPriceUAH ?? 0,
+                    sort: s.sort ?? i,
+                  })),
+                },
               },
               select: { id: true },
             })
@@ -170,6 +241,9 @@ export async function PATCH(
                 { addonVariantId: { in: toDeleteIds } },
               ],
             },
+          })
+          await tx.productVariantStrap.deleteMany({
+            where: { variantId: { in: toDeleteIds } },
           })
 
           await tx.productVariant.deleteMany({

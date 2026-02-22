@@ -12,11 +12,14 @@ type ProductWithVariants = Product & {
 const BASE_URL = process.env.NEXT_PUBLIC_SITE_URL ?? 'https://gerdan.online'
 
 async function getBestsellers(): Promise<ProductWithVariants[]> {
-  const res = await fetch(`${BASE_URL}/api/products?limit=12`, {
+  const res = await fetch(`${BASE_URL}/api/products?lite=1&limit=12`, {
     cache: 'no-store',
   })
   if (!res.ok) return []
-  return (await res.json()) as ProductWithVariants[]
+  const json = (await res.json()) as
+    | ProductWithVariants[]
+    | { items?: ProductWithVariants[] }
+  return Array.isArray(json) ? json : json.items ?? []
 }
 
 export default async function Bestsellers() {
@@ -33,7 +36,7 @@ export default async function Bestsellers() {
           <div className="flex gap-5 overflow-x-auto scrollbar-always snap-x pb-2">
             {products.length === 0 ? (
               <div className="text-gray-500 text-sm">
-                Поки що немає бестселерів.
+                Поки що немає товарів.
               </div>
             ) : (
               products.map((p) => {

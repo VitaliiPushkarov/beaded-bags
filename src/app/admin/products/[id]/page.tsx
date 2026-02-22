@@ -19,6 +19,9 @@ export default async function AdminProductEditPage({ params }: PageProps) {
           images: {
             orderBy: { sort: 'asc' },
           },
+          straps: {
+            orderBy: { sort: 'asc' },
+          },
           addonsOnVariant: {
             orderBy: { sort: 'asc' },
             include: {
@@ -155,6 +158,7 @@ export default async function AdminProductEditPage({ params }: PageProps) {
     slug: product.slug,
     type: product.type as ProductType,
     group: product.group as ProductGroup,
+    sortCatalog: String(product.sortCatalog ?? 0),
     basePriceUAH: product.basePriceUAH?.toString() ?? '',
     description: product.description ?? '',
     info: product.info ?? '',
@@ -185,6 +189,13 @@ export default async function AdminProductEditPage({ params }: PageProps) {
         shippingNote: v.shippingNote ?? '',
         inStock: v.inStock,
         sku: v.sku ?? '',
+        straps:
+          (v as any).straps?.map((s: any) => ({
+            id: s.id,
+            name: s.name ?? '',
+            extraPriceUAH: String(s.extraPriceUAH ?? 0),
+            sort: String(s.sort ?? 0),
+          })) ?? [],
         addons:
           (v as any).addonsOnVariant?.map((rel: any) => ({
             id: rel.id,

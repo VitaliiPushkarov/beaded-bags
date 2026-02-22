@@ -7,7 +7,7 @@ export const dynamic = 'force-dynamic'
 export default async function AdminProductsPage() {
   const products = await prisma.product.findMany({
     include: { variants: true },
-    orderBy: [{ name: 'asc' }, { createdAt: 'desc' }],
+    orderBy: [{ sortCatalog: 'asc' }, { createdAt: 'desc' }],
   })
 
   return (
@@ -50,6 +50,9 @@ export default async function AdminProductsPage() {
                       <span className="text-gray-500">Базова ціна:</span>{' '}
                       {p.basePriceUAH != null ? `${p.basePriceUAH} ₴` : '—'}
                       <span className="mx-2 text-gray-300">•</span>
+                      <span className="text-gray-500">Позиція:</span>{' '}
+                      {p.sortCatalog}
+                      <span className="mx-2 text-gray-300">•</span>
                       <span className="text-gray-500">Варіантів:</span>{' '}
                       {p.variants.length}
                     </div>
@@ -73,6 +76,7 @@ export default async function AdminProductsPage() {
                 <tr>
                   <th className="p-2 text-left">Назва</th>
                   <th className="p-2 text-left">Тип</th>
+                  <th className="p-2 text-center">Позиція</th>
                   <th className="p-2 text-right">Базова ціна</th>
                   <th className="p-2 text-center">Варіантів</th>
                   <th className="p-2 text-right">Дії</th>
@@ -91,6 +95,7 @@ export default async function AdminProductsPage() {
                       </Link>
                     </td>
                     <td className="p-2">{p.type as ProductType}</td>
+                    <td className="p-2 text-center">{p.sortCatalog}</td>
                     <td className="p-2 text-right">
                       {p.basePriceUAH != null ? `${p.basePriceUAH} ₴` : '—'}
                     </td>

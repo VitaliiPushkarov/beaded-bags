@@ -15,6 +15,13 @@ const ImagePath = z
     'Invalid image path',
   )
 
+const StrapSchema = z.object({
+  id: z.string().optional(),
+  name: z.string().trim().min(1),
+  extraPriceUAH: z.coerce.number().int().min(0).optional().default(0),
+  sort: z.coerce.number().int().optional().default(0),
+})
+
 // --------- Zod schema for product creation (incl. variants, but without straps/addons/images relations) ---------
 const ProductCreateSchema = z.object({
   name: z.string().trim().min(1),
@@ -22,6 +29,7 @@ const ProductCreateSchema = z.object({
   type: z.enum(ProductType),
   // allow missing or null (DB can store null)
   group: z.enum(ProductGroup).nullable().optional(),
+  sortCatalog: z.coerce.number().int().optional().nullable(),
 
   basePriceUAH: z.coerce.number().nullable().optional(),
   info: z.string().trim().optional().nullable(),
@@ -47,6 +55,7 @@ const ProductCreateSchema = z.object({
 
         // Optional per-variant shipping text (e.g. "Відправка протягом 1–3 днів")
         shippingNote: z.string().trim().optional().nullable(),
+        straps: z.array(StrapSchema).optional().default([]),
       }),
     )
     .min(1, 'At least one variant is required'),
@@ -55,6 +64,11 @@ const ProductCreateSchema = z.object({
 function sanitizeDiscountPercent(input: number | null | undefined) {
   if (typeof input !== 'number' || !Number.isFinite(input)) return null
   return Math.max(0, Math.min(100, Math.round(input)))
+}
+
+function sanitizeSortCatalog(input: number | null | undefined) {
+  if (typeof input !== 'number' || !Number.isFinite(input)) return 0
+  return Math.max(0, Math.round(input))
 }
 
 // --------- GET: list products for admin ---------
@@ -68,6 +82,7 @@ export async function GET() {
         slug: true,
         type: true,
         group: true,
+        sortCatalog: true,
         inStock: true,
         basePriceUAH: true,
         offerNote: true,
@@ -121,6 +136,7 @@ export async function POST(req: NextRequest) {
         slug: data.slug,
         type: data.type,
         group: data.group ?? null,
+        sortCatalog: sanitizeSortCatalog(data.sortCatalog),
         basePriceUAH: data.basePriceUAH ?? null,
         description: data.description ?? null,
         info: data.info ?? null,
@@ -142,6 +158,13 @@ export async function POST(req: NextRequest) {
             inStock: v.inStock,
             sku: v.sku ?? null,
             shippingNote: v.shippingNote ?? null,
+            straps: {
+              create: (v.straps ?? []).map((s, strapIdx) => ({
+                name: s.name,
+                extraPriceUAH: s.extraPriceUAH ?? 0,
+                sort: s.sort ?? strapIdx,
+              })),
+            },
 
             // sensible default order for new variants
             sortCatalog: idx + 1,

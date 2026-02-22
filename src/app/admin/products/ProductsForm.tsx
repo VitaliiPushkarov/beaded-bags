@@ -61,6 +61,13 @@ type VariantAddonLinkInput = {
   addonPriceUAH: number
 }
 
+type VariantStrapInput = {
+  id?: string
+  name: string
+  extraPriceUAH: string
+  sort: string
+}
+
 type VariantInput = {
   id?: string
   color: string
@@ -74,6 +81,7 @@ type VariantInput = {
   inStock: boolean
   sku: string
   addons?: VariantAddonLinkInput[]
+  straps?: VariantStrapInput[]
 }
 
 type ProductFormValues = {
@@ -82,6 +90,7 @@ type ProductFormValues = {
   slug: string
   type: ProductType
   group: ProductGroup | ''
+  sortCatalog: string
   basePriceUAH: string
   description: string
   inStock: boolean
@@ -146,33 +155,45 @@ export default function ProductForm({
             const images = normalizeImages(v.images)
             const seededImages = images.length === 0 && v.image ? [v.image] : images
             const main = v.image || seededImages[0] || ''
-            return { ...v, images: seededImages, image: main }
+            return {
+              ...v,
+              images: seededImages,
+              image: main,
+              straps: (v.straps || []).map((s) => ({
+                id: s.id,
+                name: s.name || '',
+                extraPriceUAH: String(s.extraPriceUAH ?? ''),
+                sort: String(s.sort ?? ''),
+              })),
+            }
           }),
         }
       : {
           name: '',
           slug: '',
           type: 'BAG',
-      group: '',
-      basePriceUAH: '',
-      description: '',
-      inStock: true,
-          variants: [
-        {
-          color: '',
-          hex: '',
-          image: '',
-          images: [],
-          priceUAH: '',
-          discountPercent: '',
-          discountUAH: '',
-          shippingNote: '',
+          group: '',
+          sortCatalog: '',
+          basePriceUAH: '',
+          description: '',
           inStock: true,
-          sku: '',
-          addons: [],
+          variants: [
+            {
+              color: '',
+              hex: '',
+              image: '',
+              images: [],
+              priceUAH: '',
+              discountPercent: '',
+              discountUAH: '',
+              shippingNote: '',
+              inStock: true,
+              sku: '',
+              addons: [],
+              straps: [],
+            },
+          ],
         },
-      ],
-    },
   )
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -260,6 +281,19 @@ export default function ProductForm({
     })
   }
 
+  const setVariantStraps = (
+    index: number,
+    nextStraps: VariantStrapInput[],
+  ) => {
+    setValues((prev) => {
+      const nextVariants = [...prev.variants]
+      const cur = nextVariants[index]
+      if (!cur) return prev
+      nextVariants[index] = { ...cur, straps: nextStraps }
+      return { ...prev, variants: nextVariants }
+    })
+  }
+
   const addVariant = () => {
     setValues((prev) => ({
       ...prev,
@@ -277,6 +311,7 @@ export default function ProductForm({
           inStock: true,
           sku: '',
           addons: [],
+          straps: [],
         },
       ],
     }))
@@ -297,6 +332,7 @@ export default function ProductForm({
       const body = {
         ...values,
         group: values.group || null,
+        sortCatalog: values.sortCatalog ? Number(values.sortCatalog) : 0,
         basePriceUAH: values.basePriceUAH ? Number(values.basePriceUAH) : null,
         offerNote: values.offerNote?.trim() || null,
         variants: values.variants.map((v) => ({
@@ -313,6 +349,16 @@ export default function ProductForm({
           shippingNote: v.shippingNote || null,
           inStock: v.inStock,
           sku: v.sku,
+          straps: (v.straps || [])
+            .map((s, idx) => ({
+              id: s.id,
+              name: s.name.trim(),
+              extraPriceUAH: s.extraPriceUAH
+                ? Math.max(0, Number(s.extraPriceUAH))
+                : 0,
+              sort: s.sort ? Number(s.sort) : idx,
+            }))
+            .filter((s) => s.name.length > 0),
         })),
       }
 
@@ -438,7 +484,7 @@ export default function ProductForm({
             </label>
           </div>
 
-          <div className="grid gap-4 sm:grid-cols-3">
+          <div className="grid gap-4 sm:grid-cols-4">
             <label className="block text-sm font-medium">
               Тип
               <select
@@ -492,6 +538,22 @@ export default function ProductForm({
                     basePriceUAH: e.target.value.replace(/[^\d]/g, ''),
                   }))
                 }
+              />
+            </label>
+
+            <label className="block text-sm font-medium">
+              Позиція в каталозі
+              <input
+                className="mt-2 w-full border rounded-lg px-3 py-2 text-sm border-blue-300"
+                inputMode="numeric"
+                value={values.sortCatalog}
+                onChange={(e) =>
+                  setValues((v) => ({
+                    ...v,
+                    sortCatalog: e.target.value.replace(/[^\d]/g, ''),
+                  }))
+                }
+                placeholder="0"
               />
             </label>
           </div>
@@ -895,6 +957,101 @@ export default function ProductForm({
                 </label>
               </div>
               <div className="space-y-2">
+                <div className="border border-blue-100 rounded-lg p-3">
+                  <div className="flex items-center justify-between gap-2 mb-3">
+                    <div>
+                      <div className="text-lg font-medium">Ремінці</div>
+                      <div className="text-xs text-gray-500">
+                        Додай ремінець і вкажи його націнку в гривнях.
+                      </div>
+                    </div>
+                    <button
+                      type="button"
+                      className="text-sm px-3 py-1 rounded border border-blue-700 text-blue-700 hover:bg-blue-700 hover:text-white cursor-pointer"
+                      onClick={() => {
+                        const next = [
+                          ...(v.straps || []),
+                          {
+                            name: '',
+                            extraPriceUAH: '',
+                            sort: String((v.straps || []).length),
+                          },
+                        ]
+                        setVariantStraps(index, next)
+                      }}
+                    >
+                      Додати ремінець
+                    </button>
+                  </div>
+
+                  {(v.straps || []).length === 0 ? (
+                    <div className="text-sm text-gray-500">Ще немає ремінців</div>
+                  ) : (
+                    <div className="space-y-3">
+                      {(v.straps || []).map((strap, strapIndex) => (
+                        <div
+                          key={strap.id || `strap-${strapIndex}`}
+                          className="grid gap-2 sm:grid-cols-[1fr_140px_90px_auto]"
+                        >
+                          <input
+                            className="border rounded px-2 py-2 text-sm border-blue-300"
+                            placeholder="Назва ремінця"
+                            value={strap.name}
+                            onChange={(e) => {
+                              const next = [...(v.straps || [])]
+                              next[strapIndex] = {
+                                ...next[strapIndex],
+                                name: e.target.value,
+                              }
+                              setVariantStraps(index, next)
+                            }}
+                          />
+                          <input
+                            className="border rounded px-2 py-2 text-sm border-blue-300"
+                            placeholder="Націнка, грн"
+                            inputMode="numeric"
+                            value={strap.extraPriceUAH}
+                            onChange={(e) => {
+                              const next = [...(v.straps || [])]
+                              next[strapIndex] = {
+                                ...next[strapIndex],
+                                extraPriceUAH: e.target.value.replace(/[^\d]/g, ''),
+                              }
+                              setVariantStraps(index, next)
+                            }}
+                          />
+                          <input
+                            className="border rounded px-2 py-2 text-sm border-blue-300"
+                            placeholder="Sort"
+                            inputMode="numeric"
+                            value={strap.sort}
+                            onChange={(e) => {
+                              const next = [...(v.straps || [])]
+                              next[strapIndex] = {
+                                ...next[strapIndex],
+                                sort: e.target.value.replace(/[^\d]/g, ''),
+                              }
+                              setVariantStraps(index, next)
+                            }}
+                          />
+                          <button
+                            type="button"
+                            className="text-sm px-3 py-2 rounded border border-blue-700 text-blue-700 hover:bg-blue-700 hover:text-white cursor-pointer"
+                            onClick={() => {
+                              const next = (v.straps || []).filter(
+                                (_, i) => i !== strapIndex,
+                              )
+                              setVariantStraps(index, next)
+                            }}
+                          >
+                            Видалити
+                          </button>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+
                 {addonVariantOptions &&
                   upsertVariantAddon &&
                   updateVariantAddonSort &&
