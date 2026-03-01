@@ -65,10 +65,14 @@ export default function ProductCardLarge({ p }: { p: ProductWithVariants }) {
     variantImages[1]?.url ||
     primaryImage
 
+  const productHref = `/products/${p.slug}${
+    activeVariantId ? `#variant=${activeVariantId}` : ''
+  }`
+
   return (
     <article className=" overflow-hidden bg-white mb-8 md:mb-0">
       {/* зображення прив'язане до варіанту */}
-      <Link href={`/products/${p.slug}?variant=${activeVariantId ?? ''}`}>
+      <Link href={productHref}>
         <div
           className="group relative md:h-[560px] aspect-3/4 2xl:aspect-auto bg-gray-100 2xl:h-[720px] overflow-hidden"
           onMouseEnter={() => setIsHovered(true)}
@@ -112,7 +116,7 @@ export default function ProductCardLarge({ p }: { p: ProductWithVariants }) {
 
       <div className=" p-1 md:p-3">
         <div className="flex items-center justify-between flex-wrap">
-          <Link href={`/products/${p.slug}?variant=${activeVariantId ?? ''}`}>
+          <Link href={productHref}>
             <h3 className="text-sm md:text-xl font-normal truncate">
               {p.name}
             </h3>

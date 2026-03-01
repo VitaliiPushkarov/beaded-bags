@@ -9,6 +9,9 @@ export default function Footer() {
           <Link href="/contacts" className="hover:text-gray-900">
             Контакти
           </Link>
+          <Link href="/oferta" className="hover:text-gray-900">
+            Публічна оферта
+          </Link>
           <Link href="/cashback" className="hover:text-gray-900">
             Умови обміну та повернення
           </Link>

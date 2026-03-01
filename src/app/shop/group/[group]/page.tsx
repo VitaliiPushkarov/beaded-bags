@@ -1,7 +1,7 @@
 import ProductsContainer from '@/components/product/ProductsContainer'
 import { getProducts } from '@/lib/db/products'
-import Link from 'next/link'
 import type { Metadata } from 'next'
+import { notFound } from 'next/navigation'
 
 export const revalidate = 300
 
@@ -50,6 +50,10 @@ type ShopGroupPageProps = {
   searchParams: Promise<{ q?: string; color?: string }>
 }
 
+export function generateStaticParams() {
+  return [{ group: 'beads' }, { group: 'weaving' }]
+}
+
 export async function generateMetadata({
   params,
 }: ShopGroupPageProps): Promise<Metadata> {
@@ -57,13 +61,7 @@ export async function generateMetadata({
   const dbGroup = normalizeGroupParam(group)
 
   if (!dbGroup) {
-    return {
-      title: 'Групу не знайдено',
-      robots: {
-        index: false,
-        follow: false,
-      },
-    }
+    notFound()
   }
 
   return {
@@ -84,25 +82,8 @@ export default async function ShopGroupPage({
 
   const dbGroup = normalizeGroupParam(group)
 
-  //fallback
   if (!dbGroup) {
-    return (
-      <div className="max-w-6xl mx-auto px-4 py-12">
-        <h1 className="text-2xl font-semibold mb-4">
-          Група скоро буде доступна
-        </h1>
-        <p className="text-gray-600 mb-6">
-          Ми ще не встигли додати товари в цю групу. Спробуйте інші розділи
-          каталогу.
-        </p>
-        <Link
-          href="/shop"
-          className="inline-flex items-center rounded bg-black text-white px-4 py-2 text-sm hover:bg-neutral-800"
-        >
-          Усі товари
-        </Link>
-      </div>
-    )
+    notFound()
   }
   const products = await getProducts({
     search: sp.q,

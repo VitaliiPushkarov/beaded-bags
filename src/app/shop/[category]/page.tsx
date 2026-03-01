@@ -1,8 +1,8 @@
 import ProductsContainer from '@/components/product/ProductsContainer'
 import { getProducts } from '@/lib/db/products'
 import type { ProductType } from '@prisma/client'
-import Link from 'next/link'
 import type { Metadata } from 'next'
+import { notFound } from 'next/navigation'
 
 export const revalidate = 300
 
@@ -60,6 +60,10 @@ type ShopCategoryPageProps = {
   }>
 }
 
+export function generateStaticParams() {
+  return Object.keys(CATEGORY_META).map((category) => ({ category }))
+}
+
 export async function generateMetadata({
   params,
 }: ShopCategoryPageProps): Promise<Metadata> {
@@ -67,13 +71,7 @@ export async function generateMetadata({
   const meta = CATEGORY_META[category]
 
   if (!meta) {
-    return {
-      title: 'Категорію не знайдено',
-      robots: {
-        index: false,
-        follow: false,
-      },
-    }
+    notFound()
   }
 
   return {
@@ -93,25 +91,8 @@ export default async function ShopCategoryPage({
   const sp = await searchParams
   const meta = CATEGORY_META[category]
 
-  // fallback
   if (!meta) {
-    return (
-      <div className="max-w-6xl mx-auto px-4 py-12">
-        <h1 className="text-2xl font-semibold mb-4">
-          Категорія скоро буде доступна
-        </h1>
-        <p className="text-gray-600 mb-6">
-          Ми ще не встигли додати товари в цю категорію. Спробуйте інші розділи
-          каталогу.
-        </p>
-        <Link
-          href="/shop"
-          className="inline-flex items-center rounded bg-black text-white px-4 py-2 text-sm hover:bg-neutral-800"
-        >
-          Усі товари
-        </Link>
-      </div>
-    )
+    notFound()
   }
 
   const products = await getProducts({

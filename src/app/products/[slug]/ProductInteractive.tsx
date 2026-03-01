@@ -1,6 +1,5 @@
 'use client'
 import { useEffect, useMemo, useState, useRef } from 'react'
-import { usePathname, useRouter, useSearchParams } from 'next/navigation'
 import Image from 'next/image'
 import dynamic from 'next/dynamic'
 
@@ -14,6 +13,7 @@ import { ProductActions } from './ProductActions'
 import { AddonsSection } from './AddonsSection'
 import type { ProductWithVariants } from './productTypes'
 import { calcDiscountedPrice } from '@/lib/pricing'
+import ProductTabs from '@/components/product/ProductTabs'
 
 const ProductGallery = dynamic(() => import('@/components/ProductGallery'), {
   ssr: false,
@@ -23,14 +23,6 @@ const YouMayAlsoLike = dynamic(() => import('@/components/YouMayAlsoLike'), {
   ssr: false,
   loading: () => <div className="mt-10 h-40 w-full" />,
 })
-
-const ProductTabsLazy = dynamic(
-  () => import('@/components/product/ProductTabs'),
-  {
-    ssr: false,
-    loading: () => <div className="mt-6 h-32 w-full" />,
-  },
-)
 
 const PreorderModal = dynamic(
   () => import('./PreOrderModal').then((m) => m.PreorderModal),
@@ -56,12 +48,13 @@ function ProductGalleryFallback({ src }: { src: string }) {
   )
 }
 
-export function ProductInteractive({ p }: { p: ProductWithVariants }) {
-  const sp = useSearchParams()
-  const router = useRouter()
-  const pathname = usePathname()
-  const variantFromUrl = sp.get('variant') || undefined
+function getVariantIdFromHash(hash: string): string | undefined {
+  const raw = hash.startsWith('#') ? hash.slice(1) : hash
+  const params = new URLSearchParams(raw)
+  return params.get('variant') || undefined
+}
 
+export function ProductInteractive({ p }: { p: ProductWithVariants }) {
   const [variantId, setVariantId] = useState<string | undefined>(
     p.variants?.[0]?.id,
   )
@@ -103,31 +96,33 @@ export function ProductInteractive({ p }: { p: ProductWithVariants }) {
 
   const didInitVariantFromUrlRef = useRef(false)
 
-  // init variant from URL once (URL is source of truth only on initial load)
+  // Use the URL hash for variant persistence without creating crawlable duplicate URLs.
   useEffect(() => {
     if (didInitVariantFromUrlRef.current) return
+    if (typeof window === 'undefined') return
     if (!p.variants?.length) return
 
-    if (variantFromUrl) {
-      const ok = p.variants.some((vv) => vv.id === variantFromUrl)
-      if (ok) setVariantId(variantFromUrl)
+    const variantFromHash = getVariantIdFromHash(window.location.hash)
+
+    if (variantFromHash) {
+      const ok = p.variants.some((vv) => vv.id === variantFromHash)
+      if (ok) setVariantId(variantFromHash)
     }
 
     didInitVariantFromUrlRef.current = true
-  }, [variantFromUrl, p.variants])
+  }, [p.variants])
 
-  // sync state -> URL (when user selects a variant)
+  // Keep the selected variant in the URL hash for sharable state without ?variant duplicates.
   useEffect(() => {
+    if (typeof window === 'undefined') return
     if (!variantId) return
 
-    const current = sp.get('variant') || ''
+    const current = getVariantIdFromHash(window.location.hash) || ''
     if (current === variantId) return
 
-    const params = new URLSearchParams(sp.toString())
-    params.set('variant', variantId)
-
-    router.replace(`${pathname}?${params.toString()}`, { scroll: false })
-  }, [variantId, sp, router, pathname])
+    const url = `${window.location.pathname}${window.location.search}#variant=${variantId}`
+    window.history.replaceState(window.history.state, '', url)
+  }, [variantId])
 
   useEffect(() => {
     setGalleryReady(true)
@@ -469,7 +464,7 @@ export function ProductInteractive({ p }: { p: ProductWithVariants }) {
             />
           )}
 
-          <ProductTabsLazy
+          <ProductTabs
             description={p.description}
             info={p.info}
             dimensions={p.dimensions}
