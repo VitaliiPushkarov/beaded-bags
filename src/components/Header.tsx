@@ -224,8 +224,8 @@ export default function Header() {
                 </Link>
               </li>
               <li className="border-b py-4 border-gray-300">
-                <Link href="/shop/prykrasy" onClick={closeMobileMenu}>
-                  Прикраси
+                <Link href="/shop/accessories/breloky" onClick={closeMobileMenu}>
+                  Брелоки
                 </Link>
               </li>
               <li className="border-b py-4 border-gray-300">

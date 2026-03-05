@@ -5,6 +5,7 @@ type GetProductsParams = {
   search?: string
   color?: string
   type?: ProductType
+  types?: ProductType[]
   group?: '' | 'BEADS' | 'WEAVING'
   forSlider?: boolean
   forBestsellers?: boolean
@@ -12,12 +13,14 @@ type GetProductsParams = {
 }
 
 function buildWhere(params: GetProductsParams): Prisma.ProductWhereInput {
-  const { search, color, type, group, forBestsellers } = params
+  const { search, color, type, types, group, forBestsellers } = params
 
   const where: Prisma.ProductWhereInput = {}
 
   // Filter by type
-  if (type) {
+  if (types && types.length > 0) {
+    where.type = { in: types }
+  } else if (type) {
     where.type = type
   }
 

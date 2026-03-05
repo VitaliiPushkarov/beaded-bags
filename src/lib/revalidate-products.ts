@@ -1,5 +1,6 @@
 import { revalidatePath } from 'next/cache'
 import type { ProductGroup, ProductType } from '@prisma/client'
+import { getAccessorySubcategorySlugs } from '@/lib/shop-taxonomy'
 
 const CATEGORY_BY_TYPE: Record<ProductType, string> = {
   BAG: 'sumky',
@@ -7,7 +8,7 @@ const CATEGORY_BY_TYPE: Record<ProductType, string> = {
   BACKPACK: 'rjukzachky',
   SHOPPER: 'shopery',
   CASE: 'chohly',
-  ORNAMENTS: 'prykrasy',
+  ORNAMENTS: 'accessories',
   ACCESSORY: 'accessories',
 }
 
@@ -15,6 +16,10 @@ const GROUP_SLUG_BY_GROUP: Record<ProductGroup, string> = {
   BEADS: 'beads',
   WEAVING: 'weaving',
 }
+
+const ACCESSORY_SUBCATEGORY_PATHS = getAccessorySubcategorySlugs().map(
+  (slug) => `/shop/accessories/${slug}`,
+)
 
 type ProductRevalidatePayload = {
   slug?: string | null
@@ -36,6 +41,10 @@ function addSnapshotPaths(paths: Set<string>, snapshot?: ProductRevalidatePayloa
   if (snapshot.slug) paths.add(`/products/${snapshot.slug}`)
   if (snapshot.type) paths.add(`/shop/${CATEGORY_BY_TYPE[snapshot.type]}`)
   if (snapshot.group) paths.add(`/shop/group/${GROUP_SLUG_BY_GROUP[snapshot.group]}`)
+  if (snapshot.type === 'ACCESSORY' || snapshot.type === 'ORNAMENTS') {
+    paths.add('/shop/accessories')
+    for (const path of ACCESSORY_SUBCATEGORY_PATHS) paths.add(path)
+  }
 }
 
 export function revalidateProductCache({ reason, before, after }: RevalidateInput) {

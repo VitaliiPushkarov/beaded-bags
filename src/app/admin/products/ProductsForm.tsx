@@ -349,6 +349,7 @@ export default function ProductForm({
       variants: prev.variants.filter((_, i) => i !== index),
     }))
   }
+
   const onSubmit = async (e: SyntheticEvent) => {
     e.preventDefault()
     setSaving(true)

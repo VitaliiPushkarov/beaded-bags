@@ -18,9 +18,13 @@ function renderHtml(content?: string | null) {
   )
 }
 
-export default function ProductTabs({ description, info, dimensions }: Props) {
+export default function ProductTabs({
+  description,
+  info,
+  dimensions,
+}: Props) {
   const [tab, setTab] = useState<'description' | 'info' | 'dimensions'>(
-    'description'
+    'description',
   )
 
   const tabs = [

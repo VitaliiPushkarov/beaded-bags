@@ -3,15 +3,37 @@
 import Link from 'next/link'
 import { useState, useRef } from 'react'
 import { ChevronDown } from 'lucide-react'
-/* import { ProductType } from '@prisma/client' */
+import clsx from 'clsx'
+import { ACCESSORY_SUBCATEGORIES } from '@/lib/shop-taxonomy'
 
-/* const CATEGORIES: ProductType[] = [
-  'BAG',
-  'BELT_BAG',
-  'BACKPACK',
-  'SHOPPER',
-  'CASE',
-] */
+type MegaMenuLink = {
+  key: string
+  label: string
+  href: string
+  children?: Array<{ label: string; href: string }>
+}
+
+const DISCOVER_LINKS: Array<{ label: string; href: string }> = [
+  { label: 'Всі', href: '/shop' },
+  { label: 'Бісер', href: '/shop/group/beads' },
+  { label: 'Плетіння', href: '/shop/group/weaving' },
+]
+
+const CATEGORY_LINKS: MegaMenuLink[] = [
+  { key: 'sumky', label: 'Сумки', href: '/shop/sumky' },
+  { key: 'bananky', label: 'Бананки', href: '/shop/bananky' },
+  { key: 'shopery', label: 'Шопери', href: '/shop/shopery' },
+  { key: 'chohly', label: 'Чохли', href: '/shop/chohly' },
+  {
+    key: 'accessories',
+    label: 'Аксесуари',
+    href: '/shop/accessories',
+    children: ACCESSORY_SUBCATEGORIES.map((subcategory) => ({
+      label: subcategory.label,
+      href: `/shop/accessories/${subcategory.slug}`,
+    })),
+  },
+]
 
 export default function CatalogMegaMenu({
   onLinkClick,
@@ -19,6 +41,9 @@ export default function CatalogMegaMenu({
   onLinkClick?: () => void
 }) {
   const [open, setOpen] = useState(false)
+  const [activeCategoryKey, setActiveCategoryKey] = useState<string>(
+    CATEGORY_LINKS[0]?.key ?? 'sumky',
+  )
   const closeTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
 
   const openMenu = () => {
@@ -54,127 +79,97 @@ export default function CatalogMegaMenu({
       onPointerEnter={openMenu}
       onPointerLeave={scheduleCloseMenu}
     >
-      <button
-        type="button"
-        onClick={() => setOpen((v) => !v)}
-        className=" flex items-center gap-1 text-[12px] cursor-pointer hover:opacity-70 font-medium tracking-wide"
-        aria-expanded={open}
-        aria-haspopup="true"
-      >
+      <div className="flex items-center gap-1 text-[12px] font-medium tracking-wide">
         <Link href="/shop" onClick={handleLinkClick}>
           КАТАЛОГ
         </Link>
-        <ChevronDown
-          className={`w-4 h-4 cursor-pointer transition-transform ${
-            open ? 'rotate-180' : ''
-          }`}
-        />
-      </button>
+        <button
+          type="button"
+          onClick={() => setOpen((v) => !v)}
+          className="cursor-pointer hover:opacity-70"
+          aria-label="Toggle catalog menu"
+          aria-expanded={open}
+          aria-haspopup="true"
+        >
+          <ChevronDown
+            className={`w-4 h-4 cursor-pointer transition-transform ${
+              open ? 'rotate-180' : ''
+            }`}
+          />
+        </button>
+      </div>
 
       {/* Дропдаун */}
       {open && (
         <div
-          className="absolute left-0 top-[calc(100%+30px)] w-[920px] lg:px-[50px] px-6 bg-white border-b border-gray-900 p-10 grid grid-cols-2 gap-14"
+          className="absolute left-0 top-[calc(100%+30px)] w-[980px] lg:px-[50px] px-6 bg-white border-b border-gray-900 p-10 grid grid-cols-3 gap-14"
           role="menu"
         >
-          {/* Колонка 1 (ліворуч) */}
           <div className="space-y-8">
-            <Link
-              className="block hover:opacity-70"
-              href="/shop/group/beads"
-              onClick={handleLinkClick}
-            >
-              <span
-                className="text-[12px] font-medium tracking-wide  uppercase
-              "
+            {DISCOVER_LINKS.map((item) => (
+              <Link
+                key={item.href}
+                className="block hover:opacity-70 text-[12px] font-medium tracking-wide uppercase"
+                href={item.href}
+                onClick={handleLinkClick}
               >
-                Бісер
-              </span>
-            </Link>
-
-            <Link
-              className="block hover:opacity-70"
-              href="/shop/group/weaving"
-              onClick={handleLinkClick}
-            >
-              <span
-                className="text-[12px] font-medium tracking-wide uppercase
-              "
-              >
-                Плетіння
-              </span>
-            </Link>
-
-            {/* <Link
-              className="block hover:opacity-70"
-              href="/shop?inStock=1"
-              onClick={handleLinkClick}
-            >
-              <span
-                className="text-[12px] font-medium tracking-wide uppercase
-              "
-              >
-                В наявності
-              </span>
-            </Link> */}
-            <Link
-              className="block hover:opacity-70"
-              href="/shop/accessories"
-              onClick={handleLinkClick}
-            >
-              <span
-                className="text-[12px] font-medium tracking-wide uppercase
-              "
-              >
-                Аксесуари
-              </span>
-            </Link>
+                {item.label}
+              </Link>
+            ))}
           </div>
 
-          {/* Колонка 2 (центр) */}
           <div className="space-y-8">
-            <Link
-              href="/shop/sumky"
-              className="block hover:opacity-70 text-[12px] font-medium tracking-wide uppercase"
-              onClick={handleLinkClick}
-            >
-              СУМКИ
-            </Link>
-            <Link
-              href="/shop/bananky"
-              className="block hover:opacity-70 text-[12px] font-medium tracking-wide uppercase"
-              onClick={handleLinkClick}
-            >
-              БАНАНКИ
-            </Link>
-            {/* <Link
-              href="/shop/rjukzachky"
-              className="block hover:opacity-70 text-[12px] font-medium tracking-wide uppercase"
-              onClick={handleLinkClick}
-            >
-              РЮКЗАЧКИ
-            </Link> */}
-            <Link
-              href="/shop/shopery"
-              className="block hover:opacity-70 text-[12px] font-medium tracking-wide uppercase"
-              onClick={handleLinkClick}
-            >
-              ШОПЕРИ
-            </Link>
-            <Link
-              href="/shop/chohly"
-              className="block hover:opacity-70 text-[12px] font-medium tracking-wide uppercase"
-              onClick={handleLinkClick}
-            >
-              ЧОХЛИ
-            </Link>
-            <Link
-              href="/shop/prykrasy"
-              className="block hover:opacity-70 text-[12px] font-medium tracking-wide uppercase"
-              onClick={handleLinkClick}
-            >
-              ПРИКРАСИ
-            </Link>
+            {CATEGORY_LINKS.map((item) => (
+              <Link
+                key={item.key}
+                href={item.href}
+                className={clsx(
+                  'block text-[12px] font-medium tracking-wide uppercase transition-colors',
+                  activeCategoryKey === item.key
+                    ? 'text-black underline underline-offset-4'
+                    : 'text-gray-500 hover:text-black',
+                )}
+                onMouseEnter={() => setActiveCategoryKey(item.key)}
+                onFocus={() => setActiveCategoryKey(item.key)}
+                onClick={handleLinkClick}
+              >
+                {item.label}
+              </Link>
+            ))}
+          </div>
+
+          <div className="space-y-8">
+            {(() => {
+              const activeCategory = CATEGORY_LINKS.find(
+                (item) => item.key === activeCategoryKey,
+              )
+
+              if (!activeCategory) {
+                return null
+              }
+
+              return (
+                <>
+                  <Link
+                    href={activeCategory.href}
+                    className="block hover:opacity-70 text-[12px] font-medium tracking-wide uppercase"
+                    onClick={handleLinkClick}
+                  >
+                    Всі
+                  </Link>
+                  {activeCategory.children?.map((child) => (
+                    <Link
+                      key={child.href}
+                      href={child.href}
+                      className="block hover:opacity-70 text-[12px] font-medium tracking-wide uppercase"
+                      onClick={handleLinkClick}
+                    >
+                      {child.label}
+                    </Link>
+                  ))}
+                </>
+              )
+            })()}
           </div>
         </div>
       )}

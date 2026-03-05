@@ -1,5 +1,6 @@
 import type { MetadataRoute } from 'next'
 import { getBlogPosts } from '@/lib/blog'
+import { getAccessorySubcategorySlugs } from '@/lib/shop-taxonomy'
 
 export const revalidate = 3600
 
@@ -11,6 +12,7 @@ function normalizeBaseUrl(url?: string): string {
 export default function sitemap(): MetadataRoute.Sitemap {
   const siteUrl = normalizeBaseUrl(process.env.NEXT_PUBLIC_SITE_URL)
   const now = new Date()
+  const accessorySubcategories = getAccessorySubcategorySlugs()
 
   const staticPages = [
     '/',
@@ -20,8 +22,8 @@ export default function sitemap(): MetadataRoute.Sitemap {
     '/shop/rjukzachky',
     '/shop/shopery',
     '/shop/chohly',
-    '/shop/prykrasy',
     '/shop/accessories',
+    ...accessorySubcategories.map((slug) => `/shop/accessories/${slug}`),
     '/shop/group/beads',
     '/shop/group/weaving',
     '/about',

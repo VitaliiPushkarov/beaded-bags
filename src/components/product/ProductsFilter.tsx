@@ -11,6 +11,7 @@ export type FiltersValue = {
   onSale: boolean
   group: '' | 'BEADS' | 'WEAVING'
   bagTypes: '' | ProductType
+  accessorySubcategory: string
   color: string
   min: string
   max: string
@@ -32,6 +33,7 @@ type Props = {
   value: FiltersValue
   onChange: (next: FiltersValue) => void
   colors: string[]
+  accessorySubcategoryOptions?: Array<{ value: string; label: string }>
   lockType?: boolean
   lockGroup?: boolean
 
@@ -45,6 +47,7 @@ export default function ProductsFilter({
   value,
   onChange,
   colors,
+  accessorySubcategoryOptions,
   lockType = false,
   lockGroup = false,
   mobileOpen = false,
@@ -52,6 +55,8 @@ export default function ProductsFilter({
   onApply,
 }: Props) {
   const ui = value
+  const hasAccessorySubcategories =
+    (accessorySubcategoryOptions?.length ?? 0) > 0
 
   const sortNameDesktop = useId()
   const sortNameMobile = useId()
@@ -186,7 +191,30 @@ export default function ProductsFilter({
             )}
 
             {/* Тип — якщо не зафіксований */}
-            {!lockType && (
+            {hasAccessorySubcategories && (
+              <div className="flex items-center gap-3">
+                <span className="uppercase tracking-wide">Підкатегорія:</span>
+                <select
+                  className="border px-3 py-1 rounded bg-white w-56 cursor-pointer"
+                  value={ui.accessorySubcategory}
+                  onChange={(e) =>
+                    onChange({
+                      ...ui,
+                      accessorySubcategory: e.target.value,
+                    })
+                  }
+                >
+                  <option value="">Всі</option>
+                  {accessorySubcategoryOptions?.map((item) => (
+                    <option key={item.value} value={item.value}>
+                      {item.label}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            )}
+
+            {!lockType && !hasAccessorySubcategories && (
               <div className="flex items-center gap-3">
                 <span className="uppercase tracking-wide">Тип:</span>
                 <select

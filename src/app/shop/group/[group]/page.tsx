@@ -65,8 +65,14 @@ export async function generateMetadata({
   }
 
   return {
-    title: titleForGroup(dbGroup),
-    description: `Каталог товарів групи "${titleForGroup(dbGroup)}" від GERDAN.`,
+    title:
+      dbGroup === 'BEADS'
+        ? 'Сумки та аксесуари з бісеру'
+        : 'Плетені сумки та аксесуари',
+    description:
+      dbGroup === 'BEADS'
+        ? 'Каталог GERDAN групи "Бісер": сумки з бісеру, чохли з бісеру та акцентні аксесуари.'
+        : 'Каталог GERDAN групи "Плетіння": плетені сумки, шопери та аксесуари ручної роботи.',
     alternates: {
       canonical: `/shop/group/${groupCanonicalSlug(dbGroup)}`,
     },
@@ -90,11 +96,27 @@ export default async function ShopGroupPage({
     color: sp.color,
     group: dbGroup,
   })
+  const listLd = {
+    '@context': 'https://schema.org',
+    '@type': 'ItemList',
+    name: titleForGroup(dbGroup),
+    itemListElement: products.slice(0, 24).map((product, index) => ({
+      '@type': 'ListItem',
+      position: index + 1,
+      url: `https://gerdan.online/products/${product.slug}`,
+    })),
+  }
   return (
-    <ProductsContainer
-      initialProducts={products}
-      lockedGroup={dbGroup}
-      title={titleForGroup(dbGroup)}
-    />
+    <>
+      <ProductsContainer
+        initialProducts={products}
+        lockedGroup={dbGroup}
+        title={titleForGroup(dbGroup)}
+      />
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(listLd) }}
+      />
+    </>
   )
 }

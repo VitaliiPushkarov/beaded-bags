@@ -19,7 +19,7 @@ const TYPE_TO_ROUTE: Record<ProductType, { label: string; href: string }> = {
   BACKPACK: { label: 'Рюкзачки', href: '/shop/rjukzachky' },
   SHOPPER: { label: 'Шопери', href: '/shop/shopery' },
   CASE: { label: 'Чохли', href: '/shop/chohly' },
-  ORNAMENTS: { label: 'Прикраси', href: '/shop/prykrasy' },
+  ORNAMENTS: { label: 'Аксесуари', href: '/shop/accessories' },
   ACCESSORY: { label: 'Аксесуари', href: '/shop/accessories' },
 }
 

@@ -30,7 +30,7 @@ const TYPE_TO_CATEGORY: Record<ProductType, string> = {
   BACKPACK: 'rjukzachky',
   SHOPPER: 'shopery',
   CASE: 'chohly',
-  ORNAMENTS: 'prykrasy',
+  ORNAMENTS: 'accessories',
   ACCESSORY: 'accessories',
 }
 
@@ -69,9 +69,9 @@ export async function generateMetadata({
 }): Promise<Metadata> {
   const sp = await searchParams
   return {
-    title: 'Каталог',
+    title: 'Каталог сумок ручної роботи та аксесуарів',
     description:
-      'Каталог сумок, шоперів та аксесуарів GERDAN. Фільтруйте за типом, кольором та групою.',
+      'Каталог GERDAN: сумки ручної роботи, сумки з бісеру, плетені сумки, чохли та аксесуари.',
     alternates: {
       canonical: canonicalForShopFilters(sp),
     },
