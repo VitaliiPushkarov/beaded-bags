@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { z } from 'zod'
 
 import { prisma } from '@/lib/prisma'
+import { buildOrderFinancialSnapshot, getUnitCostUAH } from '@/lib/finance'
 import { PROMO_CODE, calcDiscountUAH } from '@/lib/promo'
 
 async function sendTelegram(text: string) {
@@ -158,6 +159,53 @@ export async function POST(req: NextRequest) {
     // важливо: у схемі paymentMethod обов’язковий
     const paymentMethod = data.paymentMethod ?? 'LIQPAY'
 
+    const productIds = Array.from(
+      new Set(
+        data.items
+          .map((item) => item.productId ?? null)
+          .filter((id): id is string => typeof id === 'string' && id.length > 0),
+      ),
+    )
+
+    const products = productIds.length
+      ? await prisma.product.findMany({
+          where: { id: { in: productIds } },
+          select: {
+            id: true,
+            costProfile: {
+              select: {
+                materialsCostUAH: true,
+                laborCostUAH: true,
+                packagingCostUAH: true,
+                shippingCostUAH: true,
+                otherCostUAH: true,
+              },
+            },
+          },
+        })
+      : []
+
+    const costByProductId = new Map(
+      products.map((product) => [
+        product.id,
+        getUnitCostUAH(product.costProfile),
+      ]),
+    )
+
+    const financialSnapshot = buildOrderFinancialSnapshot({
+      subtotalUAH: subtotal,
+      discountUAH,
+      totalUAH,
+      paymentMethod,
+      lines: data.items.map((item) => ({
+        qty: item.qty,
+        priceUAH: item.priceUAH,
+        unitCostUAH: item.productId
+          ? (costByProductId.get(item.productId) ?? 0)
+          : 0,
+      })),
+    })
+
     const created = await prisma.order.create({
       data: {
         status: 'PENDING',
@@ -165,6 +213,9 @@ export async function POST(req: NextRequest) {
         deliveryUAH,
         discountUAH,
         totalUAH,
+        itemsCostUAH: financialSnapshot.itemsCostUAH,
+        paymentFeeUAH: financialSnapshot.paymentFeeUAH,
+        grossProfitUAH: financialSnapshot.grossProfitUAH,
 
         customerName: data.customer.name,
         customerSurname: data.customer.surname,
@@ -181,8 +232,21 @@ export async function POST(req: NextRequest) {
         paymentId: null,
         paymentStatus: null,
 
+        customer: data.customer.phone
+          ? {
+              connectOrCreate: {
+                where: { phone: data.customer.phone },
+                create: {
+                  name: `${data.customer.name} ${data.customer.surname}`.trim(),
+                  phone: data.customer.phone,
+                  email: data.customer.email ?? null,
+                },
+              },
+            }
+          : undefined,
+
         items: {
-          create: data.items.map((it) => ({
+          create: data.items.map((it, index) => ({
             productId: it.productId ?? null,
             variantId: it.variantId ?? null,
             name: it.name,
@@ -190,6 +254,10 @@ export async function POST(req: NextRequest) {
             image: it.image ?? null,
             priceUAH: it.priceUAH,
             qty: it.qty,
+            discountUAH: financialSnapshot.lines[index]?.discountUAH ?? 0,
+            lineRevenueUAH: financialSnapshot.lines[index]?.lineRevenueUAH ?? 0,
+            unitCostUAH: financialSnapshot.lines[index]?.unitCostUAH ?? 0,
+            totalCostUAH: financialSnapshot.lines[index]?.totalCostUAH ?? 0,
             strapName: it.strapName ?? null,
             addons: it.addons ?? [],
           })),

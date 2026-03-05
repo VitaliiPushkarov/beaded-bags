@@ -38,6 +38,26 @@ enum PaymentMethod {
   BANK_TRANSFER // bank transfer
 }
 
+enum ExpenseCategory {
+  ADS
+  PACKAGING
+  SHIPPING
+  PAYMENT_FEES
+  PAYROLL
+  PHOTO
+  SOFTWARE
+  RENT
+  OTHER
+}
+
+enum PurchaseStatus {
+  DRAFT
+  ORDERED
+  RECEIVED
+  PAID
+  CANCELLED
+}
+
 // каталог
 model Product {
   id           String        @id @default(cuid())
@@ -60,10 +80,65 @@ model Product {
   
 
   variants        ProductVariant[]
+  costProfile     ProductCostProfile?
+  inventory       ProductInventory?
+  materialUsages  ProductMaterial[]
 
   @@index([type])
   @@index([group])
   @@index([inStock])
+}
+
+model ProductCostProfile {
+  id                String   @id @default(cuid())
+  productId         String   @unique
+  product           Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
+  materialsCostUAH  Int      @default(0)
+  laborCostUAH      Int      @default(0)
+  packagingCostUAH  Int      @default(0)
+  shippingCostUAH   Int      @default(0)
+  otherCostUAH      Int      @default(0)
+  notes             String?
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+}
+
+model ProductInventory {
+  id               String   @id @default(cuid())
+  productId        String   @unique
+  product          Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
+  finishedGoodsQty Int      @default(0)
+  notes            String?
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+}
+
+model Material {
+  id            String            @id @default(cuid())
+  name          String            @unique
+  unit          String            @default("pcs")
+  stockQty      Float             @default(0)
+  notes         String?
+  createdAt     DateTime          @default(now())
+  updatedAt     DateTime          @updatedAt
+
+  productUsages ProductMaterial[]
+}
+
+model ProductMaterial {
+  id         String   @id @default(cuid())
+  productId  String
+  materialId String
+  product    Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
+  material   Material @relation(fields: [materialId], references: [id], onDelete: Restrict)
+  quantity   Float
+  notes      String?
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  @@unique([productId, materialId])
+  @@index([productId])
+  @@index([materialId])
 }
 
 model ProductVariant {
@@ -166,6 +241,9 @@ model Order {
   deliveryUAH Int @default(0)
   discountUAH Int @default(0)
   totalUAH    Int
+  itemsCostUAH Int        @default(0)
+  paymentFeeUAH Int       @default(0)
+  grossProfitUAH Int      @default(0)
 
   // snapshot клієнта (заповнюється з форми)
   customerName       String
@@ -208,8 +286,72 @@ model OrderItem {
   image     String?
   priceUAH  Int // ціна у момент покупки
   qty       Int // кількість
+  discountUAH Int @default(0)
+  lineRevenueUAH Int @default(0)
+  unitCostUAH Int @default(0)
+  totalCostUAH Int @default(0)
   strapName String?
   addons Json?
+}
+
+model Supplier {
+  id          String     @id @default(cuid())
+  name        String     @unique
+  contactName String?
+  phone       String?
+  email       String?
+  currency    String     @default("UAH")
+  notes       String?
+  createdAt   DateTime   @default(now())
+  updatedAt   DateTime   @updatedAt
+
+  purchases   Purchase[]
+}
+
+model Purchase {
+  id            String         @id @default(cuid())
+  supplierId    String
+  supplier      Supplier       @relation(fields: [supplierId], references: [id], onDelete: Restrict)
+  status        PurchaseStatus @default(DRAFT)
+  purchasedAt   DateTime
+  invoiceNumber String?
+  subtotalUAH   Int            @default(0)
+  deliveryUAH   Int            @default(0)
+  totalUAH      Int            @default(0)
+  notes         String?
+  createdAt     DateTime       @default(now())
+  updatedAt     DateTime       @updatedAt
+
+  items         PurchaseItem[]
+
+  @@index([supplierId, purchasedAt])
+  @@index([status, purchasedAt])
+}
+
+model PurchaseItem {
+  id           String   @id @default(cuid())
+  purchaseId   String
+  purchase     Purchase @relation(fields: [purchaseId], references: [id], onDelete: Cascade)
+  title        String
+  qty          Float
+  unit         String   @default("pcs")
+  unitPriceUAH Int
+  totalUAH     Int
+
+  @@index([purchaseId])
+}
+
+model Expense {
+  id          String          @id @default(cuid())
+  title       String
+  category    ExpenseCategory
+  amountUAH   Int
+  expenseDate DateTime
+  notes       String?
+  createdAt   DateTime        @default(now())
+  updatedAt   DateTime        @updatedAt
+
+  @@index([expenseDate, category])
 }
 model PreorderLead {
   id           String   @id @default(cuid())

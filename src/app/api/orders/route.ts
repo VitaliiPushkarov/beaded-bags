@@ -1,160 +1,148 @@
-// Create order before payment
 import { NextRequest, NextResponse } from 'next/server'
-import { PrismaClient, PaymentMethod } from '@prisma/client'
+import { z } from 'zod'
+import { PaymentMethod } from '@prisma/client'
 
-const prisma = new PrismaClient()
+import { prisma } from '@/lib/prisma'
+import { buildOrderFinancialSnapshot, getUnitCostUAH } from '@/lib/finance'
 
-// Types for request body
-type OrderItemInput = {
-  productId: string
-  variantId?: string
-  name: string
-  priceUAH: number
-  qty: number
-  image?: string
-  slug?: string
-}
-
-type CustomerInput = {
-  name: string
-  surname: string
-  patronymic?: string
-  phone: string
-  email?: string
-}
-
-type ShippingInput = {
-  npCityRef: string
-  npCityName: string
-  npWarehouseRef: string
-  npWarehouseName: string
-}
-
-type BodyInput = {
-  items: OrderItemInput[]
-  subtotalUAH?: number // опційно: можемо перерахувати
-  deliveryUAH?: number
-  discountUAH?: number
-  totalUAH: number
-  customer: CustomerInput
-  shipping: ShippingInput
-  paymentMethod: PaymentMethod // 'LIQPAY' | 'COD' | 'BANK_TRANSFER'
-}
+const BodySchema = z.object({
+  items: z
+    .array(
+      z.object({
+        productId: z.string().min(1),
+        variantId: z.string().optional().nullable(),
+        name: z.string().min(1),
+        priceUAH: z.number().min(0),
+        qty: z.number().int().min(1),
+        image: z.string().optional().nullable(),
+      }),
+    )
+    .min(1),
+  subtotalUAH: z.number().optional(),
+  deliveryUAH: z.number().min(0).optional().default(0),
+  discountUAH: z.number().min(0).optional().default(0),
+  totalUAH: z.number().min(0),
+  customer: z.object({
+    name: z.string().min(1),
+    surname: z.string().min(1),
+    patronymic: z.string().optional().nullable(),
+    phone: z.string().min(5),
+    email: z.string().email().optional().nullable(),
+  }),
+  shipping: z.object({
+    npCityRef: z.string().min(1),
+    npCityName: z.string().min(1),
+    npWarehouseRef: z.string().min(1),
+    npWarehouseName: z.string().min(1),
+  }),
+  paymentMethod: z.nativeEnum(PaymentMethod),
+})
 
 export async function POST(req: NextRequest) {
   try {
-    const body = (await req.json()) as BodyInput
+    const parsed = BodySchema.safeParse(await req.json())
 
-    const {
-      items,
-      subtotalUAH,
-      deliveryUAH = 0,
-      discountUAH = 0,
-      totalUAH,
-      customer,
-      shipping,
-      paymentMethod,
-    } = body
-
-    // --- валідація вхідних даних ---
-    if (!Array.isArray(items) || items.length === 0) {
-      return NextResponse.json({ error: 'No items' }, { status: 400 })
-    }
-    if (!customer?.name || !customer?.surname || !customer?.phone) {
+    if (!parsed.success) {
       return NextResponse.json(
-        { error: 'Customer name/surname/phone required' },
-        { status: 400 }
+        { error: parsed.error.flatten() },
+        { status: 400 },
       )
     }
-    if (
-      !shipping?.npCityRef ||
-      !shipping?.npCityName ||
-      !shipping?.npWarehouseRef ||
-      !shipping?.npWarehouseName
-    ) {
-      return NextResponse.json(
-        { error: 'Nova Poshta shipping fields are required' },
-        { status: 400 }
-      )
-    }
-    if (!paymentMethod) {
-      return NextResponse.json(
-        { error: 'paymentMethod is required' },
-        { status: 400 }
-      )
-    }
-    if (typeof totalUAH !== 'number' || !Number.isFinite(totalUAH)) {
-      return NextResponse.json({ error: 'Invalid totalUAH' }, { status: 400 })
-    }
 
-    const computedSubtotal =
-      subtotalUAH ??
-      items.reduce(
-        (sum, it) => sum + (Number(it.priceUAH) || 0) * (Number(it.qty) || 0),
-        0
-      )
+    const data = parsed.data
+    const subtotalUAH =
+      data.subtotalUAH ??
+      data.items.reduce((sum, item) => sum + item.priceUAH * item.qty, 0)
 
-    // --- створення замовлення ---
-    const order = await prisma.order.create({
-      data: {
-        status: 'PENDING',
-        // totals snapshot
-        subtotalUAH: computedSubtotal,
-        deliveryUAH,
-        discountUAH,
-        totalUAH,
-
-        // customer snapshot
-        customerName: customer.name,
-        customerSurname: customer.surname,
-        customerPatronymic: customer.patronymic ?? null,
-        customerPhone: customer.phone,
-        customerEmail: customer.email ?? null,
-
-        // Nova Poshta snapshot
-        npCityRef: shipping.npCityRef,
-        npCityName: shipping.npCityName,
-        npWarehouseRef: shipping.npWarehouseRef,
-        npWarehouseName: shipping.npWarehouseName,
-
-        // payment snapshot
-        paymentMethod,
-
-        // items
-        items: {
-          create: items.map((it) => ({
-            productId: it.productId,
-            variantId: it.variantId,
-            name: it.name,
-            priceUAH: it.priceUAH,
-            qty: it.qty,
-            image: it.image,
-            slug: it.slug,
-          })),
+    const productIds = Array.from(new Set(data.items.map((item) => item.productId)))
+    const products = await prisma.product.findMany({
+      where: { id: { in: productIds } },
+      select: {
+        id: true,
+        costProfile: {
+          select: {
+            materialsCostUAH: true,
+            laborCostUAH: true,
+            packagingCostUAH: true,
+            shippingCostUAH: true,
+            otherCostUAH: true,
+          },
         },
-
-        // пов'язаний клієнт (опційно)
-        customer: customer.phone
-          ? {
-              connectOrCreate: {
-                where: { phone: customer.phone },
-                create: {
-                  name: `${customer.name} ${customer.surname}`.trim(),
-                  phone: customer.phone,
-                  email: customer.email ?? null,
-                },
-              },
-            }
-          : undefined,
       },
     })
 
-    return NextResponse.json(order)
+    const costByProductId = new Map(
+      products.map((product) => [
+        product.id,
+        getUnitCostUAH(product.costProfile),
+      ]),
+    )
+
+    const financialSnapshot = buildOrderFinancialSnapshot({
+      subtotalUAH,
+      discountUAH: data.discountUAH,
+      totalUAH: data.totalUAH,
+      paymentMethod: data.paymentMethod,
+      lines: data.items.map((item) => ({
+        qty: item.qty,
+        priceUAH: item.priceUAH,
+        unitCostUAH: costByProductId.get(item.productId) ?? 0,
+      })),
+    })
+
+    const order = await prisma.order.create({
+      data: {
+        status: 'PENDING',
+        subtotalUAH,
+        deliveryUAH: data.deliveryUAH,
+        discountUAH: data.discountUAH,
+        totalUAH: data.totalUAH,
+        itemsCostUAH: financialSnapshot.itemsCostUAH,
+        paymentFeeUAH: financialSnapshot.paymentFeeUAH,
+        grossProfitUAH: financialSnapshot.grossProfitUAH,
+        customerName: data.customer.name,
+        customerSurname: data.customer.surname,
+        customerPatronymic: data.customer.patronymic ?? null,
+        customerPhone: data.customer.phone,
+        customerEmail: data.customer.email ?? null,
+        npCityRef: data.shipping.npCityRef,
+        npCityName: data.shipping.npCityName,
+        npWarehouseRef: data.shipping.npWarehouseRef,
+        npWarehouseName: data.shipping.npWarehouseName,
+        paymentMethod: data.paymentMethod,
+        customer: {
+          connectOrCreate: {
+            where: { phone: data.customer.phone },
+            create: {
+              name: `${data.customer.name} ${data.customer.surname}`.trim(),
+              phone: data.customer.phone,
+              email: data.customer.email ?? null,
+            },
+          },
+        },
+        items: {
+          create: data.items.map((item, index) => ({
+            productId: item.productId,
+            variantId: item.variantId ?? null,
+            name: item.name,
+            image: item.image ?? null,
+            priceUAH: item.priceUAH,
+            qty: item.qty,
+            discountUAH: financialSnapshot.lines[index]?.discountUAH ?? 0,
+            lineRevenueUAH: financialSnapshot.lines[index]?.lineRevenueUAH ?? 0,
+            unitCostUAH: financialSnapshot.lines[index]?.unitCostUAH ?? 0,
+            totalCostUAH: financialSnapshot.lines[index]?.totalCostUAH ?? 0,
+          })),
+        },
+      },
+    })
+
+    return NextResponse.json(order, { status: 201 })
   } catch (err) {
     console.error('Create order error:', err)
     return NextResponse.json(
       { error: 'Failed to create order' },
-      { status: 500 }
+      { status: 500 },
     )
   }
 }

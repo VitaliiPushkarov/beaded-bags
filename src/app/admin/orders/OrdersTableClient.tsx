@@ -238,6 +238,9 @@ export default function OrdersTableClient({ orders }: Props) {
                 <div>
                   <div className="text-xs text-gray-500">Сума</div>
                   <div className="font-medium">{o.totalUAH} ₴</div>
+                  <div className="text-xs text-gray-500 mt-1">
+                    GP: {o.grossProfitUAH} ₴
+                  </div>
                 </div>
                 <div className="text-right">
                   <div className="text-xs text-gray-500">Дата</div>
@@ -260,6 +263,7 @@ export default function OrdersTableClient({ orders }: Props) {
               <th className="p-2 text-left">Адреса НП</th>
               <th className="p-2 text-left">Замовлення</th>
               <th className="p-2 text-right">Сума</th>
+              <th className="p-2 text-right">GP</th>
               <th className="p-2 text-left">Статус</th>
               <th className="p-2 text-left">Дата</th>
             </tr>
@@ -328,6 +332,7 @@ export default function OrdersTableClient({ orders }: Props) {
                   })()}
                 </td>
                 <td className="p-2 text-right">{o.totalUAH} ₴</td>
+                <td className="p-2 text-right">{o.grossProfitUAH} ₴</td>
                 <td className="p-2">
                   <select
                     className={`border rounded px-2 py-1 text-xs cursor-pointer ${

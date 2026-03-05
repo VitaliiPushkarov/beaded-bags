@@ -21,6 +21,24 @@ const StrapSchema = z.object({
   sort: z.coerce.number().int().optional().default(0),
 })
 
+const CostProfileSchema = z.object({
+  materialsCostUAH: z.coerce.number().int().min(0).optional().default(0),
+  laborCostUAH: z.coerce.number().int().min(0).optional().default(0),
+  packagingCostUAH: z.coerce.number().int().min(0).optional().default(0),
+  shippingCostUAH: z.coerce.number().int().min(0).optional().default(0),
+  otherCostUAH: z.coerce.number().int().min(0).optional().default(0),
+  notes: z.string().trim().optional().nullable(),
+})
+
+const EMPTY_COST_PROFILE = {
+  materialsCostUAH: 0,
+  laborCostUAH: 0,
+  packagingCostUAH: 0,
+  shippingCostUAH: 0,
+  otherCostUAH: 0,
+  notes: null,
+} as const
+
 // --------- Zod-схеми ---------
 const VariantSchema = z.object({
   id: z.string().optional(),
@@ -48,6 +66,7 @@ const ProductSchema = z.object({
   info: z.string().optional().nullable(),
   dimensions: z.string().optional().nullable(),
   offerNote: z.string().optional().nullable(),
+  costProfile: CostProfileSchema.optional().default(EMPTY_COST_PROFILE),
   inStock: z.coerce.boolean(),
   variants: z.array(VariantSchema).min(1),
 })
@@ -113,6 +132,26 @@ export async function PATCH(
             dimensions: data.dimensions || null,
             offerNote: data.offerNote ?? null,
             inStock: data.inStock,
+            costProfile: {
+              upsert: {
+                create: {
+                  materialsCostUAH: data.costProfile.materialsCostUAH,
+                  laborCostUAH: data.costProfile.laborCostUAH,
+                  packagingCostUAH: data.costProfile.packagingCostUAH,
+                  shippingCostUAH: data.costProfile.shippingCostUAH,
+                  otherCostUAH: data.costProfile.otherCostUAH,
+                  notes: data.costProfile.notes ?? null,
+                },
+                update: {
+                  materialsCostUAH: data.costProfile.materialsCostUAH,
+                  laborCostUAH: data.costProfile.laborCostUAH,
+                  packagingCostUAH: data.costProfile.packagingCostUAH,
+                  shippingCostUAH: data.costProfile.shippingCostUAH,
+                  otherCostUAH: data.costProfile.otherCostUAH,
+                  notes: data.costProfile.notes ?? null,
+                },
+              },
+            },
           },
           select: { id: true },
         })

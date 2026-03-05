@@ -13,6 +13,7 @@ export default async function AdminProductEditPage({ params }: PageProps) {
   const product = await prisma.product.findUnique({
     where: { id },
     include: {
+      costProfile: true,
       variants: {
         orderBy: { id: 'asc' },
         include: {
@@ -164,6 +165,14 @@ export default async function AdminProductEditPage({ params }: PageProps) {
     info: product.info ?? '',
     dimensions: product.dimensions ?? '',
     offerNote: product.offerNote ?? '',
+    costProfile: {
+      materialsCostUAH: String(product.costProfile?.materialsCostUAH ?? ''),
+      laborCostUAH: String(product.costProfile?.laborCostUAH ?? ''),
+      packagingCostUAH: String(product.costProfile?.packagingCostUAH ?? ''),
+      shippingCostUAH: String(product.costProfile?.shippingCostUAH ?? ''),
+      otherCostUAH: String(product.costProfile?.otherCostUAH ?? ''),
+      notes: product.costProfile?.notes ?? '',
+    },
     inStock: product.inStock,
     variants: product.variants.map((v) => {
       const images =

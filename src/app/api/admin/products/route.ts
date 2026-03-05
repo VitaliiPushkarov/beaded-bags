@@ -22,6 +22,24 @@ const StrapSchema = z.object({
   sort: z.coerce.number().int().optional().default(0),
 })
 
+const CostProfileSchema = z.object({
+  materialsCostUAH: z.coerce.number().int().min(0).optional().default(0),
+  laborCostUAH: z.coerce.number().int().min(0).optional().default(0),
+  packagingCostUAH: z.coerce.number().int().min(0).optional().default(0),
+  shippingCostUAH: z.coerce.number().int().min(0).optional().default(0),
+  otherCostUAH: z.coerce.number().int().min(0).optional().default(0),
+  notes: z.string().trim().optional().nullable(),
+})
+
+const EMPTY_COST_PROFILE = {
+  materialsCostUAH: 0,
+  laborCostUAH: 0,
+  packagingCostUAH: 0,
+  shippingCostUAH: 0,
+  otherCostUAH: 0,
+  notes: null,
+} as const
+
 // --------- Zod schema for product creation (incl. variants, but without straps/addons/images relations) ---------
 const ProductCreateSchema = z.object({
   name: z.string().trim().min(1),
@@ -36,6 +54,7 @@ const ProductCreateSchema = z.object({
   description: z.string().trim().optional().nullable(),
   dimensions: z.string().trim().optional().nullable(),
   offerNote: z.string().trim().optional().nullable(),
+  costProfile: CostProfileSchema.optional().default(EMPTY_COST_PROFILE),
   inStock: z.coerce.boolean(),
 
   variants: z
@@ -143,6 +162,16 @@ export async function POST(req: NextRequest) {
         dimensions: data.dimensions ?? null,
         offerNote: data.offerNote ?? null,
         inStock: data.inStock,
+        costProfile: {
+          create: {
+            materialsCostUAH: data.costProfile.materialsCostUAH,
+            laborCostUAH: data.costProfile.laborCostUAH,
+            packagingCostUAH: data.costProfile.packagingCostUAH,
+            shippingCostUAH: data.costProfile.shippingCostUAH,
+            otherCostUAH: data.costProfile.otherCostUAH,
+            notes: data.costProfile.notes ?? null,
+          },
+        },
 
         variants: {
           create: data.variants.map((v, idx) => ({

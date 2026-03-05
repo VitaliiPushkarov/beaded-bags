@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { revalidatePath } from 'next/cache'
 import { z } from 'zod'
 import { prisma } from '@/lib/prisma'
 import type { OrderStatus } from '@prisma/client'
@@ -24,6 +25,10 @@ export async function PATCH(req: NextRequest, { params }: PageProps) {
       where: { id },
       data: { status: parsed.data.status },
     })
+
+    revalidatePath('/admin')
+    revalidatePath('/admin/orders')
+    revalidatePath('/admin/finance')
 
     return NextResponse.json({ id: updated.id, status: updated.status })
   } catch (err) {
