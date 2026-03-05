@@ -118,7 +118,7 @@ export default function CatalogMegaMenu({
             ))}
           </div>
 
-          <div className="space-y-8">
+          <div className="space-y-6">
             {CATEGORY_LINKS.map((item) => (
               <Link
                 key={item.key}
@@ -138,7 +138,7 @@ export default function CatalogMegaMenu({
             ))}
           </div>
 
-          <div className="space-y-8">
+          <div className="space-y-6">
             {(() => {
               const activeCategory = CATEGORY_LINKS.find(
                 (item) => item.key === activeCategoryKey,

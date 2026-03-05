@@ -6,6 +6,7 @@ import { Keyboard, A11y, FreeMode, Mousewheel } from 'swiper/modules'
 import type { Swiper as SwiperType } from 'swiper'
 import ProductCardLarge, { type ProductWithVariants } from './ProductCardLarge'
 import { Skeleton } from '@/components/ui/Skeleton'
+import Link from 'next/link'
 
 function Chevron({
   dir = 'left',
@@ -93,8 +94,16 @@ export default function ProductsSlider() {
 
       {/* Tablet/Desktop: Swiper */}
       <div className="hidden md:block">
-        <div className="mx-auto max-w-[1440px] 2xl:max-w-full px-[38px]">
-          <h2 className="text-2xl font-semibold mb-5">КАТАЛОГ</h2>
+        <div className="mx-auto max-w-[1440px] 2xl:max-w-full px-6">
+          <div className="flex items-end justify-between gap-4 mb-4">
+            <h2 className="text-2xl uppercase font-semibold">Каталог GERDAN</h2>
+            <Link
+              href="/shop"
+              className="text-sm underline underline-offset-2 hover:no-underline"
+            >
+              Всі товари
+            </Link>
+          </div>
           <div className="mx-auto relative w-full overflow-visible">
             <button
               onClick={() => swiperRef.current?.slideNext()}

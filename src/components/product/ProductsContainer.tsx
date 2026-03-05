@@ -136,6 +136,7 @@ export default function ProductsContainer({
   initialProducts,
   initialFilters,
   lockedType,
+  hideTypeFilter = false,
   lockedGroup,
   accessorySubcategoryOptions,
   title = 'Каталог',
@@ -143,6 +144,7 @@ export default function ProductsContainer({
   initialProducts: ProductWithVariants[]
   initialFilters?: Partial<UIFilters>
   lockedType?: ProductType
+  hideTypeFilter?: boolean
   lockedGroup?: UIFilters['group']
   accessorySubcategoryOptions?: Array<{ value: string; label: string }>
   title?: string
@@ -543,6 +545,7 @@ export default function ProductsContainer({
         colors={colors}
         accessorySubcategoryOptions={subcategoryOptions}
         lockType={Boolean(lockedType)}
+        hideTypeFilter={hideTypeFilter}
         lockGroup={Boolean(lockedGroup)}
         mobileOpen={mobileOpen}
         onMobileClose={() => setMobileOpen(false)}

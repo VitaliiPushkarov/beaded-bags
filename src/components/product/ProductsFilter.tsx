@@ -35,6 +35,7 @@ type Props = {
   colors: string[]
   accessorySubcategoryOptions?: Array<{ value: string; label: string }>
   lockType?: boolean
+  hideTypeFilter?: boolean
   lockGroup?: boolean
 
   mobileOpen?: boolean
@@ -49,6 +50,7 @@ export default function ProductsFilter({
   colors,
   accessorySubcategoryOptions,
   lockType = false,
+  hideTypeFilter = false,
   lockGroup = false,
   mobileOpen = false,
   onMobileClose,
@@ -214,7 +216,7 @@ export default function ProductsFilter({
               </div>
             )}
 
-            {!lockType && !hasAccessorySubcategories && (
+            {!lockType && !hasAccessorySubcategories && !hideTypeFilter && (
               <div className="flex items-center gap-3">
                 <span className="uppercase tracking-wide">Тип:</span>
                 <select

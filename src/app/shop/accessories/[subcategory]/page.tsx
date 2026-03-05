@@ -113,6 +113,7 @@ export default async function AccessorySubcategoryPage({
           q: sp.q ?? '',
           color: sp.color ?? '',
         }}
+        hideTypeFilter
         title={config.label}
       />
 

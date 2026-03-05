@@ -149,7 +149,9 @@ export default async function ShopCategoryPage({
           <h2 className="text-xl md:text-2xl mb-3">
             {config.metaTitle} від GERDAN
           </h2>
-          <p className="text-gray-700 leading-relaxed">{config.intro}</p>
+          <p className="text-gray-700 leading-relaxed whitespace-pre-line">
+            {config.intro}
+          </p>
         </div>
 
         {/* {showAccessoriesSubcategories && (

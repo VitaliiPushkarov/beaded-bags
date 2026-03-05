@@ -1,6 +1,8 @@
 import dynamic from 'next/dynamic'
 import Bestsellers from '@/components/Bestsellers'
 import HeroBlock from '@/components/HeroBlock'
+import type { Metadata } from 'next'
+import CategorySection from '@/components/CategorySection'
 
 const HeroImages = dynamic(() => import('@/components/HeroImages'), {
   loading: () => <section className="h-[520px] md:h-[620px]" />,
@@ -16,7 +18,18 @@ const InstagramSlider = dynamic(() => import('@/components/InstagramSlider'), {
 
 const SITE_URL = 'https://gerdan.online'
 
-export const metadata = {
+export const metadata: Metadata = {
+  title: 'Сумки ручної роботи, аксесуари та чохли з бісеру',
+  description:
+    'GERDAN — сумки ручної роботи, сумки з бісеру, плетені сумки, чохли та брелоки. Каталог українського бренду аксесуарів.',
+  keywords: [
+    'сумки ручної роботи',
+    'сумки з бісеру',
+    'плетені сумки',
+    'чохли з бісеру',
+    'брелоки',
+    'аксесуари',
+  ],
   alternates: {
     canonical: '/',
   },
@@ -29,6 +42,7 @@ export default function Home() {
     name: 'GERDAN',
     url: SITE_URL,
     logo: `${SITE_URL}/gerdan.svg`,
+    sameAs: ['https://www.instagram.com/gerdan.studio/'],
     contactPoint: [
       {
         '@type': 'ContactPoint',
@@ -36,20 +50,22 @@ export default function Home() {
         contactType: 'customer support',
         areaServed: 'UA',
         availableLanguage: ['uk'],
-        sameAs: 'https://www.instagram.com/gerdan.studio/',
       },
     ],
   }
 
-  const webSiteJsonLd = {
+  const webPageJsonLd = {
     '@context': 'https://schema.org',
-    '@type': 'WebSite',
-    name: 'GERDAN',
+    '@type': 'WebPage',
+    name: 'GERDAN — сумки ручної роботи та аксесуари',
     url: SITE_URL,
-    potentialAction: {
-      '@type': 'SearchAction',
-      target: `${SITE_URL}/shop?q={search_term_string}`,
-      'query-input': 'required name=search_term_string',
+    description:
+      'Сумки ручної роботи, сумки з бісеру, плетені сумки, чохли та аксесуари українського бренду GERDAN.',
+    inLanguage: 'uk',
+    isPartOf: {
+      '@type': 'WebSite',
+      name: 'GERDAN',
+      url: SITE_URL,
     },
   }
 
@@ -62,8 +78,11 @@ export default function Home() {
       />
       <script
         type="application/ld+json"
-        dangerouslySetInnerHTML={{ __html: JSON.stringify(webSiteJsonLd) }}
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(webPageJsonLd) }}
       />
+      <h1 className="sr-only">
+        Сумки ручної роботи, сумки з бісеру та аксесуари GERDAN
+      </h1>
       <HeroBlock />
       <Bestsellers />
 
@@ -80,6 +99,7 @@ export default function Home() {
 
       <ProductsSlider />
       <InstagramSlider />
+      <CategorySection />
       {/* <About image="/img/about-section-preview.png" alt="Про нас" /> */}
     </>
   )
