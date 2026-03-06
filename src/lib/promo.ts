@@ -1,4 +1,4 @@
-export const PROMO_CODE = 'GERDAN10'
+export const PROMO_CODE = 'SPECIAL'
 export const PROMO_STORAGE_KEY = 'gerdan_promo_code'
 export const DISCOUNT_PCT = 10 as const
 

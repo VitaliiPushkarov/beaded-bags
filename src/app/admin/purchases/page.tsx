@@ -5,6 +5,7 @@ import { z } from 'zod'
 
 import { formatDate, formatUAH, toDateInputValue } from '@/lib/admin-finance'
 import ConfirmSubmitButton from '@/components/admin/ConfirmSubmitButton'
+import { ensureChinaMarketplaceSupplier } from '@/lib/management-accounting'
 import { prisma } from '@/lib/prisma'
 
 export const dynamic = 'force-dynamic'
@@ -12,7 +13,6 @@ export const dynamic = 'force-dynamic'
 type PageProps = {
   searchParams: Promise<{
     q?: string
-    supplierId?: string
     status?: string
     from?: string
     to?: string
@@ -30,7 +30,6 @@ const STATUS_LABELS: Record<PurchaseStatus, string> = {
 }
 
 const PurchaseSchema = z.object({
-  supplierId: z.string().min(1),
   status: z.nativeEnum(PurchaseStatus),
   purchasedAt: z.coerce.date(),
   invoiceNumber: z.string().trim().optional(),
@@ -39,7 +38,7 @@ const PurchaseSchema = z.object({
   itemsRaw: z.string().trim().min(1),
 })
 
-type PurchaseSortKey = 'date' | 'total' | 'supplier' | 'status'
+type PurchaseSortKey = 'date' | 'total' | 'status'
 type SortDirection = 'asc' | 'desc'
 
 function parsePurchaseItems(input: string) {
@@ -82,7 +81,7 @@ function getValidPurchaseStatus(value?: string): PurchaseStatus | undefined {
 }
 
 function getValidPurchaseSortKey(value?: string): PurchaseSortKey {
-  const allowed: PurchaseSortKey[] = ['date', 'total', 'supplier', 'status']
+  const allowed: PurchaseSortKey[] = ['date', 'total', 'status']
   return allowed.includes(value as PurchaseSortKey) ? (value as PurchaseSortKey) : 'date'
 }
 
@@ -102,7 +101,6 @@ function parseOptionalDate(value?: string): Date | undefined {
 export default async function AdminPurchasesPage({ searchParams }: PageProps) {
   const params = await searchParams
   const query = params.q?.trim() ?? ''
-  const supplierId = params.supplierId?.trim() || ''
   const status = getValidPurchaseStatus(params.status)
   const from = parseOptionalDate(params.from)
   const to = parseOptionalDate(params.to)
@@ -115,7 +113,6 @@ export default async function AdminPurchasesPage({ searchParams }: PageProps) {
     'use server'
 
     const parsed = PurchaseSchema.safeParse({
-      supplierId: formData.get('supplierId'),
       status: formData.get('status'),
       purchasedAt: formData.get('purchasedAt'),
       invoiceNumber: formData.get('invoiceNumber'),
@@ -131,10 +128,11 @@ export default async function AdminPurchasesPage({ searchParams }: PageProps) {
     const items = parsePurchaseItems(parsed.data.itemsRaw)
     const subtotalUAH = items.reduce((sum, item) => sum + item.totalUAH, 0)
     const deliveryUAH = parsed.data.deliveryUAH ?? 0
+    const supplier = await ensureChinaMarketplaceSupplier(prisma)
 
     await prisma.purchase.create({
       data: {
-        supplierId: parsed.data.supplierId,
+        supplierId: supplier.id,
         status: parsed.data.status,
         purchasedAt: parsed.data.purchasedAt,
         invoiceNumber: parsed.data.invoiceNumber || null,
@@ -149,7 +147,6 @@ export default async function AdminPurchasesPage({ searchParams }: PageProps) {
     })
 
     revalidatePath('/admin/purchases')
-    revalidatePath('/admin/suppliers')
     revalidatePath('/admin/finance')
   }
 
@@ -164,51 +161,41 @@ export default async function AdminPurchasesPage({ searchParams }: PageProps) {
     })
 
     revalidatePath('/admin/purchases')
-    revalidatePath('/admin/suppliers')
     revalidatePath('/admin/finance')
   }
 
-  const [suppliers, purchases] = await Promise.all([
-    prisma.supplier.findMany({
-      orderBy: { name: 'asc' },
-    }),
-    prisma.purchase.findMany({
-      where: {
-        ...(supplierId ? { supplierId } : {}),
-        ...(status ? { status } : {}),
-        ...(from || to
-          ? {
-              purchasedAt: {
-                ...(from ? { gte: from } : {}),
-                ...(to ? { lte: to } : {}),
-              },
-            }
-          : {}),
-        ...(query
-          ? {
-              OR: [
-                { supplier: { name: { contains: query, mode: 'insensitive' } } },
-                { invoiceNumber: { contains: query, mode: 'insensitive' } },
-                { notes: { contains: query, mode: 'insensitive' } },
-                { items: { some: { title: { contains: query, mode: 'insensitive' } } } },
-              ],
-            }
-          : {}),
-      },
-      orderBy:
-        sort === 'total'
-          ? [{ totalUAH: dir }, { purchasedAt: 'desc' }, { createdAt: 'desc' }]
-          : sort === 'supplier'
-            ? [{ supplier: { name: dir } }, { purchasedAt: 'desc' }, { createdAt: 'desc' }]
-            : sort === 'status'
-              ? [{ status: dir }, { purchasedAt: 'desc' }, { createdAt: 'desc' }]
-              : [{ purchasedAt: dir }, { createdAt: 'desc' }],
-      include: {
-        supplier: true,
-        items: true,
-      },
-    }),
-  ])
+  const purchases = await prisma.purchase.findMany({
+    where: {
+      ...(status ? { status } : {}),
+      ...(from || to
+        ? {
+            purchasedAt: {
+              ...(from ? { gte: from } : {}),
+              ...(to ? { lte: to } : {}),
+            },
+          }
+        : {}),
+      ...(query
+        ? {
+            OR: [
+              { invoiceNumber: { contains: query, mode: 'insensitive' } },
+              { notes: { contains: query, mode: 'insensitive' } },
+              { items: { some: { title: { contains: query, mode: 'insensitive' } } } },
+            ],
+          }
+        : {}),
+    },
+    orderBy:
+      sort === 'total'
+        ? [{ totalUAH: dir }, { purchasedAt: 'desc' }, { createdAt: 'desc' }]
+        : sort === 'status'
+          ? [{ status: dir }, { purchasedAt: 'desc' }, { createdAt: 'desc' }]
+          : [{ purchasedAt: dir }, { createdAt: 'desc' }],
+    include: {
+      supplier: true,
+      items: true,
+    },
+  })
 
   const totalPurchasesUAH = purchases.reduce(
     (sum, purchase) => sum + purchase.totalUAH,
@@ -220,34 +207,16 @@ export default async function AdminPurchasesPage({ searchParams }: PageProps) {
       <div>
         <h1 className="text-2xl font-semibold">Закупівлі</h1>
         <p className="mt-1 text-sm text-gray-600">
-          Простий реєстр закупівель із розбивкою по постачальниках.
+          Простий реєстр закупівель для матеріалів із авто-постачальником China Marketplace.
         </p>
       </div>
 
       <section className="rounded border bg-white p-4 sm:p-6">
         <h2 className="mb-4 text-lg font-medium">Нова закупівля</h2>
-
-        {suppliers.length === 0 ? (
-          <div className="text-sm text-gray-600">
-            Спочатку додайте хоча б одного постачальника в розділі `Постачальники`.
+        <form action={createPurchase} className="grid gap-4 sm:grid-cols-2">
+          <div className="rounded border border-dashed bg-gray-50 px-3 py-2 text-sm text-gray-700 sm:col-span-2">
+            Постачальник встановлюється автоматично: <span className="font-medium">China Marketplace</span>
           </div>
-        ) : (
-          <form action={createPurchase} className="grid gap-4 sm:grid-cols-2">
-            <label className="block text-sm font-medium">
-              Постачальник
-              <select
-                name="supplierId"
-                required
-                className="mt-2 w-full rounded-lg border px-3 py-2 text-sm"
-              >
-                <option value="">Оберіть постачальника</option>
-                {suppliers.map((supplier) => (
-                  <option key={supplier.id} value={supplier.id}>
-                    {supplier.name}
-                  </option>
-                ))}
-              </select>
-            </label>
 
             <label className="block text-sm font-medium">
               Статус
@@ -321,7 +290,6 @@ export default async function AdminPurchasesPage({ searchParams }: PageProps) {
               </button>
             </div>
           </form>
-        )}
       </section>
 
       <section className="overflow-hidden rounded border bg-white">
@@ -340,25 +308,9 @@ export default async function AdminPurchasesPage({ searchParams }: PageProps) {
                 type="search"
                 name="q"
                 defaultValue={query}
-                placeholder="Постачальник, документ, позиція"
+                placeholder="Документ, нотатка, позиція"
                 className="mt-2 w-full rounded-lg border px-3 py-2 text-sm"
               />
-            </label>
-
-            <label className="text-sm font-medium">
-              Постачальник
-              <select
-                name="supplierId"
-                defaultValue={supplierId}
-                className="mt-2 w-full rounded-lg border px-3 py-2 text-sm"
-              >
-                <option value="">Усі</option>
-                {suppliers.map((supplier) => (
-                  <option key={supplier.id} value={supplier.id}>
-                    {supplier.name}
-                  </option>
-                ))}
-              </select>
             </label>
 
             <label className="text-sm font-medium">
@@ -406,7 +358,6 @@ export default async function AdminPurchasesPage({ searchParams }: PageProps) {
               >
                 <option value="date">Дата</option>
                 <option value="total">Сума</option>
-                <option value="supplier">Постачальник</option>
                 <option value="status">Статус</option>
               </select>
             </label>

@@ -77,16 +77,20 @@ model Product {
   sortCatalog     Int  @default(0)
   sortSlider      Int?
   offerNote       String?
-  
+  packagingTemplateId String?
 
+  
   variants        ProductVariant[]
   costProfile     ProductCostProfile?
   inventory       ProductInventory?
   materialUsages  ProductMaterial[]
+  packagingTemplate PackagingTemplate? @relation(fields: [packagingTemplateId], references: [id], onDelete: SetNull)
+  productionBatches ProductionBatch[]
 
   @@index([type])
   @@index([group])
   @@index([inStock])
+  @@index([packagingTemplateId])
 }
 
 model ProductCostProfile {
@@ -118,11 +122,65 @@ model Material {
   name          String            @unique
   unit          String            @default("pcs")
   stockQty      Float             @default(0)
+  unitCostUAH   Int               @default(0)
   notes         String?
   createdAt     DateTime          @default(now())
   updatedAt     DateTime          @updatedAt
 
   productUsages ProductMaterial[]
+  batchUsages   ProductionBatchMaterial[]
+}
+
+model PackagingTemplate {
+  id               String   @id @default(cuid())
+  name             String   @unique
+  costUAH          Int      @default(0)
+  boxLabel         String?
+  tissuePaperQty   Int      @default(1)
+  tagCardQty       Int      @default(1)
+  tagThreadQty     Int      @default(1)
+  roundStickerQty  Int      @default(1)
+  squareStickerQty Int      @default(1)
+  notes            String?
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+
+  products         Product[]
+}
+
+model ProductionBatch {
+  id                  String   @id @default(cuid())
+  productId           String
+  product             Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
+  producedAt          DateTime
+  qty                 Int
+  laborTotalUAH       Int      @default(0)
+  laborPerUnitUAH     Int      @default(0)
+  materialsTotalUAH   Int      @default(0)
+  packagingTotalUAH   Int      @default(0)
+  notes               String?
+  createdAt           DateTime @default(now())
+  updatedAt           DateTime @updatedAt
+
+  materials           ProductionBatchMaterial[]
+
+  @@index([producedAt])
+  @@index([productId, producedAt])
+}
+
+model ProductionBatchMaterial {
+  id           String          @id @default(cuid())
+  batchId      String
+  materialId   String
+  batch        ProductionBatch @relation(fields: [batchId], references: [id], onDelete: Cascade)
+  material     Material        @relation(fields: [materialId], references: [id], onDelete: Restrict)
+  qtyUsed      Float
+  unitCostUAH  Int             @default(0)
+  totalCostUAH Int             @default(0)
+  createdAt    DateTime        @default(now())
+
+  @@index([batchId])
+  @@index([materialId])
 }
 
 model ProductMaterial {

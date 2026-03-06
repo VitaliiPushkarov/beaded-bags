@@ -2,7 +2,8 @@ import { NextRequest, NextResponse } from 'next/server'
 import { z } from 'zod'
 
 import { prisma } from '@/lib/prisma'
-import { buildOrderFinancialSnapshot, getUnitCostUAH } from '@/lib/finance'
+import { buildOrderFinancialSnapshot } from '@/lib/finance'
+import { buildManagedUnitCostUAH } from '@/lib/management-accounting'
 import { PROMO_CODE, calcDiscountUAH } from '@/lib/promo'
 
 async function sendTelegram(text: string) {
@@ -172,6 +173,21 @@ export async function POST(req: NextRequest) {
           where: { id: { in: productIds } },
           select: {
             id: true,
+            packagingTemplate: {
+              select: {
+                costUAH: true,
+              },
+            },
+            materialUsages: {
+              select: {
+                quantity: true,
+                material: {
+                  select: {
+                    unitCostUAH: true,
+                  },
+                },
+              },
+            },
             costProfile: {
               select: {
                 materialsCostUAH: true,
@@ -188,7 +204,12 @@ export async function POST(req: NextRequest) {
     const costByProductId = new Map(
       products.map((product) => [
         product.id,
-        getUnitCostUAH(product.costProfile),
+        buildManagedUnitCostUAH({
+          profile: product.costProfile,
+          materialUsages: product.materialUsages,
+          packagingTemplateCostUAH: product.packagingTemplate?.costUAH,
+          includeShipping: false,
+        }),
       ]),
     )
 

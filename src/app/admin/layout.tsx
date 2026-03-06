@@ -22,9 +22,9 @@ export default function AdminLayout({ children }: { children: ReactNode }) {
             <Link href="/admin/orders">Замовлення</Link>
             <Link href="/admin/costs">Собівартість</Link>
             <Link href="/admin/inventory">Запаси</Link>
+            <Link href="/admin/production">Виробництво</Link>
             <Link href="/admin/expenses">Витрати</Link>
             <Link href="/admin/purchases">Закупівлі</Link>
-            <Link href="/admin/suppliers">Постачальники</Link>
             <Link href="/admin/finance">Фінанси</Link>
             <Link href="/" className="text-gray-500">
               На сайт

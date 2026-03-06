@@ -5,9 +5,9 @@ import { formatUAH } from '@/lib/admin-finance'
 import {
   calcGrossMarginPercent,
   calcPaymentFeeUAH,
-  getUnitCostUAH,
 } from '@/lib/finance'
 import { TYPE_LABELS } from '@/lib/labels'
+import { buildManagedUnitCostUAH } from '@/lib/management-accounting'
 import { prisma } from '@/lib/prisma'
 import { calcDiscountedPrice } from '@/lib/pricing'
 
@@ -39,6 +39,15 @@ type ProductForCosts = {
     otherCostUAH: number
     notes: string | null
   } | null
+  packagingTemplate: {
+    costUAH: number
+  } | null
+  materialUsages: Array<{
+    quantity: number
+    material: {
+      unitCostUAH: number
+    }
+  }>
   variants: Array<{
     priceUAH: number | null
     discountPercent: number | null
@@ -126,6 +135,21 @@ export default async function AdminCostsPage({ searchParams }: PageProps) {
     orderBy: [{ sortCatalog: 'asc' }, { createdAt: 'desc' }],
     include: {
       costProfile: true,
+      packagingTemplate: {
+        select: {
+          costUAH: true,
+        },
+      },
+      materialUsages: {
+        select: {
+          quantity: true,
+          material: {
+            select: {
+              unitCostUAH: true,
+            },
+          },
+        },
+      },
       variants: {
         orderBy: { sortCatalog: 'asc' },
         select: {
@@ -140,7 +164,12 @@ export default async function AdminCostsPage({ searchParams }: PageProps) {
   const rows = products
     .map((product) => {
       const salePriceUAH = getReferenceSalePrice(product)
-      const unitCostUAH = getUnitCostUAH(product.costProfile)
+      const unitCostUAH = buildManagedUnitCostUAH({
+        profile: product.costProfile,
+        materialUsages: product.materialUsages,
+        packagingTemplateCostUAH: product.packagingTemplate?.costUAH,
+        includeShipping: false,
+      })
       const paymentFeeUAH = calcPaymentFeeUAH(salePriceUAH, 'LIQPAY')
       const grossProfitUAH = salePriceUAH - unitCostUAH - paymentFeeUAH
       const marginPercent = calcGrossMarginPercent(

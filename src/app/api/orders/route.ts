@@ -3,7 +3,8 @@ import { z } from 'zod'
 import { PaymentMethod } from '@prisma/client'
 
 import { prisma } from '@/lib/prisma'
-import { buildOrderFinancialSnapshot, getUnitCostUAH } from '@/lib/finance'
+import { buildOrderFinancialSnapshot } from '@/lib/finance'
+import { buildManagedUnitCostUAH } from '@/lib/management-accounting'
 
 const BodySchema = z.object({
   items: z
@@ -59,6 +60,21 @@ export async function POST(req: NextRequest) {
       where: { id: { in: productIds } },
       select: {
         id: true,
+        packagingTemplate: {
+          select: {
+            costUAH: true,
+          },
+        },
+        materialUsages: {
+          select: {
+            quantity: true,
+            material: {
+              select: {
+                unitCostUAH: true,
+              },
+            },
+          },
+        },
         costProfile: {
           select: {
             materialsCostUAH: true,
@@ -74,7 +90,12 @@ export async function POST(req: NextRequest) {
     const costByProductId = new Map(
       products.map((product) => [
         product.id,
-        getUnitCostUAH(product.costProfile),
+        buildManagedUnitCostUAH({
+          profile: product.costProfile,
+          materialUsages: product.materialUsages,
+          packagingTemplateCostUAH: product.packagingTemplate?.costUAH,
+          includeShipping: false,
+        }),
       ]),
     )
 

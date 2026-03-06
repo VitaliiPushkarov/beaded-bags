@@ -3,7 +3,8 @@ import { revalidatePath } from 'next/cache'
 import { z } from 'zod'
 
 import { toDateInputValue } from '@/lib/admin-finance'
-import { buildOrderFinancialSnapshot, getUnitCostUAH } from '@/lib/finance'
+import { buildOrderFinancialSnapshot } from '@/lib/finance'
+import { buildManagedUnitCostUAH } from '@/lib/management-accounting'
 import { prisma } from '@/lib/prisma'
 import OrdersTableClient from './OrdersTableClient'
 
@@ -46,6 +47,15 @@ type ProductLookup = {
   id: string
   slug: string
   name: string
+  packagingTemplate: {
+    costUAH: number
+  } | null
+  materialUsages: Array<{
+    quantity: number
+    material: {
+      unitCostUAH: number
+    }
+  }>
   costProfile: {
     materialsCostUAH: number
     laborCostUAH: number
@@ -145,6 +155,21 @@ export default async function AdminOrdersPage() {
         id: true,
         slug: true,
         name: true,
+        packagingTemplate: {
+          select: {
+            costUAH: true,
+          },
+        },
+        materialUsages: {
+          select: {
+            quantity: true,
+            material: {
+              select: {
+                unitCostUAH: true,
+              },
+            },
+          },
+        },
         costProfile: {
           select: {
             materialsCostUAH: true,
@@ -170,7 +195,15 @@ export default async function AdminOrdersPage() {
     )
 
     const costByProductId = new Map(
-      products.map((product) => [product.id, getUnitCostUAH(product.costProfile)]),
+      products.map((product) => [
+        product.id,
+        buildManagedUnitCostUAH({
+          profile: product.costProfile,
+          materialUsages: product.materialUsages,
+          packagingTemplateCostUAH: product.packagingTemplate?.costUAH,
+          includeShipping: false,
+        }),
+      ]),
     )
 
     const financialSnapshot = buildOrderFinancialSnapshot({

@@ -7,7 +7,7 @@ import {
   formatUAH,
   startOfMonth,
 } from '@/lib/admin-finance'
-import { getUnitCostUAH } from '@/lib/finance'
+import { buildManagedUnitCostUAH } from '@/lib/management-accounting'
 
 export const dynamic = 'force-dynamic'
 
@@ -64,6 +64,21 @@ export default async function AdminDashboard() {
           id: true,
           name: true,
           slug: true,
+          packagingTemplate: {
+            select: {
+              costUAH: true,
+            },
+          },
+          materialUsages: {
+            select: {
+              quantity: true,
+              material: {
+                select: {
+                  unitCostUAH: true,
+                },
+              },
+            },
+          },
           costProfile: {
             select: {
               materialsCostUAH: true,
@@ -82,7 +97,12 @@ export default async function AdminDashboard() {
       id: product.id,
       name: product.name,
       slug: product.slug,
-      unitCostUAH: getUnitCostUAH(product.costProfile),
+      unitCostUAH: buildManagedUnitCostUAH({
+        profile: product.costProfile,
+        materialUsages: product.materialUsages,
+        packagingTemplateCostUAH: product.packagingTemplate?.costUAH,
+        includeShipping: false,
+      }),
     })),
   )
 
@@ -115,6 +135,11 @@ export default async function AdminDashboard() {
       description: 'Залишки готових товарів і матеріали на виробництво',
     },
     {
+      href: '/admin/production',
+      title: 'Виробництво',
+      description: 'Production batch: списання матеріалів і прихід товарів',
+    },
+    {
       href: '/admin/expenses',
       title: 'Витрати',
       description: 'Операційні витрати по категоріях',
@@ -123,11 +148,6 @@ export default async function AdminDashboard() {
       href: '/admin/purchases',
       title: 'Закупівлі',
       description: 'Реєстр закупівель і приходи',
-    },
-    {
-      href: '/admin/suppliers',
-      title: 'Постачальники',
-      description: 'Контакти та історія закупівель',
     },
     {
       href: '/admin/finance',

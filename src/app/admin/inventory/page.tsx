@@ -5,6 +5,11 @@ import { z } from 'zod'
 import { formatUAH } from '@/lib/admin-finance'
 import ConfirmSubmitButton from '@/components/admin/ConfirmSubmitButton'
 import { TYPE_LABELS } from '@/lib/labels'
+import {
+  buildManagedUnitCostUAH,
+  calculateMaterialsCostFromUsages,
+  DEFAULT_PACKAGING_TEMPLATE_PRESETS,
+} from '@/lib/management-accounting'
 import { prisma } from '@/lib/prisma'
 
 export const dynamic = 'force-dynamic'
@@ -19,12 +24,14 @@ const MaterialSchema = z.object({
   name: z.string().trim().min(2),
   unit: z.string().trim().min(1).max(20).default('pcs'),
   stockQty: z.coerce.number().min(0).default(0),
+  unitCostUAH: z.coerce.number().int().min(0).default(0),
   notes: z.string().trim().optional(),
 })
 
 const UpdateMaterialSchema = z.object({
   id: z.string().min(1),
   stockQty: z.coerce.number().min(0).default(0),
+  unitCostUAH: z.coerce.number().int().min(0).default(0),
   notes: z.string().trim().optional(),
 })
 
@@ -39,6 +46,27 @@ const ProductMaterialSchema = z.object({
   materialId: z.string().min(1),
   quantity: z.coerce.number().positive(),
   notes: z.string().trim().optional(),
+})
+
+const PackagingTemplateSchema = z.object({
+  name: z.string().trim().min(2),
+  costUAH: z.coerce.number().int().min(0).default(0),
+  boxLabel: z.string().trim().optional(),
+  tissuePaperQty: z.coerce.number().int().min(0).default(0),
+  tagCardQty: z.coerce.number().int().min(0).default(0),
+  tagThreadQty: z.coerce.number().int().min(0).default(0),
+  roundStickerQty: z.coerce.number().int().min(0).default(0),
+  squareStickerQty: z.coerce.number().int().min(0).default(0),
+  notes: z.string().trim().optional(),
+})
+
+const UpdatePackagingTemplateSchema = PackagingTemplateSchema.extend({
+  id: z.string().min(1),
+})
+
+const AssignPackagingTemplateSchema = z.object({
+  productId: z.string().min(1),
+  packagingTemplateId: z.string().optional(),
 })
 
 function formatQuantity(value: number): string {
@@ -61,6 +89,7 @@ export default async function AdminInventoryPage({ searchParams }: PageProps) {
       name: formData.get('name'),
       unit: formData.get('unit'),
       stockQty: formData.get('stockQty'),
+      unitCostUAH: formData.get('unitCostUAH'),
       notes: formData.get('notes'),
     })
 
@@ -73,11 +102,14 @@ export default async function AdminInventoryPage({ searchParams }: PageProps) {
         name: parsed.data.name,
         unit: parsed.data.unit,
         stockQty: parsed.data.stockQty,
+        unitCostUAH: parsed.data.unitCostUAH,
         notes: parsed.data.notes || null,
       },
     })
 
     revalidatePath('/admin/inventory')
+    revalidatePath('/admin/costs')
+    revalidatePath('/admin/finance')
   }
 
   async function updateMaterial(formData: FormData) {
@@ -86,6 +118,7 @@ export default async function AdminInventoryPage({ searchParams }: PageProps) {
     const parsed = UpdateMaterialSchema.safeParse({
       id: formData.get('id'),
       stockQty: formData.get('stockQty'),
+      unitCostUAH: formData.get('unitCostUAH'),
       notes: formData.get('notes'),
     })
 
@@ -97,11 +130,194 @@ export default async function AdminInventoryPage({ searchParams }: PageProps) {
       where: { id: parsed.data.id },
       data: {
         stockQty: parsed.data.stockQty,
+        unitCostUAH: parsed.data.unitCostUAH,
         notes: parsed.data.notes || null,
       },
     })
 
     revalidatePath('/admin/inventory')
+    revalidatePath('/admin/costs')
+    revalidatePath('/admin/finance')
+  }
+
+  async function createPackagingTemplate(formData: FormData) {
+    'use server'
+
+    const parsed = PackagingTemplateSchema.safeParse({
+      name: formData.get('name'),
+      costUAH: formData.get('costUAH'),
+      boxLabel: formData.get('boxLabel'),
+      tissuePaperQty: formData.get('tissuePaperQty'),
+      tagCardQty: formData.get('tagCardQty'),
+      tagThreadQty: formData.get('tagThreadQty'),
+      roundStickerQty: formData.get('roundStickerQty'),
+      squareStickerQty: formData.get('squareStickerQty'),
+      notes: formData.get('notes'),
+    })
+
+    if (!parsed.success) {
+      throw new Error('Не вдалося створити шаблон пакування')
+    }
+
+    await prisma.packagingTemplate.create({
+      data: {
+        ...parsed.data,
+        boxLabel: parsed.data.boxLabel || null,
+        notes: parsed.data.notes || null,
+      },
+    })
+
+    revalidatePath('/admin/inventory')
+    revalidatePath('/admin/costs')
+    revalidatePath('/admin/finance')
+  }
+
+  async function updatePackagingTemplate(formData: FormData) {
+    'use server'
+
+    const parsed = UpdatePackagingTemplateSchema.safeParse({
+      id: formData.get('id'),
+      name: formData.get('name'),
+      costUAH: formData.get('costUAH'),
+      boxLabel: formData.get('boxLabel'),
+      tissuePaperQty: formData.get('tissuePaperQty'),
+      tagCardQty: formData.get('tagCardQty'),
+      tagThreadQty: formData.get('tagThreadQty'),
+      roundStickerQty: formData.get('roundStickerQty'),
+      squareStickerQty: formData.get('squareStickerQty'),
+      notes: formData.get('notes'),
+    })
+
+    if (!parsed.success) {
+      throw new Error('Не вдалося оновити шаблон пакування')
+    }
+
+    await prisma.$transaction(async (tx) => {
+      await tx.packagingTemplate.update({
+        where: { id: parsed.data.id },
+        data: {
+          name: parsed.data.name,
+          costUAH: parsed.data.costUAH,
+          boxLabel: parsed.data.boxLabel || null,
+          tissuePaperQty: parsed.data.tissuePaperQty,
+          tagCardQty: parsed.data.tagCardQty,
+          tagThreadQty: parsed.data.tagThreadQty,
+          roundStickerQty: parsed.data.roundStickerQty,
+          squareStickerQty: parsed.data.squareStickerQty,
+          notes: parsed.data.notes || null,
+        },
+      })
+
+      const linkedProducts = await tx.product.findMany({
+        where: { packagingTemplateId: parsed.data.id },
+        select: { id: true },
+      })
+
+      for (const product of linkedProducts) {
+        await tx.productCostProfile.upsert({
+          where: { productId: product.id },
+          create: {
+            productId: product.id,
+            packagingCostUAH: parsed.data.costUAH,
+          },
+          update: {
+            packagingCostUAH: parsed.data.costUAH,
+          },
+        })
+      }
+    })
+
+    revalidatePath('/admin/inventory')
+    revalidatePath('/admin/costs')
+    revalidatePath('/admin/finance')
+  }
+
+  async function deletePackagingTemplate(formData: FormData) {
+    'use server'
+
+    const id = String(formData.get('id') || '')
+    if (!id) return
+
+    await prisma.packagingTemplate.delete({
+      where: { id },
+    })
+
+    revalidatePath('/admin/inventory')
+    revalidatePath('/admin/costs')
+    revalidatePath('/admin/finance')
+  }
+
+  async function seedDefaultPackagingTemplates() {
+    'use server'
+
+    for (const template of DEFAULT_PACKAGING_TEMPLATE_PRESETS) {
+      await prisma.packagingTemplate.upsert({
+        where: { name: template.name },
+        update: {
+          costUAH: template.costUAH,
+          boxLabel: template.boxLabel,
+          tissuePaperQty: template.tissuePaperQty,
+          tagCardQty: template.tagCardQty,
+          tagThreadQty: template.tagThreadQty,
+          roundStickerQty: template.roundStickerQty,
+          squareStickerQty: template.squareStickerQty,
+          notes: template.notes,
+        },
+        create: {
+          ...template,
+        },
+      })
+    }
+
+    revalidatePath('/admin/inventory')
+    revalidatePath('/admin/costs')
+    revalidatePath('/admin/finance')
+  }
+
+  async function assignProductPackagingTemplate(formData: FormData) {
+    'use server'
+
+    const parsed = AssignPackagingTemplateSchema.safeParse({
+      productId: formData.get('productId'),
+      packagingTemplateId: String(formData.get('packagingTemplateId') || ''),
+    })
+
+    if (!parsed.success) {
+      throw new Error('Не вдалося прив’язати шаблон пакування')
+    }
+
+    const packagingTemplateId = parsed.data.packagingTemplateId?.trim() || null
+
+    await prisma.$transaction(async (tx) => {
+      await tx.product.update({
+        where: { id: parsed.data.productId },
+        data: { packagingTemplateId },
+      })
+
+      if (!packagingTemplateId) return
+
+      const template = await tx.packagingTemplate.findUnique({
+        where: { id: packagingTemplateId },
+        select: { costUAH: true },
+      })
+
+      if (!template) return
+
+      await tx.productCostProfile.upsert({
+        where: { productId: parsed.data.productId },
+        create: {
+          productId: parsed.data.productId,
+          packagingCostUAH: template.costUAH,
+        },
+        update: {
+          packagingCostUAH: template.costUAH,
+        },
+      })
+    })
+
+    revalidatePath('/admin/inventory')
+    revalidatePath('/admin/costs')
+    revalidatePath('/admin/finance')
   }
 
   async function updateProductInventory(formData: FormData) {
@@ -167,6 +383,8 @@ export default async function AdminInventoryPage({ searchParams }: PageProps) {
     })
 
     revalidatePath('/admin/inventory')
+    revalidatePath('/admin/costs')
+    revalidatePath('/admin/finance')
   }
 
   async function deleteProductMaterial(formData: FormData) {
@@ -180,6 +398,8 @@ export default async function AdminInventoryPage({ searchParams }: PageProps) {
     })
 
     revalidatePath('/admin/inventory')
+    revalidatePath('/admin/costs')
+    revalidatePath('/admin/finance')
   }
 
   async function deleteMaterial(formData: FormData) {
@@ -199,9 +419,11 @@ export default async function AdminInventoryPage({ searchParams }: PageProps) {
     })
 
     revalidatePath('/admin/inventory')
+    revalidatePath('/admin/costs')
+    revalidatePath('/admin/finance')
   }
 
-  const [materials, products] = await Promise.all([
+  const [materials, packagingTemplates, products] = await Promise.all([
     prisma.material.findMany({
       orderBy: { name: 'asc' },
       include: {
@@ -211,6 +433,9 @@ export default async function AdminInventoryPage({ searchParams }: PageProps) {
           },
         },
       },
+    }),
+    prisma.packagingTemplate.findMany({
+      orderBy: { name: 'asc' },
     }),
     prisma.product.findMany({
       where: query
@@ -225,6 +450,7 @@ export default async function AdminInventoryPage({ searchParams }: PageProps) {
       include: {
         costProfile: true,
         inventory: true,
+        packagingTemplate: true,
         materialUsages: {
           orderBy: {
             material: {
@@ -300,12 +526,15 @@ export default async function AdminInventoryPage({ searchParams }: PageProps) {
           <div className="mt-1 text-sm text-gray-500">
             Прив'язок до товарів: {totalMaterialLinks}
           </div>
+          <div className="mt-1 text-sm text-gray-500">
+            Шаблонів пакування: {packagingTemplates.length}
+          </div>
         </div>
       </section>
 
       <section className="rounded border bg-white p-4 sm:p-6">
         <h2 className="mb-4 text-lg font-medium">Новий матеріал</h2>
-        <form action={createMaterial} className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+        <form action={createMaterial} className="grid gap-4 sm:grid-cols-2 xl:grid-cols-5">
           <label className="block text-sm font-medium xl:col-span-2">
             Назва
             <input
@@ -336,7 +565,18 @@ export default async function AdminInventoryPage({ searchParams }: PageProps) {
             />
           </label>
 
-          <label className="block text-sm font-medium xl:col-span-4">
+          <label className="block text-sm font-medium">
+            Ціна за 1 од., грн
+            <input
+              name="unitCostUAH"
+              type="number"
+              min="0"
+              defaultValue="0"
+              className="mt-2 w-full rounded-lg border px-3 py-2 text-sm"
+            />
+          </label>
+
+          <label className="block text-sm font-medium xl:col-span-5">
             Нотатки
             <textarea
               name="notes"
@@ -344,7 +584,7 @@ export default async function AdminInventoryPage({ searchParams }: PageProps) {
             />
           </label>
 
-          <div className="xl:col-span-4">
+          <div className="xl:col-span-5">
             <button className="inline-flex items-center justify-center rounded bg-black px-4 py-2 text-sm text-white hover:bg-[#FF3D8C]">
               Додати матеріал
             </button>
@@ -366,6 +606,7 @@ export default async function AdminInventoryPage({ searchParams }: PageProps) {
                 <tr>
                   <th className="p-3 text-left">Матеріал</th>
                   <th className="p-3 text-left">Од.</th>
+                  <th className="p-3 text-right">Ціна за 1 од.</th>
                   <th className="p-3 text-right">Залишок</th>
                   <th className="p-3 text-right">Товарів використовують</th>
                   <th className="p-3 text-left">Оновити</th>
@@ -382,10 +623,11 @@ export default async function AdminInventoryPage({ searchParams }: PageProps) {
                       ) : null}
                     </td>
                     <td className="p-3">{material.unit}</td>
+                    <td className="p-3 text-right">{formatUAH(material.unitCostUAH)}</td>
                     <td className="p-3 text-right">{formatQuantity(material.stockQty)}</td>
                     <td className="p-3 text-right">{material._count.productUsages}</td>
                     <td className="p-3">
-                      <form action={updateMaterial} className="grid gap-3 sm:grid-cols-[140px_minmax(0,1fr)_auto]">
+                      <form action={updateMaterial} className="grid gap-3 sm:grid-cols-[120px_130px_minmax(0,1fr)_auto]">
                         <input type="hidden" name="id" value={material.id} />
                         <input
                           name="stockQty"
@@ -393,6 +635,13 @@ export default async function AdminInventoryPage({ searchParams }: PageProps) {
                           min="0"
                           step="0.001"
                           defaultValue={material.stockQty}
+                          className="w-full rounded border px-3 py-2 text-sm"
+                        />
+                        <input
+                          name="unitCostUAH"
+                          type="number"
+                          min="0"
+                          defaultValue={material.unitCostUAH}
                           className="w-full rounded border px-3 py-2 text-sm"
                         />
                         <input
@@ -425,6 +674,229 @@ export default async function AdminInventoryPage({ searchParams }: PageProps) {
         )}
       </section>
 
+      <section className="space-y-4 rounded border bg-white p-4 sm:p-6">
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+          <div>
+            <h2 className="text-lg font-medium">Шаблони пакування</h2>
+            <p className="mt-1 text-sm text-gray-600">
+              Велика / середня / мала коробка та складові пакування для калькуляції.
+            </p>
+          </div>
+          <form action={seedDefaultPackagingTemplates}>
+            <button className="inline-flex items-center justify-center rounded border px-4 py-2 text-sm hover:bg-gray-50">
+              Заповнити базові шаблони
+            </button>
+          </form>
+        </div>
+
+        <form action={createPackagingTemplate} className="grid gap-3 md:grid-cols-4 xl:grid-cols-6">
+          <label className="block text-sm font-medium md:col-span-2 xl:col-span-2">
+            Назва шаблону
+            <input
+              name="name"
+              required
+              className="mt-2 w-full rounded-lg border px-3 py-2 text-sm"
+              placeholder="Пакування: Велика коробка"
+            />
+          </label>
+          <label className="block text-sm font-medium">
+            Вартість, грн
+            <input
+              name="costUAH"
+              type="number"
+              min="0"
+              defaultValue="0"
+              className="mt-2 w-full rounded-lg border px-3 py-2 text-sm"
+            />
+          </label>
+          <label className="block text-sm font-medium">
+            Тип коробки
+            <input
+              name="boxLabel"
+              className="mt-2 w-full rounded-lg border px-3 py-2 text-sm"
+              placeholder="Велика / Середня / Мала"
+            />
+          </label>
+          <label className="block text-sm font-medium">
+            Тишʼю
+            <input
+              name="tissuePaperQty"
+              type="number"
+              min="0"
+              defaultValue="1"
+              className="mt-2 w-full rounded-lg border px-3 py-2 text-sm"
+            />
+          </label>
+          <label className="block text-sm font-medium">
+            Бірки
+            <input
+              name="tagCardQty"
+              type="number"
+              min="0"
+              defaultValue="1"
+              className="mt-2 w-full rounded-lg border px-3 py-2 text-sm"
+            />
+          </label>
+          <label className="block text-sm font-medium">
+            Нитки
+            <input
+              name="tagThreadQty"
+              type="number"
+              min="0"
+              defaultValue="1"
+              className="mt-2 w-full rounded-lg border px-3 py-2 text-sm"
+            />
+          </label>
+          <label className="block text-sm font-medium">
+            Наліпки круглі
+            <input
+              name="roundStickerQty"
+              type="number"
+              min="0"
+              defaultValue="1"
+              className="mt-2 w-full rounded-lg border px-3 py-2 text-sm"
+            />
+          </label>
+          <label className="block text-sm font-medium">
+            Наліпки квадратні
+            <input
+              name="squareStickerQty"
+              type="number"
+              min="0"
+              defaultValue="1"
+              className="mt-2 w-full rounded-lg border px-3 py-2 text-sm"
+            />
+          </label>
+          <label className="block text-sm font-medium md:col-span-4 xl:col-span-5">
+            Нотатки
+            <input
+              name="notes"
+              className="mt-2 w-full rounded-lg border px-3 py-2 text-sm"
+              placeholder="Опціонально"
+            />
+          </label>
+          <div className="md:col-span-4 xl:col-span-1 xl:self-end">
+            <button className="inline-flex w-full items-center justify-center rounded bg-black px-4 py-2 text-sm text-white hover:bg-[#FF3D8C]">
+              Додати
+            </button>
+          </div>
+        </form>
+
+        {packagingTemplates.length === 0 ? (
+          <div className="rounded border border-dashed p-4 text-sm text-gray-600">
+            Немає жодного шаблону пакування.
+          </div>
+        ) : (
+          <div className="space-y-3">
+            {packagingTemplates.map((template) => (
+              <div key={template.id} className="rounded border p-3">
+                <form action={updatePackagingTemplate}>
+                  <input type="hidden" name="id" value={template.id} />
+                  <div className="grid gap-3 md:grid-cols-4 xl:grid-cols-7">
+                    <label className="block text-xs font-medium md:col-span-2">
+                      Назва
+                      <input
+                        name="name"
+                        defaultValue={template.name}
+                        className="mt-1 w-full rounded border px-2 py-1.5 text-sm"
+                      />
+                    </label>
+                    <label className="block text-xs font-medium">
+                      Вартість
+                      <input
+                        name="costUAH"
+                        type="number"
+                        min="0"
+                        defaultValue={template.costUAH}
+                        className="mt-1 w-full rounded border px-2 py-1.5 text-sm"
+                      />
+                    </label>
+                    <label className="block text-xs font-medium">
+                      Коробка
+                      <input
+                        name="boxLabel"
+                        defaultValue={template.boxLabel ?? ''}
+                        className="mt-1 w-full rounded border px-2 py-1.5 text-sm"
+                      />
+                    </label>
+                    <label className="block text-xs font-medium">
+                      Тишʼю
+                      <input
+                        name="tissuePaperQty"
+                        type="number"
+                        min="0"
+                        defaultValue={template.tissuePaperQty}
+                        className="mt-1 w-full rounded border px-2 py-1.5 text-sm"
+                      />
+                    </label>
+                    <label className="block text-xs font-medium">
+                      Бірка / нитка
+                      <div className="mt-1 grid grid-cols-2 gap-2">
+                        <input
+                          name="tagCardQty"
+                          type="number"
+                          min="0"
+                          defaultValue={template.tagCardQty}
+                          className="w-full rounded border px-2 py-1.5 text-sm"
+                        />
+                        <input
+                          name="tagThreadQty"
+                          type="number"
+                          min="0"
+                          defaultValue={template.tagThreadQty}
+                          className="w-full rounded border px-2 py-1.5 text-sm"
+                        />
+                      </div>
+                    </label>
+                    <label className="block text-xs font-medium">
+                      Наліпки
+                      <div className="mt-1 grid grid-cols-2 gap-2">
+                        <input
+                          name="roundStickerQty"
+                          type="number"
+                          min="0"
+                          defaultValue={template.roundStickerQty}
+                          className="w-full rounded border px-2 py-1.5 text-sm"
+                        />
+                        <input
+                          name="squareStickerQty"
+                          type="number"
+                          min="0"
+                          defaultValue={template.squareStickerQty}
+                          className="w-full rounded border px-2 py-1.5 text-sm"
+                        />
+                      </div>
+                    </label>
+                    <label className="block text-xs font-medium md:col-span-4 xl:col-span-6">
+                      Нотатки
+                      <input
+                        name="notes"
+                        defaultValue={template.notes ?? ''}
+                        className="mt-1 w-full rounded border px-2 py-1.5 text-sm"
+                      />
+                    </label>
+                    <div className="md:col-span-4 xl:col-span-1 xl:self-end">
+                      <button className="inline-flex items-center justify-center rounded bg-black px-3 py-2 text-xs text-white hover:bg-[#FF3D8C]">
+                        Зберегти
+                      </button>
+                    </div>
+                  </div>
+                </form>
+                <form action={deletePackagingTemplate} className="mt-2">
+                  <input type="hidden" name="id" value={template.id} />
+                  <ConfirmSubmitButton
+                    confirmMessage={`Видалити шаблон "${template.name}"?`}
+                    className="text-xs text-red-600 hover:underline"
+                  >
+                    Видалити
+                  </ConfirmSubmitButton>
+                </form>
+              </div>
+            ))}
+          </div>
+        )}
+      </section>
+
       <section className="space-y-4">
         <div>
           <h2 className="text-lg font-medium">Товари і виробничі матеріали</h2>
@@ -441,6 +913,25 @@ export default async function AdminInventoryPage({ searchParams }: PageProps) {
           products.map((product) => {
             const finishedGoodsQty = product.inventory?.finishedGoodsQty ?? 0
             const inventoryNotes = product.inventory?.notes ?? ''
+            const materialUnitCostCalculated = calculateMaterialsCostFromUsages(
+              product.materialUsages.map((usage) => ({
+                quantity: usage.quantity,
+                material: {
+                  unitCostUAH: usage.material.unitCostUAH,
+                },
+              })),
+            )
+            const managedUnitCostUAH = buildManagedUnitCostUAH({
+              profile: product.costProfile,
+              materialUsages: product.materialUsages.map((usage) => ({
+                quantity: usage.quantity,
+                material: {
+                  unitCostUAH: usage.material.unitCostUAH,
+                },
+              })),
+              packagingTemplateCostUAH: product.packagingTemplate?.costUAH,
+              includeShipping: false,
+            })
 
             return (
               <details key={product.id} className="overflow-hidden rounded border bg-white" open={product.materialUsages.length > 0}>
@@ -454,7 +945,9 @@ export default async function AdminInventoryPage({ searchParams }: PageProps) {
                       <div className="mt-1 text-sm text-gray-500">
                         Матеріалів: {product.materialUsages.length}
                         <span className="mx-2 text-gray-300">•</span>
-                        Матеріальна частина собівартості: {formatUAH(product.costProfile?.materialsCostUAH ?? 0)}
+                        Матеріальна частина: {formatUAH(materialUnitCostCalculated)}
+                        <span className="mx-2 text-gray-300">•</span>
+                        Юніт-собівартість: {formatUAH(managedUnitCostUAH)}
                       </div>
                     </div>
 
@@ -493,6 +986,30 @@ export default async function AdminInventoryPage({ searchParams }: PageProps) {
                     </div>
                   </form>
 
+                  <form action={assignProductPackagingTemplate} className="grid gap-4 md:grid-cols-[minmax(0,1fr)_auto]">
+                    <input type="hidden" name="productId" value={product.id} />
+                    <label className="block text-sm font-medium">
+                      Шаблон пакування
+                      <select
+                        name="packagingTemplateId"
+                        className="mt-2 w-full rounded-lg border px-3 py-2 text-sm"
+                        defaultValue={product.packagingTemplateId ?? ''}
+                      >
+                        <option value="">Без шаблону</option>
+                        {packagingTemplates.map((template) => (
+                          <option key={template.id} value={template.id}>
+                            {template.name} ({formatUAH(template.costUAH)})
+                          </option>
+                        ))}
+                      </select>
+                    </label>
+                    <div className="md:self-end">
+                      <button className="inline-flex items-center justify-center rounded border px-4 py-2 text-sm hover:bg-gray-50">
+                        Зберегти пакування
+                      </button>
+                    </div>
+                  </form>
+
                   <div className="space-y-4">
                     <div className="font-medium">Матеріали на 1 одиницю товару</div>
 
@@ -519,11 +1036,19 @@ export default async function AdminInventoryPage({ searchParams }: PageProps) {
                                   <div className="mt-1 text-xs text-gray-500">
                                     Залишок матеріалу: {formatQuantity(usage.material.stockQty)} {usage.material.unit}
                                   </div>
+                                  <div className="mt-1 text-xs text-gray-500">
+                                    Ціна за 1 од.: {formatUAH(usage.material.unitCostUAH)}
+                                  </div>
                                 </td>
                                 <td className="p-3 text-right">
                                   {formatQuantity(usage.quantity)} {usage.material.unit}
                                 </td>
-                                <td className="p-3">{usage.notes || '—'}</td>
+                                <td className="p-3">
+                                  {usage.notes || '—'}
+                                  <div className="mt-1 text-xs text-gray-500">
+                                    Вартість на 1 товар: {formatUAH(Math.round(usage.quantity * usage.material.unitCostUAH))}
+                                  </div>
+                                </td>
                                 <td className="p-3 text-right">
                                   <form action={deleteProductMaterial}>
                                     <input type="hidden" name="id" value={usage.id} />

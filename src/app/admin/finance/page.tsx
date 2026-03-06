@@ -10,7 +10,7 @@ import {
   resolveOrderFinance,
   toDateInputValue,
 } from '@/lib/admin-finance'
-import { getUnitCostUAH } from '@/lib/finance'
+import { buildManagedUnitCostUAH } from '@/lib/management-accounting'
 
 export const dynamic = 'force-dynamic'
 
@@ -80,6 +80,21 @@ export default async function AdminFinancePage({ searchParams }: PageProps) {
           id: true,
           name: true,
           slug: true,
+          packagingTemplate: {
+            select: {
+              costUAH: true,
+            },
+          },
+          materialUsages: {
+            select: {
+              quantity: true,
+              material: {
+                select: {
+                  unitCostUAH: true,
+                },
+              },
+            },
+          },
           costProfile: {
             select: {
               materialsCostUAH: true,
@@ -98,7 +113,12 @@ export default async function AdminFinancePage({ searchParams }: PageProps) {
       id: product.id,
       name: product.name,
       slug: product.slug,
-      unitCostUAH: getUnitCostUAH(product.costProfile),
+      unitCostUAH: buildManagedUnitCostUAH({
+        profile: product.costProfile,
+        materialUsages: product.materialUsages,
+        packagingTemplateCostUAH: product.packagingTemplate?.costUAH,
+        includeShipping: false,
+      }),
     })),
   )
 
@@ -189,7 +209,8 @@ export default async function AdminFinancePage({ searchParams }: PageProps) {
           ['COGS', formatUAH(summary.itemsCostUAH)],
           ['Платіжні комісії', formatUAH(summary.paymentFeeUAH)],
           ['Валовий прибуток', formatUAH(summary.grossProfitUAH)],
-          ['Операційні витрати', formatUAH(summary.operatingExpensesUAH)],
+          ['OPEX (реклама + доставка матеріалів)', formatUAH(summary.operatingExpensesUAH)],
+          ['Інші витрати', formatUAH(summary.otherExpensesUAH)],
           ['Cash out на закупівлі', formatUAH(summary.purchaseCashOutUAH)],
           ['Результат після OPEX', formatUAH(summary.netAfterExpensesUAH)],
         ].map(([label, value]) => (

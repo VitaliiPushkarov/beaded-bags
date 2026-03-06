@@ -277,10 +277,12 @@ export function buildFinanceSummary(input: {
     (sum, order) => sum + order.grossProfitUAH,
     0,
   )
-  const operatingExpensesUAH = input.expenses.reduce(
-    (sum, expense) => sum + expense.amountUAH,
-    0,
-  )
+  const operatingExpensesUAH = input.expenses
+    .filter((expense) => expense.category === 'ADS' || expense.category === 'SHIPPING')
+    .reduce((sum, expense) => sum + expense.amountUAH, 0)
+  const otherExpensesUAH = input.expenses
+    .filter((expense) => expense.category !== 'ADS' && expense.category !== 'SHIPPING')
+    .reduce((sum, expense) => sum + expense.amountUAH, 0)
   const purchaseCashOutUAH = input.purchases.reduce(
     (sum, purchase) => sum + purchase.totalUAH,
     0,
@@ -297,6 +299,7 @@ export function buildFinanceSummary(input: {
     paymentFeeUAH,
     grossProfitUAH,
     operatingExpensesUAH,
+    otherExpensesUAH,
     purchaseCashOutUAH,
     netAfterExpensesUAH: grossProfitUAH - operatingExpensesUAH,
     avgOrderValueUAH,
