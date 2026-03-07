@@ -45,18 +45,19 @@ export default function CategorySection() {
           Всі товари
         </Link>
       </div>
-      <p className="text-gray-700 leading-relaxed mb-6">
-        У каталозі GERDAN представлені сумки ручної роботи, сумки з бісеру,
-        плетені сумки, <br /> чохли та аксесуари для щоденних і акцентних
-        образів.
-      </p>
+      <div className="md:w-[50%] ">
+        <p className="text-gray-700 leading-relaxed mb-6">
+          У каталозі GERDAN представлені сумки ручної роботи, сумки з бісеру,
+          плетені сумки, чохли та аксесуари для щоденних і акцентних образів.
+        </p>
+      </div>
 
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
         {HOME_CATEGORY_CARDS.map((card) => (
           <Link
             key={card.href}
             href={card.href}
-            className="group relative overflow-hidden border border-gray-300 min-h-[320px] lg:min-h-[360px]"
+            className="group relative overflow-hidden border border-gray-300 min-h-[320px] lg:min-h-[360px] shadow-[0_10px_24px_rgba(0,0,0,0.14)] transition-shadow duration-300 hover:shadow-[0_16px_30px_rgba(0,0,0,0.2)]"
           >
             <Image
               src={card.image}

@@ -105,7 +105,7 @@ export default function Header() {
               alt="website logo"
               width={214}
               height={20}
-              className="object-contain"
+              className="md:w-[214px] w-[140px]  object-contain"
             />
           </Link>
 
@@ -224,7 +224,10 @@ export default function Header() {
                 </Link>
               </li>
               <li className="border-b py-4 border-gray-300">
-                <Link href="/shop/accessories/breloky" onClick={closeMobileMenu}>
+                <Link
+                  href="/shop/accessories/breloky"
+                  onClick={closeMobileMenu}
+                >
                   Брелоки
                 </Link>
               </li>

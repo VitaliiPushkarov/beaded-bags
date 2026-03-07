@@ -70,7 +70,7 @@ export default function ProductCardLarge({ p }: { p: ProductWithVariants }) {
   }`
 
   return (
-    <article className=" overflow-hidden bg-white mb-8 md:mb-0">
+    <article className="overflow-hidden bg-white mb-8 md:mb-0">
       {/* зображення прив'язане до варіанту */}
       <Link href={productHref}>
         <div
@@ -79,10 +79,10 @@ export default function ProductCardLarge({ p }: { p: ProductWithVariants }) {
           onMouseLeave={() => setIsHovered(false)}
         >
           {isPreorder && (
-            <div className="absolute md:top-2 right-2 z-20">
-              <span className=" text-black text-[10px] md:text-[11px] uppercase tracking-tight md:tracking-wide md:px-2 md:py-1">
+            <div className="absolute inset-x-0 top-0 z-20">
+              <div className="w-full bg-black/58 px-3 py-2 text-center text-[9px] md:text-[10px] font-medium uppercase tracking-[0.08em] leading-[1.05] text-white [text-shadow:0_1px_2px_rgba(0,0,0,0.65)] backdrop-blur-[2px]">
                 Доступно до передзамовлення
-              </span>
+              </div>
             </div>
           )}
           {v && (

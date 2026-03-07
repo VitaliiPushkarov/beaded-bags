@@ -20,7 +20,8 @@ export default function HeroSection({
   altLeft = '',
   altRight = '',
 }: Props) {
-  const videoRef = useRef<HTMLVideoElement>(null)
+  const mobileVideoRef = useRef<HTMLVideoElement>(null)
+  const desktopVideoRef = useRef<HTMLVideoElement>(null)
   const [isMobile, setIsMobile] = useState(false)
   const [mobileVideoActive, setMobileVideoActive] = useState(false)
 
@@ -47,7 +48,7 @@ export default function HeroSection({
   // Автовідтворення лише коли секція в полі зору (desktop/tablet only)
   useEffect(() => {
     if (isMobile) return
-    const el = videoRef.current
+    const el = desktopVideoRef.current
     if (!el) return
 
     const io = new IntersectionObserver(
@@ -67,7 +68,7 @@ export default function HeroSection({
     setMobileVideoActive(true)
     // Start playback on the next tick after the <video> mounts
     requestAnimationFrame(() => {
-      const el = videoRef.current
+      const el = mobileVideoRef.current
       if (!el) return
       el.play().catch(() => {
         // Autoplay can still be blocked in some cases; user can tap the native play control if needed.
@@ -133,7 +134,7 @@ export default function HeroSection({
               </button>
             ) : (
               <video
-                ref={videoRef}
+                ref={mobileVideoRef}
                 className="h-full w-full object-cover"
                 src={centerVideo}
                 poster={centerPoster}
@@ -144,7 +145,7 @@ export default function HeroSection({
                 controls={false}
                 // ensure playback starts even if RAF happens before media is ready
                 onCanPlay={() => {
-                  const el = videoRef.current
+                  const el = mobileVideoRef.current
                   if (el && el.paused) el.play().catch(() => {})
                 }}
               />
@@ -153,7 +154,7 @@ export default function HeroSection({
 
           {/* Desktop/tablet: video (autoplay via IntersectionObserver) */}
           <video
-            ref={videoRef}
+            ref={desktopVideoRef}
             className="h-full w-full object-cover hidden md:block"
             src={centerVideo}
             poster={centerPoster}
