@@ -1,7 +1,7 @@
 'use client'
 
 import { ProductType } from '@prisma/client'
-import { TYPE_LABELS, COLOR_LABELS } from '@/lib/labels'
+import { ACTIVE_PRODUCT_TYPES, TYPE_LABELS, COLOR_LABELS } from '@/lib/labels'
 import { useEffect, useId } from 'react'
 import clsx from 'clsx'
 
@@ -19,21 +19,14 @@ export type FiltersValue = {
   sortPrice: '' | 'asc' | 'desc'
 }
 
-const TYPE_OPTIONS: ProductType[] = [
-  'BAG',
-  'BELT_BAG',
-  'BACKPACK',
-  'SHOPPER',
-  'CASE',
-  'ORNAMENTS',
-  'ACCESSORY',
-]
+const TYPE_OPTIONS: ProductType[] = ACTIVE_PRODUCT_TYPES
 
 type Props = {
   value: FiltersValue
   onChange: (next: FiltersValue) => void
   colors: string[]
   accessorySubcategoryOptions?: Array<{ value: string; label: string }>
+  showAccessorySubcategory?: boolean
   lockType?: boolean
   hideTypeFilter?: boolean
   lockGroup?: boolean
@@ -49,6 +42,7 @@ export default function ProductsFilter({
   onChange,
   colors,
   accessorySubcategoryOptions,
+  showAccessorySubcategory = false,
   lockType = false,
   hideTypeFilter = false,
   lockGroup = false,
@@ -57,8 +51,8 @@ export default function ProductsFilter({
   onApply,
 }: Props) {
   const ui = value
-  const hasAccessorySubcategories =
-    (accessorySubcategoryOptions?.length ?? 0) > 0
+  const shouldShowAccessorySubcategory =
+    showAccessorySubcategory && (accessorySubcategoryOptions?.length ?? 0) > 0
 
   const sortNameDesktop = useId()
   const sortNameMobile = useId()
@@ -193,7 +187,7 @@ export default function ProductsFilter({
             )}
 
             {/* Тип — якщо не зафіксований */}
-            {hasAccessorySubcategories && (
+            {shouldShowAccessorySubcategory && (
               <div className="flex items-center gap-3">
                 <span className="uppercase tracking-wide">Підкатегорія:</span>
                 <select
@@ -216,7 +210,7 @@ export default function ProductsFilter({
               </div>
             )}
 
-            {!lockType && !hasAccessorySubcategories && !hideTypeFilter && (
+            {!lockType && !hideTypeFilter && (
               <div className="flex items-center gap-3">
                 <span className="uppercase tracking-wide">Тип:</span>
                 <select

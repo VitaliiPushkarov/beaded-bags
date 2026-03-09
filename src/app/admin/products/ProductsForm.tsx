@@ -2,7 +2,9 @@
 
 import { useEffect, useState, SyntheticEvent } from 'react'
 import { useRouter } from 'next/navigation'
-import type { ProductType, ProductGroup } from '@prisma/client'
+import type { ProductType, ProductGroup, AvailabilityStatus } from '@prisma/client'
+import { isInStockStatus, resolveAvailabilityStatus } from '@/lib/availability'
+import { ACTIVE_PRODUCT_TYPES } from '@/lib/labels'
 
 const normalizeImages = (input: unknown): string[] => {
   if (!input) return []
@@ -78,6 +80,7 @@ type VariantInput = {
   discountPercent: string
   discountUAH?: string
   shippingNote: string
+  availabilityStatus: AvailabilityStatus
   inStock: boolean
   sku: string
   addons?: VariantAddonLinkInput[]
@@ -136,17 +139,17 @@ type Props = {
   deleteVariantAddon?: (input: { id: string }) => Promise<{ ok: true }>
 }
 
-const TYPE_OPTIONS: ProductType[] = [
-  'BAG',
-  'BELT_BAG',
-  'BACKPACK',
-  'SHOPPER',
-  'CASE',
-  'ORNAMENTS',
-  'ACCESSORY',
-]
+const TYPE_OPTIONS: ProductType[] = ACTIVE_PRODUCT_TYPES
 
 const GROUP_OPTIONS: ProductGroup[] = ['BEADS', 'WEAVING']
+const AVAILABILITY_OPTIONS: Array<{
+  value: AvailabilityStatus
+  label: string
+}> = [
+  { value: 'IN_STOCK', label: 'Є в наявності' },
+  { value: 'PREORDER', label: 'Доступно до передзамовлення' },
+  { value: 'OUT_OF_STOCK', label: 'Немає в наявності' },
+]
 
 export default function ProductForm({
   initial,
@@ -173,10 +176,16 @@ export default function ProductForm({
             const images = normalizeImages(v.images)
             const seededImages = images.length === 0 && v.image ? [v.image] : images
             const main = v.image || seededImages[0] || ''
+            const availabilityStatus = resolveAvailabilityStatus({
+              availabilityStatus: (v as any).availabilityStatus,
+              inStock: v.inStock,
+            })
             return {
               ...v,
               images: seededImages,
               image: main,
+              availabilityStatus,
+              inStock: isInStockStatus(availabilityStatus),
               straps: (v.straps || []).map((s) => ({
                 id: s.id,
                 name: s.name || '',
@@ -213,6 +222,7 @@ export default function ProductForm({
               discountPercent: '',
               discountUAH: '',
               shippingNote: '',
+              availabilityStatus: 'IN_STOCK',
               inStock: true,
               sku: '',
               addons: [],
@@ -274,6 +284,11 @@ export default function ProductForm({
       if (!cur) return prev
 
       const merged = { ...cur, ...patch }
+      const nextAvailabilityStatus =
+        patch.availabilityStatus ??
+        (typeof patch.inStock === 'boolean'
+          ? (patch.inStock ? 'IN_STOCK' : 'PREORDER')
+          : merged.availabilityStatus)
 
       // Normalize images/main relationship
       const images = normalizeImages(merged.images)
@@ -289,7 +304,13 @@ export default function ProductForm({
         image = images[0] || ''
       }
 
-      nextVariants[index] = { ...merged, images, image }
+      nextVariants[index] = {
+        ...merged,
+        images,
+        image,
+        availabilityStatus: nextAvailabilityStatus,
+        inStock: isInStockStatus(nextAvailabilityStatus),
+      }
       return { ...prev, variants: nextVariants }
     })
   }
@@ -334,6 +355,7 @@ export default function ProductForm({
           discountPercent: '',
           discountUAH: '',
           shippingNote: '',
+          availabilityStatus: 'IN_STOCK',
           inStock: true,
           sku: '',
           addons: [],
@@ -380,31 +402,39 @@ export default function ProductForm({
             : 0,
           notes: values.costProfile.notes.trim() || null,
         },
-        variants: values.variants.map((v) => ({
-          id: v.id,
-          color: v.color,
-          hex: v.hex,
-          image: v.image,
-          images: normalizeImages(v.images),
-          priceUAH: v.priceUAH ? Number(v.priceUAH) : null,
-          discountPercent: v.discountPercent
-            ? Math.max(0, Math.min(100, Number(v.discountPercent)))
-            : null,
-          discountUAH: v.discountUAH ? Number(v.discountUAH) : null,
-          shippingNote: v.shippingNote || null,
-          inStock: v.inStock,
-          sku: v.sku,
-          straps: (v.straps || [])
-            .map((s, idx) => ({
-              id: s.id,
-              name: s.name.trim(),
-              extraPriceUAH: s.extraPriceUAH
-                ? Math.max(0, Number(s.extraPriceUAH))
-                : 0,
-              sort: s.sort ? Number(s.sort) : idx,
-            }))
-            .filter((s) => s.name.length > 0),
-        })),
+        variants: values.variants.map((v) => {
+          const availabilityStatus = resolveAvailabilityStatus({
+            availabilityStatus: v.availabilityStatus,
+            inStock: v.inStock,
+          })
+
+          return {
+            availabilityStatus,
+            id: v.id,
+            color: v.color,
+            hex: v.hex,
+            image: v.image,
+            images: normalizeImages(v.images),
+            priceUAH: v.priceUAH ? Number(v.priceUAH) : null,
+            discountPercent: v.discountPercent
+              ? Math.max(0, Math.min(100, Number(v.discountPercent)))
+              : null,
+            discountUAH: v.discountUAH ? Number(v.discountUAH) : null,
+            shippingNote: v.shippingNote || null,
+            inStock: isInStockStatus(availabilityStatus),
+            sku: v.sku,
+            straps: (v.straps || [])
+              .map((s, idx) => ({
+                id: s.id,
+                name: s.name.trim(),
+                extraPriceUAH: s.extraPriceUAH
+                  ? Math.max(0, Number(s.extraPriceUAH))
+                  : 0,
+                sort: s.sort ? Number(s.sort) : idx,
+              }))
+              .filter((s) => s.name.length > 0),
+          }
+        }),
       }
 
       const url =
@@ -1108,15 +1138,23 @@ export default function ProductForm({
                     <span className="font-mono">/img/...</span>
                   </div>
                 </label>
-                <label className="inline-flex items-center gap-2 text-xs">
-                  <input
-                    type="checkbox"
-                    checked={v.inStock}
+                <label className="block text-sm font-medium ">
+                  Статус наявності
+                  <select
+                    className="mt-1 w-full border rounded px-2 py-1 text-sm border-blue-300"
+                    value={v.availabilityStatus}
                     onChange={(e) =>
-                      onVariantChange(index, { inStock: e.target.checked })
+                      onVariantChange(index, {
+                        availabilityStatus: e.target.value as AvailabilityStatus,
+                      })
                     }
-                  />
-                  В наявності
+                  >
+                    {AVAILABILITY_OPTIONS.map((option) => (
+                      <option key={option.value} value={option.value}>
+                        {option.label}
+                      </option>
+                    ))}
+                  </select>
                 </label>
               </div>
               <div className="space-y-2">

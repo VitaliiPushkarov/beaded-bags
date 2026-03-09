@@ -14,6 +14,11 @@ import { AddonsSection } from './AddonsSection'
 import type { ProductWithVariants } from './productTypes'
 import { calcDiscountedPrice } from '@/lib/pricing'
 import ProductTabs from '@/components/product/ProductTabs'
+import {
+  isInStockStatus,
+  isPreorderStatus,
+  resolveAvailabilityStatus,
+} from '@/lib/availability'
 
 const ProductGallery = dynamic(() => import('@/components/ProductGallery'), {
   ssr: false,
@@ -148,7 +153,12 @@ export function ProductInteractive({ p }: { p: ProductWithVariants }) {
     }
   }, [v])
 
-  const variantInStock = !!v?.inStock
+  const availabilityStatus = resolveAvailabilityStatus({
+    availabilityStatus: (v as any)?.availabilityStatus,
+    inStock: v?.inStock,
+  })
+  const variantInStock = isInStockStatus(availabilityStatus)
+  const variantPreorder = isPreorderStatus(availabilityStatus)
   const add = useCart((s) => s.add)
 
   // Pricing (percent discount with backward compatibility for legacy UAH values)
@@ -352,15 +362,27 @@ export function ProductInteractive({ p }: { p: ProductWithVariants }) {
           <div className="flex items-center gap-2 text-sm mb-3">
             <span
               className={`inline-block h-2 w-2 rounded-full flex-none ${
-                variantInStock ? 'bg-green-500' : 'bg-red-300'
+                variantInStock
+                  ? 'bg-green-500'
+                  : variantPreorder
+                    ? 'bg-amber-400'
+                    : 'bg-gray-300'
               }`}
             />
             <span
-              className={variantInStock ? 'text-green-700' : 'text-red-500'}
+              className={
+                variantInStock
+                  ? 'text-green-700'
+                  : variantPreorder
+                    ? 'text-amber-700'
+                    : 'text-gray-500'
+              }
             >
               {variantInStock
                 ? 'Є в наявності'
-                : 'Відкрито передзамовлення (7–14 робочих днів). Залиште контакт — ми напишемо вам.'}
+                : variantPreorder
+                  ? 'Відкрито передзамовлення (7–14 робочих днів). Залиште контакт — ми напишемо вам.'
+                  : 'Немає в наявності'}
             </span>
           </div>
           {/* Divider */}
@@ -442,12 +464,14 @@ export function ProductInteractive({ p }: { p: ProductWithVariants }) {
           )}
 
           <ProductActions
-            variantInStock={variantInStock}
+            availabilityStatus={availabilityStatus}
             onAddToCart={handleAddToCart}
-            onPreorder={openPreorder}
+            onPreorder={() => {
+              if (variantPreorder) openPreorder()
+            }}
           />
 
-          {preorderOpen && (
+          {preorderOpen && variantPreorder && (
             <PreorderModal
               open={preorderOpen}
               status={preorderStatus}

@@ -10,6 +10,11 @@ import type {
 import { useEffect, useMemo, useState } from 'react'
 import VariantSwatches from '@/components/product/VariantSwatches'
 import { calcDiscountedPrice } from '@/lib/pricing'
+import {
+  isOutOfStockStatus,
+  isPreorderStatus,
+  resolveAvailabilityStatus,
+} from '@/lib/availability'
 /* import { useCart } from '@/app/store/cart'
 import { useUI } from '@/app/store/ui' */
 
@@ -20,8 +25,21 @@ export type ProductWithVariants = Product & {
   })[]
 }
 
-export default function ProductCardLarge({ p }: { p: ProductWithVariants }) {
-  const [variantId, setVariantId] = useState(p.variants[0]?.id)
+export default function ProductCardLarge({
+  p,
+  preferredColor,
+}: {
+  p: ProductWithVariants
+  preferredColor?: string
+}) {
+  const preferredVariantId = useMemo(() => {
+    if (!preferredColor) return undefined
+    return p.variants.find((x) => x.color === preferredColor)?.id
+  }, [p.variants, preferredColor])
+
+  const [variantId, setVariantId] = useState(
+    preferredVariantId ?? p.variants[0]?.id,
+  )
   const v = useMemo(
     () => p.variants.find((x) => x.id === variantId) ?? p.variants[0],
     [p.variants, variantId],
@@ -32,9 +50,15 @@ export default function ProductCardLarge({ p }: { p: ProductWithVariants }) {
 
   useEffect(() => {
     if (!p.variants?.length) return
+    if (preferredVariantId) {
+      if (variantId !== preferredVariantId) {
+        setVariantId(preferredVariantId)
+      }
+      return
+    }
     const exists = variantId && p.variants.some((x) => x.id === variantId)
     if (!exists) setVariantId(p.variants[0].id)
-  }, [p.variants, variantId])
+  }, [p.variants, preferredVariantId, variantId])
 
   /* const add = useCart((s) => s.add)
   const openCart = useUI((s) => s.openCart) */
@@ -44,8 +68,17 @@ export default function ProductCardLarge({ p }: { p: ProductWithVariants }) {
       discountPercent: v?.discountPercent,
       discountUAH: v?.discountUAH ?? 0,
     })
-  const isInStock = v?.inStock ?? p.inStock
-  const isPreorder = !isInStock
+  const availabilityStatus = resolveAvailabilityStatus({
+    availabilityStatus: (v as any)?.availabilityStatus,
+    inStock: v?.inStock ?? p.inStock,
+  })
+  const isPreorder = isPreorderStatus(availabilityStatus)
+  const isOutOfStock = isOutOfStockStatus(availabilityStatus)
+  const stockBadgeLabel = isPreorder
+    ? 'Доступно до передзамовлення'
+    : isOutOfStock
+      ? 'Немає в наявності'
+      : null
 
   const CARD_SIZES =
     '(max-width: 640px) 50vw, (max-width: 1024px) 33vw, (max-width: 1280px) 25vw, 20vw'
@@ -78,10 +111,10 @@ export default function ProductCardLarge({ p }: { p: ProductWithVariants }) {
           onMouseEnter={() => setIsHovered(true)}
           onMouseLeave={() => setIsHovered(false)}
         >
-          {isPreorder && (
+          {stockBadgeLabel && (
             <div className="absolute inset-x-0 top-0 z-20">
               <div className="w-full bg-black/58 px-3 py-2 text-center text-[9px] md:text-[10px] font-medium uppercase tracking-[0.08em] leading-[1.05] text-white [text-shadow:0_1px_2px_rgba(0,0,0,0.65)] backdrop-blur-[2px]">
-                Доступно до передзамовлення
+                {stockBadgeLabel}
               </div>
             </div>
           )}

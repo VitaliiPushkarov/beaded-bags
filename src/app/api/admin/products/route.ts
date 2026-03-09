@@ -1,7 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { z } from 'zod'
 import { prisma } from '@/lib/prisma'
-import { ProductType, ProductGroup } from '@prisma/client'
+import { ProductType, ProductGroup, AvailabilityStatus } from '@prisma/client'
+import { isInStockStatus, resolveAvailabilityStatus } from '@/lib/availability'
 import { revalidateProductCache } from '@/lib/revalidate-products'
 
 // Accept both absolute URLs and local paths like "/img/foo.jpg".
@@ -69,6 +70,7 @@ const ProductCreateSchema = z.object({
         priceUAH: z.coerce.number(),
         discountPercent: z.coerce.number().optional().nullable(),
         discountUAH: z.coerce.number().optional().nullable(),
+        availabilityStatus: z.enum(AvailabilityStatus).optional().nullable(),
         inStock: z.coerce.boolean(),
         sku: z.string().trim().optional().nullable(),
 
@@ -118,6 +120,7 @@ export async function GET() {
             discountPercent: true,
             discountUAH: true,
             inStock: true,
+            availabilityStatus: true,
             sku: true,
           },
         },
@@ -148,12 +151,14 @@ export async function POST(req: NextRequest) {
     }
 
     const data = parsed.data
+    const normalizedType =
+      data.type === 'ORNAMENTS' ? 'ACCESSORY' : data.type
 
     const created = await prisma.product.create({
       data: {
         name: data.name,
         slug: data.slug,
-        type: data.type,
+        type: normalizedType,
         group: data.group ?? null,
         sortCatalog: sanitizeSortCatalog(data.sortCatalog),
         basePriceUAH: data.basePriceUAH ?? null,
@@ -174,30 +179,38 @@ export async function POST(req: NextRequest) {
         },
 
         variants: {
-          create: data.variants.map((v, idx) => ({
-            color: v.color ?? null,
-            hex: v.hex ?? null,
-            image: v.image ?? null,
-            images: {
-              create: (v.images ?? []).map((url) => ({ url })),
-            },
-            priceUAH: v.priceUAH,
-            discountPercent: sanitizeDiscountPercent(v.discountPercent),
-            discountUAH: v.discountUAH ?? null,
-            inStock: v.inStock,
-            sku: v.sku ?? null,
-            shippingNote: v.shippingNote ?? null,
-            straps: {
-              create: (v.straps ?? []).map((s, strapIdx) => ({
-                name: s.name,
-                extraPriceUAH: s.extraPriceUAH ?? 0,
-                sort: s.sort ?? strapIdx,
-              })),
-            },
+          create: data.variants.map((v, idx) => {
+            const availabilityStatus = resolveAvailabilityStatus({
+              availabilityStatus: v.availabilityStatus,
+              inStock: v.inStock,
+            })
 
-            // sensible default order for new variants
-            sortCatalog: idx + 1,
-          })),
+            return {
+              color: v.color ?? null,
+              hex: v.hex ?? null,
+              image: v.image ?? null,
+              images: {
+                create: (v.images ?? []).map((url) => ({ url })),
+              },
+              priceUAH: v.priceUAH,
+              discountPercent: sanitizeDiscountPercent(v.discountPercent),
+              discountUAH: v.discountUAH ?? null,
+              inStock: isInStockStatus(availabilityStatus),
+              availabilityStatus,
+              sku: v.sku ?? null,
+              shippingNote: v.shippingNote ?? null,
+              straps: {
+                create: (v.straps ?? []).map((s, strapIdx) => ({
+                  name: s.name,
+                  extraPriceUAH: s.extraPriceUAH ?? 0,
+                  sort: s.sort ?? strapIdx,
+                })),
+              },
+
+              // sensible default order for new variants
+              sortCatalog: idx + 1,
+            }
+          }),
         },
       },
       select: { id: true, slug: true, type: true, group: true },

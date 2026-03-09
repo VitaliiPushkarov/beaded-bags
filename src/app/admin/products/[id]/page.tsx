@@ -3,6 +3,7 @@ import Link from 'next/link'
 import ProductForm from '../ProductsForm'
 import type { ProductType, ProductGroup } from '@prisma/client'
 import { resolveDiscountPercent } from '@/lib/pricing'
+import { resolveAvailabilityStatus } from '@/lib/availability'
 
 type PageProps = {
   params: Promise<{ id: string }>
@@ -157,7 +158,9 @@ export default async function AdminProductEditPage({ params }: PageProps) {
     id: product.id,
     name: product.name,
     slug: product.slug,
-    type: product.type as ProductType,
+    type: (product.type === 'ORNAMENTS'
+      ? 'ACCESSORY'
+      : product.type) as ProductType,
     group: product.group as ProductGroup,
     sortCatalog: String(product.sortCatalog ?? 0),
     basePriceUAH: product.basePriceUAH?.toString() ?? '',
@@ -196,6 +199,10 @@ export default async function AdminProductEditPage({ params }: PageProps) {
         }).toString(),
         discountUAH: v.discountUAH?.toString() ?? '',
         shippingNote: v.shippingNote ?? '',
+        availabilityStatus: resolveAvailabilityStatus({
+          availabilityStatus: (v as any).availabilityStatus,
+          inStock: v.inStock,
+        }),
         inStock: v.inStock,
         sku: v.sku ?? '',
         straps:

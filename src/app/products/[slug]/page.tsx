@@ -10,6 +10,7 @@ import type { ProductWithVariants } from './productTypes'
 import type { Metadata } from 'next'
 import { calcDiscountedPrice } from '@/lib/pricing'
 import { TYPE_LABELS } from '@/lib/labels'
+import { resolveAvailabilityStatus, toSchemaOrgAvailability } from '@/lib/availability'
 
 const SITE_URL = 'https://gerdan.online'
 
@@ -169,7 +170,9 @@ export default async function ProductPage({
     product.variants.find((v) => v.image)?.image ||
     '/img/placeholder.png'
 
-  const inStock = product.inStock || product.variants.some((v) => v.inStock)
+  const fallbackAvailabilityStatus = resolveAvailabilityStatus({
+    inStock: product.inStock || product.variants.some((v) => v.inStock),
+  })
 
   const m = 6
   const now = new Date()
@@ -245,10 +248,14 @@ export default async function ProductPage({
         priceCurrency: 'UAH',
         price: finalPriceUAH,
         priceValidUntil,
-        availability:
-          (variant?.inStock ?? inStock)
-            ? 'https://schema.org/InStock'
-            : 'https://schema.org/OutOfStock',
+        availability: toSchemaOrgAvailability(
+          variant
+            ? resolveAvailabilityStatus({
+                availabilityStatus: (variant as any).availabilityStatus,
+                inStock: variant.inStock,
+              })
+            : fallbackAvailabilityStatus,
+        ),
         itemCondition: 'https://schema.org/NewCondition',
         url: productUrl,
         seller: {

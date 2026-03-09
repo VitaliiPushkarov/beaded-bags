@@ -1,6 +1,11 @@
 'use client'
 import type { ProductVariant } from '@prisma/client'
 import clsx from 'clsx'
+import {
+  isOutOfStockStatus,
+  isPreorderStatus,
+  resolveAvailabilityStatus,
+} from '@/lib/availability'
 
 type Props = {
   variants: ProductVariant[]
@@ -13,7 +18,12 @@ export default function VariantSwatches({ variants, value, onChange }: Props) {
     <div role="radiogroup" className="flex gap-3 flex-wrap">
       {variants.map((v) => {
         const selected = v.id === value
-        const outOfStock = !v.inStock
+        const availabilityStatus = resolveAvailabilityStatus({
+          availabilityStatus: (v as any).availabilityStatus,
+          inStock: v.inStock,
+        })
+        const outOfStock = isOutOfStockStatus(availabilityStatus)
+        const preorder = isPreorderStatus(availabilityStatus)
 
         return (
           <button
@@ -24,13 +34,22 @@ export default function VariantSwatches({ variants, value, onChange }: Props) {
             onClick={() => onChange(v.id)}
             title={
               v.color
-                ? v.color + (outOfStock ? ' — немає в наявності' : '')
+                ? v.color +
+                  (outOfStock
+                    ? ' — немає в наявності'
+                    : preorder
+                      ? ' — доступно до передзамовлення'
+                      : '')
                 : ''
             }
             className={clsx(
               'relative grid place-items-center w-5 h-5 md:w-6 md:h-6  rounded-full  transition bg-white',
               'border',
-              selected ? 'border-black' : 'border-black/10',
+              selected
+                ? 'border-black'
+                : preorder
+                  ? 'border-amber-500/70'
+                  : 'border-black/10',
               outOfStock && 'opacity-40',
               'cursor-pointer hover:scale-[1.02]',
             )}

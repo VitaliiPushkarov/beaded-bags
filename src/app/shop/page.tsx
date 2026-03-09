@@ -4,18 +4,12 @@ import { getProducts } from '@/lib/db/products'
 import type { ProductType } from '@prisma/client'
 import Link from 'next/link'
 import type { Metadata } from 'next'
+import { ACTIVE_PRODUCT_TYPES } from '@/lib/labels'
+import { ACCESSORY_SUBCATEGORIES } from '@/lib/shop-taxonomy'
 
 export const revalidate = 300
 
-const ALLOWED_TYPES: ProductType[] = [
-  'BAG',
-  'BACKPACK',
-  'SHOPPER',
-  'CASE',
-  'BELT_BAG',
-  'ORNAMENTS',
-  'ACCESSORY',
-]
+const ALLOWED_TYPES: ProductType[] = ACTIVE_PRODUCT_TYPES
 type ProductGroup = '' | 'BEADS' | 'WEAVING'
 type ShopSearchParams = {
   q?: string
@@ -47,6 +41,7 @@ function normalizeGroup(raw?: string | null): ProductGroup {
 function normalizeType(raw?: string | null): ProductType | null {
   if (!raw) return null
   const t = raw.toUpperCase() as ProductType
+  if (t === 'ORNAMENTS') return 'ACCESSORY'
   return ALLOWED_TYPES.includes(t) ? t : null
 }
 
@@ -129,6 +124,10 @@ export default async function ShopPage({
       <Suspense fallback={<div className="max-w-6xl mx-auto px-4 py-8" />}>
         <ProductsContainer
           initialProducts={products}
+          accessorySubcategoryOptions={ACCESSORY_SUBCATEGORIES.map((item) => ({
+            value: item.slug,
+            label: item.label,
+          }))}
           initialFilters={{
             q: sp.q ?? '',
             color: sp.color ?? '',

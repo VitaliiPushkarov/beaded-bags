@@ -12,6 +12,15 @@ type GetProductsParams = {
   take?: number
 }
 
+function withAccessoryCompatType(type: ProductType): ProductType[] {
+  return type === 'ACCESSORY' ? ['ACCESSORY', 'ORNAMENTS'] : [type]
+}
+
+function withAccessoryCompatTypes(types: ProductType[]): ProductType[] {
+  const expanded = types.flatMap(withAccessoryCompatType)
+  return Array.from(new Set(expanded))
+}
+
 function buildWhere(params: GetProductsParams): Prisma.ProductWhereInput {
   const { search, color, type, types, group, forBestsellers } = params
 
@@ -19,9 +28,10 @@ function buildWhere(params: GetProductsParams): Prisma.ProductWhereInput {
 
   // Filter by type
   if (types && types.length > 0) {
-    where.type = { in: types }
+    where.type = { in: withAccessoryCompatTypes(types) }
   } else if (type) {
-    where.type = type
+    const compatTypes = withAccessoryCompatType(type)
+    where.type = compatTypes.length === 1 ? compatTypes[0] : { in: compatTypes }
   }
 
   // Filter by group
@@ -174,6 +184,7 @@ export async function getProductsLite(params: GetProductsParams = {}) {
           discountPercent: true,
           discountUAH: true,
           inStock: true,
+          availabilityStatus: true,
         },
       },
     },

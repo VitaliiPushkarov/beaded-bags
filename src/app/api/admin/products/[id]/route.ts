@@ -1,7 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { z } from 'zod'
 import { prisma } from '@/lib/prisma'
-import { ProductType, ProductGroup } from '@prisma/client'
+import { ProductType, ProductGroup, AvailabilityStatus } from '@prisma/client'
+import { isInStockStatus, resolveAvailabilityStatus } from '@/lib/availability'
 import { revalidateProductCache } from '@/lib/revalidate-products'
 
 const ImagePath = z
@@ -49,6 +50,7 @@ const VariantSchema = z.object({
   priceUAH: z.coerce.number().nullable(),
   discountPercent: z.coerce.number().optional().nullable(),
   discountUAH: z.coerce.number().optional().nullable(),
+  availabilityStatus: z.enum(AvailabilityStatus).optional().nullable(),
   inStock: z.coerce.boolean(),
   sku: z.string().trim().optional().nullable(),
   shippingNote: z.string().trim().optional().nullable(),
@@ -106,6 +108,8 @@ export async function PATCH(
     }
 
     const data = parsed.data
+    const normalizedType =
+      data.type === 'ORNAMENTS' ? 'ACCESSORY' : data.type
 
     // Normalize group: allow null/undefined
     const nextGroup = (data.group ?? null) as ProductGroup | null
@@ -123,7 +127,7 @@ export async function PATCH(
           data: {
             name: data.name,
             slug: data.slug,
-            type: data.type as ProductType,
+            type: normalizedType as ProductType,
             group: nextGroup,
             sortCatalog: sanitizeSortCatalog(data.sortCatalog),
             basePriceUAH: data.basePriceUAH,
@@ -159,6 +163,11 @@ export async function PATCH(
         // 2) upsert variants
         const createdIds: string[] = []
         for (const v of data.variants) {
+          const availabilityStatus = resolveAvailabilityStatus({
+            availabilityStatus: v.availabilityStatus,
+            inStock: v.inStock,
+          })
+
           if (v.id) {
             await tx.productVariant.update({
               where: { id: v.id },
@@ -174,7 +183,8 @@ export async function PATCH(
                 priceUAH: v.priceUAH,
                 discountPercent: sanitizeDiscountPercent(v.discountPercent),
                 discountUAH: v.discountUAH ?? null,
-                inStock: v.inStock,
+                inStock: isInStockStatus(availabilityStatus),
+                availabilityStatus,
                 sku: v.sku ?? null,
                 shippingNote: v.shippingNote ?? null,
               },
@@ -241,7 +251,8 @@ export async function PATCH(
                 priceUAH: v.priceUAH,
                 discountPercent: sanitizeDiscountPercent(v.discountPercent),
                 discountUAH: v.discountUAH ?? null,
-                inStock: v.inStock,
+                inStock: isInStockStatus(availabilityStatus),
+                availabilityStatus,
                 sku: v.sku ?? null,
                 shippingNote: v.shippingNote ?? null,
                 straps: {
@@ -303,7 +314,7 @@ export async function PATCH(
       before: existing,
       after: {
         slug: data.slug,
-        type: data.type,
+        type: normalizedType,
         group: nextGroup,
       },
     })

@@ -7,10 +7,11 @@ import AppliedChips from './AppliedChips'
 import ProductsGrid from './ProductsGrid'
 import Breadcrumbs from '../ui/BreadCrumbs'
 import type { ProductType } from '@prisma/client'
-import { TYPE_LABELS, COLOR_LABELS } from '@/lib/labels'
+import { ACTIVE_PRODUCT_TYPES, TYPE_LABELS, COLOR_LABELS } from '@/lib/labels'
 import type { ProductWithVariants as CardProductWithVariants } from '@/app/products/ProductCardLarge'
 import { resolveDiscountPercent } from '@/lib/pricing'
 import { matchAccessorySubcategory } from '@/lib/shop-taxonomy'
+import { isInStockStatus, resolveAvailabilityStatus } from '@/lib/availability'
 
 export type UIFilters = {
   q: string
@@ -57,7 +58,14 @@ function isInStock(p: ProductWithVariants) {
   // - If variants exist, stock is true only when at least one variant is in stock.
   // - Only fall back to product-level inStock for products without variants.
   if (p.variants && p.variants.length > 0) {
-    return p.variants.some((v) => v.inStock === true)
+    return p.variants.some((v) =>
+      isInStockStatus(
+        resolveAvailabilityStatus({
+          availabilityStatus: (v as any).availabilityStatus,
+          inStock: v.inStock,
+        }),
+      ),
+    )
   }
   return p.inStock === true
 }
@@ -68,7 +76,14 @@ function withOnlyInStockVariants(
   // If there are no variants, keep the product intact (product-level stock applies).
   if (!p.variants || p.variants.length === 0) return p
 
-  const nextVariants = p.variants.filter((v) => v.inStock === true)
+  const nextVariants = p.variants.filter((v) =>
+    isInStockStatus(
+      resolveAvailabilityStatus({
+        availabilityStatus: (v as any).availabilityStatus,
+        inStock: v.inStock,
+      }),
+    ),
+  )
 
   // If no variants are in stock — drop the product from the in-stock view
   if (nextVariants.length === 0) return null
@@ -89,6 +104,28 @@ function normalizeGroupParam(v: string | null): UIFilters['group'] {
   if (v === 'Бісер') return 'BEADS'
   if (v === 'Плетіння') return 'WEAVING'
   return ''
+}
+
+function normalizeTypeParam(value: string | null): UIFilters['bagTypes'] {
+  if (!value) return ''
+  const raw = value.toUpperCase() as ProductType
+  const normalized = raw === 'ORNAMENTS' ? 'ACCESSORY' : raw
+  return ACTIVE_PRODUCT_TYPES.includes(normalized) ? normalized : ''
+}
+
+function isAccessoryType(type: ProductType | '' | undefined) {
+  return type === 'ACCESSORY' || type === 'ORNAMENTS'
+}
+
+function matchesSelectedType(
+  product: ProductWithVariants,
+  selectedType: UIFilters['bagTypes'],
+) {
+  if (!selectedType) return true
+  if (isAccessoryType(selectedType)) {
+    return isAccessoryType(product.type)
+  }
+  return product.type === selectedType
 }
 
 function groupLabel(g: UIFilters['group']): string {
@@ -155,6 +192,7 @@ export default function ProductsContainer({
   const [loading, setLoading] = useState(false)
   const subcategoryOptions =
     accessorySubcategoryOptions ?? EMPTY_SUBCATEGORY_OPTIONS
+  const isLockedAccessoryType = isAccessoryType(lockedType)
 
   const sp = useSearchParams()
   const router = useRouter()
@@ -190,7 +228,7 @@ export default function ProductsContainer({
       return
     }
 
-    const t = sp.get('type') as ProductType | null
+    const t = normalizeTypeParam(sp.get('type'))
     const g = lockedGroup ? '' : normalizeGroupParam(sp.get('group'))
     const s = normalizeAccessorySubcategoryParam(
       sp.get('subcategory'),
@@ -210,15 +248,14 @@ export default function ProductsContainer({
         next.group = g
         changed = true
       }
-      if (!next.accessorySubcategory && s) {
+      if (!next.accessorySubcategory && s && (isLockedAccessoryType || t === 'ACCESSORY')) {
         next.accessorySubcategory = s
         changed = true
       }
 
       return changed ? next : prev
     })
-
-  }, [sp, lockedType, lockedGroup, subcategoryOptions])
+  }, [sp, lockedType, lockedGroup, subcategoryOptions, isLockedAccessoryType])
 
   // застосувати
   const apply = () => {
@@ -261,10 +298,16 @@ export default function ProductsContainer({
 
     // тип
     if (toApply.bagTypes) {
-      arr = arr.filter((p) => p.type === toApply.bagTypes)
+      arr = arr.filter((p) => matchesSelectedType(p, toApply.bagTypes))
     }
 
-    if (toApply.accessorySubcategory && subcategoryOptions.length > 0) {
+    const hasAccessoryContext =
+      isAccessoryType(lockedType ?? toApply.bagTypes)
+    if (
+      hasAccessoryContext &&
+      toApply.accessorySubcategory &&
+      subcategoryOptions.length > 0
+    ) {
       arr = arr.filter((p) =>
         matchAccessorySubcategory(p, toApply.accessorySubcategory),
       )
@@ -317,7 +360,7 @@ export default function ProductsContainer({
     if (toApply.onSale) params.set('onSale', '1')
     if (!lockedType && toApply.bagTypes) params.set('type', toApply.bagTypes)
     if (!lockedGroup && toApply.group) params.set('group', toApply.group)
-    if (toApply.accessorySubcategory) {
+    if (hasAccessoryContext && toApply.accessorySubcategory) {
       params.set('subcategory', toApply.accessorySubcategory)
     }
     if (toApply.color) params.set('color', toApply.color)
@@ -347,16 +390,87 @@ export default function ProductsContainer({
     router.replace(pathname)
   }
 
-  // кольори з продуктів
+  // кольори з продуктів з урахуванням поточних фільтрів
   const colors = useMemo(() => {
+    const previewFilters: UIFilters = lockedType
+      ? { ...ui, bagTypes: lockedType, group: lockedGroup ?? ui.group }
+      : { ...ui, group: lockedGroup ?? ui.group }
+
+    let arr = [...base]
+
+    if (previewFilters.q.trim()) {
+      const q = previewFilters.q.trim().toLowerCase()
+      arr = arr.filter((p) => {
+        const pool = [p.name?.toLowerCase() || '']
+        p.variants?.forEach((v) => v.color && pool.push(v.color.toLowerCase()))
+        return pool.some((x) => x.includes(q))
+      })
+    }
+
+    if (previewFilters.inStock) {
+      arr = arr
+        .filter(isInStock)
+        .map(withOnlyInStockVariants)
+        .filter((p): p is ProductWithVariants => Boolean(p))
+    }
+
+    if (previewFilters.onSale) {
+      arr = arr.filter(isOnSale)
+    }
+
+    if (previewFilters.group) {
+      arr = arr.filter((p) => matchesGroup(p, previewFilters.group))
+    }
+
+    if (previewFilters.bagTypes) {
+      arr = arr.filter((p) => matchesSelectedType(p, previewFilters.bagTypes))
+    }
+
+    const hasAccessoryContext = isAccessoryType(
+      lockedType ?? previewFilters.bagTypes,
+    )
+    if (
+      hasAccessoryContext &&
+      previewFilters.accessorySubcategory &&
+      subcategoryOptions.length > 0
+    ) {
+      arr = arr.filter((p) =>
+        matchAccessorySubcategory(p, previewFilters.accessorySubcategory),
+      )
+    }
+
+    if (previewFilters.color) {
+      arr = arr.filter((p) => matchesColor(p, previewFilters.color))
+    }
+
+    const minNum = previewFilters.min
+      ? Number(previewFilters.min) || 0
+      : -Infinity
+    const maxNum = previewFilters.max
+      ? Number(previewFilters.max) || Infinity
+      : Infinity
+    arr = arr.filter((p) => {
+      const prices: number[] = []
+      if (typeof p.basePriceUAH === 'number') prices.push(p.basePriceUAH)
+      p.variants?.forEach((v) => {
+        if (typeof v.priceUAH === 'number') prices.push(v.priceUAH)
+      })
+      if (!prices.length) prices.push(0)
+      return prices.some((price) => price >= minNum && price <= maxNum)
+    })
+
     const set = new Set<string>()
-    for (const p of base) {
+    for (const p of arr) {
       p.variants?.forEach((v) => {
         if (v.color) set.add(v.color)
       })
     }
+
+    // keep selected color in list until user changes it
+    if (ui.color) set.add(ui.color)
+
     return Array.from(set)
-  }, [base])
+  }, [base, ui, lockedType, lockedGroup, subcategoryOptions])
 
   // chips (тільки з застосованих)
   const chips = useMemo(() => {
@@ -374,7 +488,7 @@ export default function ProductsContainer({
         key: 'bagTypes',
         label: `Тип: ${TYPE_LABELS[applied.bagTypes] || applied.bagTypes}`,
       })
-    if (applied.accessorySubcategory) {
+    if (isAccessoryType(lockedType ?? applied.bagTypes) && applied.accessorySubcategory) {
       const subcategoryLabel = subcategoryOptions.find(
         (item) => item.value === applied.accessorySubcategory,
       )?.label
@@ -464,9 +578,10 @@ export default function ProductsContainer({
       arr = arr.filter((p) => matchesGroup(p, next.group))
     }
     if (next.bagTypes) {
-      arr = arr.filter((p) => p.type === next.bagTypes)
+      arr = arr.filter((p) => matchesSelectedType(p, next.bagTypes))
     }
-    if (next.accessorySubcategory && subcategoryOptions.length > 0) {
+    const hasAccessoryContext = isAccessoryType(lockedType ?? next.bagTypes)
+    if (hasAccessoryContext && next.accessorySubcategory && subcategoryOptions.length > 0) {
       arr = arr.filter((p) =>
         matchAccessorySubcategory(p, next.accessorySubcategory),
       )
@@ -496,7 +611,7 @@ export default function ProductsContainer({
     if (next.onSale) params.set('onSale', '1')
     if (!lockedType && next.bagTypes) params.set('type', next.bagTypes)
     if (!lockedGroup && next.group) params.set('group', next.group)
-    if (next.accessorySubcategory) {
+    if (hasAccessoryContext && next.accessorySubcategory) {
       params.set('subcategory', next.accessorySubcategory)
     }
     if (next.color) params.set('color', next.color)
@@ -507,6 +622,13 @@ export default function ProductsContainer({
     const qs = params.toString()
     router.replace(qs ? `${pathname}?${qs}` : pathname)
   }
+
+  const shouldShowAccessorySubcategory =
+    subcategoryOptions.length > 0 &&
+    (isLockedAccessoryType || isAccessoryType(ui.bagTypes))
+  const visibleSubcategoryOptions = shouldShowAccessorySubcategory
+    ? subcategoryOptions
+    : EMPTY_SUBCATEGORY_OPTIONS
 
   return (
     <div className="max-w-[1440px] mx-auto py-6 px-5 md:px-[50px]">
@@ -539,11 +661,16 @@ export default function ProductsContainer({
       <ProductsFilter
         value={ui}
         onChange={(next) => {
-          setUI(next)
+          const sanitized =
+            isLockedAccessoryType || isAccessoryType(next.bagTypes)
+              ? next
+              : { ...next, accessorySubcategory: '' }
+          setUI(sanitized)
           setIsDirty(true)
         }}
         colors={colors}
-        accessorySubcategoryOptions={subcategoryOptions}
+        accessorySubcategoryOptions={visibleSubcategoryOptions}
+        showAccessorySubcategory={shouldShowAccessorySubcategory}
         lockType={Boolean(lockedType)}
         hideTypeFilter={hideTypeFilter}
         lockGroup={Boolean(lockedGroup)}
@@ -554,7 +681,11 @@ export default function ProductsContainer({
       {hasApplied && chips.length > 0 && (
         <AppliedChips chips={chips} onRemove={removeChip} onClear={clearAll} />
       )}
-      <ProductsGrid products={visible} loading={loading} />
+      <ProductsGrid
+        products={visible}
+        loading={loading}
+        preferredColor={applied.color || undefined}
+      />
     </div>
   )
 }

@@ -23,6 +23,12 @@ enum ProductGroup {
   WEAVING
 }
 
+enum AvailabilityStatus {
+  IN_STOCK
+  PREORDER
+  OUT_OF_STOCK
+}
+
 enum OrderStatus {
   PENDING
   PAID
@@ -209,6 +215,7 @@ model ProductVariant {
   hex         String?
   image       String?
   inStock     Boolean @default(true)
+  availabilityStatus AvailabilityStatus @default(IN_STOCK)
   priceUAH    Int?
   discountPercent Int? @default(0)
   discountUAH Int? @default(0)

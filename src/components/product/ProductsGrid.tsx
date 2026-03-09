@@ -7,9 +7,11 @@ type ProductWithVariants = ProductsGridWithVariants
 export default function ProductsGrid({
   products,
   loading,
+  preferredColor,
 }: {
   products: ProductWithVariants[]
   loading: boolean
+  preferredColor?: string
 }) {
   if (loading) {
     return (
@@ -34,7 +36,11 @@ export default function ProductsGrid({
   return (
     <div className="grid grid-cols-2 lg:grid-cols-3 gap-5 mt-6">
       {products.map((p) => (
-        <ProductCardLarge key={p.id || p.slug} p={p} />
+        <ProductCardLarge
+          key={p.id || p.slug}
+          p={p}
+          preferredColor={preferredColor}
+        />
       ))}
     </div>
   )

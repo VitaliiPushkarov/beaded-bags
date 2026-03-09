@@ -121,6 +121,8 @@ export default async function ShopCategoryPage({
   )
   const faqLd = buildFaqJsonLd(config.faqs)
   const showAccessoriesSubcategories = category === 'accessories'
+  const lockedTypeForPage =
+    category === 'accessories' ? 'ACCESSORY' : config.type
   const accessorySubcategoryOptions = showAccessoriesSubcategories
     ? ACCESSORY_SUBCATEGORIES.map((item) => ({
         value: item.slug,
@@ -136,10 +138,10 @@ export default async function ShopCategoryPage({
           q: sp.q ?? '',
           color: sp.color ?? '',
           accessorySubcategory: sp.subcategory ?? '',
-          bagTypes: config.type ?? '',
+          bagTypes: lockedTypeForPage ?? '',
           group: config.group ?? '',
         }}
-        lockedType={config.type}
+        lockedType={lockedTypeForPage}
         accessorySubcategoryOptions={accessorySubcategoryOptions}
         title={config.title}
       />

@@ -14,7 +14,7 @@ export default function AppliedChips({
         <button
           key={ch.key}
           onClick={() => onRemove(ch.key)}
-          className="text-sm rounded-full border px-3 py-1 hover:bg-gray-50 flex items-center gap-2"
+          className="text-sm rounded-full border px-3 py-1 hover:bg-gray-50 flex items-center gap-2 cursor-pointer"
         >
           {ch.label}
           <span className="text-gray-400">×</span>
@@ -22,7 +22,7 @@ export default function AppliedChips({
       ))}
       <button
         onClick={onClear}
-        className="ml-2 text-sm underline text-gray-600 hover:text-black"
+        className="ml-2 text-sm underline text-gray-600 hover:text-black cursor-pointer"
       >
         Видалити все
       </button>

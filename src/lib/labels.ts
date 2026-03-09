@@ -6,9 +6,18 @@ export const TYPE_LABELS: Record<ProductType, string> = {
   BACKPACK: 'Рюкзачки',
   SHOPPER: 'Шопери',
   CASE: 'Чохли',
-  ORNAMENTS: 'Прикраси',
+  ORNAMENTS: 'Аксесуари',
   ACCESSORY: 'Аксесуари',
 }
+
+export const ACTIVE_PRODUCT_TYPES: ProductType[] = [
+  'BAG',
+  'BELT_BAG',
+  'BACKPACK',
+  'SHOPPER',
+  'CASE',
+  'ACCESSORY',
+]
 
 const UI2DB_RAW: Record<string, ProductType> = {
   // укр
@@ -17,7 +26,7 @@ const UI2DB_RAW: Record<string, ProductType> = {
   рюкзачки: 'BACKPACK',
   шопери: 'SHOPPER',
   чохли: 'CASE',
-  прикраси: 'ORNAMENTS',
+  прикраси: 'ACCESSORY',
   аксесуари: 'ACCESSORY',
   // англ/ключі
   bag: 'BAG',
@@ -27,7 +36,7 @@ const UI2DB_RAW: Record<string, ProductType> = {
   shopper: 'SHOPPER',
   tote: 'SHOPPER',
   case: 'CASE',
-  ornaments: 'ORNAMENTS',
+  ornaments: 'ACCESSORY',
   accessory: 'ACCESSORY',
   // enum
   BAG: 'BAG',
@@ -35,7 +44,7 @@ const UI2DB_RAW: Record<string, ProductType> = {
   BACKPACK: 'BACKPACK',
   SHOPPER: 'SHOPPER',
   CASE: 'CASE',
-  ORNAMENTS: 'ORNAMENTS',
+  ORNAMENTS: 'ACCESSORY',
   ACCESSORY: 'ACCESSORY',
 }
 

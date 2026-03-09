@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
+import { isPreorderStatus, resolveAvailabilityStatus } from '@/lib/availability'
 
 type Body = {
   productId: string
@@ -31,6 +32,33 @@ export async function POST(req: Request) {
       return NextResponse.json(
         { ok: false, error: 'Missing required fields' },
         { status: 400 }
+      )
+    }
+
+    const variant = await prisma.productVariant.findFirst({
+      where: { id: variantId, productId },
+      select: {
+        inStock: true,
+        availabilityStatus: true,
+      },
+    })
+
+    if (!variant) {
+      return NextResponse.json(
+        { ok: false, error: 'Variant not found' },
+        { status: 404 },
+      )
+    }
+
+    const availabilityStatus = resolveAvailabilityStatus({
+      availabilityStatus: variant.availabilityStatus,
+      inStock: variant.inStock,
+    })
+
+    if (!isPreorderStatus(availabilityStatus)) {
+      return NextResponse.json(
+        { ok: false, error: 'Preorder is closed for this variant' },
+        { status: 409 },
       )
     }
 

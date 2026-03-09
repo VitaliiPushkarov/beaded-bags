@@ -90,7 +90,7 @@ export default async function AccessorySubcategoryPage({
   const rawProducts = await getProducts({
     search: sp.q,
     color: sp.color,
-    types: ['ACCESSORY', 'ORNAMENTS'],
+    types: ['ACCESSORY'],
   })
   const products = rawProducts.filter((item) =>
     matchAccessorySubcategory(item, subcategory),

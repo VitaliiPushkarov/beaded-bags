@@ -6,7 +6,7 @@ import {
   calcGrossMarginPercent,
   calcPaymentFeeUAH,
 } from '@/lib/finance'
-import { TYPE_LABELS } from '@/lib/labels'
+import { ACTIVE_PRODUCT_TYPES, TYPE_LABELS } from '@/lib/labels'
 import { buildManagedUnitCostUAH } from '@/lib/management-accounting'
 import { prisma } from '@/lib/prisma'
 import { calcDiscountedPrice } from '@/lib/pricing'
@@ -78,8 +78,11 @@ function getReferenceSalePrice(product: ProductForCosts) {
 }
 
 function getValidProductType(value?: string): ProductType | undefined {
-  const productTypes = Object.keys(TYPE_LABELS) as ProductType[]
-  return productTypes.includes(value as ProductType) ? (value as ProductType) : undefined
+  const raw = value as ProductType | undefined
+  const normalized = raw === 'ORNAMENTS' ? 'ACCESSORY' : raw
+  return ACTIVE_PRODUCT_TYPES.includes(normalized as ProductType)
+    ? (normalized as ProductType)
+    : undefined
 }
 
 function getValidCostStatus(value?: string): CostStatusFilter {
@@ -125,7 +128,11 @@ export default async function AdminCostsPage({ searchParams }: PageProps) {
             ],
           }
         : {}),
-      ...(type ? { type } : {}),
+      ...(type === 'ACCESSORY'
+        ? { type: { in: ['ACCESSORY', 'ORNAMENTS'] } }
+        : type
+          ? { type }
+          : {}),
       ...(costStatus === 'with'
         ? { costProfile: { isNot: null } }
         : costStatus === 'missing'
@@ -241,7 +248,7 @@ export default async function AdminCostsPage({ searchParams }: PageProps) {
               className="mt-2 w-full rounded-lg border px-3 py-2 text-sm"
             >
               <option value="">Усі</option>
-              {(Object.keys(TYPE_LABELS) as ProductType[]).map((value) => (
+              {ACTIVE_PRODUCT_TYPES.map((value) => (
                 <option key={value} value={value}>
                   {TYPE_LABELS[value]}
                 </option>
