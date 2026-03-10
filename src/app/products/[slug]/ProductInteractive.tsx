@@ -334,9 +334,9 @@ export function ProductInteractive({ p }: { p: ProductWithVariants }) {
 
         {/* Права колонка */}
         <div className="flex flex-col items-start w-full lg:w-[33%]">
-          <h2 className=" md:text-[38px] text-2xl font-fixel-display font-medium md:mb-6 mb-3">
+          <h1 className=" md:text-[38px] text-2xl font-fixel-display font-medium md:mb-6 mb-3">
             {p.name}
-          </h2>
+          </h1>
 
           <div className="mb-1">
             <div className="flex items-baseline gap-2">

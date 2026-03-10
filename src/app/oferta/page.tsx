@@ -19,9 +19,9 @@ export default function Oferta() {
         <Breadcrumbs />
       </Suspense>
 
-      <h2 className="font-semibold text-xl text-center">
+      <h1 className="font-semibold text-xl text-center">
         ДОГОВІР ПУБЛІЧНОЇ ОФЕРТИ
-      </h2>
+      </h1>
       <p className="font-semibold text-xl text-center mb-6">
         про замовлення, продаж та доставку товарів
       </p>

@@ -633,29 +633,21 @@ export default function ProductsContainer({
   return (
     <div className="max-w-[1440px] mx-auto py-6 px-5 md:px-[50px]">
       <Breadcrumbs />
-      {/* mobile header */}
-      <div className="lg:hidden flex items-center justify-between py-4">
-        <h1 className="text-2xl">{title}</h1>
+      <div className="flex items-center justify-between py-4 lg:mb-6 lg:items-end">
+        <h1 className="text-2xl lg:text-3xl">{title}</h1>
         <button
           onClick={() => setMobileOpen(true)}
-          className="uppercase flex items-center gap-2"
+          className="uppercase flex items-center gap-2 lg:hidden"
         >
           Фільтр +
         </button>
-      </div>
-
-      {/* Desktop */}
-      <div className="hidden lg:block">
-        <div className="flex justify-between mb-6 items-end">
-          <h1 className="text-3xl">{title}</h1>
-          <button
-            onClick={apply}
-            disabled={!isDirty}
-            className="px-6 py-2 rounded bg-black text-white hover:bg-[#FF3D8C] transition h-11 w-[275px] disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
-          >
-            Застосувати
-          </button>
-        </div>
+        <button
+          onClick={apply}
+          disabled={!isDirty}
+          className="hidden lg:inline-flex items-center justify-center px-6 py-2 rounded bg-black text-white hover:bg-[#FF3D8C] transition h-11 w-[275px] disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
+        >
+          Застосувати
+        </button>
       </div>
 
       <ProductsFilter

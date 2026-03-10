@@ -3,9 +3,12 @@ import type { Metadata } from 'next'
 import { Skeleton } from '@/components/ui/Skeleton'
 
 export const metadata: Metadata = {
-  title: 'Про нас — GERDAN',
+  title: 'Про нас',
   description:
     'GERDAN — бренд українських аксесуарів, що зберігає дух ремесла у формі сьогодення.',
+  alternates: {
+    canonical: '/about',
+  },
 }
 
 export default function AboutPage() {
@@ -18,8 +21,7 @@ export default function AboutPage() {
             src="/img/about-bg-m.png"
             alt="GERDAN background texture mobile"
             fill
-            priority
-            quality={100}
+            quality={80}
             className="object-cover"
           />
         </div>
@@ -28,8 +30,7 @@ export default function AboutPage() {
             src="/img/about-bg.jpg"
             alt="GERDAN background texture"
             fill
-            priority
-            quality={100}
+            quality={80}
             sizes="(max-width: 768px) 100vw,
          (max-width: 1200px) 100vw,
          100vw"
@@ -56,7 +57,6 @@ export default function AboutPage() {
               width={898}
               height={291}
               className="lg:w-[898px] lg:h-[291px] 2xl:w-[1440px] 2xl:h-[467px]"
-              priority
             />
           </div>
         </section>
@@ -65,9 +65,9 @@ export default function AboutPage() {
         <section className="flex flex-col justify-between 2xl:justify-center 2xl:mt-[120px] lg:flex-row lg:-mt-[200px] gap-10 ">
           {/* Ліва колонка: текст ABOUT US */}
           <div className="flex flex-col text-white px-10 lg:max-w-[610px] gap-9 lg:gap-[52px] lg:pt-20 ">
-            <h2 className="text-3xl md:text-[51px] leading-[1.2] font-bold">
+            <h1 className="text-3xl md:text-[51px] leading-[1.2] font-bold">
               ABOUT US
-            </h2>
+            </h1>
 
             <div className="space-y-4 text-lg  md:text-[20px] leading-tight tracking-tighter">
               <p>

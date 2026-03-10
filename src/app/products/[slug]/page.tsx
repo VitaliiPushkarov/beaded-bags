@@ -79,7 +79,7 @@ export async function generateMetadata(props: {
     product.variants.find((v) => v.image)?.image ||
     '/img/placeholder.png'
 
-  const title = `${p.name} — GERDAN`
+  const title = p.name
   const description =
     p.description ??
     'Сумка ручної роботи з колекції GERDAN. Український бренд аксесуарів.'

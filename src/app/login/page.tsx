@@ -2,7 +2,7 @@ import Link from 'next/link'
 import type { Metadata } from 'next'
 
 export const metadata: Metadata = {
-  title: 'Увійти — GERDAN',
+  title: 'Увійти',
   description:
     'Сторінка авторизації тимчасово в розробці. Незабаром тут зʼявиться вхід до особистого кабінету.',
   robots: {

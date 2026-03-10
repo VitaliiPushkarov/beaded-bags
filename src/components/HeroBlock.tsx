@@ -12,10 +12,10 @@ export default function HeroBlock() {
         src="/img/hero-block-m.jpg"
         alt="Gerdan Hero Mobile"
         fill
-        priority
+        loading="eager"
         sizes="100vw"
         className="object-cover object-center md:hidden"
-        quality={65}
+        quality={60}
       />
       {/* Головне фото */}
       <Image
@@ -24,7 +24,7 @@ export default function HeroBlock() {
         fill
         priority
         className="object-cover object-center hidden md:block"
-        quality={85}
+        quality={80}
         sizes="100vw"
       />
 
@@ -36,7 +36,6 @@ export default function HeroBlock() {
           width={400}
           height={120}
           className="w-full h-auto object-contain"
-          priority
         />
       </div>
     </Link>

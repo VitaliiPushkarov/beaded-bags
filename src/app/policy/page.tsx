@@ -18,9 +18,9 @@ export default function Policy() {
         {' '}
         <Breadcrumbs />
       </Suspense>
-      <h3 className="text-3xl md:text-4xl font-semibold mb-6">
+      <h1 className="text-3xl md:text-4xl font-semibold mb-6">
         Політика конфіденційності
-      </h3>
+      </h1>
 
       <p className="font-semibold mb-6">1. Загальні положення</p>
       <h4 className="mb-[12px]">

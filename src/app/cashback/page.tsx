@@ -18,9 +18,9 @@ export default function CashbackPage() {
         {' '}
         <Breadcrumbs />
       </Suspense>
-      <h3 className="text-3xl md:text-4xl font-semibold mb-6">
+      <h1 className="text-3xl md:text-4xl font-semibold mb-6">
         Умови обміну і повернення
-      </h3>
+      </h1>
       <p className="mb-3">
         Перед тим як зробити замовлення на gerdan.online потрібно ознайомитися
         із{' '}

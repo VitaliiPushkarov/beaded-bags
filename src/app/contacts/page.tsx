@@ -21,6 +21,9 @@ export default function Contacts() {
       </Suspense>
 
       <div className="flex flex-col gap-[50px]">
+        <h1 className="text-3xl md:text-4xl font-semibold text-center">
+          Контакти
+        </h1>
         <div className="flex items-center flex-col justify-center gap-5">
           <h3>Графік роботи:</h3>
           <p>пн-нд: 11:00 – 20:00</p>

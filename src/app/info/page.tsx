@@ -2,10 +2,14 @@ import Accordion from '@/components/ui/Accordion'
 import { Suspense } from 'react'
 import Breadcrumbs from '@/components/ui/BreadCrumbs'
 import Link from 'next/link'
+import type { Metadata } from 'next'
 
-export const metadata = {
-  title: 'ІНФО | GERDAN',
+export const metadata: Metadata = {
+  title: 'Інформація',
   description: 'Оплата, доставка по Україні та корисні рекомендації.',
+  alternates: {
+    canonical: '/info',
+  },
 }
 
 export default function InfoPage() {
