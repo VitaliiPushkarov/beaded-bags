@@ -5,6 +5,7 @@ import { Swiper, SwiperSlide } from 'swiper/react'
 import { A11y, FreeMode, Autoplay } from 'swiper/modules'
 import { useEffect, useRef, useState } from 'react'
 import type { Swiper as SwiperType } from 'swiper'
+import 'swiper/css'
 
 const instSliderImages = [
   {

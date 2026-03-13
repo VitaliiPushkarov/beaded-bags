@@ -1,5 +1,5 @@
 'use client'
-import type { ProductVariant } from '@prisma/client'
+import type { AvailabilityStatus } from '@prisma/client'
 import clsx from 'clsx'
 import {
   isOutOfStockStatus,
@@ -7,8 +7,16 @@ import {
   resolveAvailabilityStatus,
 } from '@/lib/availability'
 
+type SwatchVariant = {
+  id: string
+  color: string | null
+  hex: string | null
+  inStock: boolean
+  availabilityStatus: AvailabilityStatus
+}
+
 type Props = {
-  variants: ProductVariant[]
+  variants: SwatchVariant[]
   value: string
   onChange: (variantId: string) => void
 }

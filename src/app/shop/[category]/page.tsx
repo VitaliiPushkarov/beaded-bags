@@ -1,5 +1,5 @@
 import ProductsContainer from '@/components/product/ProductsContainer'
-import { getProducts } from '@/lib/db/products'
+import { getProductsLite } from '@/lib/db/products'
 import type { Metadata } from 'next'
 import Link from 'next/link'
 import { notFound, permanentRedirect } from 'next/navigation'
@@ -107,7 +107,7 @@ export default async function ShopCategoryPage({
     permanentRedirect(`/shop/${config.redirectTo}`)
   }
 
-  const products = await getProducts({
+  const products = await getProductsLite({
     search: sp.q,
     color: sp.color,
     type: config.type,

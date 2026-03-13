@@ -1,5 +1,5 @@
 import ProductsContainer from '@/components/product/ProductsContainer'
-import { getProducts } from '@/lib/db/products'
+import { getProductsLite } from '@/lib/db/products'
 import type { Metadata } from 'next'
 import { notFound } from 'next/navigation'
 
@@ -91,7 +91,7 @@ export default async function ShopGroupPage({
   if (!dbGroup) {
     notFound()
   }
-  const products = await getProducts({
+  const products = await getProductsLite({
     search: sp.q,
     color: sp.color,
     group: dbGroup,

@@ -8,6 +8,7 @@ import { Navigation } from 'swiper/modules'
 
 import 'swiper/css'
 import 'swiper/css/navigation'
+import 'photoswipe/dist/photoswipe.css'
 
 type PhotoGalleryProps = {
   images: string[]

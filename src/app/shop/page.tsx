@@ -1,6 +1,6 @@
 import ProductsContainer from '@/components/product/ProductsContainer'
 import { Suspense } from 'react'
-import { getProducts } from '@/lib/db/products'
+import { getProductsLite } from '@/lib/db/products'
 import type { ProductType } from '@prisma/client'
 import Link from 'next/link'
 import type { Metadata } from 'next'
@@ -102,7 +102,7 @@ export default async function ShopPage({
     )
   }
 
-  const products = await getProducts({
+  const products = await getProductsLite({
     search: sp.q,
     color: sp.color,
     type: safeType ?? undefined,

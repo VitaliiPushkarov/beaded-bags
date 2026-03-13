@@ -1,12 +1,6 @@
 'use client'
 import Link from 'next/link'
 import Image from 'next/image'
-import type {
-  Product,
-  ProductVariant,
-  ProductVariantImage,
-  ProductVariantStrap,
-} from '@prisma/client'
 import { useEffect, useMemo, useState } from 'react'
 import VariantSwatches from '@/components/product/VariantSwatches'
 import { calcDiscountedPrice } from '@/lib/pricing'
@@ -15,15 +9,11 @@ import {
   isPreorderStatus,
   resolveAvailabilityStatus,
 } from '@/lib/availability'
+import type { ProductCardDTO } from '@/lib/product-card-dto'
 /* import { useCart } from '@/app/store/cart'
 import { useUI } from '@/app/store/ui' */
 
-export type ProductWithVariants = Product & {
-  variants: (ProductVariant & {
-    images: ProductVariantImage[]
-    straps: ProductVariantStrap[]
-  })[]
-}
+export type ProductWithVariants = ProductCardDTO
 
 export default function ProductCardLarge({
   p,

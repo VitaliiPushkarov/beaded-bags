@@ -1,5 +1,6 @@
 import { prisma } from '@/lib/prisma'
 import type { Prisma, ProductType } from '@prisma/client'
+import type { ProductCardDTO } from '@/lib/product-card-dto'
 
 type GetProductsParams = {
   search?: string
@@ -11,6 +12,71 @@ type GetProductsParams = {
   forBestsellers?: boolean
   take?: number
 }
+
+const PRODUCT_PAGE_INCLUDE = {
+  variants: {
+    orderBy: {
+      id: 'asc',
+    },
+    include: {
+      images: {
+        orderBy: { sort: 'asc' },
+      },
+      straps: {
+        include: {
+          images: {
+            orderBy: { sort: 'asc' },
+          },
+        },
+      },
+      addonsOnVariant: {
+        orderBy: { sort: 'asc' },
+        include: {
+          addonVariant: {
+            include: {
+              product: true,
+              images: true,
+            },
+          },
+        },
+      },
+    },
+  },
+} satisfies Prisma.ProductInclude
+
+const PRODUCT_CARD_SELECT = {
+  id: true,
+  slug: true,
+  name: true,
+  type: true,
+  group: true,
+  inStock: true,
+  offerNote: true,
+  basePriceUAH: true,
+  variants: {
+    orderBy: { sortCatalog: 'asc' },
+    select: {
+      id: true,
+      color: true,
+      hex: true,
+      image: true,
+      priceUAH: true,
+      discountPercent: true,
+      discountUAH: true,
+      inStock: true,
+      availabilityStatus: true,
+      images: {
+        orderBy: { sort: 'asc' },
+        take: 4,
+        select: {
+          url: true,
+          hover: true,
+          sort: true,
+        },
+      },
+    },
+  },
+} satisfies Prisma.ProductSelect
 
 function withAccessoryCompatType(type: ProductType): ProductType[] {
   return type === 'ACCESSORY' ? ['ACCESSORY', 'ORNAMENTS'] : [type]
@@ -91,9 +157,45 @@ function buildOrderBy(
   return orderBy
 }
 
-export async function getProducts(params: GetProductsParams = {}) {
-  const { search, color, type, group, forSlider, forBestsellers } = params
+export async function getProductBySlug(slug: string) {
+  return prisma.product.findFirst({
+    where: {
+      slug,
+      status: 'PUBLISHED',
+    },
+    include: PRODUCT_PAGE_INCLUDE,
+  })
+}
 
+export async function getProductMetaBySlug(slug: string) {
+  return prisma.product.findFirst({
+    where: {
+      slug,
+      status: 'PUBLISHED',
+    },
+    select: {
+      slug: true,
+      name: true,
+      description: true,
+      variants: {
+        orderBy: { sortCatalog: 'asc' },
+        select: {
+          image: true,
+          images: {
+            orderBy: { sort: 'asc' },
+            take: 1,
+            select: {
+              url: true,
+            },
+          },
+        },
+      },
+    },
+  })
+}
+
+export async function getProducts(params: GetProductsParams = {}) {
+  const { forBestsellers } = params
   const where = buildWhere(params)
   const orderBy = buildOrderBy(params)
 
@@ -101,28 +203,7 @@ export async function getProducts(params: GetProductsParams = {}) {
     where,
     orderBy,
     take: params.take,
-    include: {
-      variants: {
-        orderBy: {
-          sortCatalog: 'asc',
-        },
-        include: {
-          images: true,
-          straps: true,
-          addonsOnVariant: {
-            orderBy: { sort: 'asc' },
-            include: {
-              addonVariant: {
-                include: {
-                  product: true,
-                  images: true,
-                },
-              },
-            },
-          },
-        },
-      },
-    },
+    include: PRODUCT_PAGE_INCLUDE,
   })
 
   // Extra sorting for BESTSELLERS:
@@ -153,7 +234,9 @@ export async function getProducts(params: GetProductsParams = {}) {
 }
 
 // Lightweight products for catalog/home/cards (minimal payload)
-export async function getProductsLite(params: GetProductsParams = {}) {
+export async function getProductsLite(
+  params: GetProductsParams = {},
+): Promise<ProductCardDTO[]> {
   const where = buildWhere(params)
   const orderBy = buildOrderBy(params)
 
@@ -166,31 +249,8 @@ export async function getProductsLite(params: GetProductsParams = {}) {
     where,
     orderBy,
     take,
-    select: {
-      id: true,
-      slug: true,
-      name: true,
-      type: true,
-      group: true,
-      inStock: true,
-      offerNote: true,
-      basePriceUAH: true,
-      variants: {
-        orderBy: { sortCatalog: 'asc' },
-        select: {
-          id: true,
-          color: true,
-          hex: true,
-          image: true,
-          priceUAH: true,
-          discountPercent: true,
-          discountUAH: true,
-          inStock: true,
-          availabilityStatus: true,
-        },
-      },
-    },
+    select: PRODUCT_CARD_SELECT,
   })
 
-  return items
+  return items as ProductCardDTO[]
 }

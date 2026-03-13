@@ -8,13 +8,11 @@ type SearchProduct = {
   id: string
   slug: string
   name: string
-  description?: string | null
   basePriceUAH?: number | null
-  color?: string | null
-  images?: string[] | null
-  image?: string | null
-  mainImage?: string | null
-  variants?: { image?: string | null }[]
+  variants?: {
+    image?: string | null
+    images?: { url?: string | null }[]
+  }[]
 }
 
 function normalize(s: string) {
@@ -26,10 +24,8 @@ function normalize(s: string) {
 
 function getProductImage(p: SearchProduct): string {
   return (
-    p.mainImage ||
-    p.image ||
-    (Array.isArray(p.images) && p.images[0]) ||
-    (Array.isArray(p.variants) && p.variants[0]?.image) ||
+    p.variants?.[0]?.image ||
+    p.variants?.[0]?.images?.[0]?.url ||
     '/img/placeholder.png'
   )
 }
@@ -37,17 +33,75 @@ function getProductImage(p: SearchProduct): string {
 export default function SearchDialog() {
   const [open, setOpen] = useState(false)
   const [q, setQ] = useState('')
-  const [products, setProducts] = useState<SearchProduct[]>([])
+  const [results, setResults] = useState<SearchProduct[]>([])
+  const [matchesCount, setMatchesCount] = useState(0)
+  const [loading, setLoading] = useState(false)
   const [showAll, setShowAll] = useState(false)
+  const cacheRef = useRef<Map<string, { items: SearchProduct[]; total: number }>>(
+    new Map(),
+  )
   const inputRef = useRef<HTMLInputElement>(null)
 
-  // тягнемо з Prisma через наш API
+  // Search by query only when dialog is open
   useEffect(() => {
-    fetch('/api/products')
-      .then((res) => res.json())
-      .then((data: SearchProduct[]) => setProducts(data))
-      .catch(() => setProducts([]))
-  }, [])
+    if (!open) return
+
+    const query = q.trim()
+    if (!query) {
+      setLoading(false)
+      setResults([])
+      setMatchesCount(0)
+      return
+    }
+
+    const cacheKey = normalize(query)
+    const cached = cacheRef.current.get(cacheKey)
+    if (cached) {
+      setResults(cached.items)
+      setMatchesCount(cached.total)
+      setLoading(false)
+      return
+    }
+
+    const controller = new AbortController()
+    const timerId = window.setTimeout(async () => {
+      setLoading(true)
+      try {
+        const res = await fetch(
+          `/api/products?search=${encodeURIComponent(query)}&limit=50`,
+          {
+            cache: 'no-store',
+            signal: controller.signal,
+          },
+        )
+
+        if (!res.ok) throw new Error('Failed to search')
+
+        const data = await res.json()
+        const items = Array.isArray(data) ? data : data?.items ?? []
+        const total =
+          typeof data?.total === 'number' ? data.total : items.length
+
+        cacheRef.current.set(cacheKey, { items, total })
+        if (!controller.signal.aborted) {
+          setResults(items)
+          setMatchesCount(total)
+        }
+      } catch {
+        if (!controller.signal.aborted) {
+          setResults([])
+          setMatchesCount(0)
+        }
+      } finally {
+        if (!controller.signal.aborted) setLoading(false)
+      }
+    }, 180)
+
+    return () => {
+      clearTimeout(timerId)
+      controller.abort()
+    }
+  }, [open, q])
 
   // keyboard: "/" to open
   useEffect(() => {
@@ -87,15 +141,7 @@ export default function SearchDialog() {
     }
   }, [open])
 
-  const { results, matchesCount } = useMemo(() => {
-    if (!q.trim()) return { results: [] as SearchProduct[], matchesCount: 0 }
-    const nq = normalize(q)
-
-    const scored = products
-      .map((p) => ({ p, score: scoreProduct(p, nq) }))
-      .filter((x) => x.score > 0)
-      .sort((a, b) => b.score - a.score)
-
+  const visibleResults = useMemo(() => {
     const maxDefault = 10
     const maxMobile = 8
     const max = showAll ? 50 : maxDefault
@@ -108,13 +154,11 @@ export default function SearchDialog() {
 
     const sliceTo = !showAll && isMobile ? maxMobile : max
 
-    return {
-      results: scored.slice(0, sliceTo).map((x) => x.p),
-      matchesCount: scored.length,
-    }
-  }, [q, products, showAll])
+    return results.slice(0, sliceTo)
+  }, [results, showAll])
 
-  const canShowAllMobile = q.trim() && !showAll && matchesCount > results.length
+  const canShowAllMobile =
+    q.trim() && !showAll && matchesCount > visibleResults.length
 
   return (
     <>
@@ -173,12 +217,15 @@ export default function SearchDialog() {
               </div>
 
               <ul className="flex-1 min-h-0 overflow-auto divide-y lg:max-h-80">
-                {q && results.length === 0 && (
+                {q && loading && (
+                  <li className="p-4 text-sm text-gray-500">Пошук…</li>
+                )}
+                {q && !loading && visibleResults.length === 0 && (
                   <li className="p-4 text-sm text-gray-500">
                     Нічого не знайдено
                   </li>
                 )}
-                {results.map((p) => (
+                {visibleResults.map((p) => (
                   <li key={p.id} className="hover:bg-gray-50">
                     <Link
                       href={`/products/${p.slug}`}
@@ -225,15 +272,4 @@ export default function SearchDialog() {
         )}
     </>
   )
-}
-
-function scoreProduct(p: SearchProduct, nq: string) {
-  const hay = normalize(
-    `${p.name} ${p.description ?? ''} ${p.color ?? ''}`.trim()
-  )
-  if (!nq) return 0
-  if (hay.includes(nq)) return 100 - hay.indexOf(nq)
-  const terms = nq.split(/\s+/).filter(Boolean)
-  const hitCount = terms.reduce((n, t) => n + (hay.includes(t) ? 1 : 0), 0)
-  return hitCount > 0 ? 10 + hitCount : 0
 }

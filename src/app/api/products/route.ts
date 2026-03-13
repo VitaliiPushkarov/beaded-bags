@@ -2,15 +2,80 @@ import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import type { Prisma } from '@prisma/client'
 
+function clamp(value: number, min: number, max: number) {
+  return Math.min(Math.max(value, min), max)
+}
+
 export async function GET(req: NextRequest) {
   const { searchParams } = new URL(req.url)
+  const search = searchParams.get('search')?.trim()
+
+  // Search mode for header dialog
+  if (search) {
+    const limit = clamp(Number(searchParams.get('limit') ?? 20) || 20, 1, 50)
+
+    const where: Prisma.ProductWhereInput = {
+      status: 'PUBLISHED',
+      OR: [
+        {
+          name: {
+            contains: search,
+            mode: 'insensitive',
+          },
+        },
+        {
+          slug: {
+            contains: search,
+            mode: 'insensitive',
+          },
+        },
+        {
+          variants: {
+            some: {
+              color: {
+                contains: search,
+                mode: 'insensitive',
+              },
+            },
+          },
+        },
+      ],
+    }
+
+    const [items, total] = await prisma.$transaction([
+      prisma.product.findMany({
+        where,
+        take: limit,
+        orderBy: [{ sortCatalog: 'asc' }, { createdAt: 'desc' }],
+        select: {
+          id: true,
+          slug: true,
+          name: true,
+          basePriceUAH: true,
+          variants: {
+            take: 1,
+            orderBy: { sortCatalog: 'asc' },
+            select: {
+              image: true,
+              images: {
+                take: 1,
+                orderBy: { sort: 'asc' },
+                select: { url: true },
+              },
+            },
+          },
+        },
+      }),
+      prisma.product.count({ where }),
+    ])
+
+    return NextResponse.json({ items, total })
+  }
+
   // Lightweight mode for recommendations / YouMayAlsoLike
   const lite = searchParams.get('lite') === '1'
   if (lite) {
-    const limit = Math.min(
-      Math.max(Number(searchParams.get('limit') ?? 20) || 20, 1),
-      60
-    )
+    const limit = clamp(Number(searchParams.get('limit') ?? 20) || 20, 1, 60)
 
     const excludeSlug = searchParams.get('excludeSlug')?.trim()
     const excludeId = searchParams.get('excludeId')?.trim()

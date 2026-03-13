@@ -7,6 +7,7 @@ import type { Swiper as SwiperType } from 'swiper'
 import ProductCardLarge, { type ProductWithVariants } from './ProductCardLarge'
 import { Skeleton } from '@/components/ui/Skeleton'
 import Link from 'next/link'
+import 'swiper/css'
 
 function Chevron({
   dir = 'left',

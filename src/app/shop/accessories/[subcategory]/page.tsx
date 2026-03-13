@@ -1,5 +1,5 @@
 import ProductsContainer from '@/components/product/ProductsContainer'
-import { getProducts } from '@/lib/db/products'
+import { getProductsLite } from '@/lib/db/products'
 import type { Metadata } from 'next'
 import Link from 'next/link'
 import { notFound } from 'next/navigation'
@@ -87,7 +87,7 @@ export default async function AccessorySubcategoryPage({
     notFound()
   }
 
-  const rawProducts = await getProducts({
+  const rawProducts = await getProductsLite({
     search: sp.q,
     color: sp.color,
     types: ['ACCESSORY'],

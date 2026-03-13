@@ -1,7 +1,6 @@
 export const revalidate = 300
 
 import { notFound } from 'next/navigation'
-import { prisma } from '@/lib/prisma'
 import { Suspense } from 'react'
 import Breadcrumbs from '@/components/ui/BreadCrumbs'
 import { ProductClient } from './ProductClient'
@@ -11,6 +10,7 @@ import type { Metadata } from 'next'
 import { calcDiscountedPrice } from '@/lib/pricing'
 import { TYPE_LABELS } from '@/lib/labels'
 import { resolveAvailabilityStatus, toSchemaOrgAvailability } from '@/lib/availability'
+import { getProductBySlug, getProductMetaBySlug } from '@/lib/db/products'
 
 const SITE_URL = 'https://gerdan.online'
 
@@ -35,44 +35,9 @@ export async function generateMetadata(props: {
 }): Promise<Metadata> {
   const { slug } = await props.params
 
-  const product = await prisma.product.findFirst({
-    where: {
-      slug,
-      status: 'PUBLISHED',
-    },
-    include: {
-      variants: {
-        include: {
-          images: {
-            orderBy: { sort: 'asc' },
-          },
-          straps: {
-            include: {
-              images: {
-                orderBy: { sort: 'asc' },
-              },
-            },
-          },
-          addonsOnVariant: {
-            orderBy: { sort: 'asc' },
-            include: {
-              addonVariant: {
-                include: {
-                  product: true,
-                  images: true,
-                },
-              },
-            },
-          },
-        },
-        orderBy: { id: 'asc' },
-      },
-    },
-  })
+  const product = await getProductMetaBySlug(slug)
 
   if (!product) return {}
-
-  const p = product as ProductWithVariants
 
   const allImages = product.variants.flatMap((v) =>
     v.images.map((img) => img.url)
@@ -82,21 +47,21 @@ export async function generateMetadata(props: {
     product.variants.find((v) => v.image)?.image ||
     '/img/placeholder.png'
 
-  const title = p.name
+  const title = product.name
   const description =
-    p.description ??
+    product.description ??
     'Сумка ручної роботи з колекції GERDAN. Український бренд аксесуарів.'
 
   return {
     title,
     description,
     alternates: {
-      canonical: `/products/${p.slug}`,
+      canonical: `/products/${product.slug}`,
     },
     openGraph: {
       title,
       description,
-      url: `${SITE_URL}/products/${p.slug}`,
+      url: `${SITE_URL}/products/${product.slug}`,
       type: 'website',
       images: [{ url: toAbsoluteAssetUrl(mainImage) }],
     },
@@ -113,40 +78,7 @@ export default async function ProductPage({
 }) {
   const { slug } = await params
 
-  const p = await prisma.product.findFirst({
-    where: {
-      slug,
-      status: 'PUBLISHED',
-    },
-    include: {
-      variants: {
-        include: {
-          images: {
-            orderBy: { sort: 'asc' },
-          },
-          straps: {
-            include: {
-              images: {
-                orderBy: { sort: 'asc' },
-              },
-            },
-          },
-          addonsOnVariant: {
-            orderBy: { sort: 'asc' },
-            include: {
-              addonVariant: {
-                include: {
-                  product: true,
-                  images: true,
-                },
-              },
-            },
-          },
-        },
-        orderBy: { id: 'asc' },
-      },
-    },
-  })
+  const p = await getProductBySlug(slug)
 
   if (!p) {
     return notFound()
