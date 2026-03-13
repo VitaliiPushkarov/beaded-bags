@@ -18,6 +18,12 @@ enum ProductType {
   ACCESSORY
 }
 
+enum ProductStatus {
+  DRAFT
+  PUBLISHED
+  ARCHIVED
+}
+
 enum ProductGroup {
   BEADS
   WEAVING
@@ -75,6 +81,7 @@ model Product {
   type         ProductType
   group        ProductGroup?
   basePriceUAH Int?
+  status       ProductStatus @default(DRAFT)
   inStock      Boolean       @default(true)
   isAddon      Boolean       @default(false) // цей товар може показуватись як addon до сумок
   createdAt    DateTime      @default(now())
@@ -95,6 +102,7 @@ model Product {
 
   @@index([type])
   @@index([group])
+  @@index([status])
   @@index([inStock])
   @@index([packagingTemplateId])
 }
@@ -128,7 +136,7 @@ model Material {
   name          String            @unique
   unit          String            @default("pcs")
   stockQty      Float             @default(0)
-  unitCostUAH   Int               @default(0)
+  unitCostUAH   Float             @default(0)
   notes         String?
   createdAt     DateTime          @default(now())
   updatedAt     DateTime          @updatedAt
@@ -223,12 +231,23 @@ model ProductVariant {
   sortBestsellers Int? @default(0)
   shippingNote String?
 
+  inventory   ProductVariantInventory?
   images ProductVariantImage[]
   straps ProductVariantStrap[]
 
   // relations for addons (bag variant -> addon variants)
   addonsOnVariant ProductVariantAddon[] @relation("BagVariantAddons")
   usedAsAddonOnVariants ProductVariantAddon[] @relation("AddonVariantOnBag")
+}
+
+model ProductVariantInventory {
+  id               String         @id @default(cuid())
+  variantId        String         @unique
+  variant          ProductVariant @relation(fields: [variantId], references: [id], onDelete: Cascade)
+  finishedGoodsQty Int            @default(0)
+  notes            String?
+  createdAt        DateTime       @default(now())
+  updatedAt        DateTime       @updatedAt
 }
 
 model ProductVariantImage {

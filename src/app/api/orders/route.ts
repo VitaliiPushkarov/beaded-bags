@@ -68,6 +68,7 @@ export async function POST(req: NextRequest) {
         materialUsages: {
           select: {
             quantity: true,
+            notes: true,
             material: {
               select: {
                 unitCostUAH: true,
@@ -77,15 +78,57 @@ export async function POST(req: NextRequest) {
         },
         costProfile: {
           select: {
-            materialsCostUAH: true,
             laborCostUAH: true,
-            packagingCostUAH: true,
             shippingCostUAH: true,
             otherCostUAH: true,
           },
         },
       },
     })
+
+    const variantIds = Array.from(
+      new Set(
+        data.items
+          .map((item) => item.variantId ?? null)
+          .filter((id): id is string => typeof id === 'string' && id.length > 0),
+      ),
+    )
+    const variants = variantIds.length
+      ? await prisma.productVariant.findMany({
+          where: { id: { in: variantIds } },
+          select: {
+            id: true,
+            color: true,
+            product: {
+              select: {
+                packagingTemplate: {
+                  select: {
+                    costUAH: true,
+                  },
+                },
+                materialUsages: {
+                  select: {
+                    quantity: true,
+                    notes: true,
+                    material: {
+                      select: {
+                        unitCostUAH: true,
+                      },
+                    },
+                  },
+                },
+                costProfile: {
+                  select: {
+                    laborCostUAH: true,
+                    shippingCostUAH: true,
+                    otherCostUAH: true,
+                  },
+                },
+              },
+            },
+          },
+        })
+      : []
 
     const costByProductId = new Map(
       products.map((product) => [
@@ -99,6 +142,19 @@ export async function POST(req: NextRequest) {
       ]),
     )
 
+    const costByVariantId = new Map(
+      variants.map((variant) => [
+        variant.id,
+        buildManagedUnitCostUAH({
+          profile: variant.product.costProfile,
+          materialUsages: variant.product.materialUsages,
+          packagingTemplateCostUAH: variant.product.packagingTemplate?.costUAH,
+          includeShipping: false,
+          variantColor: variant.color,
+        }),
+      ]),
+    )
+
     const financialSnapshot = buildOrderFinancialSnapshot({
       subtotalUAH,
       discountUAH: data.discountUAH,
@@ -107,7 +163,9 @@ export async function POST(req: NextRequest) {
       lines: data.items.map((item) => ({
         qty: item.qty,
         priceUAH: item.priceUAH,
-        unitCostUAH: costByProductId.get(item.productId) ?? 0,
+        unitCostUAH:
+          (item.variantId ? costByVariantId.get(item.variantId) : undefined) ??
+          (costByProductId.get(item.productId) ?? 0),
       })),
     })
 

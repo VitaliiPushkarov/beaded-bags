@@ -45,7 +45,7 @@ export default async function AdminSuppliersPage() {
     })
 
     revalidatePath('/admin/suppliers')
-    revalidatePath('/admin/purchases')
+    revalidatePath('/admin/finance')
   }
 
   async function deleteSupplier(formData: FormData) {
@@ -65,7 +65,6 @@ export default async function AdminSuppliersPage() {
     })
 
     revalidatePath('/admin/suppliers')
-    revalidatePath('/admin/purchases')
     revalidatePath('/admin/finance')
   }
 

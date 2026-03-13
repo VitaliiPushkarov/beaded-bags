@@ -7,6 +7,9 @@ export async function GET() {
   const baseUrl = process.env.NEXT_PUBLIC_SITE_URL ?? 'https://gerdan.online'
 
   const products = await prisma.product.findMany({
+    where: {
+      status: 'PUBLISHED',
+    },
     select: {
       slug: true,
       updatedAt: true,

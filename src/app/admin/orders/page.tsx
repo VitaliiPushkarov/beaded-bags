@@ -2,6 +2,8 @@ import { OrderStatus, PaymentMethod } from '@prisma/client'
 import { revalidatePath } from 'next/cache'
 import { z } from 'zod'
 
+import ManualOrderItemsPicker from '@/components/admin/ManualOrderItemsPicker'
+import { calcDiscountedPrice } from '@/lib/pricing'
 import { toDateInputValue } from '@/lib/admin-finance'
 import { buildOrderFinancialSnapshot } from '@/lib/finance'
 import { buildManagedUnitCostUAH } from '@/lib/management-accounting'
@@ -25,210 +27,230 @@ const PAYMENT_METHOD_LABELS: Record<PaymentMethod, string> = {
   BANK_TRANSFER: 'Банківський переказ',
 }
 
+const MANUAL_SOURCE_LABELS = {
+  MESSENGER: 'Месенджер',
+  FAIR: 'Ярмарок',
+  SHOWROOM: 'Шоурум',
+  OTHER: 'Інше',
+} as const
+
+const OptionalNonNegativeInt = z.preprocess(
+  (value) => {
+    if (value == null) return undefined
+    if (typeof value === 'string' && value.trim() === '') return undefined
+    const parsed = Number(value)
+    return Number.isFinite(parsed) ? parsed : value
+  },
+  z.number().int().min(0).optional(),
+)
+
 const ManualOrderSchema = z.object({
-  orderDate: z.coerce.date(),
-  source: z.string().trim().min(2).max(64),
-  status: z.nativeEnum(OrderStatus),
-  paymentMethod: z.nativeEnum(PaymentMethod),
   customerName: z.string().trim().min(2),
   customerSurname: z.string().trim().min(2),
-  customerPatronymic: z.string().trim().optional(),
-  customerPhone: z.string().trim().min(5),
-  customerEmail: z.string().trim().email().optional().or(z.literal('')),
-  npCityName: z.string().trim().optional(),
-  npWarehouseName: z.string().trim().optional(),
-  deliveryUAH: z.coerce.number().int().min(0).default(0),
-  discountUAH: z.coerce.number().int().min(0).default(0),
-  notes: z.string().trim().optional(),
-  itemsRaw: z.string().trim().min(1),
+  manualItemsRaw: z.string().trim().min(1),
+  orderDate: z.string().trim().optional(),
+  source: z.string().trim().optional(),
+  status: z.preprocess(
+    (value) =>
+      typeof value === 'string' && value.trim() === '' ? undefined : value,
+    z.nativeEnum(OrderStatus).optional(),
+  ),
+  paymentMethod: z.preprocess(
+    (value) =>
+      typeof value === 'string' && value.trim() === '' ? undefined : value,
+    z.nativeEnum(PaymentMethod).optional(),
+  ),
+  customerPhone: z.string().trim().optional(),
+  discountUAH: OptionalNonNegativeInt,
 })
 
-type ProductLookup = {
-  id: string
-  slug: string
-  name: string
-  packagingTemplate: {
-    costUAH: number
-  } | null
-  materialUsages: Array<{
-    quantity: number
-    material: {
-      unitCostUAH: number
-    }
-  }>
-  costProfile: {
-    materialsCostUAH: number
-    laborCostUAH: number
-    packagingCostUAH: number
-    shippingCostUAH: number
-    otherCostUAH: number
-  } | null
-}
-
-type ParsedManualItem = {
-  name: string
-  qty: number
-  priceUAH: number
-  productId: string | null
-}
-
-function parseLineNumber(raw: string): number {
-  return Number(
-    raw
-      .replace(/\s+/g, '')
-      .replace(',', '.')
-      .replace(/[^\d.-]/g, ''),
+const ManualItemsSchema = z
+  .array(
+    z.object({
+      variantId: z.string().min(1),
+      qty: z.coerce.number().int().min(1).max(999),
+    }),
   )
-}
+  .min(1)
 
-function parseManualItems(
-  input: string,
-  productsBySlug: Map<string, ProductLookup>,
-): ParsedManualItem[] {
-  return input
-    .split('\n')
-    .map((line) => line.trim())
-    .filter(Boolean)
-    .map((line, index) => {
-      const parts = line.split(';').map((part) => part.trim())
-      if (parts.length < 3) {
-        throw new Error(
-          `Рядок ${index + 1} має бути у форматі: назва/slug; кількість; ціна; [slug]`,
-        )
-      }
-
-      const titleOrSlug = parts[0]
-      const qty = parseLineNumber(parts[1])
-      const priceUAH = parseLineNumber(parts[2])
-      const explicitSlug = parts[3]?.toLowerCase()
-
-      if (!Number.isFinite(qty) || qty <= 0 || !Number.isInteger(qty)) {
-        throw new Error(`Некоректна кількість у рядку ${index + 1}`)
-      }
-      if (!Number.isFinite(priceUAH) || priceUAH < 0) {
-        throw new Error(`Некоректна ціна у рядку ${index + 1}`)
-      }
-
-      const byExplicitSlug = explicitSlug
-        ? productsBySlug.get(explicitSlug)
-        : undefined
-      const byFirstTokenSlug = productsBySlug.get(titleOrSlug.toLowerCase())
-      const product = byExplicitSlug ?? byFirstTokenSlug
-
-      return {
-        name: product?.name ?? titleOrSlug,
-        qty: Math.round(qty),
-        priceUAH: Math.round(priceUAH),
-        productId: product?.id ?? null,
-      }
-    })
-}
+type ManualItem = z.infer<typeof ManualItemsSchema>[number]
 
 export default async function AdminOrdersPage() {
   async function createManualOrder(formData: FormData) {
     'use server'
 
     const parsed = ManualOrderSchema.safeParse({
+      customerName: formData.get('customerName'),
+      customerSurname: formData.get('customerSurname'),
+      manualItemsRaw: formData.get('manualItems'),
       orderDate: formData.get('orderDate'),
       source: formData.get('source'),
       status: formData.get('status'),
       paymentMethod: formData.get('paymentMethod'),
-      customerName: formData.get('customerName'),
-      customerSurname: formData.get('customerSurname'),
-      customerPatronymic: formData.get('customerPatronymic'),
       customerPhone: formData.get('customerPhone'),
-      customerEmail: formData.get('customerEmail'),
-      npCityName: formData.get('npCityName'),
-      npWarehouseName: formData.get('npWarehouseName'),
-      deliveryUAH: formData.get('deliveryUAH'),
       discountUAH: formData.get('discountUAH'),
-      notes: formData.get('notes'),
-      itemsRaw: formData.get('itemsRaw'),
     })
 
     if (!parsed.success) {
       throw new Error('Не вдалося створити ручне замовлення')
     }
 
-    const products = await prisma.product.findMany({
+    let manualItemsParsed: ManualItem[]
+    try {
+      const decoded = JSON.parse(parsed.data.manualItemsRaw)
+      const manualItems = ManualItemsSchema.safeParse(decoded)
+      if (!manualItems.success) {
+        throw new Error('Некоректний список позицій')
+      }
+      manualItemsParsed = manualItems.data
+    } catch {
+      throw new Error('Не вдалося зчитати позиції замовлення')
+    }
+
+    const groupedManualItems = Array.from(
+      manualItemsParsed.reduce<Map<string, number>>((acc, item) => {
+        const current = acc.get(item.variantId) ?? 0
+        acc.set(item.variantId, current + item.qty)
+        return acc
+      }, new Map()),
+    ).map(([variantId, qty]) => ({ variantId, qty }))
+
+    const variantIds = groupedManualItems.map((item) => item.variantId)
+
+    const variants = await prisma.productVariant.findMany({
+      where: {
+        id: {
+          in: variantIds,
+        },
+      },
       select: {
         id: true,
-        slug: true,
-        name: true,
-        packagingTemplate: {
-          select: {
-            costUAH: true,
-          },
+        color: true,
+        image: true,
+        images: {
+          orderBy: { sort: 'asc' },
+          select: { url: true },
+          take: 1,
         },
-        materialUsages: {
+        priceUAH: true,
+        discountPercent: true,
+        discountUAH: true,
+        product: {
           select: {
-            quantity: true,
-            material: {
+            id: true,
+            name: true,
+            basePriceUAH: true,
+            packagingTemplate: {
               select: {
-                unitCostUAH: true,
+                costUAH: true,
               },
             },
-          },
-        },
-        costProfile: {
-          select: {
-            materialsCostUAH: true,
-            laborCostUAH: true,
-            packagingCostUAH: true,
-            shippingCostUAH: true,
-            otherCostUAH: true,
+            materialUsages: {
+              select: {
+                quantity: true,
+                notes: true,
+                material: {
+                  select: {
+                    unitCostUAH: true,
+                  },
+                },
+              },
+            },
+            costProfile: {
+              select: {
+                laborCostUAH: true,
+                shippingCostUAH: true,
+                otherCostUAH: true,
+              },
+            },
           },
         },
       },
     })
 
-    const productsBySlug = new Map(
-      products.map((product) => [product.slug.toLowerCase(), product]),
-    )
-    const items = parseManualItems(parsed.data.itemsRaw, productsBySlug)
+    const variantsById = new Map(variants.map((variant) => [variant.id, variant]))
 
-    const subtotalUAH = items.reduce((sum, item) => sum + item.priceUAH * item.qty, 0)
-    const discountUAH = Math.min(parsed.data.discountUAH, subtotalUAH)
-    const totalUAH = Math.max(
+    const items = groupedManualItems.map((entry) => {
+      const variant = variantsById.get(entry.variantId)
+      if (!variant) {
+        throw new Error('Один з обраних варіантів вже не існує')
+      }
+
+      const { finalPriceUAH } = calcDiscountedPrice({
+        basePriceUAH: variant.priceUAH ?? variant.product.basePriceUAH ?? 0,
+        discountPercent: variant.discountPercent,
+        discountUAH: variant.discountUAH,
+      })
+
+      const unitCostUAH = buildManagedUnitCostUAH({
+        profile: variant.product.costProfile,
+        materialUsages: variant.product.materialUsages,
+        packagingTemplateCostUAH: variant.product.packagingTemplate?.costUAH,
+        includeShipping: false,
+        variantColor: variant.color,
+      })
+
+      return {
+        variant,
+        qty: entry.qty,
+        priceUAH: finalPriceUAH,
+        unitCostUAH,
+      }
+    })
+
+    const subtotalUAH = items.reduce(
+      (sum, item) => sum + item.priceUAH * item.qty,
       0,
-      subtotalUAH + parsed.data.deliveryUAH - discountUAH,
     )
-
-    const costByProductId = new Map(
-      products.map((product) => [
-        product.id,
-        buildManagedUnitCostUAH({
-          profile: product.costProfile,
-          materialUsages: product.materialUsages,
-          packagingTemplateCostUAH: product.packagingTemplate?.costUAH,
-          includeShipping: false,
-        }),
-      ]),
-    )
+    const discountUAH = Math.min(parsed.data.discountUAH ?? 0, subtotalUAH)
+    const totalUAH = Math.max(0, subtotalUAH - discountUAH)
 
     const financialSnapshot = buildOrderFinancialSnapshot({
       subtotalUAH,
       discountUAH,
       totalUAH,
-      paymentMethod: parsed.data.paymentMethod,
+      paymentMethod: parsed.data.paymentMethod ?? PaymentMethod.COD,
       lines: items.map((item) => ({
         qty: item.qty,
         priceUAH: item.priceUAH,
-        unitCostUAH: item.productId ? (costByProductId.get(item.productId) ?? 0) : 0,
+        unitCostUAH: item.unitCostUAH,
       })),
     })
 
-    const manualSource = parsed.data.source.trim()
-    const npCityName = parsed.data.npCityName || 'Ручне замовлення'
-    const npWarehouseName =
-      parsed.data.npWarehouseName || `Джерело: ${manualSource}`
+    const customerPhone = parsed.data.customerPhone?.trim() || 'Не вказано'
+    const sourceRaw = parsed.data.source?.trim() || ''
+    const sourceLabel =
+      MANUAL_SOURCE_LABELS[sourceRaw as keyof typeof MANUAL_SOURCE_LABELS] ??
+      'Ручне замовлення'
+
+    const createdAt = (() => {
+      const raw = parsed.data.orderDate?.trim()
+      if (!raw) return new Date()
+      const value = new Date(`${raw}T12:00:00`)
+      return Number.isNaN(value.getTime()) ? new Date() : value
+    })()
+
+    const customerRelation = parsed.data.customerPhone?.trim()
+      ? {
+          customer: {
+            connectOrCreate: {
+              where: { phone: parsed.data.customerPhone.trim() },
+              create: {
+                name: `${parsed.data.customerName} ${parsed.data.customerSurname}`.trim(),
+                phone: parsed.data.customerPhone.trim(),
+                email: null,
+              },
+            },
+          },
+        }
+      : {}
 
     await prisma.order.create({
       data: {
-        createdAt: parsed.data.orderDate,
-        status: parsed.data.status,
+        createdAt,
+        status: parsed.data.status ?? OrderStatus.PENDING,
         subtotalUAH,
-        deliveryUAH: parsed.data.deliveryUAH,
+        deliveryUAH: 0,
         discountUAH,
         totalUAH,
         itemsCostUAH: financialSnapshot.itemsCostUAH,
@@ -236,36 +258,33 @@ export default async function AdminOrdersPage() {
         grossProfitUAH: financialSnapshot.grossProfitUAH,
         customerName: parsed.data.customerName,
         customerSurname: parsed.data.customerSurname,
-        customerPatronymic: parsed.data.customerPatronymic || null,
-        customerPhone: parsed.data.customerPhone,
-        customerEmail: parsed.data.customerEmail || null,
-        npCityRef: `manual-${manualSource.toLowerCase().replace(/\s+/g, '-')}-city`,
-        npCityName,
-        npWarehouseRef: `manual-${manualSource.toLowerCase().replace(/\s+/g, '-')}-point`,
-        npWarehouseName,
-        paymentMethod: parsed.data.paymentMethod,
+        customerPatronymic: null,
+        customerPhone,
+        customerEmail: null,
+        npCityRef: 'manual-city',
+        npCityName: 'Ручне замовлення',
+        npWarehouseRef: 'manual-point',
+        npWarehouseName: 'Не вказано',
+        paymentMethod: parsed.data.paymentMethod ?? PaymentMethod.COD,
         paymentRaw: {
           manualOrder: true,
-          source: manualSource,
-          notes: parsed.data.notes || null,
+          source: sourceLabel,
+          lines: items.map((item) => ({
+            variantId: item.variant.id,
+            qty: item.qty,
+            unitPriceUAH: item.priceUAH,
+          })),
         },
-        customer: {
-          connectOrCreate: {
-            where: { phone: parsed.data.customerPhone },
-            create: {
-              name: `${parsed.data.customerName} ${parsed.data.customerSurname}`.trim(),
-              phone: parsed.data.customerPhone,
-              email: parsed.data.customerEmail || null,
-            },
-          },
-        },
+        ...customerRelation,
         items: {
           create: items.map((item, index) => ({
-            productId: item.productId,
-            variantId: null,
-            name: item.name,
-            color: null,
-            image: null,
+            productId: item.variant.product.id,
+            variantId: item.variant.id,
+            name: item.variant.color
+              ? `${item.variant.product.name} — ${item.variant.color}`
+              : item.variant.product.name,
+            color: item.variant.color,
+            image: item.variant.images[0]?.url ?? item.variant.image,
             priceUAH: item.priceUAH,
             qty: item.qty,
             discountUAH: financialSnapshot.lines[index]?.discountUAH ?? 0,
@@ -284,19 +303,57 @@ export default async function AdminOrdersPage() {
     revalidatePath('/admin')
   }
 
-  let orders: Awaited<ReturnType<typeof prisma.order.findMany>> = []
-
-  try {
-    orders = await prisma.order.findMany({
+  const [variantRows, orders] = await Promise.all([
+    prisma.productVariant.findMany({
+      orderBy: [
+        { product: { sortCatalog: 'asc' } },
+        { sortCatalog: 'asc' },
+        { id: 'asc' },
+      ],
+      select: {
+        id: true,
+        color: true,
+        image: true,
+        images: {
+          orderBy: { sort: 'asc' },
+          select: { url: true },
+          take: 1,
+        },
+        priceUAH: true,
+        discountPercent: true,
+        discountUAH: true,
+        product: {
+          select: {
+            name: true,
+            basePriceUAH: true,
+          },
+        },
+      },
+    }),
+    prisma.order.findMany({
       orderBy: { createdAt: 'desc' },
       take: 100,
       include: {
         items: true,
       },
+    }),
+  ])
+
+  const variantOptions = variantRows.map((variant) => {
+    const { finalPriceUAH } = calcDiscountedPrice({
+      basePriceUAH: variant.priceUAH ?? variant.product.basePriceUAH ?? 0,
+      discountPercent: variant.discountPercent,
+      discountUAH: variant.discountUAH,
     })
-  } catch (e) {
-    console.error('Failed to load orders for admin page:', e)
-  }
+
+    return {
+      id: variant.id,
+      productName: variant.product.name,
+      color: variant.color,
+      imageUrl: variant.images[0]?.url ?? variant.image,
+      priceUAH: finalPriceUAH,
+    }
+  })
 
   return (
     <div className="space-y-6">
@@ -307,178 +364,110 @@ export default async function AdminOrdersPage() {
         </p>
       </div>
 
-      <section className="rounded border bg-white p-4 sm:p-6">
-        <h2 className="mb-4 text-lg font-medium">Додати ручне замовлення</h2>
-        <form action={createManualOrder} className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-          <label className="block text-sm font-medium">
-            Дата замовлення
-            <input
-              name="orderDate"
-              type="date"
-              defaultValue={toDateInputValue(new Date())}
-              required
-              className="mt-2 w-full rounded-lg border px-3 py-2 text-sm"
-            />
-          </label>
+      <section className="overflow-hidden rounded border bg-white">
+        <div className="border-b bg-gray-50 px-4 py-3">
+          <h2 className="text-lg font-medium">Додати ручне замовлення</h2>
+          <p className="mt-1 text-xs text-gray-500">
+            Обов&apos;язкові поля: <span className="font-medium">Товари у замовленні, Ім&apos;я, Прізвище</span>
+          </p>
+        </div>
 
-          <label className="block text-sm font-medium">
-            Джерело
-            <select
-              name="source"
-              defaultValue="MESSENGER"
-              className="mt-2 w-full rounded-lg border px-3 py-2 text-sm"
-            >
-              <option value="MESSENGER">Месенджер</option>
-              <option value="FAIR">Ярмарок</option>
-              <option value="SHOWROOM">Шоурум</option>
-              <option value="OTHER">Інше</option>
-            </select>
-          </label>
+        <form action={createManualOrder} className="space-y-4 p-4">
+          <div className="rounded border bg-slate-50 p-3">
+            <h3 className="text-sm font-semibold text-slate-900">
+              Інформація про замовлення
+            </h3>
 
-          <label className="block text-sm font-medium">
-            Статус
-            <select
-              name="status"
-              defaultValue={OrderStatus.PAID}
-              className="mt-2 w-full rounded-lg border px-3 py-2 text-sm"
-            >
-              {[OrderStatus.PENDING, OrderStatus.PAID, OrderStatus.FULFILLED, OrderStatus.CANCELLED].map((status) => (
-                <option key={status} value={status}>
-                  {STATUS_LABELS[status]}
-                </option>
-              ))}
-            </select>
-          </label>
+            <div className="mt-3 grid gap-3 md:grid-cols-2 xl:grid-cols-4">
+              <label className="block text-xs font-medium text-slate-600">
+                Дата
+                <input
+                  name="orderDate"
+                  type="date"
+                  defaultValue={toDateInputValue(new Date())}
+                  className="mt-1 w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm"
+                />
+              </label>
 
-          <label className="block text-sm font-medium">
-            Оплата
-            <select
-              name="paymentMethod"
-              defaultValue={PaymentMethod.COD}
-              className="mt-2 w-full rounded-lg border px-3 py-2 text-sm"
-            >
-              {Object.values(PaymentMethod).map((method) => (
-                <option key={method} value={method}>
-                  {PAYMENT_METHOD_LABELS[method]}
-                </option>
-              ))}
-            </select>
-          </label>
+              <label className="block text-xs font-medium text-slate-600">
+                Джерело
+                <select
+                  name="source"
+                  defaultValue=""
+                  className="mt-1 w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm"
+                >
+                  <option value="">Не вказано</option>
+                  {Object.entries(MANUAL_SOURCE_LABELS).map(([key, label]) => (
+                    <option key={key} value={key}>
+                      {label}
+                    </option>
+                  ))}
+                </select>
+              </label>
 
-          <label className="block text-sm font-medium">
-            Ім'я
-            <input
-              name="customerName"
-              required
-              className="mt-2 w-full rounded-lg border px-3 py-2 text-sm"
-            />
-          </label>
+              <label className="block text-xs font-medium text-slate-600">
+                Статус
+                <select
+                  name="status"
+                  defaultValue=""
+                  className="mt-1 w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm"
+                >
+                  <option value="">За замовчуванням (Очікує)</option>
+                  {[OrderStatus.PENDING, OrderStatus.PAID, OrderStatus.FULFILLED, OrderStatus.CANCELLED].map((status) => (
+                    <option key={status} value={status}>
+                      {STATUS_LABELS[status]}
+                    </option>
+                  ))}
+                </select>
+              </label>
 
-          <label className="block text-sm font-medium">
-            Прізвище
-            <input
-              name="customerSurname"
-              required
-              className="mt-2 w-full rounded-lg border px-3 py-2 text-sm"
-            />
-          </label>
-
-          <label className="block text-sm font-medium">
-            По батькові
-            <input
-              name="customerPatronymic"
-              className="mt-2 w-full rounded-lg border px-3 py-2 text-sm"
-            />
-          </label>
-
-          <label className="block text-sm font-medium">
-            Телефон
-            <input
-              name="customerPhone"
-              required
-              className="mt-2 w-full rounded-lg border px-3 py-2 text-sm"
-            />
-          </label>
-
-          <label className="block text-sm font-medium">
-            Email
-            <input
-              name="customerEmail"
-              type="email"
-              className="mt-2 w-full rounded-lg border px-3 py-2 text-sm"
-            />
-          </label>
-
-          <label className="block text-sm font-medium">
-            Місто / локація
-            <input
-              name="npCityName"
-              placeholder="Наприклад: Київ або Ярмарок Львів"
-              className="mt-2 w-full rounded-lg border px-3 py-2 text-sm"
-            />
-          </label>
-
-          <label className="block text-sm font-medium">
-            Точка видачі
-            <input
-              name="npWarehouseName"
-              placeholder="Наприклад: Самовивіз / ТЦ ..."
-              className="mt-2 w-full rounded-lg border px-3 py-2 text-sm"
-            />
-          </label>
-
-          <label className="block text-sm font-medium">
-            Доставка, грн
-            <input
-              name="deliveryUAH"
-              type="number"
-              min="0"
-              defaultValue="0"
-              className="mt-2 w-full rounded-lg border px-3 py-2 text-sm"
-            />
-          </label>
-
-          <label className="block text-sm font-medium">
-            Знижка, грн
-            <input
-              name="discountUAH"
-              type="number"
-              min="0"
-              defaultValue="0"
-              className="mt-2 w-full rounded-lg border px-3 py-2 text-sm"
-            />
-          </label>
-
-          <label className="block text-sm font-medium sm:col-span-2 xl:col-span-4">
-            Позиції замовлення
-            <textarea
-              name="itemsRaw"
-              required
-              className="mt-2 min-h-36 w-full rounded-lg border px-3 py-2 text-sm font-mono"
-              placeholder={[
-                'Формат рядка: назва/slug; кількість; ціна; [slug]',
-                'tote-bag; 1; 3600',
-                'Сумка Truffle Tote; 1; 3600; tote-bag',
-              ].join('\n')}
-            />
-            <div className="mt-2 text-xs text-gray-500">
-              Якщо вказуєте `slug` (в 1-й або 4-й колонці), система підтягує товар і собівартість для COGS.
+              <label className="block text-xs font-medium text-slate-600">
+                Оплата
+                <select
+                  name="paymentMethod"
+                  defaultValue=""
+                  className="mt-1 w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm"
+                >
+                  <option value="">За замовчуванням (Післяплата / готівка)</option>
+                  {Object.values(PaymentMethod).map((method) => (
+                    <option key={method} value={method}>
+                      {PAYMENT_METHOD_LABELS[method]}
+                    </option>
+                  ))}
+                </select>
+              </label>
             </div>
-          </label>
 
-          <label className="block text-sm font-medium sm:col-span-2 xl:col-span-4">
-            Нотатки
-            <textarea
-              name="notes"
-              className="mt-2 min-h-24 w-full rounded-lg border px-3 py-2 text-sm"
-            />
-          </label>
+            <div className="mt-3 grid gap-3 md:grid-cols-3">
+              <label className="block text-xs font-medium text-slate-600">
+                Ім&apos;я *
+                <input
+                  name="customerName"
+                  required
+                  className="mt-1 w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm"
+                />
+              </label>
 
-          <div className="sm:col-span-2 xl:col-span-4">
-            <button className="inline-flex items-center justify-center rounded bg-black px-4 py-2 text-sm text-white hover:bg-[#FF3D8C]">
-              Створити ручне замовлення
-            </button>
+              <label className="block text-xs font-medium text-slate-600">
+                Прізвище *
+                <input
+                  name="customerSurname"
+                  required
+                  className="mt-1 w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm"
+                />
+              </label>
+
+              <label className="block text-xs font-medium text-slate-600">
+                Телефон
+                <input
+                  name="customerPhone"
+                  className="mt-1 w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm"
+                />
+              </label>
+            </div>
           </div>
+
+          <ManualOrderItemsPicker options={variantOptions} />
         </form>
       </section>
 

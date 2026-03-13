@@ -2,6 +2,7 @@ import { prisma } from '@/lib/prisma'
 import { ACTIVE_PRODUCT_TYPES, TYPE_LABELS } from '@/lib/labels'
 import Link from 'next/link'
 import type { Prisma, ProductType } from '@prisma/client'
+import ProductStatusSelect from '@/components/admin/ProductStatusSelect'
 
 export const dynamic = 'force-dynamic'
 
@@ -9,6 +10,7 @@ type PageProps = {
   searchParams: Promise<{
     q?: string
     type?: string
+    status?: string
     stock?: string
     sort?: string
     dir?: string
@@ -16,6 +18,7 @@ type PageProps = {
 }
 
 type StockFilter = 'all' | 'in' | 'preorder' | 'out'
+type StatusFilter = 'all' | 'draft' | 'published' | 'archived'
 type ProductSortKey =
   | 'catalog'
   | 'name'
@@ -30,6 +33,12 @@ const STOCK_LABELS: Record<Exclude<StockFilter, 'all'>, string> = {
   in: 'В наявності',
   preorder: 'Доступно до передзамовлення',
   out: 'Немає в наявності',
+}
+
+const STATUS_LABELS: Record<Exclude<StatusFilter, 'all'>, string> = {
+  draft: 'Чернетка',
+  published: 'Опубліковано',
+  archived: 'Архів',
 }
 
 const SORT_LABELS: Record<ProductSortKey, string> = {
@@ -57,6 +66,12 @@ function getValidProductType(value?: string): ProductType | undefined {
 
 function getValidStockFilter(value?: string): StockFilter {
   return value === 'in' || value === 'preorder' || value === 'out'
+    ? value
+    : 'all'
+}
+
+function getValidStatusFilter(value?: string): StatusFilter {
+  return value === 'draft' || value === 'published' || value === 'archived'
     ? value
     : 'all'
 }
@@ -110,9 +125,24 @@ function getTypeWhereClause(type?: ProductType): Prisma.ProductWhereInput {
   return { type }
 }
 
+function getStatusWhereClause(status: StatusFilter): Prisma.ProductWhereInput {
+  switch (status) {
+    case 'draft':
+      return { status: 'DRAFT' }
+    case 'published':
+      return { status: 'PUBLISHED' }
+    case 'archived':
+      return { status: 'ARCHIVED' }
+    case 'all':
+    default:
+      return {}
+  }
+}
+
 function buildProductWhere(input: {
   query: string
   type?: ProductType
+  status: StatusFilter
   stock: StockFilter
 }): Prisma.ProductWhereInput {
   return {
@@ -125,8 +155,29 @@ function buildProductWhere(input: {
         }
       : {}),
     ...getTypeWhereClause(input.type),
+    ...getStatusWhereClause(input.status),
     ...getStockWhereClause(input.stock),
   }
+}
+
+function getProductImageChips(product: {
+  variants: Array<{
+    image: string | null
+    images: Array<{ url: string }>
+  }>
+}): string[] {
+  const unique = new Set<string>()
+
+  for (const variant of product.variants) {
+    if (variant.image) unique.add(variant.image)
+    for (const image of variant.images) {
+      if (image.url) unique.add(image.url)
+      if (unique.size >= 1) break
+    }
+    if (unique.size >= 1) break
+  }
+
+  return Array.from(unique).slice(0, 1)
 }
 
 function compareNullableNumbers(
@@ -144,6 +195,7 @@ export default async function AdminProductsPage({ searchParams }: PageProps) {
   const params = await searchParams
   const query = params.q?.trim() ?? ''
   const type = getValidProductType(params.type)
+  const status = getValidStatusFilter(params.status)
   const stock = getValidStockFilter(params.stock)
   const sort = getValidSortKey(params.sort)
   const dir = getValidSortDirection(
@@ -159,17 +211,30 @@ export default async function AdminProductsPage({ searchParams }: PageProps) {
   const [products, typesForCurrentFilters, productsForStockFilter] =
     await Promise.all([
       prisma.product.findMany({
-        where: buildProductWhere({ query, type, stock }),
-        include: { variants: true },
+        where: buildProductWhere({ query, type, status, stock }),
+        include: {
+          variants: {
+            orderBy: [{ sortCatalog: 'asc' }, { id: 'asc' }],
+            select: {
+              id: true,
+              availabilityStatus: true,
+              image: true,
+              images: {
+                orderBy: { sort: 'asc' },
+                select: { url: true },
+              },
+            },
+          },
+        },
         orderBy: [{ sortCatalog: 'asc' }, { createdAt: 'desc' }],
       }),
       prisma.product.findMany({
-        where: buildProductWhere({ query, stock }),
+        where: buildProductWhere({ query, status, stock }),
         distinct: ['type'],
         select: { type: true },
       }),
       prisma.product.findMany({
-        where: buildProductWhere({ query, type, stock: 'all' }),
+        where: buildProductWhere({ query, type, status, stock: 'all' }),
         select: {
           variants: {
             select: {
@@ -215,7 +280,7 @@ export default async function AdminProductsPage({ searchParams }: PageProps) {
     }
   }
 
-  const formKey = `${query}|${type ?? ''}|${stock}|${sort}|${dir}`
+  const formKey = `${query}|${type ?? ''}|${status}|${stock}|${sort}|${dir}`
   const appliedFilters: Array<{ key: string; label: string; value: string }> =
     []
 
@@ -231,6 +296,13 @@ export default async function AdminProductsPage({ searchParams }: PageProps) {
       key: 'type',
       label: 'Тип',
       value: TYPE_LABELS[type],
+    })
+  }
+  if (status !== 'all') {
+    appliedFilters.push({
+      key: 'status',
+      label: 'Статус',
+      value: STATUS_LABELS[status],
     })
   }
   if (stock !== 'all') {
@@ -328,6 +400,20 @@ export default async function AdminProductsPage({ searchParams }: PageProps) {
         </label>
 
         <label className="text-sm font-medium">
+          Статус
+          <select
+            name="status"
+            defaultValue={status}
+            className="mt-2 w-full rounded-lg border px-3 py-2 text-sm"
+          >
+            <option value="all">Усі</option>
+            <option value="draft">Чернетка</option>
+            <option value="published">Опубліковано</option>
+            <option value="archived">Архів</option>
+          </select>
+        </label>
+
+        <label className="text-sm font-medium">
           Наявність
           <select
             name="stock"
@@ -407,42 +493,78 @@ export default async function AdminProductsPage({ searchParams }: PageProps) {
         <div className="border rounded bg-white">
           {/* Mobile cards */}
           <div className="md:hidden divide-y">
-            {rows.map((p) => (
-              <div key={p.id} className="p-4">
-                <div className="flex items-start justify-between gap-3">
-                  <div className="min-w-0">
-                    <Link
-                      href={`/products/${p.slug}`}
-                      className="font-medium hover:underline wrap-break-word"
-                      target="_blank"
-                    >
-                      {p.name}
-                    </Link>
-                    <div className="mt-1 text-xs text-gray-600 wrap-break-word">
-                      <span className="text-gray-500">Тип:</span>{' '}
-                      {TYPE_LABELS[p.type]}
-                    </div>
-                    <div className="mt-1 text-xs text-gray-600">
-                      <span className="text-gray-500">Базова ціна:</span>{' '}
-                      {p.basePriceUAH != null ? `${p.basePriceUAH} ₴` : '—'}
-                      <span className="mx-2 text-gray-300">•</span>
-                      <span className="text-gray-500">Позиція:</span>{' '}
-                      {p.sortCatalog}
-                      <span className="mx-2 text-gray-300">•</span>
-                      <span className="text-gray-500">Варіантів:</span>{' '}
-                      {p.variants.length}
-                    </div>
-                  </div>
+            {rows.map((p) => {
+              const chips = getProductImageChips(p)
 
-                  <Link
-                    href={`/admin/products/${p.id}`}
-                    className="shrink-0 text-xs underline"
-                  >
-                    Редагувати
-                  </Link>
+              return (
+                <div key={p.id} className="p-4">
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="min-w-0">
+                      {chips.length > 0 ? (
+                        <div className="mb-2 flex items-center">
+                          <div className="flex -space-x-2">
+                            {chips.map((imageUrl, index) => (
+                              <div
+                                key={`${p.id}-chip-mobile-${index}`}
+                                className="h-9 w-9 overflow-hidden rounded-full border-2 border-white bg-gray-100 shadow-sm"
+                              >
+                                {/* eslint-disable-next-line @next/next/no-img-element */}
+                                <img
+                                  src={imageUrl}
+                                  alt={p.name}
+                                  className="h-full w-full object-cover"
+                                  loading="lazy"
+                                />
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      ) : null}
+                      {p.status === 'PUBLISHED' ? (
+                        <Link
+                          href={`/products/${p.slug}`}
+                          className="font-medium hover:underline wrap-break-word"
+                          target="_blank"
+                        >
+                          {p.name}
+                        </Link>
+                      ) : (
+                        <div className="font-medium wrap-break-word">
+                          {p.name}
+                        </div>
+                      )}
+                      <div className="mt-1 text-xs text-gray-600 wrap-break-word">
+                        <span className="text-gray-500">Тип:</span>{' '}
+                        {TYPE_LABELS[p.type]}
+                      </div>
+                      <div className="mt-2">
+                        <ProductStatusSelect
+                          productId={p.id}
+                          initialStatus={p.status}
+                        />
+                      </div>
+                      <div className="mt-1 text-xs text-gray-600">
+                        <span className="text-gray-500">Базова ціна:</span>{' '}
+                        {p.basePriceUAH != null ? `${p.basePriceUAH} ₴` : '—'}
+                        <span className="mx-2 text-gray-300">•</span>
+                        <span className="text-gray-500">Позиція:</span>{' '}
+                        {p.sortCatalog}
+                        <span className="mx-2 text-gray-300">•</span>
+                        <span className="text-gray-500">Варіантів:</span>{' '}
+                        {p.variants.length}
+                      </div>
+                    </div>
+
+                    <Link
+                      href={`/admin/products/${p.id}`}
+                      className="shrink-0 text-xs underline"
+                    >
+                      Редагувати
+                    </Link>
+                  </div>
                 </div>
-              </div>
-            ))}
+              )
+            })}
           </div>
 
           {/* Desktop table */}
@@ -452,6 +574,7 @@ export default async function AdminProductsPage({ searchParams }: PageProps) {
                 <tr>
                   <th className="p-2 text-left">Назва</th>
                   <th className="p-2 text-left">Тип</th>
+                  <th className="p-2 text-left">Статус</th>
                   <th className="p-2 text-center">Позиція</th>
                   <th className="p-2 text-right">Базова ціна</th>
                   <th className="p-2 text-center">Варіантів</th>
@@ -459,33 +582,69 @@ export default async function AdminProductsPage({ searchParams }: PageProps) {
                 </tr>
               </thead>
               <tbody>
-                {rows.map((p) => (
-                  <tr key={p.id} className="border-t">
-                    <td className="p-2">
-                      <Link
-                        href={`/products/${p.slug}`}
-                        className="text-blue-600 hover:underline"
-                        target="_blank"
-                      >
-                        {p.name}
-                      </Link>
-                    </td>
-                    <td className="p-2">{TYPE_LABELS[p.type]}</td>
-                    <td className="p-2 text-center">{p.sortCatalog}</td>
-                    <td className="p-2 text-right">
-                      {p.basePriceUAH != null ? `${p.basePriceUAH} ₴` : '—'}
-                    </td>
-                    <td className="p-2 text-center">{p.variants.length}</td>
-                    <td className="p-2 text-right">
-                      <Link
-                        href={`/admin/products/${p.id}`}
-                        className="text-xs text-blue-600 hover:underline"
-                      >
-                        Редагувати
-                      </Link>
-                    </td>
-                  </tr>
-                ))}
+                {rows.map((p) => {
+                  const chips = getProductImageChips(p)
+
+                  return (
+                    <tr key={p.id} className="border-t">
+                      <td className="p-2">
+                        <div className="flex items-center gap-3">
+                          {chips.length > 0 ? (
+                            <div className="flex -space-x-2 shrink-0">
+                              {chips.map((imageUrl, index) => (
+                                <div
+                                  key={`${p.id}-chip-desktop-${index}`}
+                                  className="h-8 w-8 overflow-hidden rounded-full border-2 border-white bg-gray-100 shadow-sm"
+                                >
+                                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                                  <img
+                                    src={imageUrl}
+                                    alt={p.name}
+                                    className="h-full w-full object-cover"
+                                    loading="lazy"
+                                  />
+                                </div>
+                              ))}
+                            </div>
+                          ) : null}
+                          <div className="min-w-0">
+                            {p.status === 'PUBLISHED' ? (
+                              <Link
+                                href={`/products/${p.slug}`}
+                                className="text-blue-600 hover:underline"
+                                target="_blank"
+                              >
+                                {p.name}
+                              </Link>
+                            ) : (
+                              <span>{p.name}</span>
+                            )}
+                          </div>
+                        </div>
+                      </td>
+                      <td className="p-2">{TYPE_LABELS[p.type]}</td>
+                      <td className="p-2">
+                        <ProductStatusSelect
+                          productId={p.id}
+                          initialStatus={p.status}
+                        />
+                      </td>
+                      <td className="p-2 text-center">{p.sortCatalog}</td>
+                      <td className="p-2 text-right">
+                        {p.basePriceUAH != null ? `${p.basePriceUAH} ₴` : '—'}
+                      </td>
+                      <td className="p-2 text-center">{p.variants.length}</td>
+                      <td className="p-2 text-right">
+                        <Link
+                          href={`/admin/products/${p.id}`}
+                          className="text-xs text-blue-600 hover:underline"
+                        >
+                          Редагувати
+                        </Link>
+                      </td>
+                    </tr>
+                  )
+                })}
               </tbody>
             </table>
           </div>

@@ -8,7 +8,7 @@ import { useUI } from '@/app/store/ui'
 import { useIsMounted } from '@/lib/useIsMounted'
 import { pushMetaInitiateCheckout } from '@/lib/analytics/datalayer'
 import { usePromo } from '@/lib/usePromo'
-import { isPromoApplied, calcDiscountUAH, PROMO_CODE } from '@/lib/promo'
+import { resolvePromoCode, calcDiscountUAH } from '@/lib/promo'
 
 export default function CartDrawer() {
   const cartOpen = useUI((s) => s.cartOpen)
@@ -21,7 +21,7 @@ export default function CartDrawer() {
   const checkoutFiredRef = useRef(false)
 
   const promo = usePromo()
-  const promoOn = isPromoApplied(promo)
+  const appliedPromoCode = resolvePromoCode(promo)
 
   const subtotalUAH = useMemo(
     () => (isMounted ? total() : 0),
@@ -29,8 +29,8 @@ export default function CartDrawer() {
   )
 
   const discountUAH = useMemo(
-    () => calcDiscountUAH(subtotalUAH, promoOn),
-    [subtotalUAH, promoOn],
+    () => calcDiscountUAH(subtotalUAH, appliedPromoCode),
+    [subtotalUAH, appliedPromoCode],
   )
 
   const finalTotalUAH = useMemo(
@@ -203,7 +203,11 @@ export default function CartDrawer() {
               </Link>
 
               <Link
-                href={promoOn ? `/checkout?promo=${PROMO_CODE}` : '/checkout'}
+                href={
+                  appliedPromoCode
+                    ? `/checkout?promo=${encodeURIComponent(appliedPromoCode)}`
+                    : '/checkout'
+                }
                 onClick={() => {
                   if (!checkoutFiredRef.current && items.length) {
                     checkoutFiredRef.current = true

@@ -35,8 +35,11 @@ export async function generateMetadata(props: {
 }): Promise<Metadata> {
   const { slug } = await props.params
 
-  const product = await prisma.product.findUnique({
-    where: { slug },
+  const product = await prisma.product.findFirst({
+    where: {
+      slug,
+      status: 'PUBLISHED',
+    },
     include: {
       variants: {
         include: {
@@ -110,8 +113,11 @@ export default async function ProductPage({
 }) {
   const { slug } = await params
 
-  const p = await prisma.product.findUnique({
-    where: { slug },
+  const p = await prisma.product.findFirst({
+    where: {
+      slug,
+      status: 'PUBLISHED',
+    },
     include: {
       variants: {
         include: {

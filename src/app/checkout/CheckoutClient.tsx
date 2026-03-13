@@ -9,7 +9,7 @@ import { useCheckout } from '@/stores/checkout'
 import { IMaskInput } from 'react-imask'
 
 import { usePromo } from '@/lib/usePromo'
-import { isPromoApplied, calcDiscountUAH, PROMO_CODE } from '@/lib/promo'
+import { calcDiscountUAH, resolvePromoCode } from '@/lib/promo'
 
 type CheckoutFormState = {
   name: string
@@ -129,7 +129,7 @@ export default function CheckoutClient() {
   const co = useCheckout()
 
   const promo = usePromo()
-  const promoOn = isPromoApplied(promo)
+  const appliedPromoCode = resolvePromoCode(promo)
 
   const subtotalUAH = useMemo(
     () => cart.items.reduce((s, i) => s + i.priceUAH * i.qty, 0),
@@ -137,8 +137,8 @@ export default function CheckoutClient() {
   )
 
   const discountUAH = useMemo(
-    () => calcDiscountUAH(subtotalUAH, promoOn),
-    [subtotalUAH, promoOn],
+    () => calcDiscountUAH(subtotalUAH, appliedPromoCode),
+    [subtotalUAH, appliedPromoCode],
   )
 
   const finalTotalUAH = useMemo(
@@ -212,7 +212,7 @@ export default function CheckoutClient() {
     const subtotal = items.reduce((s, it) => s + it.priceUAH * it.qty, 0)
     const shipping = 0 // TODO: розрахунок тарифу
 
-    const discountUAH = calcDiscountUAH(subtotal, promoOn)
+    const discountUAH = calcDiscountUAH(subtotal, appliedPromoCode)
     const total = Math.max(0, subtotal - discountUAH) + shipping
 
     setLoading(true)
@@ -251,7 +251,7 @@ export default function CheckoutClient() {
           },
           items,
           amountUAH: total,
-          promoCode: promoOn ? PROMO_CODE : null,
+          promoCode: appliedPromoCode,
           paymentMethod: co.paymentMethod,
         }),
       })

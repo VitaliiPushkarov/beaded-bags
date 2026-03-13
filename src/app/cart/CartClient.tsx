@@ -5,10 +5,11 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import { useCart } from '../store/cart'
 import { pushMetaInitiateCheckout } from '@/lib/analytics/datalayer'
 import {
-  PROMO_CODE,
   PROMO_STORAGE_KEY,
-  DISCOUNT_PCT,
+  getPromoDiscountPct,
+  resolvePromoCode,
   emitPromoChanged,
+  calcDiscountUAH,
 } from '@/lib/promo'
 
 function QtyBox({
@@ -75,15 +76,20 @@ export default function CartPage() {
   }, [])
 
   const normalizedPromoInput = promoInput.trim().toUpperCase()
-  const isPromoValid = normalizedPromoInput === PROMO_CODE
-  const isPromoApplied = appliedPromo?.toUpperCase() === PROMO_CODE
+  const validPromoInput = resolvePromoCode(normalizedPromoInput)
+  const appliedPromoCode = resolvePromoCode(appliedPromo)
+  const isPromoValid = validPromoInput !== null
+  const isPromoApplied = appliedPromoCode !== null
 
   const subtotalUAH = useMemo(() => total(), [total, items])
 
   const discountUAH = useMemo(() => {
-    if (!isPromoApplied) return 0
-    return Math.round((subtotalUAH * DISCOUNT_PCT) / 100)
-  }, [isPromoApplied, subtotalUAH])
+    return calcDiscountUAH(subtotalUAH, appliedPromoCode)
+  }, [subtotalUAH, appliedPromoCode])
+
+  const discountPct = useMemo(() => {
+    return getPromoDiscountPct(appliedPromoCode)
+  }, [appliedPromoCode])
 
   const finalTotalUAH = useMemo(() => {
     return Math.max(0, subtotalUAH - discountUAH)
@@ -91,11 +97,11 @@ export default function CartPage() {
 
   const applyPromo = () => {
     setPromoTouched(true)
-    if (!isPromoValid) return
+    if (!validPromoInput) return
 
-    setAppliedPromo(PROMO_CODE)
+    setAppliedPromo(validPromoInput)
     try {
-      window.localStorage.setItem(PROMO_STORAGE_KEY, PROMO_CODE)
+      window.localStorage.setItem(PROMO_STORAGE_KEY, validPromoInput)
       emitPromoChanged()
     } catch {}
   }
@@ -215,7 +221,7 @@ export default function CartPage() {
 
           {isPromoApplied && discountUAH > 0 && (
             <div className="flex items-center justify-between text-lg">
-              <span className="text-gray-700">Знижка ({DISCOUNT_PCT}%)</span>
+              <span className="text-gray-700">Знижка ({discountPct}%)</span>
               <span className="font-semibold">−{discountUAH} грн</span>
             </div>
           )}
@@ -270,7 +276,7 @@ export default function CartPage() {
             {isPromoApplied && (
               <p className="mt-2 text-xs text-green-700">
                 Промокод застосовано:{' '}
-                <span className="font-medium">{PROMO_CODE}</span>
+                <span className="font-medium">{appliedPromoCode}</span>
               </p>
             )}
           </div>
@@ -282,7 +288,9 @@ export default function CartPage() {
           <div className="w-full">
             <Link
               href={
-                isPromoApplied ? `/checkout?promo=${PROMO_CODE}` : '/checkout'
+                appliedPromoCode
+                  ? `/checkout?promo=${encodeURIComponent(appliedPromoCode)}`
+                  : '/checkout'
               }
               onClick={() => {
                 if (!checkoutFiredRef.current && items.length) {

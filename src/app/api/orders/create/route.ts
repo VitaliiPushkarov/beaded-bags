@@ -4,7 +4,7 @@ import { z } from 'zod'
 import { prisma } from '@/lib/prisma'
 import { buildOrderFinancialSnapshot } from '@/lib/finance'
 import { buildManagedUnitCostUAH } from '@/lib/management-accounting'
-import { PROMO_CODE, calcDiscountUAH } from '@/lib/promo'
+import { calcDiscountUAH, resolvePromoCode } from '@/lib/promo'
 
 async function sendTelegram(text: string) {
   const token = process.env.TELEGRAM_BOT_TOKEN
@@ -145,9 +145,8 @@ export async function POST(req: NextRequest) {
 
     // поки доставка 0
     const deliveryUAH = 0
-    const promoOn =
-      data.promoCode?.trim().toUpperCase() === PROMO_CODE ? true : false
-    const discountUAH = calcDiscountUAH(subtotal, promoOn)
+    const appliedPromoCode = resolvePromoCode(data.promoCode)
+    const discountUAH = calcDiscountUAH(subtotal, appliedPromoCode)
     const totalUAH = Math.max(0, subtotal + deliveryUAH - discountUAH)
 
     if (Math.round(totalUAH) !== Math.round(data.amountUAH)) {
@@ -181,6 +180,7 @@ export async function POST(req: NextRequest) {
             materialUsages: {
               select: {
                 quantity: true,
+                notes: true,
                 material: {
                   select: {
                     unitCostUAH: true,
@@ -190,11 +190,55 @@ export async function POST(req: NextRequest) {
             },
             costProfile: {
               select: {
-                materialsCostUAH: true,
                 laborCostUAH: true,
-                packagingCostUAH: true,
                 shippingCostUAH: true,
                 otherCostUAH: true,
+              },
+            },
+          },
+        })
+      : []
+
+    const variantIds = Array.from(
+      new Set(
+        data.items
+          .map((item) => item.variantId ?? null)
+          .filter((id): id is string => typeof id === 'string' && id.length > 0),
+      ),
+    )
+
+    const variants = variantIds.length
+      ? await prisma.productVariant.findMany({
+          where: { id: { in: variantIds } },
+          select: {
+            id: true,
+            color: true,
+            product: {
+              select: {
+                id: true,
+                packagingTemplate: {
+                  select: {
+                    costUAH: true,
+                  },
+                },
+                materialUsages: {
+                  select: {
+                    quantity: true,
+                    notes: true,
+                    material: {
+                      select: {
+                        unitCostUAH: true,
+                      },
+                    },
+                  },
+                },
+                costProfile: {
+                  select: {
+                    laborCostUAH: true,
+                    shippingCostUAH: true,
+                    otherCostUAH: true,
+                  },
+                },
               },
             },
           },
@@ -213,6 +257,19 @@ export async function POST(req: NextRequest) {
       ]),
     )
 
+    const costByVariantId = new Map(
+      variants.map((variant) => [
+        variant.id,
+        buildManagedUnitCostUAH({
+          profile: variant.product.costProfile,
+          materialUsages: variant.product.materialUsages,
+          packagingTemplateCostUAH: variant.product.packagingTemplate?.costUAH,
+          includeShipping: false,
+          variantColor: variant.color,
+        }),
+      ]),
+    )
+
     const financialSnapshot = buildOrderFinancialSnapshot({
       subtotalUAH: subtotal,
       discountUAH,
@@ -221,9 +278,9 @@ export async function POST(req: NextRequest) {
       lines: data.items.map((item) => ({
         qty: item.qty,
         priceUAH: item.priceUAH,
-        unitCostUAH: item.productId
-          ? (costByProductId.get(item.productId) ?? 0)
-          : 0,
+        unitCostUAH:
+          (item.variantId ? costByVariantId.get(item.variantId) : undefined) ??
+          (item.productId ? (costByProductId.get(item.productId) ?? 0) : 0),
       })),
     })
 

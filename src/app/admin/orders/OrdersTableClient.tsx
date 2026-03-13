@@ -28,11 +28,19 @@ function getNovaPoshtaAddress(o: Order): string {
   const a = o as any
 
   const cityName = a.npCityName || ''
-  const warehouseName = a.npWarehouseName || ''
+  const warehouseRaw = a.npWarehouseName || ''
+  const warehouseName = String(warehouseRaw).trim()
+  const isLegacyManualSourceInWarehouse =
+    cityName === 'Ручне замовлення' &&
+    ['MESSENGER', 'FAIR', 'SHOWROOM', 'OTHER'].includes(
+      warehouseName.toUpperCase(),
+    )
 
   const parts = [
     cityName && String(cityName).trim(),
-    warehouseName && `Відділення: ${String(warehouseName).trim()}`,
+    !isLegacyManualSourceInWarehouse &&
+      warehouseName &&
+      `Відділення: ${warehouseName}`,
   ].filter(Boolean)
 
   return parts.length ? parts.join(', ') : '—'
@@ -81,10 +89,10 @@ function getOrderItems(o: Order): NormalizedOrderItem[] {
     const addonsArr = Array.isArray(it.addons)
       ? it.addons
       : Array.isArray(it.addonVariants)
-      ? it.addonVariants
-      : Array.isArray(it.addonsOnVariant)
-      ? it.addonsOnVariant
-      : null
+        ? it.addonVariants
+        : Array.isArray(it.addonsOnVariant)
+          ? it.addonsOnVariant
+          : null
 
     const addonsText = addonsArr
       ? addonsArr
@@ -237,9 +245,8 @@ export default function OrdersTableClient({ orders }: Props) {
               <div className="mt-4 flex items-center justify-between text-sm">
                 <div>
                   <div className="text-xs text-gray-500">Сума</div>
-                  <div className="font-medium">{o.totalUAH} ₴</div>
-                  <div className="text-xs text-gray-500 mt-1">
-                    GP: {o.grossProfitUAH} ₴
+                  <div className="font-medium whitespace-nowrap">
+                    {o.totalUAH} ₴
                   </div>
                 </div>
                 <div className="text-right">
@@ -263,7 +270,6 @@ export default function OrdersTableClient({ orders }: Props) {
               <th className="p-2 text-left">Адреса НП</th>
               <th className="p-2 text-left">Замовлення</th>
               <th className="p-2 text-right">Сума</th>
-              <th className="p-2 text-right">GP</th>
               <th className="p-2 text-left">Статус</th>
               <th className="p-2 text-left">Дата</th>
             </tr>
@@ -332,7 +338,6 @@ export default function OrdersTableClient({ orders }: Props) {
                   })()}
                 </td>
                 <td className="p-2 text-right">{o.totalUAH} ₴</td>
-                <td className="p-2 text-right">{o.grossProfitUAH} ₴</td>
                 <td className="p-2">
                   <select
                     className={`border rounded px-2 py-1 text-xs cursor-pointer ${

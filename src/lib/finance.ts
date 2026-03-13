@@ -1,8 +1,8 @@
-import type { PaymentMethod, ProductCostProfile } from '@prisma/client'
+import type { PaymentMethod } from '@prisma/client'
 
 export const PAYMENT_FEE_PERCENT_BY_METHOD: Record<PaymentMethod, number> = {
-  LIQPAY: 2.5,
-  WAYFORPAY: 2.5,
+  LIQPAY: 1.5,
+  WAYFORPAY: 1.5,
   COD: 0,
   BANK_TRANSFER: 0,
 }
@@ -18,27 +18,6 @@ export function calcPaymentFeeUAH(
 ): number {
   const rate = PAYMENT_FEE_PERCENT_BY_METHOD[paymentMethod] ?? 0
   return roundUAH((Math.max(0, amountUAH) * rate) / 100)
-}
-
-export function getUnitCostUAH(
-  profile?: Pick<
-    ProductCostProfile,
-    | 'materialsCostUAH'
-    | 'laborCostUAH'
-    | 'packagingCostUAH'
-    | 'shippingCostUAH'
-    | 'otherCostUAH'
-  > | null,
-): number {
-  if (!profile) return 0
-
-  return (
-    roundUAH(profile.materialsCostUAH ?? 0) +
-    roundUAH(profile.laborCostUAH ?? 0) +
-    roundUAH(profile.packagingCostUAH ?? 0) +
-    roundUAH(profile.shippingCostUAH ?? 0) +
-    roundUAH(profile.otherCostUAH ?? 0)
-  )
 }
 
 export function calcGrossMarginPercent(

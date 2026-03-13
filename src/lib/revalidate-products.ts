@@ -1,5 +1,5 @@
 import { revalidatePath } from 'next/cache'
-import type { ProductGroup, ProductType } from '@prisma/client'
+import type { ProductGroup, ProductStatus, ProductType } from '@prisma/client'
 import { getAccessorySubcategorySlugs } from '@/lib/shop-taxonomy'
 
 const CATEGORY_BY_TYPE: Record<ProductType, string> = {
@@ -25,6 +25,7 @@ type ProductRevalidatePayload = {
   slug?: string | null
   type?: ProductType | null
   group?: ProductGroup | null
+  status?: ProductStatus | null
 }
 
 type RevalidateReason = 'create' | 'update' | 'delete'
@@ -55,6 +56,7 @@ export function revalidateProductCache({ reason, before, after }: RevalidateInpu
   const slugChanged = (before?.slug ?? null) !== (after?.slug ?? null)
   const typeChanged = (before?.type ?? null) !== (after?.type ?? null)
   const groupChanged = (before?.group ?? null) !== (after?.group ?? null)
+  const statusChanged = (before?.status ?? null) !== (after?.status ?? null)
 
   // Always refresh affected PDP pages.
   addSnapshotPaths(paths, before)
@@ -62,13 +64,13 @@ export function revalidateProductCache({ reason, before, after }: RevalidateInpu
 
   // Taxonomy/list-level pages are refreshed on create/delete, and when product
   // moved between type/group buckets.
-  if (reason !== 'update' || typeChanged || groupChanged) {
+  if (reason !== 'update' || typeChanged || groupChanged || statusChanged) {
     paths.add('/shop')
   }
 
   // Product sitemap should refresh only when URL structure may change:
   // new product, deleted product, or slug changed.
-  if (reason !== 'update' || slugChanged) {
+  if (reason !== 'update' || slugChanged || statusChanged) {
     paths.add('/sitemap-products.xml')
   }
 

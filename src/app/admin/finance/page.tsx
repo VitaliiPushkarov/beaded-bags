@@ -25,7 +25,7 @@ export default async function AdminFinancePage({ searchParams }: PageProps) {
   const params = await searchParams
   const { from, to } = getDateRangeFromSearchParams(params)
 
-  const [orders, expenses, purchases] = await Promise.all([
+  const [orders, expenses] = await Promise.all([
     prisma.order.findMany({
       where: {
         createdAt: {
@@ -46,18 +46,6 @@ export default async function AdminFinancePage({ searchParams }: PageProps) {
         },
       },
       orderBy: { expenseDate: 'desc' },
-    }),
-    prisma.purchase.findMany({
-      where: {
-        purchasedAt: {
-          gte: from,
-          lte: to,
-        },
-      },
-      orderBy: { purchasedAt: 'desc' },
-      include: {
-        supplier: true,
-      },
     }),
   ])
 
@@ -97,9 +85,7 @@ export default async function AdminFinancePage({ searchParams }: PageProps) {
           },
           costProfile: {
             select: {
-              materialsCostUAH: true,
               laborCostUAH: true,
-              packagingCostUAH: true,
               shippingCostUAH: true,
               otherCostUAH: true,
             },
@@ -125,7 +111,7 @@ export default async function AdminFinancePage({ searchParams }: PageProps) {
   const summary = buildFinanceSummary({
     orders,
     expenses,
-    purchases,
+    purchases: [],
     productResolver,
   })
 
@@ -170,7 +156,7 @@ export default async function AdminFinancePage({ searchParams }: PageProps) {
         <div>
           <h1 className="text-2xl font-semibold">Фінанси</h1>
           <p className="text-sm text-gray-600 mt-1">
-            Базовий управлінський облік по продажах, собівартості, витратах і закупівлях.
+            Базовий управлінський облік по продажах, собівартості та витратах.
           </p>
         </div>
 
@@ -211,7 +197,6 @@ export default async function AdminFinancePage({ searchParams }: PageProps) {
           ['Валовий прибуток', formatUAH(summary.grossProfitUAH)],
           ['OPEX (реклама + доставка матеріалів)', formatUAH(summary.operatingExpensesUAH)],
           ['Інші витрати', formatUAH(summary.otherExpensesUAH)],
-          ['Cash out на закупівлі', formatUAH(summary.purchaseCashOutUAH)],
           ['Результат після OPEX', formatUAH(summary.netAfterExpensesUAH)],
         ].map(([label, value]) => (
           <div key={label} className="border rounded bg-white p-4">
@@ -262,55 +247,28 @@ export default async function AdminFinancePage({ searchParams }: PageProps) {
           )}
         </div>
 
-        <div className="space-y-6">
-          <div className="border rounded bg-white overflow-hidden">
-            <div className="p-4 border-b flex items-center justify-between gap-4">
-              <h2 className="text-lg font-medium">Останні витрати</h2>
-              <Link href="/admin/expenses" className="text-sm text-blue-600 hover:underline">
-                Усі витрати
-              </Link>
-            </div>
-            <div className="divide-y">
-              {expenses.slice(0, 8).map((expense) => (
-                <div key={expense.id} className="p-4 flex items-start justify-between gap-4">
-                  <div>
-                    <div className="font-medium">{expense.title}</div>
-                    <div className="text-sm text-gray-500">
-                      {formatDate(expense.expenseDate)}
-                    </div>
-                  </div>
-                  <div className="font-medium">{formatUAH(expense.amountUAH)}</div>
-                </div>
-              ))}
-              {expenses.length === 0 ? (
-                <div className="p-4 text-sm text-gray-600">Немає витрат за період.</div>
-              ) : null}
-            </div>
+        <div className="border rounded bg-white overflow-hidden">
+          <div className="p-4 border-b flex items-center justify-between gap-4">
+            <h2 className="text-lg font-medium">Останні витрати</h2>
+            <Link href="/admin/expenses" className="text-sm text-blue-600 hover:underline">
+              Усі витрати
+            </Link>
           </div>
-
-          <div className="border rounded bg-white overflow-hidden">
-            <div className="p-4 border-b flex items-center justify-between gap-4">
-              <h2 className="text-lg font-medium">Останні закупівлі</h2>
-              <Link href="/admin/purchases" className="text-sm text-blue-600 hover:underline">
-                Усі закупівлі
-              </Link>
-            </div>
-            <div className="divide-y">
-              {purchases.slice(0, 8).map((purchase) => (
-                <div key={purchase.id} className="p-4 flex items-start justify-between gap-4">
-                  <div>
-                    <div className="font-medium">{purchase.supplier.name}</div>
-                    <div className="text-sm text-gray-500">
-                      {formatDate(purchase.purchasedAt)}
-                    </div>
+          <div className="divide-y">
+            {expenses.slice(0, 8).map((expense) => (
+              <div key={expense.id} className="p-4 flex items-start justify-between gap-4">
+                <div>
+                  <div className="font-medium">{expense.title}</div>
+                  <div className="text-sm text-gray-500">
+                    {formatDate(expense.expenseDate)}
                   </div>
-                  <div className="font-medium">{formatUAH(purchase.totalUAH)}</div>
                 </div>
-              ))}
-              {purchases.length === 0 ? (
-                <div className="p-4 text-sm text-gray-600">Немає закупівель за період.</div>
-              ) : null}
-            </div>
+                <div className="font-medium">{formatUAH(expense.amountUAH)}</div>
+              </div>
+            ))}
+            {expenses.length === 0 ? (
+              <div className="p-4 text-sm text-gray-600">Немає витрат за період.</div>
+            ) : null}
           </div>
         </div>
       </section>

@@ -2,7 +2,12 @@
 
 import { useEffect, useState, SyntheticEvent } from 'react'
 import { useRouter } from 'next/navigation'
-import type { ProductType, ProductGroup, AvailabilityStatus } from '@prisma/client'
+import type {
+  ProductType,
+  ProductGroup,
+  ProductStatus,
+  AvailabilityStatus,
+} from '@prisma/client'
 import { isInStockStatus, resolveAvailabilityStatus } from '@/lib/availability'
 import { ACTIVE_PRODUCT_TYPES } from '@/lib/labels'
 
@@ -87,20 +92,12 @@ type VariantInput = {
   straps?: VariantStrapInput[]
 }
 
-type CostProfileInput = {
-  materialsCostUAH: string
-  laborCostUAH: string
-  packagingCostUAH: string
-  shippingCostUAH: string
-  otherCostUAH: string
-  notes: string
-}
-
 type ProductFormValues = {
   id?: string
   name: string
   slug: string
   type: ProductType
+  status: ProductStatus
   group: ProductGroup | ''
   sortCatalog: string
   basePriceUAH: string
@@ -110,7 +107,6 @@ type ProductFormValues = {
   info?: string
   dimensions?: string
   offerNote?: string
-  costProfile: CostProfileInput
 }
 
 type AddonVariantOption = {
@@ -140,6 +136,11 @@ type Props = {
 }
 
 const TYPE_OPTIONS: ProductType[] = ACTIVE_PRODUCT_TYPES
+const STATUS_OPTIONS: Array<{ value: ProductStatus; label: string }> = [
+  { value: 'DRAFT', label: 'Чернетка' },
+  { value: 'PUBLISHED', label: 'Опубліковано' },
+  { value: 'ARCHIVED', label: 'Архів' },
+]
 
 const GROUP_OPTIONS: ProductGroup[] = ['BEADS', 'WEAVING']
 const AVAILABILITY_OPTIONS: Array<{
@@ -164,14 +165,7 @@ export default function ProductForm({
     initial
       ? {
           ...initial,
-          costProfile: {
-            materialsCostUAH: initial.costProfile?.materialsCostUAH ?? '',
-            laborCostUAH: initial.costProfile?.laborCostUAH ?? '',
-            packagingCostUAH: initial.costProfile?.packagingCostUAH ?? '',
-            shippingCostUAH: initial.costProfile?.shippingCostUAH ?? '',
-            otherCostUAH: initial.costProfile?.otherCostUAH ?? '',
-            notes: initial.costProfile?.notes ?? '',
-          },
+          status: initial.status ?? 'DRAFT',
           variants: (initial.variants || []).map((v) => {
             const images = normalizeImages(v.images)
             const seededImages = images.length === 0 && v.image ? [v.image] : images
@@ -199,19 +193,12 @@ export default function ProductForm({
           name: '',
           slug: '',
           type: 'BAG',
+          status: 'DRAFT',
           group: '',
           sortCatalog: '',
           basePriceUAH: '',
           description: '',
           inStock: true,
-          costProfile: {
-            materialsCostUAH: '',
-            laborCostUAH: '',
-            packagingCostUAH: '',
-            shippingCostUAH: '',
-            otherCostUAH: '',
-            notes: '',
-          },
           variants: [
             {
               color: '',
@@ -381,27 +368,10 @@ export default function ProductForm({
       const body = {
         ...values,
         group: values.group || null,
+        status: values.status,
         sortCatalog: values.sortCatalog ? Number(values.sortCatalog) : 0,
         basePriceUAH: values.basePriceUAH ? Number(values.basePriceUAH) : null,
         offerNote: values.offerNote?.trim() || null,
-        costProfile: {
-          materialsCostUAH: values.costProfile.materialsCostUAH
-            ? Number(values.costProfile.materialsCostUAH)
-            : 0,
-          laborCostUAH: values.costProfile.laborCostUAH
-            ? Number(values.costProfile.laborCostUAH)
-            : 0,
-          packagingCostUAH: values.costProfile.packagingCostUAH
-            ? Number(values.costProfile.packagingCostUAH)
-            : 0,
-          shippingCostUAH: values.costProfile.shippingCostUAH
-            ? Number(values.costProfile.shippingCostUAH)
-            : 0,
-          otherCostUAH: values.costProfile.otherCostUAH
-            ? Number(values.costProfile.otherCostUAH)
-            : 0,
-          notes: values.costProfile.notes.trim() || null,
-        },
         variants: values.variants.map((v) => {
           const availabilityStatus = resolveAvailabilityStatus({
             availabilityStatus: v.availabilityStatus,
@@ -559,7 +529,7 @@ export default function ProductForm({
             </label>
           </div>
 
-          <div className="grid gap-4 sm:grid-cols-4">
+          <div className="grid gap-4 sm:grid-cols-5">
             <label className="block text-sm font-medium">
               Тип
               <select
@@ -575,6 +545,26 @@ export default function ProductForm({
                 {TYPE_OPTIONS.map((t) => (
                   <option key={t} value={t}>
                     {t}
+                  </option>
+                ))}
+              </select>
+            </label>
+
+            <label className="block text-sm font-medium">
+              Статус
+              <select
+                className="mt-2 w-full border rounded-lg px-3 py-2 text-sm border-blue-300"
+                value={values.status}
+                onChange={(e) =>
+                  setValues((v) => ({
+                    ...v,
+                    status: e.target.value as ProductStatus,
+                  }))
+                }
+              >
+                {STATUS_OPTIONS.map((item) => (
+                  <option key={item.value} value={item.value}>
+                    {item.label}
                   </option>
                 ))}
               </select>
@@ -646,17 +636,6 @@ export default function ProductForm({
             </label>
 
             <div className="grid gap-4">
-              <label className="inline-flex items-center gap-2 text-sm font-medium mt-1 ">
-                <input
-                  type="checkbox"
-                  checked={values.inStock}
-                  onChange={(e) =>
-                    setValues((v) => ({ ...v, inStock: e.target.checked }))
-                  }
-                />
-                В наявності (загальний прапорець)
-              </label>
-
               <label className="block text-sm font-medium">
                 Інфо
                 <textarea
@@ -693,123 +672,6 @@ export default function ProductForm({
             </div>
           </div>
 
-          <div className="border border-blue-100 rounded-lg p-4 sm:p-5">
-            <div className="mb-4">
-              <div className="text-lg font-medium">Собівартість</div>
-              <div className="text-xs text-gray-500 mt-1">
-                Калькуляція на 1 одиницю товару для фінансового обліку.
-              </div>
-            </div>
-
-            <div className="grid gap-4 sm:grid-cols-5">
-              <label className="block text-sm font-medium">
-                Матеріали
-                <input
-                  className="mt-2 w-full border rounded-lg px-3 py-2 text-sm border-blue-300"
-                  inputMode="numeric"
-                  value={values.costProfile.materialsCostUAH}
-                  onChange={(e) =>
-                    setValues((v) => ({
-                      ...v,
-                      costProfile: {
-                        ...v.costProfile,
-                        materialsCostUAH: e.target.value.replace(/[^\d]/g, ''),
-                      },
-                    }))
-                  }
-                />
-              </label>
-
-              <label className="block text-sm font-medium">
-                Робота
-                <input
-                  className="mt-2 w-full border rounded-lg px-3 py-2 text-sm border-blue-300"
-                  inputMode="numeric"
-                  value={values.costProfile.laborCostUAH}
-                  onChange={(e) =>
-                    setValues((v) => ({
-                      ...v,
-                      costProfile: {
-                        ...v.costProfile,
-                        laborCostUAH: e.target.value.replace(/[^\d]/g, ''),
-                      },
-                    }))
-                  }
-                />
-              </label>
-
-              <label className="block text-sm font-medium">
-                Пакування
-                <input
-                  className="mt-2 w-full border rounded-lg px-3 py-2 text-sm border-blue-300"
-                  inputMode="numeric"
-                  value={values.costProfile.packagingCostUAH}
-                  onChange={(e) =>
-                    setValues((v) => ({
-                      ...v,
-                      costProfile: {
-                        ...v.costProfile,
-                        packagingCostUAH: e.target.value.replace(/[^\d]/g, ''),
-                      },
-                    }))
-                  }
-                />
-              </label>
-
-              <label className="block text-sm font-medium">
-                Доставка
-                <input
-                  className="mt-2 w-full border rounded-lg px-3 py-2 text-sm border-blue-300"
-                  inputMode="numeric"
-                  value={values.costProfile.shippingCostUAH}
-                  onChange={(e) =>
-                    setValues((v) => ({
-                      ...v,
-                      costProfile: {
-                        ...v.costProfile,
-                        shippingCostUAH: e.target.value.replace(/[^\d]/g, ''),
-                      },
-                    }))
-                  }
-                />
-              </label>
-
-              <label className="block text-sm font-medium">
-                Інше
-                <input
-                  className="mt-2 w-full border rounded-lg px-3 py-2 text-sm border-blue-300"
-                  inputMode="numeric"
-                  value={values.costProfile.otherCostUAH}
-                  onChange={(e) =>
-                    setValues((v) => ({
-                      ...v,
-                      costProfile: {
-                        ...v.costProfile,
-                        otherCostUAH: e.target.value.replace(/[^\d]/g, ''),
-                      },
-                    }))
-                  }
-                />
-              </label>
-            </div>
-
-            <label className="block text-sm font-medium mt-4">
-              Нотатки до калькуляції
-              <textarea
-                className="mt-2 w-full border rounded-lg px-3 py-2 text-sm min-h-24 border-blue-300"
-                value={values.costProfile.notes}
-                onChange={(e) =>
-                  setValues((v) => ({
-                    ...v,
-                    costProfile: {
-                      ...v.costProfile,
-                      notes: e.target.value,
-                    },
-                  }))
-                }
-              />
-            </label>
-          </div>
         </div>
       </div>
 

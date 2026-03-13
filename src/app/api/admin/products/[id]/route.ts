@@ -1,7 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { z } from 'zod'
 import { prisma } from '@/lib/prisma'
-import { ProductType, ProductGroup, AvailabilityStatus } from '@prisma/client'
+import {
+  ProductType,
+  ProductGroup,
+  ProductStatus,
+  AvailabilityStatus,
+} from '@prisma/client'
 import { isInStockStatus, resolveAvailabilityStatus } from '@/lib/availability'
 import { revalidateProductCache } from '@/lib/revalidate-products'
 
@@ -22,23 +27,14 @@ const StrapSchema = z.object({
   sort: z.coerce.number().int().optional().default(0),
 })
 
-const CostProfileSchema = z.object({
-  materialsCostUAH: z.coerce.number().int().min(0).optional().default(0),
-  laborCostUAH: z.coerce.number().int().min(0).optional().default(0),
-  packagingCostUAH: z.coerce.number().int().min(0).optional().default(0),
-  shippingCostUAH: z.coerce.number().int().min(0).optional().default(0),
-  otherCostUAH: z.coerce.number().int().min(0).optional().default(0),
-  notes: z.string().trim().optional().nullable(),
-})
-
-const EMPTY_COST_PROFILE = {
-  materialsCostUAH: 0,
-  laborCostUAH: 0,
-  packagingCostUAH: 0,
-  shippingCostUAH: 0,
-  otherCostUAH: 0,
-  notes: null,
-} as const
+const NullablePriceSchema = z.preprocess(
+  (value) => {
+    if (value === '' || value == null) return null
+    const num = Number(value)
+    return Number.isFinite(num) ? num : value
+  },
+  z.number().int().min(0).nullable(),
+)
 
 // --------- Zod-схеми ---------
 const VariantSchema = z.object({
@@ -47,7 +43,7 @@ const VariantSchema = z.object({
   hex: z.string().optional().nullable(),
   image: ImagePath.optional().nullable(),
   images: z.array(ImagePath).optional().default([]),
-  priceUAH: z.coerce.number().nullable(),
+  priceUAH: NullablePriceSchema,
   discountPercent: z.coerce.number().optional().nullable(),
   discountUAH: z.coerce.number().optional().nullable(),
   availabilityStatus: z.enum(AvailabilityStatus).optional().nullable(),
@@ -61,14 +57,14 @@ const ProductSchema = z.object({
   name: z.string().min(1),
   slug: z.string().min(1),
   type: z.enum(ProductType),
+  status: z.nativeEnum(ProductStatus).optional(),
   group: z.enum(ProductGroup).optional().nullable(),
   sortCatalog: z.coerce.number().int().optional().nullable(),
-  basePriceUAH: z.coerce.number().nullable(),
+  basePriceUAH: NullablePriceSchema,
   description: z.string().optional().nullable(),
   info: z.string().optional().nullable(),
   dimensions: z.string().optional().nullable(),
   offerNote: z.string().optional().nullable(),
-  costProfile: CostProfileSchema.optional().default(EMPTY_COST_PROFILE),
   inStock: z.coerce.boolean(),
   variants: z.array(VariantSchema).min(1),
 })
@@ -92,7 +88,7 @@ export async function PATCH(
     const { id } = await params
     const existing = await prisma.product.findUnique({
       where: { id },
-      select: { slug: true, type: true, group: true },
+      select: { slug: true, type: true, group: true, status: true },
     })
 
     if (!existing) {
@@ -128,6 +124,7 @@ export async function PATCH(
             name: data.name,
             slug: data.slug,
             type: normalizedType as ProductType,
+            status: data.status ?? existing.status,
             group: nextGroup,
             sortCatalog: sanitizeSortCatalog(data.sortCatalog),
             basePriceUAH: data.basePriceUAH,
@@ -136,26 +133,6 @@ export async function PATCH(
             dimensions: data.dimensions || null,
             offerNote: data.offerNote ?? null,
             inStock: data.inStock,
-            costProfile: {
-              upsert: {
-                create: {
-                  materialsCostUAH: data.costProfile.materialsCostUAH,
-                  laborCostUAH: data.costProfile.laborCostUAH,
-                  packagingCostUAH: data.costProfile.packagingCostUAH,
-                  shippingCostUAH: data.costProfile.shippingCostUAH,
-                  otherCostUAH: data.costProfile.otherCostUAH,
-                  notes: data.costProfile.notes ?? null,
-                },
-                update: {
-                  materialsCostUAH: data.costProfile.materialsCostUAH,
-                  laborCostUAH: data.costProfile.laborCostUAH,
-                  packagingCostUAH: data.costProfile.packagingCostUAH,
-                  shippingCostUAH: data.costProfile.shippingCostUAH,
-                  otherCostUAH: data.costProfile.otherCostUAH,
-                  notes: data.costProfile.notes ?? null,
-                },
-              },
-            },
           },
           select: { id: true },
         })
@@ -180,7 +157,7 @@ export async function PATCH(
                   deleteMany: {},
                   create: (v.images ?? []).map((url) => ({ url })),
                 },
-                priceUAH: v.priceUAH,
+                priceUAH: v.priceUAH ?? null,
                 discountPercent: sanitizeDiscountPercent(v.discountPercent),
                 discountUAH: v.discountUAH ?? null,
                 inStock: isInStockStatus(availabilityStatus),
@@ -248,7 +225,7 @@ export async function PATCH(
                 images: {
                   create: (v.images ?? []).map((url) => ({ url })),
                 },
-                priceUAH: v.priceUAH,
+                priceUAH: v.priceUAH ?? null,
                 discountPercent: sanitizeDiscountPercent(v.discountPercent),
                 discountUAH: v.discountUAH ?? null,
                 inStock: isInStockStatus(availabilityStatus),
@@ -316,6 +293,7 @@ export async function PATCH(
         slug: data.slug,
         type: normalizedType,
         group: nextGroup,
+        status: data.status ?? existing.status,
       },
     })
 
@@ -337,7 +315,7 @@ export async function DELETE(
     const { id } = await params
     const existing = await prisma.product.findUnique({
       where: { id },
-      select: { slug: true, type: true, group: true },
+      select: { slug: true, type: true, group: true, status: true },
     })
 
     if (!existing) {

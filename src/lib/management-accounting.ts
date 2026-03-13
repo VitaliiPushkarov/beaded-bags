@@ -55,39 +55,173 @@ function roundUAH(value: number): number {
   return Math.round(value)
 }
 
+function normalizeVariantKey(value: string): string {
+  return value
+    .toLowerCase()
+    .replace(/[«»"'`’]/g, '')
+    .replace(/[^a-zа-яіїєґ0-9]+/giu, ' ')
+    .trim()
+    .replace(/\s+/g, ' ')
+}
+
+function parseVariantNumberMap(
+  notes: string | null | undefined,
+  prefix: string,
+) {
+  if (!notes) return null
+
+  const line = notes
+    .split('\n')
+    .find((entry) => entry.startsWith(prefix))
+  if (line) {
+    const raw = line.slice(prefix.length).trim()
+    if (!raw) return null
+
+    try {
+      const parsed = JSON.parse(raw) as Record<string, unknown>
+      const normalized = new Map<string, number>()
+
+      for (const [key, value] of Object.entries(parsed)) {
+        const qty = Number(value)
+        if (!Number.isFinite(qty) || qty < 0) continue
+        normalized.set(normalizeVariantKey(key), qty)
+      }
+
+      return normalized
+    } catch {
+      return null
+    }
+  }
+
+  return null
+}
+
+function parseVariantQuantityMap(notes: string | null | undefined) {
+  const mapped = parseVariantNumberMap(notes, 'variantQtyMap=')
+  if (mapped) return mapped
+  if (!notes) return null
+
+  // Backward compatibility for older imports where details were stored as:
+  // details=Model | Варіант: qty | Model | Варіант: qty
+  const detailsLine = notes
+    .split('\n')
+    .find((entry) => entry.startsWith('details='))
+  if (!detailsLine) return null
+
+  const legacyRaw = detailsLine.slice('details='.length)
+  const regex = /\|\s*([^|:]+?)\s*:\s*([0-9]+(?:[.,][0-9]+)?)/gu
+  const map = new Map<string, number>()
+
+  for (const match of legacyRaw.matchAll(regex)) {
+    const variantName = normalizeVariantKey(match[1] ?? '')
+    const quantity = Number((match[2] ?? '').replace(',', '.'))
+    if (!variantName || !Number.isFinite(quantity) || quantity < 0) continue
+    map.set(variantName, quantity)
+  }
+
+  return map.size > 0 ? map : null
+}
+
+function parseVariantCostFactorMap(notes: string | null | undefined) {
+  return parseVariantNumberMap(notes, 'variantCostFactorMap=')
+}
+
+function resolveUsageQuantity(
+  usage: { quantity: number; notes?: string | null },
+  variantColor?: string | null,
+): number {
+  if (!variantColor) return Math.max(0, usage.quantity)
+
+  const variantMap = parseVariantQuantityMap(usage.notes)
+  if (!variantMap || variantMap.size === 0) {
+    return Math.max(0, usage.quantity)
+  }
+
+  const normalizedVariant = normalizeVariantKey(variantColor)
+  const exact = variantMap.get(normalizedVariant)
+  if (typeof exact === 'number') {
+    return Math.max(0, exact)
+  }
+
+  const fallback = variantMap.get(normalizeVariantKey('__default'))
+  if (typeof fallback === 'number') {
+    return Math.max(0, fallback)
+  }
+
+  // If variant map is present but current color has no entry, this material
+  // is not used for this variant.
+  return 0
+}
+
+function resolveUsageCostFactor(
+  usage: { notes?: string | null },
+  variantColor?: string | null,
+): number {
+  if (!variantColor) return 1
+
+  const factorMap = parseVariantCostFactorMap(usage.notes)
+  if (!factorMap || factorMap.size === 0) {
+    return 1
+  }
+
+  const normalizedVariant = normalizeVariantKey(variantColor)
+  const exact = factorMap.get(normalizedVariant)
+  if (typeof exact === 'number' && Number.isFinite(exact) && exact > 0) {
+    return exact
+  }
+
+  const fallback = factorMap.get(normalizeVariantKey('__default'))
+  if (typeof fallback === 'number' && Number.isFinite(fallback) && fallback > 0) {
+    return fallback
+  }
+
+  return 1
+}
+
 export function calculateMaterialsCostFromUsages(
-  usages: Array<{ quantity: number; material: { unitCostUAH: number } }>,
+  usages: Array<{
+    quantity: number
+    notes?: string | null
+    material: { unitCostUAH: number }
+  }>,
+  variantColor?: string | null,
 ): number {
   if (!usages.length) return 0
 
   return roundUAH(
     usages.reduce((sum, usage) => {
-      return sum + Math.max(0, usage.quantity) * Math.max(0, usage.material.unitCostUAH)
+      const quantity = resolveUsageQuantity(usage, variantColor)
+      const factor = resolveUsageCostFactor(usage, variantColor)
+      return sum + quantity * Math.max(0, usage.material.unitCostUAH) * factor
     }, 0),
   )
 }
 
 export function buildManagedUnitCostUAH(input: {
   profile: {
-    materialsCostUAH: number
     laborCostUAH: number
-    packagingCostUAH: number
     shippingCostUAH: number
     otherCostUAH: number
   } | null
-  materialUsages?: Array<{ quantity: number; material: { unitCostUAH: number } }>
+  materialUsages?: Array<{
+    quantity: number
+    notes?: string | null
+    material: { unitCostUAH: number }
+  }>
   packagingTemplateCostUAH?: number | null
   includeShipping?: boolean
+  variantColor?: string | null
 }): number {
   const profile = input.profile
-  const hasUsages = Boolean(input.materialUsages?.length)
-  const materialCost = hasUsages
-    ? calculateMaterialsCostFromUsages(input.materialUsages ?? [])
-    : roundUAH(profile?.materialsCostUAH ?? 0)
-  const laborCost = roundUAH(profile?.laborCostUAH ?? 0)
-  const packagingCost = roundUAH(
-    input.packagingTemplateCostUAH ?? profile?.packagingCostUAH ?? 0,
+  // Materials cost must come from a single source: product->material usages.
+  // Legacy profile.materialsCostUAH is intentionally ignored to avoid hidden sums.
+  const materialCost = calculateMaterialsCostFromUsages(
+    input.materialUsages ?? [],
+    input.variantColor,
   )
+  const laborCost = roundUAH(profile?.laborCostUAH ?? 0)
+  // Packaging cost must come from packaging template only.
+  const packagingCost = roundUAH(input.packagingTemplateCostUAH ?? 0)
   const shippingCost = input.includeShipping
     ? roundUAH(profile?.shippingCostUAH ?? 0)
     : 0

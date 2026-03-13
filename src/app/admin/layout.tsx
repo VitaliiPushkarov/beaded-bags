@@ -1,6 +1,6 @@
 import type { ReactNode } from 'react'
-import Link from 'next/link'
 import type { Metadata } from 'next'
+import AdminSidebar from '@/components/admin/AdminSidebar'
 
 export const metadata: Metadata = {
   robots: {
@@ -11,28 +11,25 @@ export const metadata: Metadata = {
 
 export default function AdminLayout({ children }: { children: ReactNode }) {
   return (
-    <div className="min-h-screen flex flex-col bg-gray-50">
-      <header className="border-b bg-white">
-        <div className="px-4 lg:px-[50px] mx-auto py-3 flex items-center justify-between">
-          <Link href="/admin" className="font-semibold">
-            GERDAN Admin
-          </Link>
-          <nav className="flex gap-4 text-sm">
-            <Link href="/admin/products">Товари</Link>
-            <Link href="/admin/orders">Замовлення</Link>
-            <Link href="/admin/costs">Собівартість</Link>
-            <Link href="/admin/inventory">Запаси</Link>
-            <Link href="/admin/production">Виробництво</Link>
-            <Link href="/admin/expenses">Витрати</Link>
-            <Link href="/admin/purchases">Закупівлі</Link>
-            <Link href="/admin/finance">Фінанси</Link>
-            <Link href="/" className="text-gray-500">
-              На сайт
-            </Link>
-          </nav>
+    <div className="admin-shell">
+      <div className="mx-auto flex min-h-screen max-w-[1600px] flex-col md:flex-row">
+        <AdminSidebar />
+        <div className="min-w-0 flex-1">
+          <header className="admin-topbar">
+            <div>
+              <p className="text-xs uppercase tracking-[0.14em] text-slate-500">
+                Management
+              </p>
+              <p className="text-sm font-medium text-slate-900">
+                Облік і операційний контроль
+              </p>
+            </div>
+          </header>
+          <main className="admin-content px-4 py-5 sm:px-6 sm:py-6 lg:px-8">
+            {children}
+          </main>
         </div>
-      </header>
-      <main className="px-4 lg:px-[50px] flex-1 py-6">{children}</main>
+      </div>
     </div>
   )
 }

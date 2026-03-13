@@ -24,7 +24,9 @@ function withAccessoryCompatTypes(types: ProductType[]): ProductType[] {
 function buildWhere(params: GetProductsParams): Prisma.ProductWhereInput {
   const { search, color, type, types, group, forBestsellers } = params
 
-  const where: Prisma.ProductWhereInput = {}
+  const where: Prisma.ProductWhereInput = {
+    status: 'PUBLISHED',
+  }
 
   // Filter by type
   if (types && types.length > 0) {

@@ -1,7 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { z } from 'zod'
 import { prisma } from '@/lib/prisma'
-import { ProductType, ProductGroup, AvailabilityStatus } from '@prisma/client'
+import {
+  ProductType,
+  ProductGroup,
+  ProductStatus,
+  AvailabilityStatus,
+} from '@prisma/client'
 import { isInStockStatus, resolveAvailabilityStatus } from '@/lib/availability'
 import { revalidateProductCache } from '@/lib/revalidate-products'
 
@@ -23,39 +28,30 @@ const StrapSchema = z.object({
   sort: z.coerce.number().int().optional().default(0),
 })
 
-const CostProfileSchema = z.object({
-  materialsCostUAH: z.coerce.number().int().min(0).optional().default(0),
-  laborCostUAH: z.coerce.number().int().min(0).optional().default(0),
-  packagingCostUAH: z.coerce.number().int().min(0).optional().default(0),
-  shippingCostUAH: z.coerce.number().int().min(0).optional().default(0),
-  otherCostUAH: z.coerce.number().int().min(0).optional().default(0),
-  notes: z.string().trim().optional().nullable(),
-})
-
-const EMPTY_COST_PROFILE = {
-  materialsCostUAH: 0,
-  laborCostUAH: 0,
-  packagingCostUAH: 0,
-  shippingCostUAH: 0,
-  otherCostUAH: 0,
-  notes: null,
-} as const
+const NullablePriceSchema = z.preprocess(
+  (value) => {
+    if (value === '' || value == null) return null
+    const num = Number(value)
+    return Number.isFinite(num) ? num : value
+  },
+  z.number().int().min(0).nullable(),
+)
 
 // --------- Zod schema for product creation (incl. variants, but without straps/addons/images relations) ---------
 const ProductCreateSchema = z.object({
   name: z.string().trim().min(1),
   slug: z.string().trim().min(1),
   type: z.enum(ProductType),
+  status: z.nativeEnum(ProductStatus).optional().default(ProductStatus.DRAFT),
   // allow missing or null (DB can store null)
   group: z.enum(ProductGroup).nullable().optional(),
   sortCatalog: z.coerce.number().int().optional().nullable(),
 
-  basePriceUAH: z.coerce.number().nullable().optional(),
+  basePriceUAH: NullablePriceSchema.optional(),
   info: z.string().trim().optional().nullable(),
   description: z.string().trim().optional().nullable(),
   dimensions: z.string().trim().optional().nullable(),
   offerNote: z.string().trim().optional().nullable(),
-  costProfile: CostProfileSchema.optional().default(EMPTY_COST_PROFILE),
   inStock: z.coerce.boolean(),
 
   variants: z
@@ -67,7 +63,7 @@ const ProductCreateSchema = z.object({
         image: ImagePath.optional().nullable(),
         images: z.array(ImagePath).optional().default([]),
 
-        priceUAH: z.coerce.number(),
+        priceUAH: NullablePriceSchema,
         discountPercent: z.coerce.number().optional().nullable(),
         discountUAH: z.coerce.number().optional().nullable(),
         availabilityStatus: z.enum(AvailabilityStatus).optional().nullable(),
@@ -102,6 +98,7 @@ export async function GET() {
         name: true,
         slug: true,
         type: true,
+        status: true,
         group: true,
         sortCatalog: true,
         inStock: true,
@@ -159,6 +156,7 @@ export async function POST(req: NextRequest) {
         name: data.name,
         slug: data.slug,
         type: normalizedType,
+        status: data.status,
         group: data.group ?? null,
         sortCatalog: sanitizeSortCatalog(data.sortCatalog),
         basePriceUAH: data.basePriceUAH ?? null,
@@ -167,16 +165,6 @@ export async function POST(req: NextRequest) {
         dimensions: data.dimensions ?? null,
         offerNote: data.offerNote ?? null,
         inStock: data.inStock,
-        costProfile: {
-          create: {
-            materialsCostUAH: data.costProfile.materialsCostUAH,
-            laborCostUAH: data.costProfile.laborCostUAH,
-            packagingCostUAH: data.costProfile.packagingCostUAH,
-            shippingCostUAH: data.costProfile.shippingCostUAH,
-            otherCostUAH: data.costProfile.otherCostUAH,
-            notes: data.costProfile.notes ?? null,
-          },
-        },
 
         variants: {
           create: data.variants.map((v, idx) => {
@@ -192,7 +180,7 @@ export async function POST(req: NextRequest) {
               images: {
                 create: (v.images ?? []).map((url) => ({ url })),
               },
-              priceUAH: v.priceUAH,
+              priceUAH: v.priceUAH ?? null,
               discountPercent: sanitizeDiscountPercent(v.discountPercent),
               discountUAH: v.discountUAH ?? null,
               inStock: isInStockStatus(availabilityStatus),
@@ -213,7 +201,7 @@ export async function POST(req: NextRequest) {
           }),
         },
       },
-      select: { id: true, slug: true, type: true, group: true },
+      select: { id: true, slug: true, type: true, group: true, status: true },
     })
 
     revalidateProductCache({
@@ -222,6 +210,7 @@ export async function POST(req: NextRequest) {
         slug: created.slug,
         type: created.type,
         group: created.group,
+        status: created.status,
       },
     })
 

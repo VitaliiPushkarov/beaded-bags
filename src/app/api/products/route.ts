@@ -17,7 +17,9 @@ export async function GET(req: NextRequest) {
     const type = searchParams.get('type')?.trim() || undefined
     const group = searchParams.get('group')?.trim() || undefined
 
-    const where: Prisma.ProductWhereInput = {}
+    const where: Prisma.ProductWhereInput = {
+      status: 'PUBLISHED',
+    }
 
     // Soft relevance: if type/group are provided, prefer matching either of them,
     // but don't require both simultaneously.
@@ -71,7 +73,9 @@ export async function GET(req: NextRequest) {
   const limitParam = searchParams.get('limit')
   const limit = limitParam ? Number(limitParam) : null
 
-  const where: Prisma.ProductWhereInput = {}
+  const where: Prisma.ProductWhereInput = {
+    status: 'PUBLISHED',
+  }
   let orderBy: Prisma.ProductOrderByWithRelationInput[] = []
 
   const isBestsellers = !!limit

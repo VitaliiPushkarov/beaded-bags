@@ -11,6 +11,8 @@
     "import:gerdan:stage": "node --import tsx scripts/imports/gerdan-stage.ts",
     "import:gerdan:mapping": "node --import tsx scripts/imports/gerdan-build-mapping.ts",
     "import:gerdan:db": "node --import tsx scripts/imports/gerdan-import-db.ts",
+    "import:materials:db": "node --import tsx scripts/imports/materials-import-db.ts",
+    "import:materials:variants:db": "node --import tsx scripts/imports/variant-materials-import-db.ts",
     "test:imports": "node --import tsx --test src/lib/imports/*.test.ts"
   },
   "dependencies": {
