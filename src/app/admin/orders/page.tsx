@@ -355,6 +355,8 @@ export default async function AdminOrdersPage() {
     }
   })
 
+  const manualOrderPickerResetKey = String(Date.now())
+
   return (
     <div className="space-y-6">
       <div>
@@ -467,7 +469,10 @@ export default async function AdminOrdersPage() {
             </div>
           </div>
 
-          <ManualOrderItemsPicker options={variantOptions} />
+          <ManualOrderItemsPicker
+            key={manualOrderPickerResetKey}
+            options={variantOptions}
+          />
         </form>
       </section>
 
