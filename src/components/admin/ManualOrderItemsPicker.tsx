@@ -2,6 +2,9 @@
 
 import { useMemo, useState } from 'react'
 
+import { Button } from '@/components/ui/button'
+import { Input } from '@/components/ui/input'
+
 type VariantOption = {
   id: string
   productName: string
@@ -149,18 +152,18 @@ export default function ManualOrderItemsPicker({ options }: Props) {
       <input type="hidden" name="discountUAH" value={String(discountUAH)} />
 
       <div className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_260px]">
-        <div className="overflow-hidden rounded border bg-white">
-          <div className="border-b bg-gray-50 px-4 py-3 text-xs font-medium uppercase tracking-wide text-gray-500">
+        <div className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">
+          <div className="border-b border-slate-200 bg-slate-50 px-4 py-3 text-xs font-medium uppercase tracking-wide text-slate-500">
             Товари у замовленні
           </div>
 
-          <div className="hidden border-b bg-gray-50 px-4 py-2 text-xs font-medium uppercase tracking-wide text-gray-500 md:grid md:grid-cols-[minmax(0,1fr)_120px_100px]">
+          <div className="hidden border-b border-slate-200 bg-slate-50 px-4 py-2 text-xs font-medium uppercase tracking-wide text-slate-500 md:grid md:grid-cols-[minmax(0,1fr)_120px_100px]">
             <div>Товар</div>
             <div>К-сть</div>
             <div>Дії</div>
           </div>
 
-          <div className="divide-y">
+          <div className="divide-y divide-slate-200">
             {lines.map((line) => {
               const selectableOptions = getSelectableOptions(line.id)
               const selectedOption = optionsById.get(line.variantId)
@@ -191,7 +194,7 @@ export default function ManualOrderItemsPicker({ options }: Props) {
                         onChange={(event) =>
                           updateLine(line.id, { variantId: event.target.value })
                         }
-                        className="w-full rounded-lg border border-slate-300 bg-white py-2.5 pl-12 pr-3 text-sm text-slate-900 shadow-sm focus:border-slate-500 focus:outline-none focus:ring-2 focus:ring-slate-200"
+                        className="h-10 w-full rounded-md border border-slate-300 bg-white py-2 pl-12 pr-3 text-sm text-slate-900 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-200"
                       >
                         <option value="">Оберіть варіант товару</option>
                         {selectableOptions.map((option) => (
@@ -205,7 +208,7 @@ export default function ManualOrderItemsPicker({ options }: Props) {
 
                   <label className="block text-xs font-medium text-slate-600 md:text-sm md:font-normal md:text-slate-800">
                     <span className="md:hidden">К-сть</span>
-                    <input
+                    <Input
                       type="number"
                       min="1"
                       max="999"
@@ -215,18 +218,19 @@ export default function ManualOrderItemsPicker({ options }: Props) {
                           qty: Math.max(1, parseSafeInt(event.target.value)),
                         })
                       }
-                      className="mt-1 w-full rounded-lg border border-slate-300 bg-white px-3 py-2.5 text-sm text-slate-900 shadow-sm focus:border-slate-500 focus:outline-none focus:ring-2 focus:ring-slate-200 md:mt-0"
+                      className="mt-1 md:mt-0"
                     />
                   </label>
 
                   <div className="md:self-center">
-                    <button
+                    <Button
                       type="button"
+                      variant="outline"
+                      size="sm"
                       onClick={() => removeLine(line.id)}
-                      className="rounded border px-3 py-2 text-xs text-red-600 hover:bg-red-50"
                     >
                       Видалити
-                    </button>
+                    </Button>
                   </div>
                 </div>
               )
@@ -234,18 +238,14 @@ export default function ManualOrderItemsPicker({ options }: Props) {
           </div>
 
           <div className="p-3">
-            <button
-              type="button"
-              onClick={addLine}
-              className="inline-flex items-center justify-center rounded border px-3 py-2 text-xs hover:bg-gray-50"
-            >
+            <Button type="button" variant="outline" size="sm" onClick={addLine}>
               + Додати товар
-            </button>
+            </Button>
           </div>
         </div>
 
         <div className="self-end space-y-3">
-          <div className="rounded border bg-slate-50 p-3">
+          <div className="rounded-xl border border-slate-200 bg-slate-50 p-3">
             <div className="space-y-2 text-sm">
               <div className="flex items-center justify-between gap-3">
                 <span className="text-slate-600">Сума товарів</span>
@@ -256,16 +256,16 @@ export default function ManualOrderItemsPicker({ options }: Props) {
 
               <label className="block text-xs font-medium text-slate-600">
                 Знижка
-                <input
+                <Input
                   value={discountInput}
                   onChange={(event) => setDiscountInput(event.target.value)}
                   type="number"
                   min="0"
-                  className="mt-1 w-full rounded-lg border bg-white px-3 py-2 text-sm"
+                  className="mt-1"
                 />
               </label>
 
-              <div className="flex items-center justify-between gap-3 border-t pt-2">
+              <div className="flex items-center justify-between gap-3 border-t border-slate-200 pt-2">
                 <span className="text-slate-700">Загальна сума</span>
                 <span className="text-base font-semibold text-slate-900">
                   {formatUAH(totalUAH)}
@@ -274,13 +274,9 @@ export default function ManualOrderItemsPicker({ options }: Props) {
             </div>
           </div>
 
-          <button
-            type="submit"
-            disabled={selectedItems.length === 0}
-            className="inline-flex w-full items-center justify-center rounded bg-black px-4 py-2.5 text-sm text-white hover:bg-[#FF3D8C] disabled:cursor-not-allowed disabled:bg-gray-400"
-          >
+          <Button type="submit" disabled={selectedItems.length === 0} className="w-full">
             Створити ручне замовлення
-          </button>
+          </Button>
 
           {selectedItems.length === 0 ? (
             <p className="text-xs text-red-600">

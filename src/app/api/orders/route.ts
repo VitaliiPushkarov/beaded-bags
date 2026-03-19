@@ -68,6 +68,7 @@ export async function POST(req: NextRequest) {
         materialUsages: {
           select: {
             quantity: true,
+            variantColor: true,
             notes: true,
             material: {
               select: {
@@ -109,6 +110,7 @@ export async function POST(req: NextRequest) {
                 materialUsages: {
                   select: {
                     quantity: true,
+                    variantColor: true,
                     notes: true,
                     material: {
                       select: {

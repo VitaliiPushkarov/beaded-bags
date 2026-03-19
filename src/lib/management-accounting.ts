@@ -153,6 +153,16 @@ function resolveUsageQuantity(
   return 0
 }
 
+function shouldUsageApplyToVariant(
+  usage: { variantColor?: string | null },
+  variantColor?: string | null,
+): boolean {
+  const scopedColor = usage.variantColor?.trim()
+  if (!scopedColor) return true
+  if (!variantColor?.trim()) return false
+  return normalizeVariantKey(scopedColor) === normalizeVariantKey(variantColor)
+}
+
 function resolveUsageCostFactor(
   usage: { notes?: string | null },
   variantColor?: string | null,
@@ -181,6 +191,7 @@ function resolveUsageCostFactor(
 export function calculateMaterialsCostFromUsages(
   usages: Array<{
     quantity: number
+    variantColor?: string | null
     notes?: string | null
     material: { unitCostUAH: number }
   }>,
@@ -190,6 +201,7 @@ export function calculateMaterialsCostFromUsages(
 
   return roundUAH(
     usages.reduce((sum, usage) => {
+      if (!shouldUsageApplyToVariant(usage, variantColor)) return sum
       const quantity = resolveUsageQuantity(usage, variantColor)
       const factor = resolveUsageCostFactor(usage, variantColor)
       return sum + quantity * Math.max(0, usage.material.unitCostUAH) * factor
@@ -205,6 +217,7 @@ export function buildManagedUnitCostUAH(input: {
   } | null
   materialUsages?: Array<{
     quantity: number
+    variantColor?: string | null
     notes?: string | null
     material: { unitCostUAH: number }
   }>

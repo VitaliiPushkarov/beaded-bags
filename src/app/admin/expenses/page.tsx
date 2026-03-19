@@ -3,8 +3,28 @@ import Link from 'next/link'
 import { revalidatePath } from 'next/cache'
 import { z } from 'zod'
 
-import { formatDate, formatUAH, toDateInputValue } from '@/lib/admin-finance'
 import ConfirmSubmitButton from '@/components/admin/ConfirmSubmitButton'
+import { Button, buttonVariants } from '@/components/ui/button'
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from '@/components/ui/card'
+import { Input } from '@/components/ui/input'
+import { Label } from '@/components/ui/label'
+import { Select } from '@/components/ui/select'
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from '@/components/ui/table'
+import { Textarea } from '@/components/ui/textarea'
+import { formatDate, formatUAH, toDateInputValue } from '@/lib/admin-finance'
 import { prisma } from '@/lib/prisma'
 
 export const dynamic = 'force-dynamic'
@@ -178,99 +198,99 @@ export default async function AdminExpensesPage({ searchParams }: PageProps) {
         </p>
       </div>
 
-      <section className="rounded border bg-white p-4 sm:p-6">
-        <h2 className="mb-4 text-lg font-medium">Нова витрата</h2>
-        <form action={createExpense} className="grid gap-4 sm:grid-cols-2">
-          <label className="block text-sm font-medium">
-            Назва
-            <input
-              name="title"
-              required
-              className="mt-2 w-full rounded-lg border px-3 py-2 text-sm"
-            />
-          </label>
+      <Card>
+        <CardHeader>
+          <CardTitle>Нова витрата</CardTitle>
+          <CardDescription>Додай операційну витрату для обліку.</CardDescription>
+        </CardHeader>
+        <CardContent>
+          <form action={createExpense} className="grid gap-4 sm:grid-cols-2">
+            <div className="space-y-1.5">
+              <Label htmlFor="expense-title">Назва</Label>
+              <Input id="expense-title" name="title" required />
+            </div>
 
-          <label className="block text-sm font-medium">
-            Категорія
-            <select
-              name="category"
-              required
-              className="mt-2 w-full rounded-lg border px-3 py-2 text-sm"
-              defaultValue={ExpenseCategory.OTHER}
-            >
-              {Object.entries(CATEGORY_LABELS).map(([value, label]) => (
-                <option key={value} value={value}>
-                  {label}
-                </option>
-              ))}
-            </select>
-          </label>
+            <div className="space-y-1.5">
+              <Label htmlFor="expense-category">Категорія</Label>
+              <Select
+                id="expense-category"
+                name="category"
+                required
+                defaultValue={ExpenseCategory.OTHER}
+              >
+                {Object.entries(CATEGORY_LABELS).map(([value, label]) => (
+                  <option key={value} value={value}>
+                    {label}
+                  </option>
+                ))}
+              </Select>
+            </div>
 
-          <label className="block text-sm font-medium">
-            Сума, грн
-            <input
-              name="amountUAH"
-              type="number"
-              min="0"
-              required
-              className="mt-2 w-full rounded-lg border px-3 py-2 text-sm"
-            />
-          </label>
+            <div className="space-y-1.5">
+              <Label htmlFor="expense-amount">Сума, грн</Label>
+              <Input
+                id="expense-amount"
+                name="amountUAH"
+                type="number"
+                min="0"
+                required
+              />
+            </div>
 
-          <label className="block text-sm font-medium">
-            Дата
-            <input
-              name="expenseDate"
-              type="date"
-              defaultValue={toDateInputValue(new Date())}
-              required
-              className="mt-2 w-full rounded-lg border px-3 py-2 text-sm"
-            />
-          </label>
+            <div className="space-y-1.5">
+              <Label htmlFor="expense-date">Дата</Label>
+              <Input
+                id="expense-date"
+                name="expenseDate"
+                type="date"
+                defaultValue={toDateInputValue(new Date())}
+                required
+              />
+            </div>
 
-          <label className="block text-sm font-medium sm:col-span-2">
-            Нотатки
-            <textarea
-              name="notes"
-              className="mt-2 min-h-24 w-full rounded-lg border px-3 py-2 text-sm"
-            />
-          </label>
+            <div className="space-y-1.5 sm:col-span-2">
+              <Label htmlFor="expense-notes">Нотатки</Label>
+              <Textarea id="expense-notes" name="notes" className="min-h-24" />
+            </div>
 
-          <div className="sm:col-span-2">
-            <button className="inline-flex items-center justify-center rounded bg-black px-4 py-2 text-sm text-white hover:bg-[#FF3D8C]">
-              Додати витрату
-            </button>
-          </div>
-        </form>
-      </section>
+            <div className="sm:col-span-2">
+              <Button type="submit">Додати витрату</Button>
+            </div>
+          </form>
+        </CardContent>
+      </Card>
 
-      <section className="overflow-hidden rounded border bg-white">
-        <div className="space-y-4 border-b p-4">
+      <Card className="overflow-hidden">
+        <CardHeader className="border-b border-slate-200">
           <div className="flex items-center justify-between gap-4">
-            <h2 className="text-lg font-medium">Журнал витрат</h2>
+            <CardTitle>Журнал витрат</CardTitle>
             <div className="text-sm text-gray-600">
-              Разом: <span className="font-medium text-gray-900">{formatUAH(totalExpenses)}</span>
+              Разом:{' '}
+              <span className="font-medium text-gray-900">
+                {formatUAH(totalExpenses)}
+              </span>
             </div>
           </div>
-
+        </CardHeader>
+        <CardContent className="space-y-4 pt-6">
           <form method="get" className="grid gap-3 sm:grid-cols-2 xl:grid-cols-6">
-            <label className="text-sm font-medium xl:col-span-2">
-              Пошук
-              <input
+            <div className="space-y-1.5 xl:col-span-2">
+              <Label htmlFor="expense-search">Пошук</Label>
+              <Input
+                id="expense-search"
                 type="search"
                 name="q"
                 defaultValue={query}
                 placeholder="Назва або нотатки"
-                className="mt-2 w-full rounded-lg border px-3 py-2 text-sm"
               />
-            </label>
+            </div>
 
-            <label className="text-sm font-medium">
-              Категорія
-              <select
+            <div className="space-y-1.5">
+              <Label htmlFor="expense-filter-category">Категорія</Label>
+              <Select
+                id="expense-filter-category"
                 name="category"
                 defaultValue={category ?? ''}
-                className="mt-2 w-full rounded-lg border px-3 py-2 text-sm"
               >
                 <option value="">Усі</option>
                 {Object.entries(CATEGORY_LABELS).map(([value, label]) => (
@@ -278,103 +298,98 @@ export default async function AdminExpensesPage({ searchParams }: PageProps) {
                     {label}
                   </option>
                 ))}
-              </select>
-            </label>
+              </Select>
+            </div>
 
-            <label className="text-sm font-medium">
-              Від
-              <input
+            <div className="space-y-1.5">
+              <Label htmlFor="expense-from">Від</Label>
+              <Input
+                id="expense-from"
                 type="date"
                 name="from"
                 defaultValue={fromInputValue}
-                className="mt-2 w-full rounded-lg border px-3 py-2 text-sm"
               />
-            </label>
+            </div>
 
-            <label className="text-sm font-medium">
-              До
-              <input
+            <div className="space-y-1.5">
+              <Label htmlFor="expense-to">До</Label>
+              <Input
+                id="expense-to"
                 type="date"
                 name="to"
                 defaultValue={toInputValue}
-                className="mt-2 w-full rounded-lg border px-3 py-2 text-sm"
               />
-            </label>
+            </div>
 
-            <label className="text-sm font-medium">
-              Сортувати
-              <select
-                name="sort"
-                defaultValue={sort}
-                className="mt-2 w-full rounded-lg border px-3 py-2 text-sm"
-              >
+            <div className="space-y-1.5">
+              <Label htmlFor="expense-sort">Сортувати</Label>
+              <Select id="expense-sort" name="sort" defaultValue={sort}>
                 <option value="date">Дата</option>
                 <option value="amount">Сума</option>
                 <option value="title">Назва</option>
                 <option value="category">Категорія</option>
-              </select>
-            </label>
+              </Select>
+            </div>
 
-            <label className="text-sm font-medium">
-              Напрям
-              <select
-                name="dir"
-                defaultValue={dir}
-                className="mt-2 w-full rounded-lg border px-3 py-2 text-sm"
-              >
+            <div className="space-y-1.5">
+              <Label htmlFor="expense-dir">Напрям</Label>
+              <Select id="expense-dir" name="dir" defaultValue={dir}>
                 <option value="desc">За спаданням</option>
                 <option value="asc">За зростанням</option>
-              </select>
-            </label>
+              </Select>
+            </div>
 
             <div className="flex items-end gap-3 sm:col-span-2 xl:col-span-6">
-              <button className="inline-flex items-center justify-center rounded bg-black px-4 py-2 text-sm text-white hover:bg-[#FF3D8C]">
-                Застосувати
-              </button>
+              <Button type="submit">Застосувати</Button>
               <Link
                 href="/admin/expenses"
-                className="inline-flex items-center justify-center rounded border px-4 py-2 text-sm"
+                className={buttonVariants({ variant: 'outline' })}
               >
                 Скинути
               </Link>
               <div className="text-sm text-gray-600">
-                Записів: <span className="font-medium text-gray-900">{sortedExpenses.length}</span>
+                Записів:{' '}
+                <span className="font-medium text-gray-900">
+                  {sortedExpenses.length}
+                </span>
               </div>
             </div>
           </form>
-        </div>
 
-        {sortedExpenses.length === 0 ? (
-          <div className="p-4 text-sm text-gray-600">
-            За поточними фільтрами витрат не знайдено.
-          </div>
-        ) : (
-          <div className="overflow-x-auto">
-            <table className="min-w-full text-sm">
-              <thead className="bg-gray-50">
-                <tr>
-                  <th className="p-3 text-left">Дата</th>
-                  <th className="p-3 text-left">Категорія</th>
-                  <th className="p-3 text-left">Назва</th>
-                  <th className="p-3 text-right">Сума</th>
-                  <th className="p-3 text-right">Дії</th>
-                </tr>
-              </thead>
-              <tbody>
+          {sortedExpenses.length === 0 ? (
+            <div className="text-sm text-gray-600">
+              За поточними фільтрами витрат не знайдено.
+            </div>
+          ) : (
+            <Table>
+              <TableHeader>
+                <TableRow className="hover:bg-transparent">
+                  <TableHead>Дата</TableHead>
+                  <TableHead>Категорія</TableHead>
+                  <TableHead>Назва</TableHead>
+                  <TableHead className="text-right">Сума</TableHead>
+                  <TableHead className="text-right">Дії</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
                 {sortedExpenses.map((expense) => (
-                  <tr key={expense.id} className="border-t">
-                    <td className="whitespace-nowrap p-3">
+                  <TableRow key={expense.id}>
+                    <TableCell className="whitespace-nowrap">
                       {formatDate(expense.expenseDate)}
-                    </td>
-                    <td className="p-3">{CATEGORY_LABELS[expense.category]}</td>
-                    <td className="p-3">
+                    </TableCell>
+                    <TableCell>{CATEGORY_LABELS[expense.category]}</TableCell>
+                    <TableCell>
                       <div className="font-medium">{expense.title}</div>
                       {expense.notes ? (
-                        <div className="mt-1 text-xs text-gray-500">{expense.notes}</div>
+                        <div className="mt-1 text-xs text-gray-500">
+                          {expense.notes}
+                        </div>
                       ) : null}
-                    </td>
-                    <td className="p-3 text-right">{formatUAH(expense.amountUAH)}</td>
-                    <td className="p-3 text-right">
+                    </TableCell>
+                    <TableCell className="text-right">
+                      {formatUAH(expense.amountUAH)}
+                    </TableCell>
+                    <TableCell className="text-right">
                       <form action={deleteExpense}>
                         <input type="hidden" name="id" value={expense.id} />
                         <ConfirmSubmitButton
@@ -384,14 +399,14 @@ export default async function AdminExpensesPage({ searchParams }: PageProps) {
                           Видалити
                         </ConfirmSubmitButton>
                       </form>
-                    </td>
-                  </tr>
+                    </TableCell>
+                  </TableRow>
                 ))}
-              </tbody>
-            </table>
-          </div>
-        )}
-      </section>
+              </TableBody>
+            </Table>
+          )}
+        </CardContent>
+      </Card>
     </div>
   )
 }

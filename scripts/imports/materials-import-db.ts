@@ -1,6 +1,6 @@
 import path from 'node:path'
 
-import { PrismaClient } from '@prisma/client'
+import { MaterialCategory, PrismaClient } from '@prisma/client'
 import * as XLSX from 'xlsx'
 
 import { DEFAULT_SOURCE, getArgValue, hasFlag, loadProjectEnv } from './helpers'
@@ -210,10 +210,16 @@ async function main() {
   const prisma = new PrismaClient()
   try {
     const existing = await prisma.material.findMany({
+      where: {
+        category: MaterialCategory.HARDWARE,
+        color: '',
+      },
       select: { id: true, name: true },
     })
 
-    const existingByName = new Map(existing.map((item) => [item.name.toLowerCase(), item]))
+    const existingByName = new Map(
+      existing.map((item) => [item.name.toLowerCase(), item]),
+    )
 
     let creates = 0
     let updates = 0
@@ -249,9 +255,17 @@ async function main() {
     await prisma.$transaction(
       aggregated.map((row) =>
         prisma.material.upsert({
-          where: { name: row.name },
+          where: {
+            name_category_color: {
+              name: row.name,
+              category: MaterialCategory.HARDWARE,
+              color: '',
+            },
+          },
           create: {
             name: row.name,
+            category: MaterialCategory.HARDWARE,
+            color: '',
             unit: row.unit,
             stockQty: row.stockQty,
             unitCostUAH: row.unitCostUAH,

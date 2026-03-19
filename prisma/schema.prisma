@@ -62,6 +62,15 @@ enum ExpenseCategory {
   OTHER
 }
 
+enum MaterialCategory {
+  BEADS
+  THREADS
+  STRAPS
+  FABRIC
+  HARDWARE
+  CORDS
+}
+
 enum PurchaseStatus {
   DRAFT
   ORDERED
@@ -133,7 +142,9 @@ model ProductInventory {
 
 model Material {
   id            String            @id @default(cuid())
-  name          String            @unique
+  name          String
+  category      MaterialCategory  @default(HARDWARE)
+  color         String            @default("")
   unit          String            @default("pcs")
   stockQty      Float             @default(0)
   unitCostUAH   Float             @default(0)
@@ -143,6 +154,10 @@ model Material {
 
   productUsages ProductMaterial[]
   batchUsages   ProductionBatchMaterial[]
+
+  @@unique([name, category, color])
+  @@index([category])
+  @@index([name])
 }
 
 model PackagingTemplate {
@@ -201,6 +216,7 @@ model ProductMaterial {
   id         String   @id @default(cuid())
   productId  String
   materialId String
+  variantColor String @default("")
   product    Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
   material   Material @relation(fields: [materialId], references: [id], onDelete: Restrict)
   quantity   Float
@@ -208,9 +224,10 @@ model ProductMaterial {
   createdAt  DateTime @default(now())
   updatedAt  DateTime @updatedAt
 
-  @@unique([productId, materialId])
+  @@unique([productId, materialId, variantColor])
   @@index([productId])
   @@index([materialId])
+  @@index([productId, variantColor])
 }
 
 model ProductVariant {

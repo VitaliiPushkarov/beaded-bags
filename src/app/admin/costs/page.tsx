@@ -251,6 +251,7 @@ export default async function AdminCostsPage({ searchParams }: PageProps) {
       materialUsages: {
         select: {
           quantity: true,
+          variantColor: true,
           notes: true,
           material: {
             select: {

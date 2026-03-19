@@ -2,14 +2,40 @@ import Link from 'next/link'
 import { revalidatePath } from 'next/cache'
 import { z } from 'zod'
 import { ChevronDown } from 'lucide-react'
+import { MaterialCategory } from '@prisma/client'
 
+import MaterialsBulkCreateForm from '@/components/admin/MaterialsBulkCreateForm'
+import { Badge } from '@/components/ui/badge'
+import { buttonVariants } from '@/components/ui/button'
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from '@/components/ui/card'
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from '@/components/ui/table'
 import { formatUAH } from '@/lib/admin-finance'
 import ConfirmSubmitButton from '@/components/admin/ConfirmSubmitButton'
 import { TYPE_LABELS } from '@/lib/labels'
 import {
   DEFAULT_PACKAGING_TEMPLATE_PRESETS,
 } from '@/lib/management-accounting'
+import {
+  getMaterialCategoryLabel,
+  materialCategoryToSlug,
+  MATERIAL_CATEGORIES,
+  getMaterialCategoryDefaultUnit,
+} from '@/lib/material-categories'
 import { prisma } from '@/lib/prisma'
+import { cn } from '@/lib/utils'
 
 export const dynamic = 'force-dynamic'
 
@@ -24,19 +50,17 @@ type PageProps = {
 
 type InventoryView = 'overview' | 'products' | 'packaging' | 'materials'
 
-const MaterialSchema = z.object({
+const MaterialBulkItemSchema = z.object({
   name: z.string().trim().min(2),
-  unit: z.string().trim().min(1).max(20).default('pcs'),
+  category: z.nativeEnum(MaterialCategory),
+  unit: z.string().trim().min(1).max(20),
+  color: z.string().trim().max(80).default(''),
   stockQty: z.coerce.number().min(0).default(0),
   unitCostUAH: z.coerce.number().min(0).default(0),
-  notes: z.string().trim().optional(),
 })
 
-const UpdateMaterialSchema = z.object({
-  id: z.string().min(1),
-  stockQty: z.coerce.number().min(0).default(0),
-  unitCostUAH: z.coerce.number().min(0).default(0),
-  notes: z.string().trim().optional(),
+const MaterialBulkPayloadSchema = z.object({
+  items: z.array(MaterialBulkItemSchema).min(1).max(50),
 })
 
 const VariantInventorySchema = z.object({
@@ -128,62 +152,67 @@ export default async function InventoryPageView({
     return `/admin/inventory/products/${productId}/variants/${variantId}`
   }
 
-  async function createMaterial(formData: FormData) {
+  async function createMaterialsBulk(formData: FormData) {
     'use server'
 
-    const parsed = MaterialSchema.safeParse({
-      name: formData.get('name'),
-      unit: formData.get('unit'),
-      stockQty: formData.get('stockQty'),
-      unitCostUAH: formData.get('unitCostUAH'),
-      notes: formData.get('notes'),
-    })
+    const rawPayload = String(formData.get('payload') || '')
+    let decodedPayload: unknown = null
 
-    if (!parsed.success) {
-      throw new Error('Не вдалося створити матеріал')
+    try {
+      decodedPayload = JSON.parse(rawPayload)
+    } catch {
+      throw new Error('Некоректний формат пакету матеріалів')
     }
 
-    await prisma.material.create({
-      data: {
-        name: parsed.data.name,
-        unit: parsed.data.unit,
-        stockQty: parsed.data.stockQty,
-        unitCostUAH: parsed.data.unitCostUAH,
-        notes: parsed.data.notes || null,
-      },
-    })
+    const parsed = MaterialBulkPayloadSchema.safeParse(decodedPayload)
+
+    if (!parsed.success) {
+      throw new Error('Не вдалося створити матеріали')
+    }
+
+    const uniqueKeys = new Set<string>()
+    for (const item of parsed.data.items) {
+      const dedupeKey = `${item.name.toLowerCase()}::${item.category}::${item.color.toLowerCase()}`
+      if (uniqueKeys.has(dedupeKey)) {
+        throw new Error('У формі є дублікати матеріалів з однаковими категорією і кольором')
+      }
+      uniqueKeys.add(dedupeKey)
+    }
+
+    await prisma.$transaction(
+      parsed.data.items.map((item) =>
+        prisma.material.upsert({
+          where: {
+            name_category_color: {
+              name: item.name,
+              category: item.category,
+              color: item.color,
+            },
+          },
+          create: {
+            name: item.name,
+            category: item.category,
+            color: item.color,
+            unit: item.unit,
+            stockQty: item.stockQty,
+            unitCostUAH: item.unitCostUAH,
+          },
+          update: {
+            unit: item.unit,
+            stockQty: item.stockQty,
+            unitCostUAH: item.unitCostUAH,
+          },
+        }),
+      ),
+    )
 
     revalidateInventoryViews()
     revalidatePath('/admin/costs')
     revalidatePath('/admin/finance')
-  }
-
-  async function updateMaterial(formData: FormData) {
-    'use server'
-
-    const parsed = UpdateMaterialSchema.safeParse({
-      id: formData.get('id'),
-      stockQty: formData.get('stockQty'),
-      unitCostUAH: formData.get('unitCostUAH'),
-      notes: formData.get('notes'),
-    })
-
-    if (!parsed.success) {
-      throw new Error('Не вдалося оновити матеріал')
+    revalidatePath('/admin/inventory/materials')
+    for (const category of MATERIAL_CATEGORIES) {
+      revalidatePath(`/admin/inventory/materials/${materialCategoryToSlug(category)}`)
     }
-
-    await prisma.material.update({
-      where: { id: parsed.data.id },
-      data: {
-        stockQty: parsed.data.stockQty,
-        unitCostUAH: parsed.data.unitCostUAH,
-        notes: parsed.data.notes || null,
-      },
-    })
-
-    revalidateInventoryViews()
-    revalidatePath('/admin/costs')
-    revalidatePath('/admin/finance')
   }
 
   async function createPackagingTemplate(formData: FormData) {
@@ -351,27 +380,6 @@ export default async function InventoryPageView({
     })
 
     revalidateInventoryViews()
-  }
-
-  async function deleteMaterial(formData: FormData) {
-    'use server'
-
-    const id = String(formData.get('id') || '')
-    if (!id) return
-
-    await prisma.$transaction(async (tx) => {
-      await tx.productMaterial.deleteMany({
-        where: { materialId: id },
-      })
-
-      await tx.material.delete({
-        where: { id },
-      })
-    })
-
-    revalidateInventoryViews()
-    revalidatePath('/admin/costs')
-    revalidatePath('/admin/finance')
   }
 
   if (view === 'overview') {
@@ -666,6 +674,25 @@ export default async function InventoryPageView({
     (sum, material) => sum + material._count.productUsages,
     0,
   )
+  const materialStatsByCategory = materials.reduce(
+    (acc, material) => {
+      const current = acc.get(material.category) ?? {
+        positions: 0,
+        totalStockQty: 0,
+      }
+      current.positions += 1
+      current.totalStockQty += material.stockQty
+      acc.set(material.category, current)
+      return acc
+    },
+    new Map<
+      MaterialCategory,
+      {
+        positions: number
+        totalStockQty: number
+      }
+    >(),
+  )
 
   return (
     <div className="space-y-6">
@@ -739,173 +766,98 @@ export default async function InventoryPageView({
 
       {showMaterialsSection ? (
         <>
-          <section className="rounded border bg-white p-4 sm:p-6">
-            <h2 className="mb-4 text-lg font-medium">Новий матеріал</h2>
-            <form
-              action={createMaterial}
-              className="grid gap-4 sm:grid-cols-2 xl:grid-cols-5"
-            >
-              <label className="block text-sm font-medium xl:col-span-2">
-                Назва
-                <input
-                  name="name"
-                  required
-                  className="mt-2 w-full rounded-lg border px-3 py-2 text-sm"
-                />
-              </label>
+          <Card>
+            <CardHeader>
+              <CardTitle>Додати нові матеріали</CardTitle>
+              <CardDescription>
+                Один матеріал може мати кілька кольорових варіантів з різною
+                ціною та залишком.
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <MaterialsBulkCreateForm
+                action={createMaterialsBulk}
+                categories={MATERIAL_CATEGORIES.map((category) => ({
+                  value: category,
+                  label: getMaterialCategoryLabel(category),
+                  defaultUnit: getMaterialCategoryDefaultUnit(category),
+                }))}
+              />
+            </CardContent>
+          </Card>
 
-              <label className="block text-sm font-medium">
-                Одиниця
-                <input
-                  name="unit"
-                  defaultValue="гр"
-                  className="mt-2 w-full rounded-lg border px-3 py-2 text-sm"
-                />
-              </label>
+          <Card className="overflow-hidden">
+            <CardHeader className="border-b border-slate-200">
+              <CardTitle>Категорії матеріалів</CardTitle>
+              <CardDescription>
+                Вибери категорію, щоб перейти до детального списку матеріалів,
+                пошуку і редагування.
+              </CardDescription>
+            </CardHeader>
 
-              <label className="block text-sm font-medium">
-                Залишок
-                <input
-                  name="stockQty"
-                  type="number"
-                  min="0"
-                  step="0.001"
-                  defaultValue="0"
-                  className="mt-2 w-full rounded-lg border px-3 py-2 text-sm"
-                />
-              </label>
-
-              <label className="block text-sm font-medium">
-                Ціна за 1 од., грн
-                <input
-                  name="unitCostUAH"
-                  type="number"
-                  min="0"
-                  step="0.001"
-                  defaultValue="0"
-                  className="mt-2 w-full rounded-lg border px-3 py-2 text-sm"
-                />
-              </label>
-
-              <label className="block text-sm font-medium xl:col-span-5">
-                Нотатки
-                <textarea
-                  name="notes"
-                  className="mt-2 min-h-24 w-full rounded-lg border px-3 py-2 text-sm"
-                />
-              </label>
-
-              <div className="xl:col-span-5">
-                <button className="inline-flex items-center justify-center rounded bg-black px-4 py-2 text-sm text-white hover:bg-[#FF3D8C]">
-                  Додати матеріал
-                </button>
-              </div>
-            </form>
-          </section>
-
-          <section className="overflow-hidden rounded border bg-white">
-            <div className="border-b p-4">
-              <h2 className="text-lg font-medium">Матеріали</h2>
-            </div>
-
-            {materials.length === 0 ? (
-              <div className="p-4 text-sm text-gray-600">
-                Ще немає жодного матеріалу.
-              </div>
-            ) : (
-              <div className="overflow-x-auto">
-                <table className="min-w-full text-sm">
-                  <thead className="bg-gray-50">
-                    <tr>
-                      <th className="p-3 text-left">Матеріал</th>
-                      <th className="p-3 text-left">Од.</th>
-                      <th className="p-3 text-right">Ціна за 1 од.</th>
-                      <th className="p-3 text-right">Залишок</th>
-                      <th className="p-3 text-right">Товарів використовують</th>
-                      <th className="p-3 text-right">Видалити</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {materials.map((material) => {
-                      const formId = `material-update-${material.id}`
-
+            <CardContent className="p-0">
+              {MATERIAL_CATEGORIES.length === 0 ? (
+                <div className="p-6 text-sm text-gray-600">
+                  Категорії ще не налаштовані.
+                </div>
+              ) : (
+                <Table>
+                  <TableHeader>
+                    <TableRow className="hover:bg-transparent">
+                      <TableHead>Категорія</TableHead>
+                      <TableHead>Одиниця за замовчуванням</TableHead>
+                      <TableHead className="text-right">Позицій</TableHead>
+                      <TableHead className="text-right">Залишок</TableHead>
+                      <TableHead className="text-right">Перехід</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {MATERIAL_CATEGORIES.map((category) => {
+                      const stats = materialStatsByCategory.get(category) ?? {
+                        positions: 0,
+                        totalStockQty: 0,
+                      }
+                      const categoryHref = `/admin/inventory/materials/${materialCategoryToSlug(
+                        category,
+                      )}`
                       return (
-                        <tr key={material.id} className="border-t align-top">
-                          <td className="p-3">
-                            <div className="font-medium">{material.name}</div>
-                            {material.notes ? (
-                              <div className="mt-1 text-xs text-gray-500">
-                                {material.notes}
-                              </div>
-                            ) : null}
-                          </td>
-                          <td className="p-3">{material.unit}</td>
-                          <td className="p-3 text-right">
-                            <input
-                              form={formId}
-                              name="unitCostUAH"
-                              type="number"
-                              min="0"
-                              step="0.001"
-                              defaultValue={material.unitCostUAH}
-                              className="w-36 rounded border px-3 py-2 text-sm text-right"
-                            />
-                          </td>
-                          <td className="p-3 text-right">
-                            <form
-                              id={formId}
-                              action={updateMaterial}
-                              className="inline-flex items-center justify-end gap-2"
+                        <TableRow key={category}>
+                          <TableCell className="font-medium">
+                            {getMaterialCategoryLabel(category)}
+                          </TableCell>
+                          <TableCell>
+                            <Badge variant="secondary">
+                              {getMaterialCategoryDefaultUnit(category)}
+                            </Badge>
+                          </TableCell>
+                          <TableCell className="text-right">
+                            {formatQuantity(stats.positions)}
+                          </TableCell>
+                          <TableCell className="text-right">
+                            {formatQuantity(stats.totalStockQty)}
+                          </TableCell>
+                          <TableCell className="text-right">
+                            <Link
+                              href={categoryHref}
+                              className={cn(
+                                buttonVariants({
+                                  variant: 'outline',
+                                  size: 'sm',
+                                }),
+                                'h-8',
+                              )}
                             >
-                              <input
-                                type="hidden"
-                                name="id"
-                                value={material.id}
-                              />
-                              <input
-                                name="stockQty"
-                                type="number"
-                                min="0"
-                                step="0.001"
-                                defaultValue={material.stockQty}
-                                className="w-32 rounded border px-3 py-2 text-sm text-right"
-                              />
-                              <input
-                                type="hidden"
-                                name="notes"
-                                defaultValue={material.notes ?? ''}
-                              />
-                              <button className="inline-flex items-center justify-center rounded bg-black px-3 py-2 text-xs text-white hover:bg-[#FF3D8C]">
-                                Зберегти
-                              </button>
-                            </form>
-                          </td>
-                          <td className="p-3 text-right">
-                            {material._count.productUsages}
-                          </td>
-                          <td className="p-3 text-right">
-                            <form action={deleteMaterial}>
-                              <input
-                                type="hidden"
-                                name="id"
-                                value={material.id}
-                              />
-                              <ConfirmSubmitButton
-                                confirmMessage={`Видалити матеріал "${material.name}"? Це також прибере його з усіх товарів.`}
-                                className="text-xs text-red-600 hover:underline"
-                              >
-                                Видалити
-                              </ConfirmSubmitButton>
-                            </form>
-                          </td>
-                        </tr>
+                              Відкрити категорію
+                            </Link>
+                          </TableCell>
+                        </TableRow>
                       )
                     })}
-                  </tbody>
-                </table>
-              </div>
-            )}
-          </section>
+                  </TableBody>
+                </Table>
+              )}
+            </CardContent>
+          </Card>
         </>
       ) : null}
 

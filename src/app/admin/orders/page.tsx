@@ -3,6 +3,16 @@ import { revalidatePath } from 'next/cache'
 import { z } from 'zod'
 
 import ManualOrderItemsPicker from '@/components/admin/ManualOrderItemsPicker'
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from '@/components/ui/card'
+import { Input } from '@/components/ui/input'
+import { Label } from '@/components/ui/label'
+import { Select } from '@/components/ui/select'
 import { calcDiscountedPrice } from '@/lib/pricing'
 import { toDateInputValue } from '@/lib/admin-finance'
 import { buildOrderFinancialSnapshot } from '@/lib/finance'
@@ -148,6 +158,7 @@ export default async function AdminOrdersPage() {
             materialUsages: {
               select: {
                 quantity: true,
+                variantColor: true,
                 notes: true,
                 material: {
                   select: {
@@ -366,115 +377,103 @@ export default async function AdminOrdersPage() {
         </p>
       </div>
 
-      <section className="overflow-hidden rounded border bg-white">
-        <div className="border-b bg-gray-50 px-4 py-3">
-          <h2 className="text-lg font-medium">Додати ручне замовлення</h2>
-          <p className="mt-1 text-xs text-gray-500">
-            Обов&apos;язкові поля: <span className="font-medium">Товари у замовленні, Ім&apos;я, Прізвище</span>
-          </p>
-        </div>
+      <Card className="overflow-hidden">
+        <CardHeader className="border-b border-slate-200 bg-slate-50">
+          <CardTitle>Додати ручне замовлення</CardTitle>
+          <CardDescription>
+            Обов&apos;язкові поля: Товари у замовленні, Ім&apos;я, Прізвище.
+          </CardDescription>
+        </CardHeader>
 
-        <form action={createManualOrder} className="space-y-4 p-4">
-          <div className="rounded border bg-slate-50 p-3">
-            <h3 className="text-sm font-semibold text-slate-900">
-              Інформація про замовлення
-            </h3>
+        <CardContent className="space-y-4 pt-6">
+          <form action={createManualOrder} className="space-y-4">
+            <div className="rounded-lg border border-slate-200 bg-slate-50 p-3">
+              <h3 className="text-sm font-semibold text-slate-900">
+                Інформація про замовлення
+              </h3>
 
-            <div className="mt-3 grid gap-3 md:grid-cols-2 xl:grid-cols-4">
-              <label className="block text-xs font-medium text-slate-600">
-                Дата
-                <input
-                  name="orderDate"
-                  type="date"
-                  defaultValue={toDateInputValue(new Date())}
-                  className="mt-1 w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm"
-                />
-              </label>
+              <div className="mt-3 grid gap-3 md:grid-cols-2 xl:grid-cols-4">
+                <div className="space-y-1.5">
+                  <Label htmlFor="order-date">Дата</Label>
+                  <Input
+                    id="order-date"
+                    name="orderDate"
+                    type="date"
+                    defaultValue={toDateInputValue(new Date())}
+                  />
+                </div>
 
-              <label className="block text-xs font-medium text-slate-600">
-                Джерело
-                <select
-                  name="source"
-                  defaultValue=""
-                  className="mt-1 w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm"
-                >
-                  <option value="">Не вказано</option>
-                  {Object.entries(MANUAL_SOURCE_LABELS).map(([key, label]) => (
-                    <option key={key} value={key}>
-                      {label}
-                    </option>
-                  ))}
-                </select>
-              </label>
+                <div className="space-y-1.5">
+                  <Label htmlFor="order-source">Джерело</Label>
+                  <Select id="order-source" name="source" defaultValue="">
+                    <option value="">Не вказано</option>
+                    {Object.entries(MANUAL_SOURCE_LABELS).map(([key, label]) => (
+                      <option key={key} value={key}>
+                        {label}
+                      </option>
+                    ))}
+                  </Select>
+                </div>
 
-              <label className="block text-xs font-medium text-slate-600">
-                Статус
-                <select
-                  name="status"
-                  defaultValue=""
-                  className="mt-1 w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm"
-                >
-                  <option value="">За замовчуванням (Очікує)</option>
-                  {[OrderStatus.PENDING, OrderStatus.PAID, OrderStatus.FULFILLED, OrderStatus.CANCELLED].map((status) => (
-                    <option key={status} value={status}>
-                      {STATUS_LABELS[status]}
-                    </option>
-                  ))}
-                </select>
-              </label>
+                <div className="space-y-1.5">
+                  <Label htmlFor="order-status">Статус</Label>
+                  <Select id="order-status" name="status" defaultValue="">
+                    <option value="">За замовчуванням (Очікує)</option>
+                    {[
+                      OrderStatus.PENDING,
+                      OrderStatus.PAID,
+                      OrderStatus.FULFILLED,
+                      OrderStatus.CANCELLED,
+                    ].map((status) => (
+                      <option key={status} value={status}>
+                        {STATUS_LABELS[status]}
+                      </option>
+                    ))}
+                  </Select>
+                </div>
 
-              <label className="block text-xs font-medium text-slate-600">
-                Оплата
-                <select
-                  name="paymentMethod"
-                  defaultValue=""
-                  className="mt-1 w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm"
-                >
-                  <option value="">За замовчуванням (Післяплата / готівка)</option>
-                  {Object.values(PaymentMethod).map((method) => (
-                    <option key={method} value={method}>
-                      {PAYMENT_METHOD_LABELS[method]}
-                    </option>
-                  ))}
-                </select>
-              </label>
+                <div className="space-y-1.5">
+                  <Label htmlFor="order-payment">Оплата</Label>
+                  <Select id="order-payment" name="paymentMethod" defaultValue="">
+                    <option value="">За замовчуванням (Післяплата / готівка)</option>
+                    {Object.values(PaymentMethod).map((method) => (
+                      <option key={method} value={method}>
+                        {PAYMENT_METHOD_LABELS[method]}
+                      </option>
+                    ))}
+                  </Select>
+                </div>
+              </div>
+
+              <div className="mt-3 grid gap-3 md:grid-cols-3">
+                <div className="space-y-1.5">
+                  <Label htmlFor="order-customer-name">Ім&apos;я *</Label>
+                  <Input id="order-customer-name" name="customerName" required />
+                </div>
+
+                <div className="space-y-1.5">
+                  <Label htmlFor="order-customer-surname">Прізвище *</Label>
+                  <Input
+                    id="order-customer-surname"
+                    name="customerSurname"
+                    required
+                  />
+                </div>
+
+                <div className="space-y-1.5">
+                  <Label htmlFor="order-customer-phone">Телефон</Label>
+                  <Input id="order-customer-phone" name="customerPhone" />
+                </div>
+              </div>
             </div>
 
-            <div className="mt-3 grid gap-3 md:grid-cols-3">
-              <label className="block text-xs font-medium text-slate-600">
-                Ім&apos;я *
-                <input
-                  name="customerName"
-                  required
-                  className="mt-1 w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm"
-                />
-              </label>
-
-              <label className="block text-xs font-medium text-slate-600">
-                Прізвище *
-                <input
-                  name="customerSurname"
-                  required
-                  className="mt-1 w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm"
-                />
-              </label>
-
-              <label className="block text-xs font-medium text-slate-600">
-                Телефон
-                <input
-                  name="customerPhone"
-                  className="mt-1 w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm"
-                />
-              </label>
-            </div>
-          </div>
-
-          <ManualOrderItemsPicker
-            key={manualOrderPickerResetKey}
-            options={variantOptions}
-          />
-        </form>
-      </section>
+            <ManualOrderItemsPicker
+              key={manualOrderPickerResetKey}
+              options={variantOptions}
+            />
+          </form>
+        </CardContent>
+      </Card>
 
       {orders.length === 0 ? (
         <p className="text-sm text-gray-600">

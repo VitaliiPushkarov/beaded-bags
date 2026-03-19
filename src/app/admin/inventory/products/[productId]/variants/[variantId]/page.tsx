@@ -7,6 +7,7 @@ import { ChevronDown, ChevronUp } from 'lucide-react'
 import ConfirmSubmitButton from '@/components/admin/ConfirmSubmitButton'
 import { formatUAH } from '@/lib/admin-finance'
 import { TYPE_LABELS } from '@/lib/labels'
+import { getMaterialCategoryLabel } from '@/lib/material-categories'
 import { prisma } from '@/lib/prisma'
 
 export const dynamic = 'force-dynamic'
@@ -31,6 +32,7 @@ const VariantInventorySchema = z.object({
 const ProductMaterialSchema = z.object({
   productId: z.string().min(1),
   materialId: z.string().min(1),
+  variantColor: z.string().trim().optional(),
   quantity: z.coerce.number().positive(),
   notes: z.string().trim().optional(),
 })
@@ -126,6 +128,7 @@ export default async function AdminInventoryVariantMaterialsPage({
     const parsed = ProductMaterialSchema.safeParse({
       productId: formData.get('productId'),
       materialId: formData.get('materialId'),
+      variantColor: formData.get('variantColor'),
       quantity: formData.get('quantity'),
       notes: formData.get('notes'),
     })
@@ -136,18 +139,21 @@ export default async function AdminInventoryVariantMaterialsPage({
 
     await prisma.productMaterial.upsert({
       where: {
-        productId_materialId: {
+        productId_materialId_variantColor: {
           productId: parsed.data.productId,
           materialId: parsed.data.materialId,
+          variantColor: parsed.data.variantColor?.trim() || '',
         },
       },
       create: {
         productId: parsed.data.productId,
         materialId: parsed.data.materialId,
+        variantColor: parsed.data.variantColor?.trim() || '',
         quantity: parsed.data.quantity,
         notes: parsed.data.notes || null,
       },
       update: {
+        variantColor: parsed.data.variantColor?.trim() || '',
         quantity: parsed.data.quantity,
         notes: parsed.data.notes || null,
       },
@@ -192,11 +198,16 @@ export default async function AdminInventoryVariantMaterialsPage({
             },
           },
           materialUsages: {
-            orderBy: {
-              material: {
-                name: 'asc',
+            orderBy: [
+              {
+                material: {
+                  name: 'asc',
+                },
               },
-            },
+              {
+                variantColor: 'asc',
+              },
+            ],
             include: {
               material: true,
             },
@@ -206,24 +217,42 @@ export default async function AdminInventoryVariantMaterialsPage({
       prisma.material.findMany({
         where: materialQ
           ? {
-              name: {
-                contains: materialQ,
-                mode: 'insensitive',
-              },
+              OR: [
+                {
+                  name: {
+                    contains: materialQ,
+                    mode: 'insensitive',
+                  },
+                },
+                {
+                  color: {
+                    contains: materialQ,
+                    mode: 'insensitive',
+                  },
+                },
+              ],
             }
           : undefined,
-        orderBy: {
-          name: 'asc',
-        },
+        orderBy: [{ name: 'asc' }, { color: 'asc' }],
         take: materialsTake,
       }),
       prisma.material.count({
         where: materialQ
           ? {
-              name: {
-                contains: materialQ,
-                mode: 'insensitive',
-              },
+              OR: [
+                {
+                  name: {
+                    contains: materialQ,
+                    mode: 'insensitive',
+                  },
+                },
+                {
+                  color: {
+                    contains: materialQ,
+                    mode: 'insensitive',
+                  },
+                },
+              ],
             }
           : undefined,
       }),
@@ -238,13 +267,24 @@ export default async function AdminInventoryVariantMaterialsPage({
     return notFound()
   }
 
-  const variantColor = variant.color?.trim() || 'Без кольору'
+  const variantColorRaw = variant.color?.trim() || ''
+  const variantColor = variantColorRaw || 'Без кольору'
   const variantImageUrl =
     variant.images[0]?.url || variant.image || '/img/placeholder.png'
   const variantQty = variant.inventory?.finishedGoodsQty ?? 0
   const variantNotes = variant.inventory?.notes ?? ''
-  const usageByMaterialId = new Map(
-    product.materialUsages.map((usage) => [usage.materialId, usage]),
+  const usageByScopedKey = new Map(
+    product.materialUsages.map((usage) => [
+      `${usage.materialId}::${usage.variantColor}`,
+      usage,
+    ]),
+  )
+  const productVariantColors = Array.from(
+    new Set(
+      product.variants
+        .map((item) => item.color?.trim() || '')
+        .filter((value): value is string => Boolean(value)),
+    ),
   )
 
   return (
@@ -259,8 +299,8 @@ export default async function AdminInventoryVariantMaterialsPage({
           </Link>
           <h1 className="mt-2 text-2xl font-semibold">Матеріали варіанту</h1>
           <p className="mt-1 text-sm text-gray-600">
-            Прив&apos;язка матеріалів зберігається для всього товару, а не
-            окремо по кольору.
+            Для кожного матеріалу можна вказати, до якого кольору варіанту він
+            застосовується.
           </p>
         </div>
       </div>
@@ -340,6 +380,7 @@ export default async function AdminInventoryVariantMaterialsPage({
               <thead className="bg-gray-50">
                 <tr>
                   <th className="p-3 text-left">Матеріал</th>
+                  <th className="p-3 text-left">Застосовується до</th>
                   <th className="p-3 text-right">Кількість</th>
                   <th className="p-3 text-left">Нотатки</th>
                   <th className="p-3 text-right">Дії</th>
@@ -351,6 +392,10 @@ export default async function AdminInventoryVariantMaterialsPage({
                     <td className="p-3">
                       <div className="font-medium">{usage.material.name}</div>
                       <div className="mt-1 text-xs text-gray-500">
+                        {getMaterialCategoryLabel(usage.material.category)}
+                        {usage.material.color ? ` · ${usage.material.color}` : ''}
+                      </div>
+                      <div className="mt-1 text-xs text-gray-500">
                         Залишок: {formatQuantity(usage.material.stockQty)}{' '}
                         {usage.material.unit}
                       </div>
@@ -358,6 +403,15 @@ export default async function AdminInventoryVariantMaterialsPage({
                         Ціна за 1 од.:{' '}
                         {formatMaterialUnitPrice(usage.material.unitCostUAH)}
                       </div>
+                    </td>
+                    <td className="p-3">
+                      {usage.variantColor?.trim() ? (
+                        <span className="inline-flex items-center rounded-full border border-slate-300 bg-slate-50 px-2.5 py-1 text-xs text-slate-700">
+                          {usage.variantColor.trim()}
+                        </span>
+                      ) : (
+                        <span className="text-xs text-gray-500">Усі варіанти</span>
+                      )}
                     </td>
                     <td className="p-3 text-right">
                       {formatQuantity(usage.quantity)} {usage.material.unit}
@@ -436,21 +490,40 @@ export default async function AdminInventoryVariantMaterialsPage({
                   <thead className="bg-gray-50">
                     <tr>
                       <th className="p-3 text-left">Матеріал</th>
+                      <th className="p-3 text-left">Категорія / колір</th>
                       <th className="p-3 text-left">Од.</th>
                       <th className="p-3 text-right">Залишок</th>
                       <th className="p-3 text-right">Ціна за 1 од.</th>
+                      <th className="p-3 text-left">Для варіанту</th>
                       <th className="p-3 text-right">К-сть на 1 шт.</th>
                       <th className="p-3 text-right">Дія</th>
                     </tr>
                   </thead>
                   <tbody>
                     {materials.map((material) => {
-                      const usage = usageByMaterialId.get(material.id)
+                      const usageForCurrentVariant = usageByScopedKey.get(
+                        `${material.id}::${variantColorRaw}`,
+                      )
+                      const usageForAllVariants = usageByScopedKey.get(
+                        `${material.id}::`,
+                      )
+                      const usage = usageForCurrentVariant ?? usageForAllVariants
+                      const defaultVariantScope = usageForCurrentVariant
+                        ? variantColorRaw
+                        : usageForAllVariants
+                          ? ''
+                          : variantColorRaw
                       const formId = `add-material-${material.id}`
                       return (
                         <tr key={material.id} className="border-t">
                           <td className="p-3">
                             <div className="font-medium">{material.name}</div>
+                          </td>
+                          <td className="p-3">
+                            <div>{getMaterialCategoryLabel(material.category)}</div>
+                            <div className="mt-1 text-xs text-gray-500">
+                              {material.color || 'Без кольору'}
+                            </div>
                           </td>
                           <td className="p-3">{material.unit}</td>
                           <td className="p-3 text-right">
@@ -458,6 +531,21 @@ export default async function AdminInventoryVariantMaterialsPage({
                           </td>
                           <td className="p-3 text-right">
                             {formatMaterialUnitPrice(material.unitCostUAH)}
+                          </td>
+                          <td className="p-3">
+                            <select
+                              form={formId}
+                              name="variantColor"
+                              defaultValue={defaultVariantScope}
+                              className="w-44 rounded border px-2 py-1.5 text-xs"
+                            >
+                              <option value="">Усі варіанти</option>
+                              {productVariantColors.map((color) => (
+                                <option key={color} value={color}>
+                                  {color}
+                                </option>
+                              ))}
+                            </select>
                           </td>
                           <td className="p-3 text-right">
                             <form

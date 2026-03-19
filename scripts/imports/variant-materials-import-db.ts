@@ -441,14 +441,16 @@ async function main() {
       upsertRecords.map((record) =>
         prisma.productMaterial.upsert({
           where: {
-            productId_materialId: {
+            productId_materialId_variantColor: {
               productId: record.productId,
               materialId: record.materialId,
+              variantColor: '',
             },
           },
           create: {
             productId: record.productId,
             materialId: record.materialId,
+            variantColor: '',
             quantity: record.quantity,
             notes: record.notes,
           },
