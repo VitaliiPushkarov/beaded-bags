@@ -161,9 +161,9 @@ export default function ProductCardLarge({
                 </>
               )}
             </div>
-            {hasDiscount && (
+            {hasDiscount && p.offerNote?.trim() && (
               <div className="text-[11px] md:text-xs text-gray-600">
-                {p.offerNote?.trim() || 'Пропозиція діє до 15.02.2026'}
+                {p.offerNote.trim()}
               </div>
             )}
           </div>

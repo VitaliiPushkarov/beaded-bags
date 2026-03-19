@@ -80,9 +80,9 @@ export default function ProductCard({ product }: ProductCardProps) {
               </>
             )}
           </div>
-          {hasDiscount && (
+          {hasDiscount && product.offerNote?.trim() && (
             <div className="text-[11px] text-gray-600">
-              {product.offerNote?.trim() || 'Пропозиція діє до 15.02.2026'}
+              {product.offerNote.trim()}
             </div>
           )}
         </div>
