@@ -24,6 +24,21 @@ export default async function AdminProductEditPage({ params }: PageProps) {
             orderBy: { sort: 'asc' },
           },
           addonsOnVariant: {
+            where: {
+              addonVariant: {
+                is: {
+                  inStock: true,
+                  availabilityStatus: 'IN_STOCK',
+                  product: {
+                    is: {
+                      isAddon: true,
+                      status: 'PUBLISHED',
+                      inStock: true,
+                    },
+                  },
+                },
+              },
+            },
             orderBy: { sort: 'asc' },
             include: {
               addonVariant: {
@@ -42,10 +57,22 @@ export default async function AdminProductEditPage({ params }: PageProps) {
   const addonProducts = await prisma.product.findMany({
     where: {
       isAddon: true,
+      status: 'PUBLISHED',
+      inStock: true,
+      variants: {
+        some: {
+          inStock: true,
+          availabilityStatus: 'IN_STOCK',
+        },
+      },
     },
     orderBy: { name: 'asc' },
     include: {
       variants: {
+        where: {
+          inStock: true,
+          availabilityStatus: 'IN_STOCK',
+        },
         orderBy: { id: 'asc' },
         include: {
           images: true,
@@ -93,6 +120,26 @@ export default async function AdminProductEditPage({ params }: PageProps) {
     'use server'
     const { variantId, addonVariantId } = input
     const sort = Number(input.sort ?? 0) || 0
+
+    const availableAddonVariant = await prisma.productVariant.findFirst({
+      where: {
+        id: addonVariantId,
+        inStock: true,
+        availabilityStatus: 'IN_STOCK',
+        product: {
+          is: {
+            isAddon: true,
+            status: 'PUBLISHED',
+            inStock: true,
+          },
+        },
+      },
+      select: { id: true },
+    })
+
+    if (!availableAddonVariant) {
+      throw new Error('Обраний addon недоступний для додавання')
+    }
 
     const rel = await prisma.productVariantAddon.upsert({
       where: {
