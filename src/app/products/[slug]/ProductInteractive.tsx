@@ -313,7 +313,7 @@ export function ProductInteractive({ p }: { p: ProductWithVariants }) {
 
   return (
     <>
-      <section className="mx-auto flex flex-col items-center md:items-stretch md:flex-row md:justify-between gap-4 md:gap-10 mb-[60px] md:px-6">
+      <section className="mx-auto flex flex-col items-center md:items-stretch md:flex-row md:justify-between gap-4 md:gap-10 mb-[60px] ">
         {/* Ліва колонка: карусель */}
         <div className="relative w-full md:w-[66%] h-[420px] md:h-[580px]">
           <div
@@ -340,7 +340,9 @@ export function ProductInteractive({ p }: { p: ProductWithVariants }) {
 
           <div className="mb-1">
             <div className="flex items-baseline gap-2">
-              <div className="text-lg md:text-2xl">{finalPriceWithStrapUAH} ₴</div>
+              <div className="text-lg md:text-2xl">
+                {finalPriceWithStrapUAH} ₴
+              </div>
               {hasDiscount && (
                 <>
                   <div className="text-sm md:text-lg text-gray-500 line-through">

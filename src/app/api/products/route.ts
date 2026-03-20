@@ -167,6 +167,20 @@ export async function GET(req: NextRequest) {
           images: true,
           straps: true,
           addonsOnVariant: {
+            where: {
+              addonVariant: {
+                is: {
+                  inStock: true,
+                  availabilityStatus: 'IN_STOCK',
+                  product: {
+                    is: {
+                      status: 'PUBLISHED',
+                      inStock: true,
+                    },
+                  },
+                },
+              },
+            },
             orderBy: { sort: 'asc' },
             include: {
               addonVariant: {

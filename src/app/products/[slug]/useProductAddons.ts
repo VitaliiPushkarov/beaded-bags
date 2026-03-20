@@ -5,6 +5,7 @@ import {
   ProductVariantAddon,
   ProductVariantImage,
 } from '@prisma/client'
+import { isInStockStatus, resolveAvailabilityStatus } from '@/lib/availability'
 
 export type AddonVariantUI = ProductVariant & {
   product: Product
@@ -34,7 +35,18 @@ export function useProductAddons(v: VariantWithAddons | null) {
       .slice()
       .sort((a, b) => (a.sort ?? 0) - (b.sort ?? 0))
       .map((rel) => rel.addonVariant)
-      .filter(Boolean)
+      .filter((av) => {
+        if (!av) return false
+        if (av.product?.status !== 'PUBLISHED') return false
+        if (!av.product?.inStock) return false
+
+        return isInStockStatus(
+          resolveAvailabilityStatus({
+            availabilityStatus: (av as any).availabilityStatus,
+            inStock: av.inStock,
+          }),
+        )
+      })
 
     const seen = new Set<string>()
     return list.filter((av) => {

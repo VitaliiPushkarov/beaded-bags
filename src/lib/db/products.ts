@@ -30,6 +30,20 @@ const PRODUCT_PAGE_INCLUDE = {
         },
       },
       addonsOnVariant: {
+        where: {
+          addonVariant: {
+            is: {
+              inStock: true,
+              availabilityStatus: 'IN_STOCK',
+              product: {
+                is: {
+                  status: 'PUBLISHED',
+                  inStock: true,
+                },
+              },
+            },
+          },
+        },
         orderBy: { sort: 'asc' },
         include: {
           addonVariant: {
