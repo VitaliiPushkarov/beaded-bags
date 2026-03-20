@@ -1,6 +1,7 @@
 import { prisma } from '@/lib/prisma'
 import type { Prisma, ProductType } from '@prisma/client'
 import type { ProductCardDTO } from '@/lib/product-card-dto'
+import { resolveAvailabilityStatus } from '@/lib/availability'
 
 type GetProductsParams = {
   search?: string
@@ -171,6 +172,32 @@ function buildOrderBy(
   return orderBy
 }
 
+function availabilityPriority(input: {
+  availabilityStatus?: ProductCardDTO['variants'][number]['availabilityStatus'] | null
+  inStock?: boolean | null
+}) {
+  const status = resolveAvailabilityStatus({
+    availabilityStatus: input.availabilityStatus,
+    inStock: input.inStock,
+  })
+
+  if (status === 'IN_STOCK') return 0
+  if (status === 'PREORDER') return 1
+  return 2
+}
+
+function withPrioritizedCatalogVariants(
+  items: ProductCardDTO[],
+): ProductCardDTO[] {
+  return items.map((item) => ({
+    ...item,
+    // Keep existing sortCatalog order inside each availability bucket.
+    variants: [...(item.variants || [])].sort(
+      (a, b) => availabilityPriority(a) - availabilityPriority(b),
+    ),
+  }))
+}
+
 export async function getProductBySlug(slug: string) {
   return prisma.product.findFirst({
     where: {
@@ -266,5 +293,5 @@ export async function getProductsLite(
     select: PRODUCT_CARD_SELECT,
   })
 
-  return items as ProductCardDTO[]
+  return withPrioritizedCatalogVariants(items as ProductCardDTO[])
 }

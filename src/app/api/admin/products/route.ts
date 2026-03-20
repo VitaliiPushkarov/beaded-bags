@@ -156,6 +156,8 @@ export async function POST(req: NextRequest) {
         name: data.name,
         slug: data.slug,
         type: normalizedType,
+        // New products should be immediately available as addon candidates.
+        isAddon: true,
         status: data.status,
         group: data.group ?? null,
         sortCatalog: sanitizeSortCatalog(data.sortCatalog),

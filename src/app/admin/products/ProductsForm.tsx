@@ -128,6 +128,11 @@ type Props = {
     addonVariantId: string
     sort?: number
   }) => Promise<VariantAddonLinkInput>
+  upsertVariantAddonsBatch?: (input: {
+    variantId: string
+    addonVariantIds: string[]
+    sort?: number
+  }) => Promise<VariantAddonLinkInput[]>
   updateVariantAddonSort?: (input: {
     id: string
     sort: number
@@ -157,6 +162,7 @@ export default function ProductForm({
   mode,
   addonVariantOptions,
   upsertVariantAddon,
+  upsertVariantAddonsBatch,
   updateVariantAddonSort,
   deleteVariantAddon,
 }: Props) {
@@ -229,6 +235,9 @@ export default function ProductForm({
     variantIndex: number
     imgIndex: number
   } | null>(null)
+  const [addonSelectionByVariant, setAddonSelectionByVariant] = useState<
+    Record<string, string[]>
+  >({})
 
   // Normalize variant images on edit:
   // - ensure `images` is always an array
@@ -314,6 +323,27 @@ export default function ProductForm({
       return { ...prev, variants: nextVariants }
     })
   }
+
+  const mergeAddonLinks = (
+    existing: VariantAddonLinkInput[],
+    incoming: VariantAddonLinkInput[],
+  ) => {
+    const byAddonVariantId = new Map<string, VariantAddonLinkInput>()
+
+    for (const addon of existing) {
+      byAddonVariantId.set(addon.addonVariantId, addon)
+    }
+    for (const addon of incoming) {
+      byAddonVariantId.set(addon.addonVariantId, addon)
+    }
+
+    return Array.from(byAddonVariantId.values()).sort(
+      (a, b) => (a.sort ?? 0) - (b.sort ?? 0),
+    )
+  }
+
+  const getVariantSelectionKey = (variantId: string | undefined, index: number) =>
+    variantId ? `id:${variantId}` : `idx:${index}`
 
   const setVariantStraps = (
     index: number,
@@ -691,6 +721,23 @@ export default function ProductForm({
         <div className="space-y-3">
           {values.variants.map((v, index) => {
             const images = normalizeImages(v.images)
+            const selectionKey = getVariantSelectionKey(v.id, index)
+            const existingAddonVariantIds = new Set(
+              (v.addons || []).map((addon) => addon.addonVariantId),
+            )
+            const availableAddonVariantOptions = addonVariantOptions
+              ? addonVariantOptions.filter(
+                  (opt) => !existingAddonVariantIds.has(opt.id),
+                )
+              : []
+            const availableAddonVariantIds = new Set(
+              availableAddonVariantOptions.map((opt) => opt.id),
+            )
+            const selectedAddonVariantIds = (
+              addonSelectionByVariant[selectionKey] || []
+            ).filter((addonVariantId) =>
+              availableAddonVariantIds.has(addonVariantId),
+            )
 
             return (
               <div
@@ -1213,50 +1260,106 @@ export default function ProductForm({
                             </div>
                           )}
 
-                          <div className="mt-3 flex items-center gap-2">
-                            <select
-                              className="flex-1 border rounded px-2 py-2 text-sm border-blue-300"
-                              defaultValue=""
-                              onChange={async (e) => {
-                                const selectEl =
-                                  e.currentTarget as HTMLSelectElement
-                                const addonVariantId = selectEl.value
-                                if (!addonVariantId) return
-
-                                try {
-                                  const created = await upsertVariantAddon({
-                                    variantId: v.id as string,
-                                    addonVariantId,
-                                    sort: 0,
-                                  })
-
-                                  const existing = v.addons || []
-                                  const withoutDup = existing.filter(
-                                    (x) =>
-                                      x.addonVariantId !==
-                                      created.addonVariantId,
+                          <div className="mt-3 space-y-2">
+                            <div className="border rounded border-blue-300 p-2 max-h-[240px] overflow-y-auto space-y-1">
+                              {availableAddonVariantOptions.length > 0 ? (
+                                availableAddonVariantOptions.map((opt) => {
+                                  const checked = selectedAddonVariantIds.includes(
+                                    opt.id,
                                   )
-                                  const next = [...withoutDup, created].sort(
-                                    (a, b) => (a.sort ?? 0) - (b.sort ?? 0),
+
+                                  return (
+                                    <label
+                                      key={opt.id}
+                                      className="flex items-start gap-2 rounded px-2 py-1.5 hover:bg-blue-50 cursor-pointer"
+                                    >
+                                      <input
+                                        type="checkbox"
+                                        className="mt-0.5"
+                                        checked={checked}
+                                        onChange={(e) => {
+                                          const isChecked = e.target.checked
+                                          setAddonSelectionByVariant((prev) => {
+                                            const current = (
+                                              prev[selectionKey] || []
+                                            ).filter((id) =>
+                                              availableAddonVariantIds.has(id),
+                                            )
+                                            const next = isChecked
+                                              ? Array.from(
+                                                  new Set([...current, opt.id]),
+                                                )
+                                              : current.filter(
+                                                  (id) => id !== opt.id,
+                                                )
+
+                                            return {
+                                              ...prev,
+                                              [selectionKey]: next,
+                                            }
+                                          })
+                                        }}
+                                      />
+                                      <span className="text-sm">
+                                        {opt.productName}
+                                        {opt.color ? ` — ${opt.color}` : ''} ·{' '}
+                                        {opt.priceUAH} ₴
+                                      </span>
+                                    </label>
+                                  )
+                                })
+                              ) : (
+                                <div className="text-sm text-gray-500">
+                                  Немає доступних addons
+                                </div>
+                              )}
+                            </div>
+
+                            <button
+                              type="button"
+                              className="text-sm px-3 py-2 rounded border border-blue-700 text-blue-700 hover:bg-blue-700 hover:text-white cursor-pointer disabled:opacity-50"
+                              disabled={!selectedAddonVariantIds.length}
+                              onClick={async () => {
+                                if (!selectedAddonVariantIds.length) return
+                                try {
+                                  const created = upsertVariantAddonsBatch
+                                    ? await upsertVariantAddonsBatch({
+                                        variantId: v.id as string,
+                                        addonVariantIds: selectedAddonVariantIds,
+                                        sort: 0,
+                                      })
+                                    : await Promise.all(
+                                        selectedAddonVariantIds.map(
+                                          (addonVariantId) =>
+                                            upsertVariantAddon({
+                                              variantId: v.id as string,
+                                              addonVariantId,
+                                              sort: 0,
+                                            }),
+                                        ),
+                                      )
+
+                                  const next = mergeAddonLinks(
+                                    v.addons || [],
+                                    created,
                                   )
                                   setVariantAddons(index, next)
+                                  setAddonSelectionByVariant((prev) => ({
+                                    ...prev,
+                                    [selectionKey]: [],
+                                  }))
                                 } catch (err) {
                                   console.error(err)
-                                } finally {
-                                  // don't rely on e.currentTarget after awaits
-                                  selectEl.value = ''
                                 }
                               }}
                             >
-                              <option value="">Додати addon variant…</option>
-                              {addonVariantOptions.map((opt) => (
-                                <option key={opt.id} value={opt.id}>
-                                  {opt.productName}
-                                  {opt.color ? ` — ${opt.color}` : ''} ·{' '}
-                                  {opt.priceUAH} ₴
-                                </option>
-                              ))}
-                            </select>
+                              Додати вибрані addons
+                            </button>
+
+                            <div className="text-[11px] text-gray-500">
+                              Вибери один або кілька addons чекбоксами і додай
+                              їх у цей варіант.
+                            </div>
                           </div>
                         </>
                       )}

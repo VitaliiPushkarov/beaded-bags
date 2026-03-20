@@ -9,6 +9,50 @@ type PageProps = {
   params: Promise<{ id: string }>
 }
 
+function mapAddonLink(rel: {
+  id: string
+  sort: number | null
+  addonVariantId: string
+  addonVariant: {
+    color: string | null
+    priceUAH: number | null
+    product: {
+      name: string
+      slug: string
+      basePriceUAH: number | null
+    }
+  }
+}) {
+  return {
+    id: rel.id,
+    sort: rel.sort ?? 0,
+    addonVariantId: rel.addonVariantId,
+    addonProductName: rel.addonVariant.product.name,
+    addonProductSlug: rel.addonVariant.product.slug,
+    addonColor: rel.addonVariant.color ?? '',
+    addonPriceUAH:
+      rel.addonVariant.priceUAH ?? rel.addonVariant.product.basePriceUAH ?? 0,
+  }
+}
+
+async function getAvailableAddonVariant(addonVariantId: string) {
+  return prisma.productVariant.findFirst({
+    where: {
+      id: addonVariantId,
+      inStock: true,
+      availabilityStatus: 'IN_STOCK',
+      product: {
+        is: {
+          isAddon: true,
+          status: 'PUBLISHED',
+          inStock: true,
+        },
+      },
+    },
+    select: { id: true },
+  })
+}
+
 export default async function AdminProductEditPage({ params }: PageProps) {
   const { id } = await params
   const product = await prisma.product.findUnique({
@@ -121,21 +165,15 @@ export default async function AdminProductEditPage({ params }: PageProps) {
     const { variantId, addonVariantId } = input
     const sort = Number(input.sort ?? 0) || 0
 
-    const availableAddonVariant = await prisma.productVariant.findFirst({
-      where: {
-        id: addonVariantId,
-        inStock: true,
-        availabilityStatus: 'IN_STOCK',
-        product: {
-          is: {
-            isAddon: true,
-            status: 'PUBLISHED',
-            inStock: true,
-          },
-        },
-      },
+    const targetVariant = await prisma.productVariant.findFirst({
+      where: { id: variantId, productId: id },
       select: { id: true },
     })
+    if (!targetVariant) {
+      throw new Error('Варіант товару недоступний для редагування')
+    }
+
+    const availableAddonVariant = await getAvailableAddonVariant(addonVariantId)
 
     if (!availableAddonVariant) {
       throw new Error('Обраний addon недоступний для додавання')
@@ -156,16 +194,78 @@ export default async function AdminProductEditPage({ params }: PageProps) {
       },
     })
 
-    return {
-      id: rel.id,
-      sort: rel.sort ?? 0,
-      addonVariantId: rel.addonVariantId,
-      addonProductName: rel.addonVariant.product.name,
-      addonProductSlug: rel.addonVariant.product.slug,
-      addonColor: rel.addonVariant.color ?? '',
-      addonPriceUAH:
-        rel.addonVariant.priceUAH ?? rel.addonVariant.product.basePriceUAH ?? 0,
+    return mapAddonLink(rel)
+  }
+
+  async function upsertVariantAddonsBatch(input: {
+    variantId: string
+    addonVariantIds: string[]
+    sort?: number
+  }) {
+    'use server'
+
+    const variantId = String(input.variantId || '')
+    const sort = Number(input.sort ?? 0) || 0
+    const addonVariantIds = Array.from(
+      new Set(
+        (input.addonVariantIds || []).filter(
+          (id): id is string => typeof id === 'string' && id.length > 0,
+        ),
+      ),
+    )
+
+    if (!variantId || addonVariantIds.length === 0) return []
+
+    const targetVariant = await prisma.productVariant.findFirst({
+      where: { id: variantId, productId: id },
+      select: { id: true },
+    })
+    if (!targetVariant) {
+      throw new Error('Варіант товару недоступний для редагування')
     }
+
+    const availableAddonVariants = await prisma.productVariant.findMany({
+      where: {
+        id: { in: addonVariantIds },
+        inStock: true,
+        availabilityStatus: 'IN_STOCK',
+        product: {
+          is: {
+            isAddon: true,
+            status: 'PUBLISHED',
+            inStock: true,
+          },
+        },
+      },
+      select: { id: true },
+    })
+
+    const availableIds = new Set(availableAddonVariants.map((x) => x.id))
+    const unavailable = addonVariantIds.filter((addonId) => !availableIds.has(addonId))
+    if (unavailable.length > 0) {
+      throw new Error('Деякі обрані addons недоступні для додавання')
+    }
+
+    const rels = await prisma.$transaction(
+      addonVariantIds.map((addonVariantId) =>
+        prisma.productVariantAddon.upsert({
+          where: {
+            variantId_addonVariantId: { variantId, addonVariantId },
+          },
+          create: { variantId, addonVariantId, sort },
+          update: { sort },
+          include: {
+            addonVariant: {
+              include: {
+                product: true,
+              },
+            },
+          },
+        }),
+      ),
+    )
+
+    return rels.map(mapAddonLink)
   }
 
   async function updateVariantAddonSort(input: { id: string; sort: number }) {
@@ -298,6 +398,7 @@ export default async function AdminProductEditPage({ params }: PageProps) {
           initial={initial as any}
           addonVariantOptions={addonVariantOptions}
           upsertVariantAddon={upsertVariantAddon}
+          upsertVariantAddonsBatch={upsertVariantAddonsBatch}
           updateVariantAddonSort={updateVariantAddonSort}
           deleteVariantAddon={deleteVariantAddon}
         />
