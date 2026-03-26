@@ -26,6 +26,23 @@ const StrapSchema = z.object({
   name: z.string().trim().min(1),
   extraPriceUAH: z.coerce.number().int().min(0).optional().default(0),
   sort: z.coerce.number().int().optional().default(0),
+  imageUrl: ImagePath.optional().nullable(),
+})
+
+const PouchSchema = z.object({
+  id: z.string().optional(),
+  color: z.string().trim().min(1),
+  extraPriceUAH: z.coerce.number().int().min(0).optional().default(0),
+  sort: z.coerce.number().int().optional().default(0),
+  imageUrl: ImagePath.optional().nullable(),
+})
+
+const SizeSchema = z.object({
+  id: z.string().optional(),
+  size: z.string().trim().min(1),
+  extraPriceUAH: z.coerce.number().int().min(0).optional().default(0),
+  sort: z.coerce.number().int().optional().default(0),
+  imageUrl: ImagePath.optional().nullable(),
 })
 
 const NullablePriceSchema = z.preprocess(
@@ -58,6 +75,8 @@ const ProductCreateSchema = z.object({
     .array(
       z.object({
         color: z.string().trim().optional().nullable(),
+        modelSize: z.string().trim().optional().nullable(),
+        pouchColor: z.string().trim().optional().nullable(),
         hex: z.string().trim().optional().nullable(),
         // in our project we often store local paths
         image: ImagePath.optional().nullable(),
@@ -73,6 +92,8 @@ const ProductCreateSchema = z.object({
         // Optional per-variant shipping text (e.g. "Відправка протягом 1–3 днів")
         shippingNote: z.string().trim().optional().nullable(),
         straps: z.array(StrapSchema).optional().default([]),
+        pouches: z.array(PouchSchema).optional().default([]),
+        sizes: z.array(SizeSchema).optional().default([]),
       }),
     )
     .min(1, 'At least one variant is required'),
@@ -111,6 +132,8 @@ export async function GET() {
           select: {
             id: true,
             color: true,
+            modelSize: true,
+            pouchColor: true,
             hex: true,
             image: true,
             priceUAH: true,
@@ -177,6 +200,8 @@ export async function POST(req: NextRequest) {
 
             return {
               color: v.color ?? null,
+              modelSize: v.modelSize?.trim() || null,
+              pouchColor: v.pouchColor?.trim() || null,
               hex: v.hex ?? null,
               image: v.image ?? null,
               images: {
@@ -194,6 +219,23 @@ export async function POST(req: NextRequest) {
                   name: s.name,
                   extraPriceUAH: s.extraPriceUAH ?? 0,
                   sort: s.sort ?? strapIdx,
+                  imageUrl: s.imageUrl ?? null,
+                })),
+              },
+              pouches: {
+                create: (v.pouches ?? []).map((pouch, pouchIdx) => ({
+                  color: pouch.color,
+                  extraPriceUAH: pouch.extraPriceUAH ?? 0,
+                  sort: pouch.sort ?? pouchIdx,
+                  imageUrl: pouch.imageUrl ?? null,
+                })),
+              },
+              sizes: {
+                create: (v.sizes ?? []).map((size, sizeIdx) => ({
+                  size: size.size,
+                  extraPriceUAH: size.extraPriceUAH ?? 0,
+                  sort: size.sort ?? sizeIdx,
+                  imageUrl: size.imageUrl ?? null,
                 })),
               },
 

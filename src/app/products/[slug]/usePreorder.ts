@@ -8,6 +8,20 @@ export function usePreorder(params: {
 }) {
   const { product, variant, strapId } = params
 
+  const variantLabel = variant
+    ? [
+        variant.color?.trim() || null,
+        ((variant as any).modelSize as string | null | undefined)?.trim()
+          ? `Розмір: ${String((variant as any).modelSize).trim()}`
+          : null,
+        ((variant as any).pouchColor as string | null | undefined)?.trim()
+          ? `Мішечок: ${String((variant as any).pouchColor).trim()}`
+          : null,
+      ]
+        .filter((x): x is string => Boolean(x))
+        .join(' · ')
+    : ''
+
   const [preorderOpen, setPreorderOpen] = useState(false)
   const [leadName, setLeadName] = useState('')
   const [leadContact, setLeadContact] = useState('')
@@ -65,7 +79,7 @@ export function usePreorder(params: {
       const body = encodeURIComponent(
         `Хочу передзамовити товар.\n\n` +
           `Товар: ${product.name}\n` +
-          `Варіант: ${variant.color ? variant.color : variant.id}\n` +
+          `Варіант: ${variantLabel || variant.id}\n` +
           `Сторінка: ${
             typeof window !== 'undefined' ? window.location.href : ''
           }\n\n` +

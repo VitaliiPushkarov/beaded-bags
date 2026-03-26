@@ -1,10 +1,11 @@
 'use client'
-import { useState, useEffect, useMemo } from 'react'
+import { useState, useEffect, useMemo, useRef, useCallback } from 'react'
 import Image from 'next/image'
 import { Gallery, Item } from 'react-photoswipe-gallery'
 
 import { Swiper, SwiperSlide } from 'swiper/react'
 import { Navigation } from 'swiper/modules'
+import type { Swiper as SwiperType } from 'swiper'
 
 import 'swiper/css'
 import 'swiper/css/navigation'
@@ -17,46 +18,116 @@ type PhotoGalleryProps = {
 export default function PhotoGallery({ images }: PhotoGalleryProps) {
   const placeholder = '/img/placeholder.png'
   const list = useMemo(() => (images.length ? images : [placeholder]), [images])
-  const [sizes, setSizes] = useState<{ w: number; h: number }[]>([])
+  const hasMultipleImages = list.length > 1
+  const [activeIndex, setActiveIndex] = useState(0)
+  const [sizesByUrl, setSizesByUrl] = useState<
+    Partial<Record<string, { w: number; h: number }>>
+  >({})
+  const sizesByUrlRef = useRef<
+    Partial<Record<string, { w: number; h: number }>>
+  >({})
+  const inflightByUrlRef = useRef<Partial<Record<string, Promise<void>>>>({})
 
   const listKey = useMemo(() => list.join('|'), [list])
 
-  useEffect(() => {
-    let cancelled = false
+  const scheduleIdle = useCallback((task: () => void) => {
+    if (typeof window === 'undefined') return
+    if ('requestIdleCallback' in window) {
+      ;(
+        window as Window & {
+          requestIdleCallback: (
+            callback: () => void,
+            opts?: { timeout: number },
+          ) => number
+        }
+      ).requestIdleCallback(task, { timeout: 800 })
+      return
+    }
+    setTimeout(task, 120)
+  }, [])
 
-    // Always render immediately with fallback sizes to avoid LCP delay
-    setSizes(list.map(() => ({ w: 1600, h: 1600 })))
+  const ensureImageSize = useCallback(
+    (src: string, priority: 'now' | 'idle') => {
+      if (!src || sizesByUrlRef.current[src] || inflightByUrlRef.current[src])
+        return
 
-    const run = () => {
-      // Compute real sizes in the background (PhotoSwipe), without blocking render
-      Promise.all(
-        list.map(
-          (src) =>
-            new Promise<{ w: number; h: number }>((resolve) => {
-              const img = new window.Image()
-              img.src = src
-              img.onload = () =>
-                resolve({ w: img.width || 1600, h: img.height || 1600 })
-              img.onerror = () => resolve({ w: 1600, h: 1600 })
-            }),
-        ),
-      ).then((result) => {
-        if (cancelled) return
-        setSizes(result)
+      const startLoad = () => {
+        if (sizesByUrlRef.current[src] || inflightByUrlRef.current[src]) return
+
+        inflightByUrlRef.current[src] = new Promise<void>((resolve) => {
+          const img = new window.Image()
+          img.decoding = 'async'
+          img.src = src
+          img.onload = () => {
+            const next = {
+              w: img.width || 1600,
+              h: img.height || 1600,
+            }
+            sizesByUrlRef.current[src] = next
+            setSizesByUrl((prev) =>
+              prev[src] ? prev : { ...prev, [src]: next },
+            )
+            resolve()
+          }
+          img.onerror = () => {
+            const fallback = { w: 1600, h: 1600 }
+            sizesByUrlRef.current[src] = fallback
+            setSizesByUrl((prev) =>
+              prev[src] ? prev : { ...prev, [src]: fallback },
+            )
+            resolve()
+          }
+        }).finally(() => {
+          delete inflightByUrlRef.current[src]
+        })
+      }
+
+      if (priority === 'now') {
+        startLoad()
+        return
+      }
+
+      // Move non-critical image-size probing off the main interaction path.
+      scheduleIdle(startLoad)
+    },
+    [scheduleIdle],
+  )
+
+  const preloadAround = useCallback(
+    (centerIndex: number) => {
+      const windowIndexes = [
+        centerIndex,
+        centerIndex + 1,
+        centerIndex - 1,
+      ].filter((idx) => idx >= 0 && idx < list.length)
+      windowIndexes.forEach((idx, i) => {
+        const src = list[idx]
+        if (!src) return
+        ensureImageSize(src, i === 0 ? 'now' : 'idle')
       })
+    },
+    [ensureImageSize, list],
+  )
+
+  useEffect(() => {
+    setActiveIndex(0)
+  }, [listKey])
+
+  useEffect(() => {
+    preloadAround(activeIndex)
+  }, [activeIndex, preloadAround])
+
+  const mobileBullets = useMemo(() => {
+    if (!hasMultipleImages) return []
+
+    if (list.length <= 3) {
+      return Array.from({ length: list.length }, (_, i) => i === activeIndex)
     }
 
-    // Delay size-preload work to idle time so it doesn't compete with LCP image
-    if (typeof (window as any).requestIdleCallback === 'function') {
-      ;(window as any).requestIdleCallback(run, { timeout: 1500 })
-    } else {
-      setTimeout(run, 200)
-    }
-
-    return () => {
-      cancelled = true
-    }
-  }, [listKey, list])
+    if (activeIndex <= 0) return [true, false, false]
+    if (activeIndex >= list.length - 1) return [false, false, true]
+    return [false, true, false]
+  }, [activeIndex, hasMultipleImages, list.length])
 
   return (
     <div className="relative w-full">
@@ -66,6 +137,9 @@ export default function PhotoGallery({ images }: PhotoGalleryProps) {
             <Swiper
               key={listKey}
               modules={[Navigation]}
+              onSlideChange={(swiper: SwiperType) => {
+                setActiveIndex(swiper.realIndex ?? swiper.activeIndex ?? 0)
+              }}
               navigation={{
                 nextEl: '.photo-gallery-next',
                 prevEl: '.photo-gallery-prev',
@@ -90,8 +164,8 @@ export default function PhotoGallery({ images }: PhotoGalleryProps) {
                   <Item
                     original={src}
                     thumbnail={src}
-                    width={sizes[i]?.w ?? 1600}
-                    height={sizes[i]?.h ?? 1600}
+                    width={sizesByUrl[src]?.w ?? 1600}
+                    height={sizesByUrl[src]?.h ?? 1600}
                   >
                     {({ ref, open }) => (
                       <div
@@ -103,7 +177,7 @@ export default function PhotoGallery({ images }: PhotoGalleryProps) {
                           src={src || placeholder}
                           alt="Фото товару"
                           fill
-                          className="object-contain md:object-cover"
+                          className="object-cover"
                           priority={i === 0}
                           loading={i === 0 ? 'eager' : 'lazy'}
                           sizes="(min-width: 1024px) 66vw, 100vw"
@@ -116,6 +190,27 @@ export default function PhotoGallery({ images }: PhotoGalleryProps) {
                 </SwiperSlide>
               ))}
             </Swiper>
+
+            {hasMultipleImages && (
+              <div className="mt-2 mb-2 md:hidden relative z-[2]">
+                <div className="flex items-center justify-end text-[11px] text-gray-500 mb-2 pr-0.5">
+                  <span>
+                    {activeIndex + 1} / {list.length}
+                  </span>
+                </div>
+                <div className="flex items-center justify-center gap-2">
+                  {mobileBullets.map((isActive, index) => (
+                    <span
+                      key={`mobile-bullet-${index}`}
+                      className={`h-2.5 w-2.5 rounded-full transition ${
+                        isActive ? 'bg-pink-300' : 'bg-gray-300'
+                      }`}
+                      aria-hidden
+                    />
+                  ))}
+                </div>
+              </div>
+            )}
           </div>
 
           {/* Chevrons */}

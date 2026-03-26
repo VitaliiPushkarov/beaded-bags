@@ -7,7 +7,456 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
-// enums
+model Product {
+  id                  String              @id @default(cuid())
+  slug                String              @unique
+  name                String
+  description         String?
+  type                ProductType
+  basePriceUAH        Int?
+  inStock             Boolean             @default(true)
+  createdAt           DateTime            @default(now())
+  updatedAt           DateTime            @updatedAt
+  dimensions          String?
+  info                String?
+  group               ProductGroup?
+  sortCatalog         Int                 @default(0)
+  sortSlider          Int?
+  isAddon             Boolean             @default(false)
+  offerNote           String?
+  packagingTemplateId String?
+  status              ProductStatus       @default(DRAFT)
+  packagingTemplate   PackagingTemplate?  @relation(fields: [packagingTemplateId], references: [id])
+  ProductCollection   ProductCollection[]
+  costProfile         ProductCostProfile?
+  inventory           ProductInventory?
+  materialUsages      ProductMaterial[]
+  variants            ProductVariant[]
+  productionBatches   ProductionBatch[]
+
+  @@index([type])
+  @@index([group])
+  @@index([status])
+  @@index([inStock])
+  @@index([packagingTemplateId])
+}
+
+model ProductCostProfile {
+  id               String   @id @default(cuid())
+  productId        String   @unique
+  materialsCostUAH Int      @default(0)
+  laborCostUAH     Int      @default(0)
+  packagingCostUAH Int      @default(0)
+  shippingCostUAH  Int      @default(0)
+  otherCostUAH     Int      @default(0)
+  notes            String?
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+  product          Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
+}
+
+model ProductInventory {
+  id               String   @id @default(cuid())
+  productId        String   @unique
+  finishedGoodsQty Int      @default(0)
+  notes            String?
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+  product          Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
+}
+
+model Material {
+  id            String                    @id @default(cuid())
+  name          String
+  unit          String                    @default("pcs")
+  stockQty      Float                     @default(0)
+  notes         String?
+  createdAt     DateTime                  @default(now())
+  updatedAt     DateTime                  @updatedAt
+  unitCostUAH   Float                     @default(0)
+  category      MaterialCategory          @default(HARDWARE)
+  color         String                    @default("")
+  productUsages ProductMaterial[]
+  batchUsages   ProductionBatchMaterial[]
+
+  @@unique([name, category, color])
+  @@index([category])
+  @@index([name])
+}
+
+model PackagingTemplate {
+  id               String    @id @default(cuid())
+  name             String    @unique
+  costUAH          Int       @default(0)
+  boxLabel         String?
+  tissuePaperQty   Int       @default(1)
+  tagCardQty       Int       @default(1)
+  tagThreadQty     Int       @default(1)
+  roundStickerQty  Int       @default(1)
+  squareStickerQty Int       @default(1)
+  notes            String?
+  createdAt        DateTime  @default(now())
+  updatedAt        DateTime  @updatedAt
+  products         Product[]
+}
+
+model ProductionBatch {
+  id                String                    @id @default(cuid())
+  productId         String
+  producedAt        DateTime
+  qty               Int
+  laborTotalUAH     Int                       @default(0)
+  laborPerUnitUAH   Int                       @default(0)
+  materialsTotalUAH Int                       @default(0)
+  packagingTotalUAH Int                       @default(0)
+  notes             String?
+  createdAt         DateTime                  @default(now())
+  updatedAt         DateTime                  @updatedAt
+  product           Product                   @relation(fields: [productId], references: [id], onDelete: Cascade)
+  materials         ProductionBatchMaterial[]
+
+  @@index([producedAt])
+  @@index([productId, producedAt])
+}
+
+model ProductionBatchMaterial {
+  id           String          @id @default(cuid())
+  batchId      String
+  materialId   String
+  qtyUsed      Float
+  unitCostUAH  Int             @default(0)
+  totalCostUAH Int             @default(0)
+  createdAt    DateTime        @default(now())
+  batch        ProductionBatch @relation(fields: [batchId], references: [id], onDelete: Cascade)
+  material     Material        @relation(fields: [materialId], references: [id])
+
+  @@index([batchId])
+  @@index([materialId])
+}
+
+model ProductMaterial {
+  id           String   @id @default(cuid())
+  productId    String
+  materialId   String
+  quantity     Float
+  notes        String?
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+  variantColor String   @default("")
+  material     Material @relation(fields: [materialId], references: [id])
+  product      Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
+
+  @@unique([productId, materialId, variantColor])
+  @@index([productId])
+  @@index([materialId])
+  @@index([productId, variantColor])
+}
+
+model ProductVariant {
+  id                    String                   @id @default(cuid())
+  productId             String
+  sku                   String?                  @unique
+  color                 String?
+  modelSize             String?
+  pouchColor            String?
+  hex                   String?
+  image                 String?
+  inStock               Boolean                  @default(true)
+  priceUAH              Int?
+  sortCatalog           Int?                     @default(0)
+  sortBestsellers       Int?                     @default(0)
+  discountUAH           Int?                     @default(0)
+  shippingNote          String?
+  discountPercent       Int?                     @default(0)
+  availabilityStatus    AvailabilityStatus       @default(IN_STOCK)
+  product               Product                  @relation(fields: [productId], references: [id])
+  usedAsAddonOnVariants ProductVariantAddon[]    @relation("AddonVariantOnBag")
+  addonsOnVariant       ProductVariantAddon[]    @relation("BagVariantAddons")
+  images                ProductVariantImage[]
+  inventory             ProductVariantInventory?
+  straps                ProductVariantStrap[]
+  pouches               ProductVariantPouch[]
+  sizes                 ProductVariantSize[]
+
+  @@index([productId, color, modelSize, pouchColor])
+}
+
+model ProductVariantInventory {
+  id               String         @id @default(cuid())
+  variantId        String         @unique
+  finishedGoodsQty Int            @default(0)
+  notes            String?
+  createdAt        DateTime       @default(now())
+  updatedAt        DateTime       @default(now()) @updatedAt
+  variant          ProductVariant @relation(fields: [variantId], references: [id], onDelete: Cascade)
+}
+
+model ProductVariantImage {
+  id        String         @id @default(cuid())
+  variantId String
+  url       String
+  sort      Int            @default(0)
+  hover     Boolean        @default(false)
+  variant   ProductVariant @relation(fields: [variantId], references: [id])
+
+  @@index([variantId, sort])
+}
+
+model ProductVariantStrap {
+  id            String                     @id @default(cuid())
+  variantId     String
+  name          String
+  slug          String?
+  imageUrl      String?
+  mainImageUrl  String?
+  sort          Int                        @default(0)
+  extraPriceUAH Int                        @default(0)
+  variant       ProductVariant             @relation(fields: [variantId], references: [id])
+  images        ProductVariantStrapImage[]
+
+  @@index([variantId, sort])
+}
+
+model ProductVariantStrapImage {
+  id      String              @id @default(cuid())
+  strapId String
+  url     String
+  sort    Int                 @default(0)
+  strap   ProductVariantStrap @relation(fields: [strapId], references: [id], onDelete: Cascade)
+}
+
+model ProductVariantPouch {
+  id            String                     @id @default(cuid())
+  variantId     String
+  color         String
+  imageUrl      String?
+  mainImageUrl  String?
+  extraPriceUAH Int                        @default(0)
+  sort          Int                        @default(0)
+  variant       ProductVariant             @relation(fields: [variantId], references: [id], onDelete: Cascade)
+  images        ProductVariantPouchImage[]
+
+  @@index([variantId, sort])
+}
+
+model ProductVariantPouchImage {
+  id      String              @id @default(cuid())
+  pouchId String
+  url     String
+  sort    Int                 @default(0)
+  pouch   ProductVariantPouch @relation(fields: [pouchId], references: [id], onDelete: Cascade)
+}
+
+model ProductVariantSize {
+  id            String                    @id @default(cuid())
+  variantId     String
+  size          String
+  imageUrl      String?
+  mainImageUrl  String?
+  extraPriceUAH Int                       @default(0)
+  sort          Int                       @default(0)
+  variant       ProductVariant            @relation(fields: [variantId], references: [id], onDelete: Cascade)
+  images        ProductVariantSizeImage[]
+
+  @@index([variantId, sort])
+}
+
+model ProductVariantSizeImage {
+  id     String             @id @default(cuid())
+  sizeId String
+  url    String
+  sort   Int                @default(0)
+  size   ProductVariantSize @relation(fields: [sizeId], references: [id], onDelete: Cascade)
+}
+
+model ProductVariantAddon {
+  id             String         @id @default(cuid())
+  variantId      String
+  addonVariantId String
+  sort           Int            @default(0)
+  addonVariant   ProductVariant @relation("AddonVariantOnBag", fields: [addonVariantId], references: [id])
+  variant        ProductVariant @relation("BagVariantAddons", fields: [variantId], references: [id])
+
+  @@unique([variantId, addonVariantId])
+  @@index([variantId, sort])
+  @@index([addonVariantId])
+}
+
+model Customer {
+  id        String   @id @default(cuid())
+  email     String?  @unique
+  phone     String?  @unique
+  name      String?
+  createdAt DateTime @default(now())
+  orders    Order[]
+}
+
+model Order {
+  id                 String        @id @default(cuid())
+  status             OrderStatus   @default(PENDING)
+  createdAt          DateTime      @default(now())
+  subtotalUAH        Int
+  deliveryUAH        Int           @default(0)
+  discountUAH        Int           @default(0)
+  totalUAH           Int
+  customerName       String
+  customerSurname    String
+  customerPatronymic String?
+  customerPhone      String
+  customerEmail      String?
+  npCityRef          String
+  npCityName         String
+  npWarehouseRef     String
+  npWarehouseName    String
+  paymentMethod      PaymentMethod
+  paymentId          String?
+  paymentStatus      String?
+  paymentRaw         Json?
+  customerId         String?
+  shortNumber        Int           @unique @default(autoincrement())
+  grossProfitUAH     Int           @default(0)
+  itemsCostUAH       Int           @default(0)
+  paymentFeeUAH      Int           @default(0)
+  customer           Customer?     @relation(fields: [customerId], references: [id])
+  items              OrderItem[]
+
+  @@index([status, createdAt])
+  @@index([customerPhone])
+}
+
+model OrderItem {
+  id             String  @id @default(cuid())
+  orderId        String
+  productId      String?
+  variantId      String?
+  name           String
+  color          String?
+  modelSize      String?
+  pouchColor     String?
+  image          String?
+  priceUAH       Int
+  qty            Int
+  strapName      String?
+  addons         Json?
+  discountUAH    Int     @default(0)
+  lineRevenueUAH Int     @default(0)
+  totalCostUAH   Int     @default(0)
+  unitCostUAH    Int     @default(0)
+  order          Order   @relation(fields: [orderId], references: [id])
+}
+
+model Supplier {
+  id          String     @id @default(cuid())
+  name        String     @unique
+  contactName String?
+  phone       String?
+  email       String?
+  currency    String     @default("UAH")
+  notes       String?
+  createdAt   DateTime   @default(now())
+  updatedAt   DateTime   @updatedAt
+  purchases   Purchase[]
+}
+
+model Purchase {
+  id            String         @id @default(cuid())
+  supplierId    String
+  status        PurchaseStatus @default(DRAFT)
+  purchasedAt   DateTime
+  invoiceNumber String?
+  subtotalUAH   Int            @default(0)
+  deliveryUAH   Int            @default(0)
+  totalUAH      Int            @default(0)
+  notes         String?
+  createdAt     DateTime       @default(now())
+  updatedAt     DateTime       @updatedAt
+  supplier      Supplier       @relation(fields: [supplierId], references: [id])
+  items         PurchaseItem[]
+
+  @@index([supplierId, purchasedAt])
+  @@index([status, purchasedAt])
+}
+
+model PurchaseItem {
+  id           String   @id @default(cuid())
+  purchaseId   String
+  title        String
+  qty          Float
+  unit         String   @default("pcs")
+  unitPriceUAH Int
+  totalUAH     Int
+  purchase     Purchase @relation(fields: [purchaseId], references: [id], onDelete: Cascade)
+
+  @@index([purchaseId])
+}
+
+model Expense {
+  id          String          @id @default(cuid())
+  title       String
+  category    ExpenseCategory
+  amountUAH   Int
+  expenseDate DateTime
+  notes       String?
+  createdAt   DateTime        @default(now())
+  updatedAt   DateTime        @updatedAt
+
+  @@index([expenseDate, category])
+}
+
+model PreorderLead {
+  id           String   @id @default(cuid())
+  createdAt    DateTime @default(now())
+  productId    String
+  productSlug  String?
+  productName  String
+  variantId    String
+  variantColor String?
+  strapId      String?
+  contactName  String?
+  contact      String
+  comment      String?
+  source       String?
+
+  @@index([createdAt])
+  @@index([productId])
+  @@index([variantId])
+}
+
+model Collection {
+  id                String              @id
+  slug              String              @unique
+  name              String
+  h1                String
+  metaTitle         String?
+  metaDescription   String?
+  intro             String?
+  faqJson           Json?
+  defaultType       ProductType?
+  defaultGroup      ProductGroup?
+  isIndexable       Boolean             @default(true)
+  sort              Int                 @default(0)
+  createdAt         DateTime            @default(now())
+  updatedAt         DateTime
+  ProductCollection ProductCollection[]
+
+  @@index([isIndexable, sort])
+}
+
+model ProductCollection {
+  id           String     @id
+  productId    String
+  collectionId String
+  sort         Int        @default(0)
+  createdAt    DateTime   @default(now())
+  updatedAt    DateTime
+  Collection   Collection @relation(fields: [collectionId], references: [id], onDelete: Cascade)
+  Product      Product    @relation(fields: [productId], references: [id], onDelete: Cascade)
+
+  @@unique([productId, collectionId])
+  @@index([collectionId, sort])
+  @@index([productId])
+}
+
 enum ProductType {
   BAG
   BACKPACK
@@ -44,10 +493,10 @@ enum OrderStatus {
 }
 
 enum PaymentMethod {
-  LIQPAY // online payment
-  WAYFORPAY // online payment
-  COD // afterpayment
-  BANK_TRANSFER // bank transfer
+  LIQPAY
+  COD
+  BANK_TRANSFER
+  WAYFORPAY
 }
 
 enum ExpenseCategory {
@@ -77,402 +526,4 @@ enum PurchaseStatus {
   RECEIVED
   PAID
   CANCELLED
-}
-
-// каталог
-model Product {
-  id           String        @id @default(cuid())
-  slug         String        @unique
-  name         String
-  description  String? // поле ОПИС
-  info         String? // поле ІНФО
-  dimensions   String? // поле ЗАМІРИ
-  type         ProductType
-  group        ProductGroup?
-  basePriceUAH Int?
-  status       ProductStatus @default(DRAFT)
-  inStock      Boolean       @default(true)
-  isAddon      Boolean       @default(false) // цей товар може показуватись як addon до сумок
-  createdAt    DateTime      @default(now())
-  updatedAt    DateTime      @updatedAt
-
-  sortCatalog     Int  @default(0)
-  sortSlider      Int?
-  offerNote       String?
-  packagingTemplateId String?
-
-  
-  variants        ProductVariant[]
-  costProfile     ProductCostProfile?
-  inventory       ProductInventory?
-  materialUsages  ProductMaterial[]
-  packagingTemplate PackagingTemplate? @relation(fields: [packagingTemplateId], references: [id], onDelete: SetNull)
-  productionBatches ProductionBatch[]
-
-  @@index([type])
-  @@index([group])
-  @@index([status])
-  @@index([inStock])
-  @@index([packagingTemplateId])
-}
-
-model ProductCostProfile {
-  id                String   @id @default(cuid())
-  productId         String   @unique
-  product           Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
-  materialsCostUAH  Int      @default(0)
-  laborCostUAH      Int      @default(0)
-  packagingCostUAH  Int      @default(0)
-  shippingCostUAH   Int      @default(0)
-  otherCostUAH      Int      @default(0)
-  notes             String?
-  createdAt         DateTime @default(now())
-  updatedAt         DateTime @updatedAt
-}
-
-model ProductInventory {
-  id               String   @id @default(cuid())
-  productId        String   @unique
-  product          Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
-  finishedGoodsQty Int      @default(0)
-  notes            String?
-  createdAt        DateTime @default(now())
-  updatedAt        DateTime @updatedAt
-}
-
-model Material {
-  id            String            @id @default(cuid())
-  name          String
-  category      MaterialCategory  @default(HARDWARE)
-  color         String            @default("")
-  unit          String            @default("pcs")
-  stockQty      Float             @default(0)
-  unitCostUAH   Float             @default(0)
-  notes         String?
-  createdAt     DateTime          @default(now())
-  updatedAt     DateTime          @updatedAt
-
-  productUsages ProductMaterial[]
-  batchUsages   ProductionBatchMaterial[]
-
-  @@unique([name, category, color])
-  @@index([category])
-  @@index([name])
-}
-
-model PackagingTemplate {
-  id               String   @id @default(cuid())
-  name             String   @unique
-  costUAH          Int      @default(0)
-  boxLabel         String?
-  tissuePaperQty   Int      @default(1)
-  tagCardQty       Int      @default(1)
-  tagThreadQty     Int      @default(1)
-  roundStickerQty  Int      @default(1)
-  squareStickerQty Int      @default(1)
-  notes            String?
-  createdAt        DateTime @default(now())
-  updatedAt        DateTime @updatedAt
-
-  products         Product[]
-}
-
-model ProductionBatch {
-  id                  String   @id @default(cuid())
-  productId           String
-  product             Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
-  producedAt          DateTime
-  qty                 Int
-  laborTotalUAH       Int      @default(0)
-  laborPerUnitUAH     Int      @default(0)
-  materialsTotalUAH   Int      @default(0)
-  packagingTotalUAH   Int      @default(0)
-  notes               String?
-  createdAt           DateTime @default(now())
-  updatedAt           DateTime @updatedAt
-
-  materials           ProductionBatchMaterial[]
-
-  @@index([producedAt])
-  @@index([productId, producedAt])
-}
-
-model ProductionBatchMaterial {
-  id           String          @id @default(cuid())
-  batchId      String
-  materialId   String
-  batch        ProductionBatch @relation(fields: [batchId], references: [id], onDelete: Cascade)
-  material     Material        @relation(fields: [materialId], references: [id], onDelete: Restrict)
-  qtyUsed      Float
-  unitCostUAH  Int             @default(0)
-  totalCostUAH Int             @default(0)
-  createdAt    DateTime        @default(now())
-
-  @@index([batchId])
-  @@index([materialId])
-}
-
-model ProductMaterial {
-  id         String   @id @default(cuid())
-  productId  String
-  materialId String
-  variantColor String @default("")
-  product    Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
-  material   Material @relation(fields: [materialId], references: [id], onDelete: Restrict)
-  quantity   Float
-  notes      String?
-  createdAt  DateTime @default(now())
-  updatedAt  DateTime @updatedAt
-
-  @@unique([productId, materialId, variantColor])
-  @@index([productId])
-  @@index([materialId])
-  @@index([productId, variantColor])
-}
-
-model ProductVariant {
-  id        String  @id @default(cuid())
-  productId String
-  product   Product @relation(fields: [productId], references: [id])
-
-  sku         String? @unique
-  color       String?
-  hex         String?
-  image       String?
-  inStock     Boolean @default(true)
-  availabilityStatus AvailabilityStatus @default(IN_STOCK)
-  priceUAH    Int?
-  discountPercent Int? @default(0)
-  discountUAH Int? @default(0)
-  sortCatalog Int?    @default(0)
-  sortBestsellers Int? @default(0)
-  shippingNote String?
-
-  inventory   ProductVariantInventory?
-  images ProductVariantImage[]
-  straps ProductVariantStrap[]
-
-  // relations for addons (bag variant -> addon variants)
-  addonsOnVariant ProductVariantAddon[] @relation("BagVariantAddons")
-  usedAsAddonOnVariants ProductVariantAddon[] @relation("AddonVariantOnBag")
-}
-
-model ProductVariantInventory {
-  id               String         @id @default(cuid())
-  variantId        String         @unique
-  variant          ProductVariant @relation(fields: [variantId], references: [id], onDelete: Cascade)
-  finishedGoodsQty Int            @default(0)
-  notes            String?
-  createdAt        DateTime       @default(now())
-  updatedAt        DateTime       @updatedAt
-}
-
-model ProductVariantImage {
-  id        String         @id @default(cuid())
-  variantId String
-  variant   ProductVariant @relation(fields: [variantId], references: [id])
-
-  url   String
-  sort  Int     @default(0)
-  hover Boolean @default(false)
-
-  @@index([variantId, sort])
-}
-
-model ProductVariantStrap {
-  id        String         @id @default(cuid())
-  variantId String
-  variant   ProductVariant @relation(fields: [variantId], references: [id])
-
-  name         String // назва ремінця біля кружечка
-  slug         String? // якщо стане в пригоді (фільтри/аналітика)
-  extraPriceUAH Int    @default(0) // націнка за конкретний ремінець
-  images ProductVariantStrapImage[]
-  imageUrl     String? // фото ремінця (можемо використовувати і як прев’ю, і як основне)
-  mainImageUrl String? // опціонально: головне фото сумки з цим ремінцем  
-  sort         Int     @default(0)
-
-  @@index([variantId, sort])
-}
-model ProductVariantStrapImage {
-  id      String @id @default(cuid())
-  strapId String
-  strap   ProductVariantStrap @relation(fields: [strapId], references: [id], onDelete: Cascade)
-  url     String
-  sort    Int @default(0)
-}
-model ProductVariantAddon {
-  id        String  @id @default(cuid())
-
-  // bag (or main product) variant that this addon is attached to
-  variantId String
-  variant   ProductVariant @relation("BagVariantAddons", fields: [variantId], references: [id])
-
-  // конкретний addon variant (addon itself is also a ProductVariant)
-  addonVariantId String
-  addonVariant   ProductVariant @relation("AddonVariantOnBag", fields: [addonVariantId], references: [id])
-
-  // optional ordering in UI
-  sort Int @default(0)
-
-  @@unique([variantId, addonVariantId])
-  @@index([variantId, sort])
-  @@index([addonVariantId])
-}
-
-model Customer {
-  id        String   @id @default(cuid())
-  email     String?  @unique
-  phone     String?  @unique
-  name      String?
-  createdAt DateTime @default(now())
-
-  orders Order[]
-}
-
-// замовлення
-model Order {
-  id          String      @id @default(cuid())
-  shortNumber Int         @unique @default(autoincrement())
-  status      OrderStatus @default(PENDING)
-  createdAt   DateTime    @default(now())
-
-  // totals (знімок на момент замовлення)
-  subtotalUAH Int
-  deliveryUAH Int @default(0)
-  discountUAH Int @default(0)
-  totalUAH    Int
-  itemsCostUAH Int        @default(0)
-  paymentFeeUAH Int       @default(0)
-  grossProfitUAH Int      @default(0)
-
-  // snapshot клієнта (заповнюється з форми)
-  customerName       String
-  customerSurname    String
-  customerPatronymic String?
-  customerPhone      String
-  customerEmail      String?
-
-  // Нова Пошта (знімок)
-  npCityRef       String
-  npCityName      String
-  npWarehouseRef  String
-  npWarehouseName String
-
-  // оплата
-  paymentMethod PaymentMethod
-  paymentId     String? // external id from payment provider
-  paymentStatus String? // сирий статус провайдера
-  paymentRaw    Json? // payload від провайдера 
-
-  // зв’язки
-  items      OrderItem[]
-  customerId String?
-  customer   Customer?   @relation(fields: [customerId], references: [id])
-
-  @@index([status, createdAt])
-  @@index([customerPhone])
-}
-
-model OrderItem {
-  id      String @id @default(cuid())
-  orderId String
-  order   Order  @relation(fields: [orderId], references: [id])
-
-  // snapshot товару
-  productId String? // посилання на поточний продукт (не обов’язково)
-  variantId String? // посилання на варіант (не обов’язково)
-  name      String // "Beaded Bag — Pink"
-  color     String?
-  image     String?
-  priceUAH  Int // ціна у момент покупки
-  qty       Int // кількість
-  discountUAH Int @default(0)
-  lineRevenueUAH Int @default(0)
-  unitCostUAH Int @default(0)
-  totalCostUAH Int @default(0)
-  strapName String?
-  addons Json?
-}
-
-model Supplier {
-  id          String     @id @default(cuid())
-  name        String     @unique
-  contactName String?
-  phone       String?
-  email       String?
-  currency    String     @default("UAH")
-  notes       String?
-  createdAt   DateTime   @default(now())
-  updatedAt   DateTime   @updatedAt
-
-  purchases   Purchase[]
-}
-
-model Purchase {
-  id            String         @id @default(cuid())
-  supplierId    String
-  supplier      Supplier       @relation(fields: [supplierId], references: [id], onDelete: Restrict)
-  status        PurchaseStatus @default(DRAFT)
-  purchasedAt   DateTime
-  invoiceNumber String?
-  subtotalUAH   Int            @default(0)
-  deliveryUAH   Int            @default(0)
-  totalUAH      Int            @default(0)
-  notes         String?
-  createdAt     DateTime       @default(now())
-  updatedAt     DateTime       @updatedAt
-
-  items         PurchaseItem[]
-
-  @@index([supplierId, purchasedAt])
-  @@index([status, purchasedAt])
-}
-
-model PurchaseItem {
-  id           String   @id @default(cuid())
-  purchaseId   String
-  purchase     Purchase @relation(fields: [purchaseId], references: [id], onDelete: Cascade)
-  title        String
-  qty          Float
-  unit         String   @default("pcs")
-  unitPriceUAH Int
-  totalUAH     Int
-
-  @@index([purchaseId])
-}
-
-model Expense {
-  id          String          @id @default(cuid())
-  title       String
-  category    ExpenseCategory
-  amountUAH   Int
-  expenseDate DateTime
-  notes       String?
-  createdAt   DateTime        @default(now())
-  updatedAt   DateTime        @updatedAt
-
-  @@index([expenseDate, category])
-}
-model PreorderLead {
-  id           String   @id @default(cuid())
-  createdAt    DateTime @default(now())
-
-  // product context
-  productId    String
-  productSlug  String?
-  productName  String
-  variantId    String
-  variantColor String?
-  strapId      String?
-
-  // lead
-  contactName  String?
-  contact      String
-  comment      String?
-  source       String?
-
-  @@index([createdAt])
-  @@index([productId])
-  @@index([variantId])
 }

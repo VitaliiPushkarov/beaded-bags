@@ -6,6 +6,7 @@ import {
   ProductVariantImage,
 } from '@prisma/client'
 import { isInStockStatus, resolveAvailabilityStatus } from '@/lib/availability'
+import { calcDiscountedPrice } from '@/lib/pricing'
 
 export type AddonVariantUI = ProductVariant & {
   product: Product
@@ -56,8 +57,14 @@ export function useProductAddons(v: VariantWithAddons | null) {
     })
   }, [v])
 
-  const addonPrice = (av: AddonVariantUI) =>
-    av.priceUAH ?? av.product.basePriceUAH ?? 0
+  const addonPricing = (av: AddonVariantUI) =>
+    calcDiscountedPrice({
+      basePriceUAH: av.priceUAH ?? av.product.basePriceUAH ?? 0,
+      discountPercent: av.discountPercent,
+      discountUAH: av.discountUAH ?? 0,
+    })
+
+  const addonPrice = (av: AddonVariantUI) => addonPricing(av).finalPriceUAH
 
   const addonImageUrl = (av: AddonVariantUI) =>
     av.images?.slice().sort((a, b) => a.sort - b.sort)[0]?.url ||
@@ -92,6 +99,7 @@ export function useProductAddons(v: VariantWithAddons | null) {
     toggleAddon,
     addonsTotal,
     addonsByVariantId,
+    addonPricing,
     addonPrice,
     addonImageUrl,
   }

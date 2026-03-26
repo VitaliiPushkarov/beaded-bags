@@ -135,7 +135,7 @@ export default function CartPage() {
               const line = it.priceUAH * it.qty
               return (
                 <div
-                  key={`${it.productId}-${it.variantId}-${it.strapId ?? ''}`}
+                  key={`${it.productId}-${it.variantId}-${it.strapId ?? ''}-${it.sizeId ?? ''}-${it.pouchId ?? ''}`}
                   className="py-6 grid lg:grid-cols-[2fr_1fr_1fr_1fr] gap-6 items-center border-b border-black"
                 >
                   {/* Товар */}
@@ -155,6 +155,21 @@ export default function CartPage() {
                       >
                         {it.name}
                       </Link>
+                      {it.color && (
+                        <div className="mt-1 text-sm text-gray-600">
+                          Колір: {it.color}
+                        </div>
+                      )}
+                      {it.modelSize && (
+                        <div className="mt-1 text-sm text-gray-600">
+                          Розмір моделі: {it.modelSize}
+                        </div>
+                      )}
+                      {it.pouchColor && (
+                        <div className="mt-1 text-sm text-gray-600">
+                          Мішечок: {it.pouchColor}
+                        </div>
+                      )}
                       {it.strapName && (
                         <div className="mt-1 text-sm text-gray-600">
                           Ремінець: {it.strapName}
@@ -163,7 +178,13 @@ export default function CartPage() {
                       <div className="mt-2 text-gray-700">В наявності</div>
                       <button
                         onClick={() =>
-                          remove(it.productId, it.variantId, it.strapId)
+                          remove(
+                            it.productId,
+                            it.variantId,
+                            it.strapId,
+                            it.sizeId,
+                            it.pouchId,
+                          )
                         }
                         className="mt-3 text-black underline underline-offset-4 hover:no-underline cursor-pointer"
                       >
@@ -184,9 +205,22 @@ export default function CartPage() {
                       onDec={() => {
                         const n = it.qty - 1
                         if (n <= 0) {
-                          remove(it.productId, it.variantId, it.strapId)
+                          remove(
+                            it.productId,
+                            it.variantId,
+                            it.strapId,
+                            it.sizeId,
+                            it.pouchId,
+                          )
                         } else {
-                          setQty(it.productId, it.variantId, n, it.strapId)
+                          setQty(
+                            it.productId,
+                            it.variantId,
+                            n,
+                            it.strapId,
+                            it.sizeId,
+                            it.pouchId,
+                          )
                         }
                       }}
                       onInc={() =>
@@ -195,6 +229,8 @@ export default function CartPage() {
                           it.variantId,
                           it.qty + 1,
                           it.strapId,
+                          it.sizeId,
+                          it.pouchId,
                         )
                       }
                     />

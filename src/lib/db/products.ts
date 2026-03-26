@@ -30,6 +30,20 @@ const PRODUCT_PAGE_INCLUDE = {
           },
         },
       },
+      pouches: {
+        include: {
+          images: {
+            orderBy: { sort: 'asc' },
+          },
+        },
+      },
+      sizes: {
+        include: {
+          images: {
+            orderBy: { sort: 'asc' },
+          },
+        },
+      },
       addonsOnVariant: {
         where: {
           addonVariant: {

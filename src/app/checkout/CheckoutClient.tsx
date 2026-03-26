@@ -202,6 +202,9 @@ export default function CheckoutClient() {
       productId: it.productId,
       variantId: it.variantId,
       name: it.name,
+      color: it.color ?? null,
+      modelSize: it.modelSize ?? null,
+      pouchColor: it.pouchColor ?? null,
       image: it.image,
       priceUAH: it.priceUAH,
       qty: it.qty,
@@ -511,7 +514,7 @@ export default function CheckoutClient() {
         <div className="space-y-3">
           {cart.items.map((item) => (
             <div
-              key={`${item.productId}-${item.variantId ?? ''}-${item.strapId ?? ''}`}
+              key={`${item.productId}-${item.variantId ?? ''}-${item.strapId ?? ''}-${item.sizeId ?? ''}-${item.pouchId ?? ''}`}
               className="flex items-center gap-3"
             >
               {item.image && (
@@ -526,6 +529,21 @@ export default function CheckoutClient() {
               )}
               <div className="flex flex-col text-sm">
                 <span className="line-clamp-2">{item.name}</span>
+                {item.color && (
+                  <span className="text-xs text-gray-500">
+                    Колір: {item.color}
+                  </span>
+                )}
+                {item.modelSize && (
+                  <span className="text-xs text-gray-500">
+                    Розмір моделі: {item.modelSize}
+                  </span>
+                )}
+                {item.pouchColor && (
+                  <span className="text-xs text-gray-500">
+                    Мішечок: {item.pouchColor}
+                  </span>
+                )}
                 {item.strapName && (
                   <span className="text-xs text-gray-500">
                     Ремінець: {item.strapName}

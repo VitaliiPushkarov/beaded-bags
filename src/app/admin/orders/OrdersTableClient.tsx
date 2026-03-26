@@ -60,6 +60,8 @@ type NormalizedOrderItem = {
   qty: number
   image?: string | null
   color?: string | null
+  modelSize?: string | null
+  pouchColor?: string | null
   strapName?: string | null
   addonsText?: string
 }
@@ -115,6 +117,8 @@ function getOrderItems(o: Order): NormalizedOrderItem[] {
       qty,
       image: it.image ?? it.imageUrl ?? it.mainImageUrl ?? null,
       color: it.color ?? null,
+      modelSize: it.modelSize ?? null,
+      pouchColor: it.pouchColor ?? null,
       strapName: strap,
       addonsText,
     }
@@ -228,9 +232,15 @@ export default function OrdersTableClient({ orders }: Props) {
                             </span>
                           </div>
 
-                          {(it.color || it.strapName || it.addonsText) && (
+                          {(it.color || it.modelSize || it.pouchColor || it.strapName || it.addonsText) && (
                             <div className="mt-0.5 text-xs leading-snug text-gray-600">
                               {it.color ? <div>Колір: {it.color}</div> : null}
+                              {it.modelSize ? (
+                                <div>Розмір моделі: {it.modelSize}</div>
+                              ) : null}
+                              {it.pouchColor ? (
+                                <div>Мішечок: {it.pouchColor}</div>
+                              ) : null}
                               {it.strapName ? (
                                 <div>Ремінець: {it.strapName}</div>
                               ) : null}
@@ -320,9 +330,15 @@ export default function OrdersTableClient({ orders }: Props) {
                                 </span>
                               </div>
 
-                              {(it.color || it.strapName || it.addonsText) && (
+                              {(it.color || it.modelSize || it.pouchColor || it.strapName || it.addonsText) && (
                                 <div className="mt-0.5 text-xs leading-snug text-gray-600">
                                   {it.color ? <div>Колір: {it.color}</div> : null}
+                                  {it.modelSize ? (
+                                    <div>Розмір моделі: {it.modelSize}</div>
+                                  ) : null}
+                                  {it.pouchColor ? (
+                                    <div>Мішечок: {it.pouchColor}</div>
+                                  ) : null}
                                   {it.strapName ? (
                                     <div>Ремінець: {it.strapName}</div>
                                   ) : null}

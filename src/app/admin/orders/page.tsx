@@ -44,6 +44,20 @@ const MANUAL_SOURCE_LABELS = {
   OTHER: 'Інше',
 } as const
 
+function buildVariantSelectionLabel(input: {
+  color?: string | null
+  modelSize?: string | null
+  pouchColor?: string | null
+}) {
+  const parts = [
+    input.color?.trim(),
+    input.modelSize?.trim() ? `Розмір: ${input.modelSize.trim()}` : null,
+    input.pouchColor?.trim() ? `Мішечок: ${input.pouchColor.trim()}` : null,
+  ].filter((part): part is string => typeof part === 'string' && part.length > 0)
+
+  return parts.join(' · ')
+}
+
 const OptionalNonNegativeInt = z.preprocess(
   (value) => {
     if (value == null) return undefined
@@ -136,6 +150,8 @@ export default async function AdminOrdersPage() {
       select: {
         id: true,
         color: true,
+        modelSize: true,
+        pouchColor: true,
         image: true,
         images: {
           orderBy: { sort: 'asc' },
@@ -288,23 +304,33 @@ export default async function AdminOrdersPage() {
         },
         ...customerRelation,
         items: {
-          create: items.map((item, index) => ({
-            productId: item.variant.product.id,
-            variantId: item.variant.id,
-            name: item.variant.color
-              ? `${item.variant.product.name} — ${item.variant.color}`
-              : item.variant.product.name,
-            color: item.variant.color,
-            image: item.variant.images[0]?.url ?? item.variant.image,
-            priceUAH: item.priceUAH,
-            qty: item.qty,
-            discountUAH: financialSnapshot.lines[index]?.discountUAH ?? 0,
-            lineRevenueUAH: financialSnapshot.lines[index]?.lineRevenueUAH ?? 0,
-            unitCostUAH: financialSnapshot.lines[index]?.unitCostUAH ?? 0,
-            totalCostUAH: financialSnapshot.lines[index]?.totalCostUAH ?? 0,
-            strapName: null,
-            addons: [],
-          })),
+          create: items.map((item, index) => {
+            const details = buildVariantSelectionLabel({
+              color: item.variant.color,
+              modelSize: (item.variant as any).modelSize,
+              pouchColor: (item.variant as any).pouchColor,
+            })
+
+            return {
+              productId: item.variant.product.id,
+              variantId: item.variant.id,
+              name: details
+                ? `${item.variant.product.name} — ${details}`
+                : item.variant.product.name,
+              color: item.variant.color,
+              modelSize: (item.variant as any).modelSize ?? null,
+              pouchColor: (item.variant as any).pouchColor ?? null,
+              image: item.variant.images[0]?.url ?? item.variant.image,
+              priceUAH: item.priceUAH,
+              qty: item.qty,
+              discountUAH: financialSnapshot.lines[index]?.discountUAH ?? 0,
+              lineRevenueUAH: financialSnapshot.lines[index]?.lineRevenueUAH ?? 0,
+              unitCostUAH: financialSnapshot.lines[index]?.unitCostUAH ?? 0,
+              totalCostUAH: financialSnapshot.lines[index]?.totalCostUAH ?? 0,
+              strapName: null,
+              addons: [],
+            }
+          }),
         },
       },
     })
@@ -324,6 +350,8 @@ export default async function AdminOrdersPage() {
       select: {
         id: true,
         color: true,
+        modelSize: true,
+        pouchColor: true,
         image: true,
         images: {
           orderBy: { sort: 'asc' },
@@ -361,6 +389,8 @@ export default async function AdminOrdersPage() {
       id: variant.id,
       productName: variant.product.name,
       color: variant.color,
+      modelSize: (variant as any).modelSize ?? null,
+      pouchColor: (variant as any).pouchColor ?? null,
       imageUrl: variant.images[0]?.url ?? variant.image,
       priceUAH: finalPriceUAH,
     }

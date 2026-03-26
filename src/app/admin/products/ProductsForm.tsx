@@ -73,11 +73,30 @@ type VariantStrapInput = {
   name: string
   extraPriceUAH: string
   sort: string
+  imageUrl?: string
+}
+
+type VariantPouchInput = {
+  id?: string
+  color: string
+  extraPriceUAH: string
+  sort: string
+  imageUrl?: string
+}
+
+type VariantSizeInput = {
+  id?: string
+  size: string
+  extraPriceUAH: string
+  sort: string
+  imageUrl?: string
 }
 
 type VariantInput = {
   id?: string
   color: string
+  modelSize: string
+  pouchColor: string
   hex: string
   image: string
   images: string[]
@@ -90,6 +109,8 @@ type VariantInput = {
   sku: string
   addons?: VariantAddonLinkInput[]
   straps?: VariantStrapInput[]
+  pouches?: VariantPouchInput[]
+  sizes?: VariantSizeInput[]
 }
 
 type ProductFormValues = {
@@ -174,7 +195,8 @@ export default function ProductForm({
           status: initial.status ?? 'DRAFT',
           variants: (initial.variants || []).map((v) => {
             const images = normalizeImages(v.images)
-            const seededImages = images.length === 0 && v.image ? [v.image] : images
+            const seededImages =
+              images.length === 0 && v.image ? [v.image] : images
             const main = v.image || seededImages[0] || ''
             const availabilityStatus = resolveAvailabilityStatus({
               availabilityStatus: (v as any).availabilityStatus,
@@ -182,6 +204,8 @@ export default function ProductForm({
             })
             return {
               ...v,
+              modelSize: (v as any).modelSize ?? '',
+              pouchColor: (v as any).pouchColor ?? '',
               images: seededImages,
               image: main,
               availabilityStatus,
@@ -191,6 +215,21 @@ export default function ProductForm({
                 name: s.name || '',
                 extraPriceUAH: String(s.extraPriceUAH ?? ''),
                 sort: String(s.sort ?? ''),
+                imageUrl: (s as any).imageUrl ?? '',
+              })),
+              pouches: ((v as any).pouches || []).map((pouch: any) => ({
+                id: pouch.id,
+                color: pouch.color || '',
+                extraPriceUAH: String(pouch.extraPriceUAH ?? ''),
+                sort: String(pouch.sort ?? ''),
+                imageUrl: pouch.imageUrl ?? '',
+              })),
+              sizes: ((v as any).sizes || []).map((size: any) => ({
+                id: size.id,
+                size: size.size || '',
+                extraPriceUAH: String(size.extraPriceUAH ?? ''),
+                sort: String(size.sort ?? ''),
+                imageUrl: size.imageUrl ?? '',
               })),
             }
           }),
@@ -208,6 +247,8 @@ export default function ProductForm({
           variants: [
             {
               color: '',
+              modelSize: '',
+              pouchColor: '',
               hex: '',
               image: '',
               images: [],
@@ -220,6 +261,8 @@ export default function ProductForm({
               sku: '',
               addons: [],
               straps: [],
+              pouches: [],
+              sizes: [],
             },
           ],
         },
@@ -283,7 +326,9 @@ export default function ProductForm({
       const nextAvailabilityStatus =
         patch.availabilityStatus ??
         (typeof patch.inStock === 'boolean'
-          ? (patch.inStock ? 'IN_STOCK' : 'PREORDER')
+          ? patch.inStock
+            ? 'IN_STOCK'
+            : 'PREORDER'
           : merged.availabilityStatus)
 
       // Normalize images/main relationship
@@ -342,18 +387,40 @@ export default function ProductForm({
     )
   }
 
-  const getVariantSelectionKey = (variantId: string | undefined, index: number) =>
-    variantId ? `id:${variantId}` : `idx:${index}`
-
-  const setVariantStraps = (
+  const getVariantSelectionKey = (
+    variantId: string | undefined,
     index: number,
-    nextStraps: VariantStrapInput[],
-  ) => {
+  ) => (variantId ? `id:${variantId}` : `idx:${index}`)
+
+  const setVariantStraps = (index: number, nextStraps: VariantStrapInput[]) => {
     setValues((prev) => {
       const nextVariants = [...prev.variants]
       const cur = nextVariants[index]
       if (!cur) return prev
       nextVariants[index] = { ...cur, straps: nextStraps }
+      return { ...prev, variants: nextVariants }
+    })
+  }
+
+  const setVariantPouches = (
+    index: number,
+    nextPouches: VariantPouchInput[],
+  ) => {
+    setValues((prev) => {
+      const nextVariants = [...prev.variants]
+      const cur = nextVariants[index]
+      if (!cur) return prev
+      nextVariants[index] = { ...cur, pouches: nextPouches }
+      return { ...prev, variants: nextVariants }
+    })
+  }
+
+  const setVariantSizes = (index: number, nextSizes: VariantSizeInput[]) => {
+    setValues((prev) => {
+      const nextVariants = [...prev.variants]
+      const cur = nextVariants[index]
+      if (!cur) return prev
+      nextVariants[index] = { ...cur, sizes: nextSizes }
       return { ...prev, variants: nextVariants }
     })
   }
@@ -365,6 +432,8 @@ export default function ProductForm({
         ...prev.variants,
         {
           color: '',
+          modelSize: '',
+          pouchColor: '',
           hex: '',
           image: '',
           images: [],
@@ -377,6 +446,8 @@ export default function ProductForm({
           sku: '',
           addons: [],
           straps: [],
+          pouches: [],
+          sizes: [],
         },
       ],
     }))
@@ -412,6 +483,8 @@ export default function ProductForm({
             availabilityStatus,
             id: v.id,
             color: v.color,
+            modelSize: v.modelSize,
+            pouchColor: v.pouchColor,
             hex: v.hex,
             image: v.image,
             images: normalizeImages(v.images),
@@ -431,8 +504,31 @@ export default function ProductForm({
                   ? Math.max(0, Number(s.extraPriceUAH))
                   : 0,
                 sort: s.sort ? Number(s.sort) : idx,
+                imageUrl: s.imageUrl?.trim() || null,
               }))
               .filter((s) => s.name.length > 0),
+            pouches: (v.pouches || [])
+              .map((pouch, idx) => ({
+                id: pouch.id,
+                color: pouch.color.trim(),
+                extraPriceUAH: pouch.extraPriceUAH
+                  ? Math.max(0, Number(pouch.extraPriceUAH))
+                  : 0,
+                sort: pouch.sort ? Number(pouch.sort) : idx,
+                imageUrl: pouch.imageUrl?.trim() || null,
+              }))
+              .filter((pouch) => pouch.color.length > 0),
+            sizes: (v.sizes || [])
+              .map((size, idx) => ({
+                id: size.id,
+                size: size.size.trim(),
+                extraPriceUAH: size.extraPriceUAH
+                  ? Math.max(0, Number(size.extraPriceUAH))
+                  : 0,
+                sort: size.sort ? Number(size.sort) : idx,
+                imageUrl: size.imageUrl?.trim() || null,
+              }))
+              .filter((size) => size.size.length > 0),
           }
         }),
       }
@@ -701,7 +797,6 @@ export default function ProductForm({
               </label>
             </div>
           </div>
-
         </div>
       </div>
 
@@ -745,205 +840,207 @@ export default function ProductForm({
                 className="p-4 sm:p-6 grid gap-4 sm:gap-6 gap-y-8 sm:gap-y-10 md:grid-cols-2 bg-white"
               >
                 <div className="md:col-span-2 flex items-center justify-between">
-                <div className="text-sm font-light">Варіант #{index + 1}</div>
-                <button
-                  type="button"
-                  className="text-sm px-2 py-1 rounded border  disabled:opacity-50 text-blue-700 border-blue-700 hover:bg-blue-700 hover:text-white cursor-pointer"
-                  onClick={() => removeVariant(index)}
-                  disabled={values.variants.length <= 1}
-                  title={
-                    values.variants.length <= 1
-                      ? 'Потрібен мінімум 1 варіант'
-                      : 'Видалити варіант'
-                  }
-                >
-                  Видалити
-                </button>
-              </div>
-
-              <div className="space-y-2 md:col-span-2">
-                <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-                  <div>
-                    <div className="text-xl font-medium">Галерея фото</div>
-                    <div className="text-[11px] text-gray-500 mt-1">
-                      Перетягуй фото, щоб змінити порядок. Натисни “Зробити
-                      main”, щоб змінити головне фото.
-                    </div>
-                  </div>
-
-                  <label
-                    htmlFor={`variant-${index}-gallery-upload`}
-                    className="w-full sm:w-auto shrink-0 inline-flex items-center justify-center px-3 py-2 rounded-lg border text-sm font-medium hover:bg-gray-50 bg-blue-700 text-white hover:text-black cursor-pointer"
+                  <div className="text-sm font-light">Варіант #{index + 1}</div>
+                  <button
+                    type="button"
+                    className="text-sm px-2 py-1 rounded border  disabled:opacity-50 text-blue-700 border-blue-700 hover:bg-blue-700 hover:text-white cursor-pointer"
+                    onClick={() => removeVariant(index)}
+                    disabled={values.variants.length <= 1}
+                    title={
+                      values.variants.length <= 1
+                        ? 'Потрібен мінімум 1 варіант'
+                        : 'Видалити варіант'
+                    }
                   >
-                    Вибрати файли
-                  </label>
-
-                  <input
-                    id={`variant-${index}-gallery-upload`}
-                    type="file"
-                    accept="image/*"
-                    multiple
-                    className="sr-only"
-                    onChange={async (e) => {
-                      const input = e.currentTarget
-                      const files = Array.from(input.files ?? [])
-                      if (!files.length) return
-
-                      // reset immediately so the same file can be selected again
-                      input.value = ''
-
-                      try {
-                        setUploadingIndex(index)
-
-                        const uploadedUrls: string[] = []
-                        for (const file of files) {
-                          const url = await uploadToCloudinary(file)
-                          uploadedUrls.push(url)
-                        }
-
-                        setValues((prev) => {
-                          const nextVariants = [...prev.variants]
-                          const cur = nextVariants[index]
-                          if (!cur) return prev
-
-                          const prevImages = normalizeImages(cur.images)
-                          const merged = [...prevImages, ...uploadedUrls]
-
-                          nextVariants[index] = {
-                            ...cur,
-                            images: merged,
-                            image: cur.image || merged[0] || '',
-                          }
-
-                          return { ...prev, variants: nextVariants }
-                        })
-                      } catch (err) {
-                        const msg =
-                          err instanceof Error ? err.message : 'Upload error'
-                        setError(msg)
-                      } finally {
-                        setUploadingIndex(null)
-                      }
-                    }}
-                  />
+                    Видалити
+                  </button>
                 </div>
 
-                {uploadingIndex === index && (
-                  <div className="mt-3 text-sm text-gray-600">
-                    Завантаження фото…
-                  </div>
-                )}
+                <div className="space-y-2 md:col-span-2">
+                  <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                    <div>
+                      <div className="text-xl font-medium">Галерея фото</div>
+                      <div className="text-[11px] text-gray-500 mt-1">
+                        Перетягуй фото, щоб змінити порядок. Натисни “Зробити
+                        main”, щоб змінити головне фото.
+                      </div>
+                    </div>
 
-                {images.length ? (
-                  <div className="mt-4 grid  sm:grid-cols-3 md:grid-cols-4 gap-4 sm:gap-6">
-                    {images.map((url, i) => {
-                      const isDragOver =
-                        dragOver?.variantIndex === index &&
-                        dragOver?.imgIndex === i
+                    <label
+                      htmlFor={`variant-${index}-gallery-upload`}
+                      className="w-full sm:w-auto shrink-0 inline-flex items-center justify-center px-3 py-2 rounded-lg border text-sm font-medium hover:bg-gray-50 bg-blue-700 text-white hover:text-black cursor-pointer"
+                    >
+                      Вибрати файли
+                    </label>
 
-                      return (
-                        <div
-                          key={`${url}-${i}`}
-                          className={`relative overflow-hidden cursor-move bg-white transition ${
-                            isDragOver
-                              ? 'ring-2 ring-black'
-                              : 'hover:ring-2 hover:ring-gray-300'
-                          }`}
-                          draggable
-                          onDragStart={() => {
-                            setDragImg({ variantIndex: index, imgIndex: i })
-                            setDragOver({ variantIndex: index, imgIndex: i })
-                          }}
-                          onDragEnter={() => {
-                            if (!dragImg) return
-                            if (dragImg.variantIndex !== index) return
-                            setDragOver({ variantIndex: index, imgIndex: i })
-                          }}
-                          onDragLeave={() => {
-                            setDragOver(null)
-                          }}
-                          onDragOver={(e) => e.preventDefault()}
-                          onDrop={() => {
-                            if (!dragImg) return
-                            if (dragImg.variantIndex !== index) return
+                    <input
+                      id={`variant-${index}-gallery-upload`}
+                      type="file"
+                      accept="image/*"
+                      multiple
+                      className="sr-only"
+                      onChange={async (e) => {
+                        const input = e.currentTarget
+                        const files = Array.from(input.files ?? [])
+                        if (!files.length) return
 
-                            const from = dragImg.imgIndex
-                            const to = i
-                            if (from === to) {
-                              setDragImg(null)
-                              setDragOver(null)
-                              return
+                        // reset immediately so the same file can be selected again
+                        input.value = ''
+
+                        try {
+                          setUploadingIndex(index)
+
+                          const uploadedUrls: string[] = []
+                          for (const file of files) {
+                            const url = await uploadToCloudinary(file)
+                            uploadedUrls.push(url)
+                          }
+
+                          setValues((prev) => {
+                            const nextVariants = [...prev.variants]
+                            const cur = nextVariants[index]
+                            if (!cur) return prev
+
+                            const prevImages = normalizeImages(cur.images)
+                            const merged = [...prevImages, ...uploadedUrls]
+
+                            nextVariants[index] = {
+                              ...cur,
+                              images: merged,
+                              image: cur.image || merged[0] || '',
                             }
 
-                            const next = [...images]
-                            const [moved] = next.splice(from, 1)
-                            next.splice(to, 0, moved)
+                            return { ...prev, variants: nextVariants }
+                          })
+                        } catch (err) {
+                          const msg =
+                            err instanceof Error ? err.message : 'Upload error'
+                          setError(msg)
+                        } finally {
+                          setUploadingIndex(null)
+                        }
+                      }}
+                    />
+                  </div>
 
-                            onVariantChange(index, {
-                              images: next,
-                              // keep current main URL, but the preview will update if main changes
-                              image: v.image,
-                            })
+                  {uploadingIndex === index && (
+                    <div className="mt-3 text-sm text-gray-600">
+                      Завантаження фото…
+                    </div>
+                  )}
 
-                            setDragImg(null)
-                            setDragOver(null)
-                          }}
-                          onDragEnd={() => {
-                            setDragImg(null)
-                            setDragOver(null)
-                          }}
-                          title="Перетягни, щоб змінити порядок"
-                        >
-                          <img
-                            src={url}
-                            alt=""
-                            className="w-full h-56 md:h-64 object-cover"
-                            loading="lazy"
-                          />
+                  {images.length ? (
+                    <div className="mt-4 grid  sm:grid-cols-3 md:grid-cols-4 gap-4 sm:gap-6">
+                      {images.map((url, i) => {
+                        const isDragOver =
+                          dragOver?.variantIndex === index &&
+                          dragOver?.imgIndex === i
 
-                          <button
-                            type="button"
-                            className="absolute top-2 right-2 bg-white/95 border rounded-md px-2 py-0.5 text-sm  cursor-pointer border-blue-700 text-blue-700 hover:text-white hover:bg-blue-700 "
-                            onClick={() => {
-                              const next = images.filter((_, idx) => idx !== i)
-                              const nextMain =
-                                v.image === url ? next[0] || '' : v.image
+                        return (
+                          <div
+                            key={`${url}-${i}`}
+                            className={`relative overflow-hidden cursor-move bg-white transition ${
+                              isDragOver
+                                ? 'ring-2 ring-black'
+                                : 'hover:ring-2 hover:ring-gray-300'
+                            }`}
+                            draggable
+                            onDragStart={() => {
+                              setDragImg({ variantIndex: index, imgIndex: i })
+                              setDragOver({ variantIndex: index, imgIndex: i })
+                            }}
+                            onDragEnter={() => {
+                              if (!dragImg) return
+                              if (dragImg.variantIndex !== index) return
+                              setDragOver({ variantIndex: index, imgIndex: i })
+                            }}
+                            onDragLeave={() => {
+                              setDragOver(null)
+                            }}
+                            onDragOver={(e) => e.preventDefault()}
+                            onDrop={() => {
+                              if (!dragImg) return
+                              if (dragImg.variantIndex !== index) return
+
+                              const from = dragImg.imgIndex
+                              const to = i
+                              if (from === to) {
+                                setDragImg(null)
+                                setDragOver(null)
+                                return
+                              }
+
+                              const next = [...images]
+                              const [moved] = next.splice(from, 1)
+                              next.splice(to, 0, moved)
+
                               onVariantChange(index, {
                                 images: next,
-                                image: nextMain,
+                                // keep current main URL, but the preview will update if main changes
+                                image: v.image,
                               })
-                            }}
-                            aria-label="Видалити фото"
-                          >
-                            ×
-                          </button>
 
-                          {v.image === url ? (
-                            <div className="absolute bottom-0 left-0 right-0 text-[11px] bg-black/65 text-white px-2 py-1">
-                              main
-                            </div>
-                          ) : (
+                              setDragImg(null)
+                              setDragOver(null)
+                            }}
+                            onDragEnd={() => {
+                              setDragImg(null)
+                              setDragOver(null)
+                            }}
+                            title="Перетягни, щоб змінити порядок"
+                          >
+                            <img
+                              src={url}
+                              alt=""
+                              className="w-full h-56 md:h-64 object-cover"
+                              loading="lazy"
+                            />
+
                             <button
                               type="button"
-                              className="absolute bottom-2 left-2 bg-white/95 border rounded-md px-2 py-1 text-[11px] cursor-pointer border-blue-700 text-blue-700 hover:text-white hover:bg-blue-700 "
-                              onClick={() =>
-                                onVariantChange(index, { image: url })
-                              }
+                              className="absolute top-2 right-2 bg-white/95 border rounded-md px-2 py-0.5 text-sm  cursor-pointer border-blue-700 text-blue-700 hover:text-white hover:bg-blue-700 "
+                              onClick={() => {
+                                const next = images.filter(
+                                  (_, idx) => idx !== i,
+                                )
+                                const nextMain =
+                                  v.image === url ? next[0] || '' : v.image
+                                onVariantChange(index, {
+                                  images: next,
+                                  image: nextMain,
+                                })
+                              }}
+                              aria-label="Видалити фото"
                             >
-                              Зробити main
+                              ×
                             </button>
-                          )}
-                        </div>
-                      )
-                    })}
-                  </div>
-                ) : (
-                  <div className="text-sm text-gray-500 mt-4">
-                    Ще немає фото в галереї
-                  </div>
-                )}
-              </div>
-              {/* {v.image ? (
+
+                            {v.image === url ? (
+                              <div className="absolute bottom-0 left-0 right-0 text-[11px] bg-black/65 text-white px-2 py-1">
+                                main
+                              </div>
+                            ) : (
+                              <button
+                                type="button"
+                                className="absolute bottom-2 left-2 bg-white/95 border rounded-md px-2 py-1 text-[11px] cursor-pointer border-blue-700 text-blue-700 hover:text-white hover:bg-blue-700 "
+                                onClick={() =>
+                                  onVariantChange(index, { image: url })
+                                }
+                              >
+                                Зробити main
+                              </button>
+                            )}
+                          </div>
+                        )
+                      })}
+                    </div>
+                  ) : (
+                    <div className="text-sm text-gray-500 mt-4">
+                      Ще немає фото в галереї
+                    </div>
+                  )}
+                </div>
+                {/* {v.image ? (
                   <div className="mt-2">
                     <div className="text-[11px] text-gray-500 mb-1">
                       Превʼю main фото
@@ -960,413 +1057,689 @@ export default function ProductForm({
                     Main фото ще не додано
                   </div>
                 )} */}
-              <div className="space-y-2">
-                <div className="text-xl font-medium mb-3">Інформація</div>
-                <label className="block text-sm font-medium ">
-                  Колір (назва)
-                  <input
-                    className="mt-1 w-full border rounded px-2 py-1 text-sm border-blue-300"
-                    value={v.color}
-                    onChange={(e) =>
-                      onVariantChange(index, { color: e.target.value })
-                    }
-                  />
-                </label>
-                <label className="block text-sm font-medium ">
-                  HEX
-                  <input
-                    className="mt-1 w-full border rounded px-2 py-1 text-sm border-blue-300"
-                    value={v.hex}
-                    onChange={(e) =>
-                      onVariantChange(index, { hex: e.target.value })
-                    }
-                  />
-                </label>
-                <label className="block text-sm font-medium ">
-                  SKU
-                  <input
-                    className="mt-1 w-full border rounded px-2 py-1 text-sm border-blue-300"
-                    value={v.sku}
-                    onChange={(e) =>
-                      onVariantChange(index, { sku: e.target.value })
-                    }
-                  />
-                </label>
-                <label className="block text-sm font-medium ">
-                  Ціна (UAH)
-                  <input
-                    className="mt-1 w-full border rounded px-2 py-1 text-sm border-blue-300"
-                    inputMode="numeric"
-                    value={v.priceUAH}
-                    onChange={(e) =>
-                      onVariantChange(index, {
-                        priceUAH: e.target.value.replace(/[^\d]/g, ''),
-                      })
-                    }
-                  />
-                </label>
+                <div className="space-y-2">
+                  <div className="text-xl font-medium mb-3">Інформація</div>
+                  <label className="block text-sm font-medium ">
+                    Колір (назва)
+                    <input
+                      className="mt-1 w-full border rounded px-2 py-1 text-sm border-blue-300"
+                      value={v.color}
+                      onChange={(e) =>
+                        onVariantChange(index, { color: e.target.value })
+                      }
+                    />
+                  </label>
+                  <label className="block text-sm font-medium ">
+                    HEX
+                    <input
+                      className="mt-1 w-full border rounded px-2 py-1 text-sm border-blue-300"
+                      value={v.hex}
+                      onChange={(e) =>
+                        onVariantChange(index, { hex: e.target.value })
+                      }
+                    />
+                  </label>
+                  <label className="block text-sm font-medium ">
+                    SKU
+                    <input
+                      className="mt-1 w-full border rounded px-2 py-1 text-sm border-blue-300"
+                      value={v.sku}
+                      onChange={(e) =>
+                        onVariantChange(index, { sku: e.target.value })
+                      }
+                    />
+                  </label>
+                  <label className="block text-sm font-medium ">
+                    Ціна (UAH)
+                    <input
+                      className="mt-1 w-full border rounded px-2 py-1 text-sm border-blue-300"
+                      inputMode="numeric"
+                      value={v.priceUAH}
+                      onChange={(e) =>
+                        onVariantChange(index, {
+                          priceUAH: e.target.value.replace(/[^\d]/g, ''),
+                        })
+                      }
+                    />
+                  </label>
 
-                <label className="block text-sm font-medium ">
-                  Знижка (%)
-                  <input
-                    className="mt-1 w-full border rounded px-2 py-1 text-sm border-blue-300"
-                    inputMode="numeric"
-                    value={v.discountPercent}
-                    onChange={(e) =>
-                      onVariantChange(index, {
-                        discountPercent: e.target.value.replace(/[^\d]/g, ''),
-                      })
-                    }
-                    placeholder="0"
-                  />
-                </label>
+                  <label className="block text-sm font-medium ">
+                    Знижка (%)
+                    <input
+                      className="mt-1 w-full border rounded px-2 py-1 text-sm border-blue-300"
+                      inputMode="numeric"
+                      value={v.discountPercent}
+                      onChange={(e) =>
+                        onVariantChange(index, {
+                          discountPercent: e.target.value.replace(/[^\d]/g, ''),
+                        })
+                      }
+                      placeholder="0"
+                    />
+                  </label>
 
-                <label className="block text-sm font-medium ">
-                  Текст доставки (для цього варіанта)
-                  <input
-                    className="mt-1 w-full border rounded px-2 py-1 text-sm border-blue-300"
-                    value={v.shippingNote}
-                    onChange={(e) =>
-                      onVariantChange(index, { shippingNote: e.target.value })
-                    }
-                    placeholder="Відправка протягом 1–3 днів"
-                  />
-                </label>
+                  <label className="block text-sm font-medium ">
+                    Текст доставки (для цього варіанта)
+                    <input
+                      className="mt-1 w-full border rounded px-2 py-1 text-sm border-blue-300"
+                      value={v.shippingNote}
+                      onChange={(e) =>
+                        onVariantChange(index, { shippingNote: e.target.value })
+                      }
+                      placeholder="Відправка протягом 1–3 днів"
+                    />
+                  </label>
 
-                <label className="block text-xs font-medium ">
-                  URL зображення
-                  <input
-                    className="mt-1 w-full border rounded px-2 py-1 text-sm border-blue-300"
-                    value={v.image}
-                    onChange={(e) =>
-                      onVariantChange(index, { image: e.target.value })
-                    }
-                  />
-                  <div className="text-[11px] text-gray-500 mt-1">
-                    Підтримується локальний шлях типу{' '}
-                    <span className="font-mono">/img/...</span>
-                  </div>
-                </label>
-                <label className="block text-sm font-medium ">
-                  Статус наявності
-                  <select
-                    className="mt-1 w-full border rounded px-2 py-1 text-sm border-blue-300"
-                    value={v.availabilityStatus}
-                    onChange={(e) =>
-                      onVariantChange(index, {
-                        availabilityStatus: e.target.value as AvailabilityStatus,
-                      })
-                    }
-                  >
-                    {AVAILABILITY_OPTIONS.map((option) => (
-                      <option key={option.value} value={option.value}>
-                        {option.label}
-                      </option>
-                    ))}
-                  </select>
-                </label>
-              </div>
-              <div className="space-y-2">
-                <div className="border border-blue-100 rounded-lg p-3">
-                  <div className="flex items-center justify-between gap-2 mb-3">
-                    <div>
-                      <div className="text-lg font-medium">Ремінці</div>
-                      <div className="text-xs text-gray-500">
-                        Додай ремінець і вкажи його націнку в гривнях.
-                      </div>
+                  <label className="block text-xs font-medium ">
+                    URL зображення
+                    <input
+                      className="mt-1 w-full border rounded px-2 py-1 text-sm border-blue-300"
+                      value={v.image}
+                      onChange={(e) =>
+                        onVariantChange(index, { image: e.target.value })
+                      }
+                    />
+                    <div className="text-[11px] text-gray-500 mt-1">
+                      Підтримується локальний шлях типу{' '}
+                      <span className="font-mono">/img/...</span>
                     </div>
-                    <button
-                      type="button"
-                      className="text-sm px-3 py-1 rounded border border-blue-700 text-blue-700 hover:bg-blue-700 hover:text-white cursor-pointer"
-                      onClick={() => {
-                        const next = [
-                          ...(v.straps || []),
-                          {
-                            name: '',
-                            extraPriceUAH: '',
-                            sort: String((v.straps || []).length),
-                          },
-                        ]
-                        setVariantStraps(index, next)
-                      }}
+                  </label>
+                  <label className="block text-sm font-medium ">
+                    Статус наявності
+                    <select
+                      className="mt-1 w-full border rounded px-2 py-1 text-sm border-blue-300"
+                      value={v.availabilityStatus}
+                      onChange={(e) =>
+                        onVariantChange(index, {
+                          availabilityStatus: e.target
+                            .value as AvailabilityStatus,
+                        })
+                      }
                     >
-                      Додати ремінець
-                    </button>
-                  </div>
-
-                  {(v.straps || []).length === 0 ? (
-                    <div className="text-sm text-gray-500">Ще немає ремінців</div>
-                  ) : (
-                    <div className="space-y-3">
-                      {(v.straps || []).map((strap, strapIndex) => (
-                        <div
-                          key={strap.id || `strap-${strapIndex}`}
-                          className="grid gap-2 sm:grid-cols-[1fr_140px_90px_auto]"
-                        >
-                          <input
-                            className="border rounded px-2 py-2 text-sm border-blue-300"
-                            placeholder="Назва ремінця"
-                            value={strap.name}
-                            onChange={(e) => {
-                              const next = [...(v.straps || [])]
-                              next[strapIndex] = {
-                                ...next[strapIndex],
-                                name: e.target.value,
-                              }
-                              setVariantStraps(index, next)
-                            }}
-                          />
-                          <input
-                            className="border rounded px-2 py-2 text-sm border-blue-300"
-                            placeholder="Націнка, грн"
-                            inputMode="numeric"
-                            value={strap.extraPriceUAH}
-                            onChange={(e) => {
-                              const next = [...(v.straps || [])]
-                              next[strapIndex] = {
-                                ...next[strapIndex],
-                                extraPriceUAH: e.target.value.replace(/[^\d]/g, ''),
-                              }
-                              setVariantStraps(index, next)
-                            }}
-                          />
-                          <input
-                            className="border rounded px-2 py-2 text-sm border-blue-300"
-                            placeholder="Sort"
-                            inputMode="numeric"
-                            value={strap.sort}
-                            onChange={(e) => {
-                              const next = [...(v.straps || [])]
-                              next[strapIndex] = {
-                                ...next[strapIndex],
-                                sort: e.target.value.replace(/[^\d]/g, ''),
-                              }
-                              setVariantStraps(index, next)
-                            }}
-                          />
-                          <button
-                            type="button"
-                            className="text-sm px-3 py-2 rounded border border-blue-700 text-blue-700 hover:bg-blue-700 hover:text-white cursor-pointer"
-                            onClick={() => {
-                              const next = (v.straps || []).filter(
-                                (_, i) => i !== strapIndex,
-                              )
-                              setVariantStraps(index, next)
-                            }}
-                          >
-                            Видалити
-                          </button>
-                        </div>
+                      {AVAILABILITY_OPTIONS.map((option) => (
+                        <option key={option.value} value={option.value}>
+                          {option.label}
+                        </option>
                       ))}
-                    </div>
-                  )}
+                    </select>
+                  </label>
                 </div>
-
-                {addonVariantOptions &&
-                  upsertVariantAddon &&
-                  updateVariantAddonSort &&
-                  deleteVariantAddon && (
-                    <div className="md:col-span-2">
-                      <div className="mb-6">
-                        <div className="text-xl font-medium mb-1">
-                          Addons для цього варіанту
-                        </div>
-                        <div className="text-xs text-gray-500 mb-3">
-                          Додай додаткові варіанти товарів (addons), а також їх
-                          положення (від 0 і вище) в списку.
+                <div className="space-y-2">
+                  <div className="border border-blue-100 rounded-lg p-3">
+                    <div className="flex items-center justify-between gap-2 mb-3">
+                      <div>
+                        <div className="text-lg font-medium">Ремінці</div>
+                        <div className="text-xs text-gray-500">
+                          Додай ремінець і вкажи його націнку в гривнях.
                         </div>
                       </div>
+                      <button
+                        type="button"
+                        className="text-sm px-3 py-1 rounded border border-blue-700 hover:text-blue-700 bg-blue-700 hover:bg-white text-white cursor-pointer"
+                        onClick={() => {
+                          const next = [
+                            ...(v.straps || []),
+                            {
+                              name: '',
+                              extraPriceUAH: '',
+                              imageUrl: '',
+                              sort: String((v.straps || []).length),
+                            },
+                          ]
+                          setVariantStraps(index, next)
+                        }}
+                      >
+                        Додати ремінець
+                      </button>
+                    </div>
 
-                      {!v.id ? (
-                        <div className="text-sm text-gray-500">
-                          Спочатку збережи товар, щоб зʼявився ID варіанту —
-                          тоді можна додавати addons.
+                    {(v.straps || []).length === 0 ? (
+                      <div className="text-sm text-gray-500">
+                        Ще немає ремінців
+                      </div>
+                    ) : (
+                      <div className="space-y-3">
+                        <div className="hidden sm:grid gap-2 sm:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_110px_70px] px-1 text-[11px] uppercase tracking-wide text-gray-500">
+                          <div>Ремінець</div>
+                          <div>Фото (URL)</div>
+                          <div>Націнка</div>
+                          <div>Позиція</div>
                         </div>
-                      ) : (
-                        <>
-                          {(v.addons || []).length > 0 ? (
-                            <div className="space-y-2">
-                              {(v.addons || [])
-                                .slice()
-                                .sort((a, b) => (a.sort ?? 0) - (b.sort ?? 0))
-                                .map((a) => (
-                                  <div
-                                    key={a.id}
-                                    className="flex flex-col sm:flex-row sm:items-center gap-2"
-                                  >
-                                    <div className="flex-1 text-sm">
-                                      {a.addonProductName}
-                                      {a.addonColor ? ` — ${a.addonColor}` : ''}
-                                      <span className="text-gray-500">
-                                        {' '}
-                                        · {a.addonPriceUAH} ₴
-                                      </span>
-                                    </div>
-
-                                    <input
-                                      className="w-full sm:w-16 border rounded px-2 py-2 sm:py-1 text-sm border-blue-300 text-center"
-                                      type="number"
-                                      defaultValue={a.sort ?? 0}
-                                      onBlur={async (e) => {
-                                        const sort =
-                                          Number(
-                                            (e.target as HTMLInputElement)
-                                              .value,
-                                          ) || 0
-                                        try {
-                                          const updated =
-                                            await updateVariantAddonSort({
-                                              id: a.id,
-                                              sort,
-                                            })
-                                          const next = (v.addons || []).map(
-                                            (x) =>
-                                              x.id === updated.id
-                                                ? { ...x, sort: updated.sort }
-                                                : x,
-                                          )
-                                          setVariantAddons(index, next)
-                                        } catch (err) {
-                                          console.error(err)
-                                        }
-                                      }}
-                                    />
-
-                                    <button
-                                      type="button"
-                                      className="w-full sm:w-auto text-sm px-3 py-2 sm:px-2 sm:py-1 rounded border border-blue-700 text-blue-700 hover:bg-blue-700 hover:text-white cursor-pointer"
-                                      onClick={async () => {
-                                        try {
-                                          await deleteVariantAddon({
-                                            id: a.id,
-                                          })
-                                          const next = (v.addons || []).filter(
-                                            (x) => x.id !== a.id,
-                                          )
-                                          setVariantAddons(index, next)
-                                        } catch (err) {
-                                          console.error(err)
-                                        }
-                                      }}
-                                    >
-                                      Видалити
-                                    </button>
-                                  </div>
-                                ))}
-                            </div>
-                          ) : (
-                            <div className="text-sm text-gray-500">
-                              Ще немає доданих addons
-                            </div>
-                          )}
-
-                          <div className="mt-3 space-y-2">
-                            <div className="border rounded border-blue-300 p-2 max-h-[240px] overflow-y-auto space-y-1">
-                              {availableAddonVariantOptions.length > 0 ? (
-                                availableAddonVariantOptions.map((opt) => {
-                                  const checked = selectedAddonVariantIds.includes(
-                                    opt.id,
-                                  )
-
-                                  return (
-                                    <label
-                                      key={opt.id}
-                                      className="flex items-start gap-2 rounded px-2 py-1.5 hover:bg-blue-50 cursor-pointer"
-                                    >
-                                      <input
-                                        type="checkbox"
-                                        className="mt-0.5"
-                                        checked={checked}
-                                        onChange={(e) => {
-                                          const isChecked = e.target.checked
-                                          setAddonSelectionByVariant((prev) => {
-                                            const current = (
-                                              prev[selectionKey] || []
-                                            ).filter((id) =>
-                                              availableAddonVariantIds.has(id),
-                                            )
-                                            const next = isChecked
-                                              ? Array.from(
-                                                  new Set([...current, opt.id]),
-                                                )
-                                              : current.filter(
-                                                  (id) => id !== opt.id,
-                                                )
-
-                                            return {
-                                              ...prev,
-                                              [selectionKey]: next,
-                                            }
-                                          })
-                                        }}
-                                      />
-                                      <span className="text-sm">
-                                        {opt.productName}
-                                        {opt.color ? ` — ${opt.color}` : ''} ·{' '}
-                                        {opt.priceUAH} ₴
-                                      </span>
-                                    </label>
-                                  )
-                                })
-                              ) : (
-                                <div className="text-sm text-gray-500">
-                                  Немає доступних addons
-                                </div>
-                              )}
-                            </div>
-
+                        {(v.straps || []).map((strap, strapIndex) => (
+                          <div
+                            key={strap.id || `strap-${strapIndex}`}
+                            className="grid gap-2 sm:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_110px_70px]"
+                          >
+                            <input
+                              className="w-full min-w-0 border rounded px-2 py-2 text-sm border-blue-300"
+                              placeholder="Назва ремінця"
+                              value={strap.name}
+                              onChange={(e) => {
+                                const next = [...(v.straps || [])]
+                                next[strapIndex] = {
+                                  ...next[strapIndex],
+                                  name: e.target.value,
+                                }
+                                setVariantStraps(index, next)
+                              }}
+                            />
+                            <input
+                              className="w-full min-w-0 border rounded px-2 py-2 text-sm border-blue-300"
+                              placeholder="URL фото ремінця"
+                              value={strap.imageUrl || ''}
+                              onChange={(e) => {
+                                const next = [...(v.straps || [])]
+                                next[strapIndex] = {
+                                  ...next[strapIndex],
+                                  imageUrl: e.target.value,
+                                }
+                                setVariantStraps(index, next)
+                              }}
+                            />
+                            <input
+                              className="w-full min-w-0 border rounded px-2 py-2 text-sm border-blue-300 text-center"
+                              placeholder="Націнка, грн"
+                              inputMode="numeric"
+                              value={strap.extraPriceUAH}
+                              onChange={(e) => {
+                                const next = [...(v.straps || [])]
+                                next[strapIndex] = {
+                                  ...next[strapIndex],
+                                  extraPriceUAH: e.target.value.replace(
+                                    /[^\d]/g,
+                                    '',
+                                  ),
+                                }
+                                setVariantStraps(index, next)
+                              }}
+                            />
+                            <input
+                              className="w-full min-w-0 border rounded px-2 py-2 text-sm border-blue-300 text-center"
+                              placeholder="Sort"
+                              inputMode="numeric"
+                              value={strap.sort}
+                              onChange={(e) => {
+                                const next = [...(v.straps || [])]
+                                next[strapIndex] = {
+                                  ...next[strapIndex],
+                                  sort: e.target.value.replace(/[^\d]/g, ''),
+                                }
+                                setVariantStraps(index, next)
+                              }}
+                            />
                             <button
                               type="button"
-                              className="text-sm px-3 py-2 rounded border border-blue-700 text-blue-700 hover:bg-blue-700 hover:text-white cursor-pointer disabled:opacity-50"
-                              disabled={!selectedAddonVariantIds.length}
-                              onClick={async () => {
-                                if (!selectedAddonVariantIds.length) return
-                                try {
-                                  const created = upsertVariantAddonsBatch
-                                    ? await upsertVariantAddonsBatch({
-                                        variantId: v.id as string,
-                                        addonVariantIds: selectedAddonVariantIds,
-                                        sort: 0,
-                                      })
-                                    : await Promise.all(
-                                        selectedAddonVariantIds.map(
-                                          (addonVariantId) =>
-                                            upsertVariantAddon({
-                                              variantId: v.id as string,
-                                              addonVariantId,
-                                              sort: 0,
-                                            }),
-                                        ),
-                                      )
-
-                                  const next = mergeAddonLinks(
-                                    v.addons || [],
-                                    created,
-                                  )
-                                  setVariantAddons(index, next)
-                                  setAddonSelectionByVariant((prev) => ({
-                                    ...prev,
-                                    [selectionKey]: [],
-                                  }))
-                                } catch (err) {
-                                  console.error(err)
-                                }
+                              className="text-sm px-3 py-2 rounded border border-blue-700 text-blue-700 hover:bg-blue-700 hover:text-white cursor-pointer sm:col-span-4 sm:justify-self-end"
+                              onClick={() => {
+                                const next = (v.straps || []).filter(
+                                  (_, i) => i !== strapIndex,
+                                )
+                                setVariantStraps(index, next)
                               }}
                             >
-                              Додати вибрані addons
+                              Видалити
                             </button>
-
-                            <div className="text-[11px] text-gray-500">
-                              Вибери один або кілька addons чекбоксами і додай
-                              їх у цей варіант.
-                            </div>
                           </div>
-                        </>
-                      )}
+                        ))}
+                      </div>
+                    )}
+                  </div>
+
+                  <div className="border border-blue-100 rounded-lg p-3">
+                    <div className="flex items-center justify-between gap-2 mb-3">
+                      <div>
+                        <div className="text-lg font-medium">Мішечки</div>
+                        <div className="text-xs text-gray-500">
+                          Кольори мішечків для цього варіанту.
+                        </div>
+                      </div>
+                      <button
+                        type="button"
+                        className="text-sm px-3 py-1 rounded border border-blue-700 hover:text-blue-700 bg-blue-700 hover:bg-white text-white cursor-pointer"
+                        onClick={() => {
+                          const next = [
+                            ...(v.pouches || []),
+                            {
+                              color: '',
+                              extraPriceUAH: '',
+                              imageUrl: '',
+                              sort: String((v.pouches || []).length),
+                            },
+                          ]
+                          setVariantPouches(index, next)
+                        }}
+                      >
+                        Додати мішечок
+                      </button>
                     </div>
-                  )}
+
+                    {(v.pouches || []).length === 0 ? (
+                      <div className="text-sm text-gray-500">
+                        Ще немає мішечків
+                      </div>
+                    ) : (
+                      <div className="space-y-3">
+                        <div className="hidden sm:grid gap-2 sm:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_110px_70px] px-1 text-[11px] uppercase tracking-wide text-gray-500">
+                          <div>Колір</div>
+                          <div>Фото (URL)</div>
+                          <div>Націнка</div>
+                          <div>Позиція</div>
+                        </div>
+                        {(v.pouches || []).map((pouch, pouchIndex) => (
+                          <div
+                            key={pouch.id || `pouch-${pouchIndex}`}
+                            className="grid gap-2 sm:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_110px_70px]"
+                          >
+                            <input
+                              className="w-full min-w-0 border rounded px-2 py-2 text-sm border-blue-300"
+                              placeholder="Колір мішечка"
+                              value={pouch.color}
+                              onChange={(e) => {
+                                const next = [...(v.pouches || [])]
+                                next[pouchIndex] = {
+                                  ...next[pouchIndex],
+                                  color: e.target.value,
+                                }
+                                setVariantPouches(index, next)
+                              }}
+                            />
+                            <input
+                              className="w-full min-w-0 border rounded px-2 py-2 text-sm border-blue-300"
+                              placeholder="URL фото мішечка"
+                              value={pouch.imageUrl || ''}
+                              onChange={(e) => {
+                                const next = [...(v.pouches || [])]
+                                next[pouchIndex] = {
+                                  ...next[pouchIndex],
+                                  imageUrl: e.target.value,
+                                }
+                                setVariantPouches(index, next)
+                              }}
+                            />
+                            <input
+                              className="w-full min-w-0 border rounded px-2 py-2 text-sm border-blue-300 text-center"
+                              placeholder="Націнка, грн"
+                              inputMode="numeric"
+                              value={pouch.extraPriceUAH}
+                              onChange={(e) => {
+                                const next = [...(v.pouches || [])]
+                                next[pouchIndex] = {
+                                  ...next[pouchIndex],
+                                  extraPriceUAH: e.target.value.replace(
+                                    /[^\d]/g,
+                                    '',
+                                  ),
+                                }
+                                setVariantPouches(index, next)
+                              }}
+                            />
+                            <input
+                              className="w-full min-w-0 border rounded px-2 py-2 text-sm border-blue-300 text-center"
+                              placeholder="Sort"
+                              inputMode="numeric"
+                              value={pouch.sort}
+                              onChange={(e) => {
+                                const next = [...(v.pouches || [])]
+                                next[pouchIndex] = {
+                                  ...next[pouchIndex],
+                                  sort: e.target.value.replace(/[^\d]/g, ''),
+                                }
+                                setVariantPouches(index, next)
+                              }}
+                            />
+                            <button
+                              type="button"
+                              className="text-sm px-3 py-2 rounded border border-blue-700 text-blue-700 hover:bg-blue-700 hover:text-white cursor-pointer sm:col-span-4 sm:justify-self-end"
+                              onClick={() => {
+                                const next = (v.pouches || []).filter(
+                                  (_, i) => i !== pouchIndex,
+                                )
+                                setVariantPouches(index, next)
+                              }}
+                            >
+                              Видалити
+                            </button>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+
+                  <div className="border border-blue-100 rounded-lg p-3">
+                    <div className="flex items-center justify-between gap-2 mb-3">
+                      <div>
+                        <div className="text-lg font-medium">Розміри</div>
+                        <div className="text-xs text-gray-500">
+                          Розміри моделі для цього варіанту.
+                        </div>
+                      </div>
+                      <button
+                        type="button"
+                        className="text-sm px-3 py-1 rounded border border-blue-700 hover:text-blue-700 bg-blue-700 hover:bg-white text-white cursor-pointer"
+                        onClick={() => {
+                          const next = [
+                            ...(v.sizes || []),
+                            {
+                              size: '',
+                              extraPriceUAH: '',
+                              imageUrl: '',
+                              sort: String((v.sizes || []).length),
+                            },
+                          ]
+                          setVariantSizes(index, next)
+                        }}
+                      >
+                        Додати розмір
+                      </button>
+                    </div>
+
+                    {(v.sizes || []).length === 0 ? (
+                      <div className="text-sm text-gray-500">
+                        Ще немає розмірів
+                      </div>
+                    ) : (
+                      <div className="space-y-3">
+                        <div className="hidden sm:grid gap-2 sm:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_110px_70px] px-1 text-[11px] uppercase tracking-wide text-gray-500">
+                          <div>Розмір</div>
+                          <div>Фото (URL)</div>
+                          <div>Націнка</div>
+                          <div>Позиція</div>
+                        </div>
+                        {(v.sizes || []).map((size, sizeIndex) => (
+                          <div
+                            key={size.id || `size-${sizeIndex}`}
+                            className="grid gap-2 sm:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_110px_70px]"
+                          >
+                            <input
+                              className="w-full min-w-0 border rounded px-2 py-2 text-sm border-blue-300"
+                              placeholder="Розмір"
+                              value={size.size}
+                              onChange={(e) => {
+                                const next = [...(v.sizes || [])]
+                                next[sizeIndex] = {
+                                  ...next[sizeIndex],
+                                  size: e.target.value,
+                                }
+                                setVariantSizes(index, next)
+                              }}
+                            />
+                            <input
+                              className="w-full min-w-0 border rounded px-2 py-2 text-sm border-blue-300"
+                              placeholder="URL фото для розміру"
+                              value={size.imageUrl || ''}
+                              onChange={(e) => {
+                                const next = [...(v.sizes || [])]
+                                next[sizeIndex] = {
+                                  ...next[sizeIndex],
+                                  imageUrl: e.target.value,
+                                }
+                                setVariantSizes(index, next)
+                              }}
+                            />
+                            <input
+                              className="w-full min-w-0 border rounded px-2 py-2 text-sm border-blue-300 text-center"
+                              placeholder="Націнка, грн"
+                              inputMode="numeric"
+                              value={size.extraPriceUAH}
+                              onChange={(e) => {
+                                const next = [...(v.sizes || [])]
+                                next[sizeIndex] = {
+                                  ...next[sizeIndex],
+                                  extraPriceUAH: e.target.value.replace(
+                                    /[^\d]/g,
+                                    '',
+                                  ),
+                                }
+                                setVariantSizes(index, next)
+                              }}
+                            />
+                            <input
+                              className="w-full min-w-0 border rounded px-2 py-2 text-sm border-blue-300 text-center"
+                              placeholder="Sort"
+                              inputMode="numeric"
+                              value={size.sort}
+                              onChange={(e) => {
+                                const next = [...(v.sizes || [])]
+                                next[sizeIndex] = {
+                                  ...next[sizeIndex],
+                                  sort: e.target.value.replace(/[^\d]/g, ''),
+                                }
+                                setVariantSizes(index, next)
+                              }}
+                            />
+                            <button
+                              type="button"
+                              className="text-sm px-3 py-2 rounded border border-blue-700 text-blue-700 hover:bg-blue-700 hover:text-white cursor-pointer sm:col-span-4 sm:justify-self-end"
+                              onClick={() => {
+                                const next = (v.sizes || []).filter(
+                                  (_, i) => i !== sizeIndex,
+                                )
+                                setVariantSizes(index, next)
+                              }}
+                            >
+                              Видалити
+                            </button>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+
+                  {addonVariantOptions &&
+                    upsertVariantAddon &&
+                    updateVariantAddonSort &&
+                    deleteVariantAddon && (
+                      <div className="md:col-span-2">
+                        <div className="mb-6">
+                          <div className="text-xl font-medium mb-1">
+                            Addons для цього варіанту
+                          </div>
+                          <div className="text-xs text-gray-500 mb-3">
+                            Додай додаткові варіанти товарів (addons), а також
+                            їх положення (від 0 і вище) в списку.
+                          </div>
+                        </div>
+
+                        {!v.id ? (
+                          <div className="text-sm text-gray-500">
+                            Спочатку збережи товар, щоб зʼявився ID варіанту —
+                            тоді можна додавати addons.
+                          </div>
+                        ) : (
+                          <>
+                            {(v.addons || []).length > 0 ? (
+                              <div className="space-y-2">
+                                {(v.addons || [])
+                                  .slice()
+                                  .sort((a, b) => (a.sort ?? 0) - (b.sort ?? 0))
+                                  .map((a) => (
+                                    <div
+                                      key={a.id}
+                                      className="flex flex-col sm:flex-row sm:items-center gap-2"
+                                    >
+                                      <div className="flex-1 text-sm">
+                                        {a.addonProductName}
+                                        {a.addonColor
+                                          ? ` — ${a.addonColor}`
+                                          : ''}
+                                        <span className="text-gray-500">
+                                          {' '}
+                                          · {a.addonPriceUAH} ₴
+                                        </span>
+                                      </div>
+
+                                      <input
+                                        className="w-full sm:w-16 border rounded px-2 py-2 sm:py-1 text-sm border-blue-300 text-center"
+                                        type="number"
+                                        defaultValue={a.sort ?? 0}
+                                        onBlur={async (e) => {
+                                          const sort =
+                                            Number(
+                                              (e.target as HTMLInputElement)
+                                                .value,
+                                            ) || 0
+                                          try {
+                                            const updated =
+                                              await updateVariantAddonSort({
+                                                id: a.id,
+                                                sort,
+                                              })
+                                            const next = (v.addons || []).map(
+                                              (x) =>
+                                                x.id === updated.id
+                                                  ? { ...x, sort: updated.sort }
+                                                  : x,
+                                            )
+                                            setVariantAddons(index, next)
+                                          } catch (err) {
+                                            console.error(err)
+                                          }
+                                        }}
+                                      />
+
+                                      <button
+                                        type="button"
+                                        className="w-full sm:w-auto text-sm px-3 py-2 sm:px-2 sm:py-1 rounded border border-blue-700 text-blue-700 hover:bg-blue-700 hover:text-white cursor-pointer"
+                                        onClick={async () => {
+                                          try {
+                                            await deleteVariantAddon({
+                                              id: a.id,
+                                            })
+                                            const next = (
+                                              v.addons || []
+                                            ).filter((x) => x.id !== a.id)
+                                            setVariantAddons(index, next)
+                                          } catch (err) {
+                                            console.error(err)
+                                          }
+                                        }}
+                                      >
+                                        Видалити
+                                      </button>
+                                    </div>
+                                  ))}
+                              </div>
+                            ) : (
+                              <div className="text-sm text-gray-500">
+                                Ще немає доданих addons
+                              </div>
+                            )}
+
+                            <div className="mt-3 space-y-2">
+                              <div className="border rounded border-blue-300 p-2 max-h-[240px] overflow-y-auto space-y-1">
+                                {availableAddonVariantOptions.length > 0 ? (
+                                  availableAddonVariantOptions.map((opt) => {
+                                    const checked =
+                                      selectedAddonVariantIds.includes(opt.id)
+
+                                    return (
+                                      <label
+                                        key={opt.id}
+                                        className="flex items-start gap-2 rounded px-2 py-1.5 hover:bg-blue-50 cursor-pointer"
+                                      >
+                                        <input
+                                          type="checkbox"
+                                          className="mt-0.5"
+                                          checked={checked}
+                                          onChange={(e) => {
+                                            const isChecked = e.target.checked
+                                            setAddonSelectionByVariant(
+                                              (prev) => {
+                                                const current = (
+                                                  prev[selectionKey] || []
+                                                ).filter((id) =>
+                                                  availableAddonVariantIds.has(
+                                                    id,
+                                                  ),
+                                                )
+                                                const next = isChecked
+                                                  ? Array.from(
+                                                      new Set([
+                                                        ...current,
+                                                        opt.id,
+                                                      ]),
+                                                    )
+                                                  : current.filter(
+                                                      (id) => id !== opt.id,
+                                                    )
+
+                                                return {
+                                                  ...prev,
+                                                  [selectionKey]: next,
+                                                }
+                                              },
+                                            )
+                                          }}
+                                        />
+                                        <span className="text-sm">
+                                          {opt.productName}
+                                          {opt.color
+                                            ? ` — ${opt.color}`
+                                            : ''} · {opt.priceUAH} ₴
+                                        </span>
+                                      </label>
+                                    )
+                                  })
+                                ) : (
+                                  <div className="text-sm text-gray-500">
+                                    Немає доступних addons
+                                  </div>
+                                )}
+                              </div>
+
+                              <button
+                                type="button"
+                                className="text-sm px-3 py-2 rounded border border-blue-700 text-blue-700 hover:bg-blue-700 hover:text-white cursor-pointer disabled:opacity-50"
+                                disabled={!selectedAddonVariantIds.length}
+                                onClick={async () => {
+                                  if (!selectedAddonVariantIds.length) return
+                                  try {
+                                    const created = upsertVariantAddonsBatch
+                                      ? await upsertVariantAddonsBatch({
+                                          variantId: v.id as string,
+                                          addonVariantIds:
+                                            selectedAddonVariantIds,
+                                          sort: 0,
+                                        })
+                                      : await Promise.all(
+                                          selectedAddonVariantIds.map(
+                                            (addonVariantId) =>
+                                              upsertVariantAddon({
+                                                variantId: v.id as string,
+                                                addonVariantId,
+                                                sort: 0,
+                                              }),
+                                          ),
+                                        )
+
+                                    const next = mergeAddonLinks(
+                                      v.addons || [],
+                                      created,
+                                    )
+                                    setVariantAddons(index, next)
+                                    setAddonSelectionByVariant((prev) => ({
+                                      ...prev,
+                                      [selectionKey]: [],
+                                    }))
+                                  } catch (err) {
+                                    console.error(err)
+                                  }
+                                }}
+                              >
+                                Додати вибрані addons
+                              </button>
+
+                              <div className="text-[11px] text-gray-500">
+                                Вибери один або кілька addons чекбоксами і додай
+                                їх у цей варіант.
+                              </div>
+                            </div>
+                          </>
+                        )}
+                      </div>
+                    )}
+                </div>
               </div>
-            </div>
             )
           })}
         </div>

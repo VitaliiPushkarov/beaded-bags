@@ -95,7 +95,7 @@ export default function CartDrawer() {
 
               {items.map((it) => (
                 <div
-                  key={`${it.productId}-${it.variantId}-${it.strapId ?? ''}`}
+                  key={`${it.productId}-${it.variantId}-${it.strapId ?? ''}-${it.sizeId ?? ''}-${it.pouchId ?? ''}`}
                   className="grid grid-cols-[96px,1fr,auto] gap-4 items-start border rounded px-3 py-3"
                 >
                   <div className="inline-flex gap-6">
@@ -120,6 +120,21 @@ export default function CartDrawer() {
                       <div className="text-lg md:text-sm mt-1 text-gray-600">
                         {it.priceUAH} грн
                       </div>
+                      {it.color && (
+                        <div className="text-xs mt-1 text-gray-600">
+                          Колір: {it.color}
+                        </div>
+                      )}
+                      {it.modelSize && (
+                        <div className="text-xs mt-1 text-gray-600">
+                          Розмір моделі: {it.modelSize}
+                        </div>
+                      )}
+                      {it.pouchColor && (
+                        <div className="text-xs mt-1 text-gray-600">
+                          Мішечок: {it.pouchColor}
+                        </div>
+                      )}
                       {it.strapName && (
                         <div className="text-xs mt-1 text-gray-600">
                           Ремінець: {it.strapName}
@@ -128,7 +143,13 @@ export default function CartDrawer() {
 
                       <button
                         onClick={() => {
-                          remove(it.productId, it.variantId, it.strapId)
+                          remove(
+                            it.productId,
+                            it.variantId,
+                            it.strapId,
+                            it.sizeId,
+                            it.pouchId,
+                          )
                         }}
                         className="mt-2 text-rose-600 hover:text-rose-700 text-sm cursor-pointer"
                       >
@@ -144,9 +165,22 @@ export default function CartDrawer() {
                         onClick={() => {
                           const next = it.qty - 1
                           if (next <= 0) {
-                            remove(it.productId, it.variantId, it.strapId)
+                            remove(
+                              it.productId,
+                              it.variantId,
+                              it.strapId,
+                              it.sizeId,
+                              it.pouchId,
+                            )
                           } else {
-                            setQty(it.productId, it.variantId, next, it.strapId)
+                            setQty(
+                              it.productId,
+                              it.variantId,
+                              next,
+                              it.strapId,
+                              it.sizeId,
+                              it.pouchId,
+                            )
                           }
                         }}
                         aria-label="Менше"
@@ -162,6 +196,8 @@ export default function CartDrawer() {
                             it.variantId,
                             it.qty + 1,
                             it.strapId,
+                            it.sizeId,
+                            it.pouchId,
                           )
                         }}
                         aria-label="Більше"

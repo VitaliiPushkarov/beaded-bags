@@ -67,6 +67,12 @@ export default async function AdminProductEditPage({ params }: PageProps) {
           straps: {
             orderBy: { sort: 'asc' },
           },
+          pouches: {
+            orderBy: { sort: 'asc' },
+          },
+          sizes: {
+            orderBy: { sort: 'asc' },
+          },
           addonsOnVariant: {
             where: {
               addonVariant: {
@@ -327,6 +333,8 @@ export default async function AdminProductEditPage({ params }: PageProps) {
       return {
         id: v.id,
         color: v.color ?? '',
+        modelSize: (v as any).modelSize ?? '',
+        pouchColor: (v as any).pouchColor ?? '',
         hex: v.hex ?? '',
         image: main,
         images,
@@ -350,6 +358,23 @@ export default async function AdminProductEditPage({ params }: PageProps) {
             name: s.name ?? '',
             extraPriceUAH: String(s.extraPriceUAH ?? 0),
             sort: String(s.sort ?? 0),
+            imageUrl: s.imageUrl ?? '',
+          })) ?? [],
+        pouches:
+          (v as any).pouches?.map((pouch: any) => ({
+            id: pouch.id,
+            color: pouch.color ?? '',
+            extraPriceUAH: String(pouch.extraPriceUAH ?? 0),
+            sort: String(pouch.sort ?? 0),
+            imageUrl: pouch.imageUrl ?? '',
+          })) ?? [],
+        sizes:
+          (v as any).sizes?.map((size: any) => ({
+            id: size.id,
+            size: size.size ?? '',
+            extraPriceUAH: String(size.extraPriceUAH ?? 0),
+            sort: String(size.sort ?? 0),
+            imageUrl: size.imageUrl ?? '',
           })) ?? [],
         addons:
           (v as any).addonsOnVariant?.map((rel: any) => ({

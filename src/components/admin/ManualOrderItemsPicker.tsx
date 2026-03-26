@@ -9,6 +9,8 @@ type VariantOption = {
   id: string
   productName: string
   color: string | null
+  modelSize: string | null
+  pouchColor: string | null
   imageUrl: string | null
   priceUAH: number
 }
@@ -43,8 +45,14 @@ function createEmptyLine(id: number): Line {
 }
 
 function getVariantLabel(option: VariantOption): string {
-  return option.color?.trim()
-    ? `${option.productName} — ${option.color.trim()}`
+  const details = [
+    option.color?.trim(),
+    option.modelSize?.trim() ? `Розмір: ${option.modelSize.trim()}` : null,
+    option.pouchColor?.trim() ? `Мішечок: ${option.pouchColor.trim()}` : null,
+  ].filter((part): part is string => Boolean(part))
+
+  return details.length
+    ? `${option.productName} — ${details.join(' · ')}`
     : option.productName
 }
 

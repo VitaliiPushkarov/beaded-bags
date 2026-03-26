@@ -115,7 +115,7 @@ export async function GET(req: NextRequest) {
         basePriceUAH: true,
         createdAt: true,
         variants: {
-          take: 1,
+          take: 6,
           orderBy: { sortCatalog: 'asc' },
           select: {
             id: true,
@@ -123,9 +123,12 @@ export async function GET(req: NextRequest) {
             priceUAH: true,
             discountPercent: true,
             discountUAH: true,
+            inStock: true,
+            availabilityStatus: true,
+            sortCatalog: true,
             images: {
               take: 1,
-              orderBy: { id: 'asc' },
+              orderBy: { sort: 'asc' },
               select: { url: true },
             },
           },
@@ -165,7 +168,30 @@ export async function GET(req: NextRequest) {
         orderBy: { id: 'asc' },
         include: {
           images: true,
-          straps: true,
+          straps: {
+            orderBy: { sort: 'asc' },
+            include: {
+              images: {
+                orderBy: { sort: 'asc' },
+              },
+            },
+          },
+          pouches: {
+            orderBy: { sort: 'asc' },
+            include: {
+              images: {
+                orderBy: { sort: 'asc' },
+              },
+            },
+          },
+          sizes: {
+            orderBy: { sort: 'asc' },
+            include: {
+              images: {
+                orderBy: { sort: 'asc' },
+              },
+            },
+          },
           addonsOnVariant: {
             where: {
               addonVariant: {

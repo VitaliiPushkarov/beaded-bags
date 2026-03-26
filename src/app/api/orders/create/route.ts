@@ -90,6 +90,8 @@ const OrderItem = z.object({
   name: z.string().min(1),
   qty: z.number().int().min(1),
   priceUAH: z.number().min(0),
+  modelSize: z.string().optional().nullable(),
+  pouchColor: z.string().optional().nullable(),
   strapName: z.string().optional().nullable(),
   image: z.string().optional().nullable(),
   slug: z.string().optional().nullable(),
@@ -331,6 +333,8 @@ export async function POST(req: NextRequest) {
             variantId: it.variantId ?? null,
             name: it.name,
             color: it.color ?? null,
+            modelSize: it.modelSize ?? null,
+            pouchColor: it.pouchColor ?? null,
             image: it.image ?? null,
             priceUAH: it.priceUAH,
             qty: it.qty,
@@ -362,6 +366,8 @@ export async function POST(req: NextRequest) {
           const line =
             `• ${i.name}` +
             (i.color ? ` — ${i.color}` : '') +
+            (i.modelSize ? `\n  ↳ розмір моделі: ${i.modelSize}` : '') +
+            (i.pouchColor ? `\n  ↳ мішечок: ${i.pouchColor}` : '') +
             (i.strapName ? `\n  ↳ ремінець: ${i.strapName}` : '') +
             (addonsText ? `\n  ↳ додатково: ${addonsText}` : '') +
             ` × ${i.qty} — ${formatUAH(i.priceUAH)}`

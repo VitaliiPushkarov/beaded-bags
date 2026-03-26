@@ -25,6 +25,23 @@ const StrapSchema = z.object({
   name: z.string().trim().min(1),
   extraPriceUAH: z.coerce.number().int().min(0).optional().default(0),
   sort: z.coerce.number().int().optional().default(0),
+  imageUrl: ImagePath.optional().nullable(),
+})
+
+const PouchSchema = z.object({
+  id: z.string().optional(),
+  color: z.string().trim().min(1),
+  extraPriceUAH: z.coerce.number().int().min(0).optional().default(0),
+  sort: z.coerce.number().int().optional().default(0),
+  imageUrl: ImagePath.optional().nullable(),
+})
+
+const SizeSchema = z.object({
+  id: z.string().optional(),
+  size: z.string().trim().min(1),
+  extraPriceUAH: z.coerce.number().int().min(0).optional().default(0),
+  sort: z.coerce.number().int().optional().default(0),
+  imageUrl: ImagePath.optional().nullable(),
 })
 
 const NullablePriceSchema = z.preprocess(
@@ -40,6 +57,8 @@ const NullablePriceSchema = z.preprocess(
 const VariantSchema = z.object({
   id: z.string().optional(),
   color: z.string().optional().nullable(),
+  modelSize: z.string().optional().nullable(),
+  pouchColor: z.string().optional().nullable(),
   hex: z.string().optional().nullable(),
   image: ImagePath.optional().nullable(),
   images: z.array(ImagePath).optional().default([]),
@@ -51,6 +70,8 @@ const VariantSchema = z.object({
   sku: z.string().trim().optional().nullable(),
   shippingNote: z.string().trim().optional().nullable(),
   straps: z.array(StrapSchema).optional().default([]),
+  pouches: z.array(PouchSchema).optional().default([]),
+  sizes: z.array(SizeSchema).optional().default([]),
 })
 
 const ProductSchema = z.object({
@@ -151,6 +172,8 @@ export async function PATCH(
               data: {
                 productId: id,
                 color: v.color ?? null,
+                modelSize: v.modelSize?.trim() || null,
+                pouchColor: v.pouchColor?.trim() || null,
                 hex: v.hex ?? null,
                 image: v.image ?? null,
                 images: {
@@ -178,6 +201,7 @@ export async function PATCH(
                     name: strap.name,
                     extraPriceUAH: strap.extraPriceUAH ?? 0,
                     sort: strap.sort ?? i,
+                    imageUrl: strap.imageUrl ?? null,
                   },
                 })
 
@@ -190,6 +214,7 @@ export async function PATCH(
                       name: strap.name,
                       extraPriceUAH: strap.extraPriceUAH ?? 0,
                       sort: strap.sort ?? i,
+                      imageUrl: strap.imageUrl ?? null,
                     },
                     select: { id: true },
                   })
@@ -202,6 +227,7 @@ export async function PATCH(
                     name: strap.name,
                     extraPriceUAH: strap.extraPriceUAH ?? 0,
                     sort: strap.sort ?? i,
+                    imageUrl: strap.imageUrl ?? null,
                   },
                   select: { id: true },
                 })
@@ -215,11 +241,117 @@ export async function PATCH(
                 ...(keepStrapIds.length ? { id: { notIn: keepStrapIds } } : {}),
               },
             })
+
+            const keepPouchIds: string[] = []
+            const pouches = v.pouches ?? []
+            for (let i = 0; i < pouches.length; i++) {
+              const pouch = pouches[i]
+              if (pouch.id) {
+                const updated = await tx.productVariantPouch.updateMany({
+                  where: { id: pouch.id, variantId: v.id },
+                  data: {
+                    color: pouch.color,
+                    extraPriceUAH: pouch.extraPriceUAH ?? 0,
+                    sort: pouch.sort ?? i,
+                    imageUrl: pouch.imageUrl ?? null,
+                  },
+                })
+
+                if (updated.count > 0) {
+                  keepPouchIds.push(pouch.id)
+                } else {
+                  const createdPouch = await tx.productVariantPouch.create({
+                    data: {
+                      variantId: v.id,
+                      color: pouch.color,
+                      extraPriceUAH: pouch.extraPriceUAH ?? 0,
+                      sort: pouch.sort ?? i,
+                      imageUrl: pouch.imageUrl ?? null,
+                    },
+                    select: { id: true },
+                  })
+                  keepPouchIds.push(createdPouch.id)
+                }
+              } else {
+                const createdPouch = await tx.productVariantPouch.create({
+                  data: {
+                    variantId: v.id,
+                    color: pouch.color,
+                    extraPriceUAH: pouch.extraPriceUAH ?? 0,
+                    sort: pouch.sort ?? i,
+                    imageUrl: pouch.imageUrl ?? null,
+                  },
+                  select: { id: true },
+                })
+                keepPouchIds.push(createdPouch.id)
+              }
+            }
+
+            await tx.productVariantPouch.deleteMany({
+              where: {
+                variantId: v.id,
+                ...(keepPouchIds.length ? { id: { notIn: keepPouchIds } } : {}),
+              },
+            })
+
+            const keepSizeIds: string[] = []
+            const sizes = v.sizes ?? []
+            for (let i = 0; i < sizes.length; i++) {
+              const size = sizes[i]
+              if (size.id) {
+                const updated = await tx.productVariantSize.updateMany({
+                  where: { id: size.id, variantId: v.id },
+                  data: {
+                    size: size.size,
+                    extraPriceUAH: size.extraPriceUAH ?? 0,
+                    sort: size.sort ?? i,
+                    imageUrl: size.imageUrl ?? null,
+                  },
+                })
+
+                if (updated.count > 0) {
+                  keepSizeIds.push(size.id)
+                } else {
+                  const createdSize = await tx.productVariantSize.create({
+                    data: {
+                      variantId: v.id,
+                      size: size.size,
+                      extraPriceUAH: size.extraPriceUAH ?? 0,
+                      sort: size.sort ?? i,
+                      imageUrl: size.imageUrl ?? null,
+                    },
+                    select: { id: true },
+                  })
+                  keepSizeIds.push(createdSize.id)
+                }
+              } else {
+                const createdSize = await tx.productVariantSize.create({
+                  data: {
+                    variantId: v.id,
+                    size: size.size,
+                    extraPriceUAH: size.extraPriceUAH ?? 0,
+                    sort: size.sort ?? i,
+                    imageUrl: size.imageUrl ?? null,
+                  },
+                  select: { id: true },
+                })
+                keepSizeIds.push(createdSize.id)
+              }
+            }
+
+            await tx.productVariantSize.deleteMany({
+              where: {
+                variantId: v.id,
+                ...(keepSizeIds.length ? { id: { notIn: keepSizeIds } } : {}),
+              },
+            })
           } else {
             const created = await tx.productVariant.create({
               data: {
                 productId: id,
                 color: v.color ?? null,
+                modelSize: v.modelSize?.trim() || null,
+                pouchColor: v.pouchColor?.trim() || null,
                 hex: v.hex ?? null,
                 image: v.image ?? null,
                 images: {
@@ -237,6 +369,23 @@ export async function PATCH(
                     name: s.name,
                     extraPriceUAH: s.extraPriceUAH ?? 0,
                     sort: s.sort ?? i,
+                    imageUrl: s.imageUrl ?? null,
+                  })),
+                },
+                pouches: {
+                  create: (v.pouches ?? []).map((pouch, i) => ({
+                    color: pouch.color,
+                    extraPriceUAH: pouch.extraPriceUAH ?? 0,
+                    sort: pouch.sort ?? i,
+                    imageUrl: pouch.imageUrl ?? null,
+                  })),
+                },
+                sizes: {
+                  create: (v.sizes ?? []).map((size, i) => ({
+                    size: size.size,
+                    extraPriceUAH: size.extraPriceUAH ?? 0,
+                    sort: size.sort ?? i,
+                    imageUrl: size.imageUrl ?? null,
                   })),
                 },
               },
@@ -270,6 +419,12 @@ export async function PATCH(
             },
           })
           await tx.productVariantStrap.deleteMany({
+            where: { variantId: { in: toDeleteIds } },
+          })
+          await tx.productVariantPouch.deleteMany({
+            where: { variantId: { in: toDeleteIds } },
+          })
+          await tx.productVariantSize.deleteMany({
             where: { variantId: { in: toDeleteIds } },
           })
 
@@ -354,6 +509,9 @@ export async function GET(
           orderBy: { id: 'asc' },
           include: {
             images: true,
+            straps: true,
+            pouches: true,
+            sizes: true,
           },
         },
       },

@@ -4,6 +4,27 @@ import Image from 'next/image'
 import { ChevronLeft, ChevronRight } from 'lucide-react'
 import { calcDiscountedPrice } from '@/lib/pricing'
 
+type LiteVariant = {
+  id?: string
+  image?: string | null
+  priceUAH?: number | null
+  discountPercent?: number | null
+  discountUAH?: number | null
+  inStock?: boolean | null
+  availabilityStatus?: 'IN_STOCK' | 'PREORDER' | 'OUT_OF_STOCK' | null
+  sortCatalog?: number | null
+  images?: Array<{ url?: string | null }>
+}
+
+function availabilityRank(v: LiteVariant): number {
+  if (v.availabilityStatus === 'IN_STOCK') return 0
+  if (v.availabilityStatus === 'PREORDER') return 1
+  if (v.availabilityStatus === 'OUT_OF_STOCK') return 2
+  if (v.inStock === true) return 0
+  if (v.inStock === false) return 2
+  return 1
+}
+
 export default function YouMayAlsoLike({
   currentSlug,
   currentId,
@@ -189,24 +210,60 @@ export default function YouMayAlsoLike({
 
             const href = `/products/${p.slug}`
 
+            const variants: LiteVariant[] = Array.isArray(p?.variants)
+              ? p.variants
+              : []
+
+            const normalizedVariants = variants.map((variant) => ({
+              variant,
+              pricing: calcDiscountedPrice({
+                basePriceUAH:
+                  variant?.priceUAH ?? p?.basePriceUAH ?? p?.priceUAH ?? 0,
+                discountPercent: variant?.discountPercent,
+                discountUAH: variant?.discountUAH ?? 0,
+              }),
+              rank: availabilityRank(variant),
+              sortCatalog:
+                typeof variant?.sortCatalog === 'number'
+                  ? variant.sortCatalog
+                  : Number.MAX_SAFE_INTEGER,
+            }))
+
+            const cardVariant = normalizedVariants
+              .slice()
+              .sort((a, b) => {
+                if (a.rank !== b.rank) return a.rank - b.rank
+                if (a.pricing.hasDiscount !== b.pricing.hasDiscount) {
+                  return a.pricing.hasDiscount ? -1 : 1
+                }
+                if (a.pricing.finalPriceUAH !== b.pricing.finalPriceUAH) {
+                  return a.pricing.finalPriceUAH - b.pricing.finalPriceUAH
+                }
+                if (a.sortCatalog !== b.sortCatalog) {
+                  return a.sortCatalog - b.sortCatalog
+                }
+                return String(a.variant.id ?? '').localeCompare(
+                  String(b.variant.id ?? ''),
+                )
+              })[0]
+
             const image =
               p?.image ||
               p?.mainImage ||
+              cardVariant?.variant?.image ||
+              cardVariant?.variant?.images?.[0]?.url ||
               p?.variants?.[0]?.image ||
               p?.variants?.[0]?.images?.[0]?.url ||
               '/img/placeholder.png'
 
-            const firstVariant = p?.variants?.[0]
             const hasAnyPrice =
-              typeof firstVariant?.priceUAH === 'number' ||
+              typeof cardVariant?.variant?.priceUAH === 'number' ||
               typeof p?.basePriceUAH === 'number' ||
               typeof p?.priceUAH === 'number'
             const { basePriceUAH, finalPriceUAH, hasDiscount, discountPercent } =
+              cardVariant?.pricing ??
               calcDiscountedPrice({
-                basePriceUAH:
-                  firstVariant?.priceUAH ?? p?.basePriceUAH ?? p?.priceUAH ?? 0,
-                discountPercent: firstVariant?.discountPercent,
-                discountUAH: firstVariant?.discountUAH ?? 0,
+                basePriceUAH: p?.basePriceUAH ?? p?.priceUAH ?? 0,
               })
 
             return (

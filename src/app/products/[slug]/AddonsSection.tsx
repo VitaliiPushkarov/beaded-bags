@@ -11,7 +11,13 @@ export function AddonsSection(props: {
   availableAddons: AddonVariantUI[]
   selectedAddonVariantIds: string[]
   toggleAddon: (id: string) => void
-  addonPrice: (av: AddonVariantUI) => number
+  addonPricing: (av: AddonVariantUI) => {
+    basePriceUAH: number
+    finalPriceUAH: number
+    hasDiscount: boolean
+    discountPercent: number
+    discountUAH: number
+  }
   addonImageUrl: (av: AddonVariantUI) => string
   addonsTotal: number
 }) {
@@ -19,7 +25,7 @@ export function AddonsSection(props: {
     availableAddons,
     selectedAddonVariantIds,
     toggleAddon,
-    addonPrice,
+    addonPricing,
     addonImageUrl,
     addonsTotal,
   } = props
@@ -37,6 +43,7 @@ export function AddonsSection(props: {
           <div className="flex gap-3 px-1 pb-1">
             {inStockAddons.map((addonV) => {
               const isSelected = selectedAddonVariantIds.includes(addonV.id)
+              const pricing = addonPricing(addonV)
               return (
                 <div key={addonV.id} className="relative shrink-0 w-[140px]">
                   {/* Картинка як лінк на сторінку аксесуара */}
@@ -71,8 +78,18 @@ export function AddonsSection(props: {
                   <div className="mt-2 text-xs text-gray-900">
                     {addonV.product.name}
                   </div>
-                  <div className="text-xs text-gray-600">
-                    {addonPrice(addonV)} ₴
+                  <div className="text-xs text-gray-600 flex items-center gap-1.5 flex-wrap">
+                    <span>{pricing.finalPriceUAH} ₴</span>
+                    {pricing.hasDiscount && (
+                      <>
+                        <span className="text-[11px] text-gray-500 line-through">
+                          {pricing.basePriceUAH} ₴
+                        </span>
+                        <span className="text-[10px] border border-black rounded-full px-1 py-0.5">
+                          -{pricing.discountPercent}%
+                        </span>
+                      </>
+                    )}
                   </div>
                 </div>
               )

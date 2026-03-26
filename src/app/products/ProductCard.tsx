@@ -92,12 +92,17 @@ export default function ProductCard({ product }: ProductCardProps) {
               productId: product.id,
               variantId: firstVariant?.id ?? '',
               name: product.name,
+              color: firstVariant?.color ?? null,
+              modelSize: null,
+              pouchColor: null,
               priceUAH: finalPriceUAH,
               image: img,
               qty: 1,
               slug: product.slug,
               strapId: null,
               strapName: null,
+              sizeId: null,
+              pouchId: null,
             }
 
             add(item)
