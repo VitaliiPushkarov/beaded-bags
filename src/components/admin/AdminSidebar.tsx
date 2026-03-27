@@ -10,6 +10,7 @@ import {
   Boxes,
   Calculator,
   ChevronDown,
+  FileText,
   Home,
   Package,
   ShoppingCart,
@@ -65,6 +66,7 @@ const NAV_ITEMS: AdminNavItem[] = [
   },
   { kind: 'link', href: '/admin/expenses', label: 'Витрати', icon: Wallet },
   { kind: 'link', href: '/admin/finance', label: 'Фінанси', icon: BarChart3 },
+  { kind: 'link', href: '/admin/blog', label: 'Блог', icon: FileText },
 ]
 
 function isItemActive(pathname: string, href: string) {

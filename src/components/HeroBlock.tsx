@@ -19,7 +19,7 @@ export default function HeroBlock() {
       />
       {/* Головне фото */}
       <Image
-        src="/img/home-banner-v-day.webp"
+        src="/img/hero-block-01.jpg"
         alt="Gerdan Hero"
         fill
         priority

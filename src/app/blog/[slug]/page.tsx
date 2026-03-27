@@ -2,8 +2,10 @@ import type { Metadata } from 'next'
 import { notFound } from 'next/navigation'
 import { Suspense } from 'react'
 import Breadcrumbs from '@/components/ui/BreadCrumbs'
-import { getBlogPostBySlug, getBlogPosts } from '@/lib/blog'
+import { getBlogPostBySlug } from '@/lib/blog'
 import Image from 'next/image'
+
+export const dynamic = 'force-dynamic'
 
 type BlogPostPageProps = {
   params: Promise<{ slug: string }>
@@ -17,15 +19,11 @@ function formatDate(isoDate: string) {
   })
 }
 
-export function generateStaticParams() {
-  return getBlogPosts().map((post) => ({ slug: post.slug }))
-}
-
 export async function generateMetadata({
   params,
 }: BlogPostPageProps): Promise<Metadata> {
   const { slug } = await params
-  const post = getBlogPostBySlug(slug)
+  const post = await getBlogPostBySlug(slug)
 
   if (!post) {
     return {
@@ -63,7 +61,7 @@ export async function generateMetadata({
 
 export default async function BlogPostPage({ params }: BlogPostPageProps) {
   const { slug } = await params
-  const post = getBlogPostBySlug(slug)
+  const post = await getBlogPostBySlug(slug)
 
   if (!post) notFound()
 

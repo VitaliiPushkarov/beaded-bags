@@ -422,6 +422,25 @@ model PreorderLead {
   @@index([variantId])
 }
 
+model BlogPost {
+  id            String         @id @default(cuid())
+  slug          String         @unique
+  title         String
+  excerpt       String
+  description   String
+  coverImage    String
+  coverImageAlt String
+  keywords      String[]       @default([])
+  publishedAt   DateTime?
+  readingMinutes Int           @default(4)
+  status        BlogPostStatus @default(DRAFT)
+  sections      Json
+  createdAt     DateTime       @default(now())
+  updatedAt     DateTime       @updatedAt
+
+  @@index([status, publishedAt])
+}
+
 model Collection {
   id                String              @id
   slug              String              @unique
@@ -465,6 +484,12 @@ enum ProductType {
   BELT_BAG
   ORNAMENTS
   ACCESSORY
+}
+
+enum BlogPostStatus {
+  DRAFT
+  PUBLISHED
+  ARCHIVED
 }
 
 enum ProductStatus {
