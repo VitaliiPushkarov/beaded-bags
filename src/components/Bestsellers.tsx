@@ -2,6 +2,7 @@ import Image from 'next/image'
 import Link from 'next/link'
 import type { Product, ProductVariant } from '@prisma/client'
 import { calcDiscountedPrice } from '@/lib/pricing'
+import { matchAccessorySubcategory } from '@/lib/shop-taxonomy'
 
 type ProductWithVariants = Product & {
   variants: (ProductVariant & {
@@ -10,16 +11,32 @@ type ProductWithVariants = Product & {
 }
 
 const BASE_URL = process.env.NEXT_PUBLIC_SITE_URL ?? 'https://gerdan.online'
+const BESTSELLERS_VISIBLE_COUNT = 12
+const BESTSELLERS_SOURCE_RANGE = 60
 
 async function getBestsellers(): Promise<ProductWithVariants[]> {
-  const res = await fetch(`${BASE_URL}/api/products?lite=1&limit=12`, {
-    cache: 'no-store',
-  })
+  const res = await fetch(
+    `${BASE_URL}/api/products?lite=1&limit=${BESTSELLERS_SOURCE_RANGE}`,
+    {
+      cache: 'no-store',
+    },
+  )
   if (!res.ok) return []
   const json = (await res.json()) as
     | ProductWithVariants[]
     | { items?: ProductWithVariants[] }
-  return Array.isArray(json) ? json : json.items ?? []
+  const items = Array.isArray(json) ? json : json.items ?? []
+
+  return items
+    .filter((item) => {
+      const isAccessoryType =
+        item.type === 'ACCESSORY' || item.type === 'ORNAMENTS'
+
+      if (!isAccessoryType) return true
+
+      return !matchAccessorySubcategory(item, 'breloky')
+    })
+    .slice(0, BESTSELLERS_VISIBLE_COUNT)
 }
 
 export default async function Bestsellers() {

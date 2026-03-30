@@ -243,6 +243,9 @@ export default function ProductForm({
           sortCatalog: '',
           basePriceUAH: '',
           description: '',
+          info: '',
+          dimensions: '',
+          offerNote: '',
           inStock: true,
           variants: [
             {

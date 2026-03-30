@@ -1,15 +1,16 @@
 'use client'
 
 import { FormEvent, useState, Suspense } from 'react'
-import { useRouter, useSearchParams } from 'next/navigation'
+import { useSearchParams } from 'next/navigation'
 
 function AdminLoginInner() {
   const [password, setPassword] = useState('')
   const [error, setError] = useState<string | null>(null)
   const [loading, setLoading] = useState(false)
-  const router = useRouter()
   const sp = useSearchParams()
-  const from = sp.get('from') || '/admin'
+  const fromParam = sp.get('from')
+  const from =
+    fromParam && fromParam.startsWith('/admin') ? fromParam : '/admin'
 
   async function onSubmit(e: FormEvent) {
     e.preventDefault()
@@ -30,7 +31,7 @@ function AdminLoginInner() {
         return
       }
 
-      router.push(from)
+      window.location.assign(from)
     } catch (err) {
       console.error(err)
       setError('Мережева помилка')

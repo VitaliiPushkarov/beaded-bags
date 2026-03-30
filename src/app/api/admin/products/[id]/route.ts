@@ -109,7 +109,13 @@ export async function PATCH(
     const { id } = await params
     const existing = await prisma.product.findUnique({
       where: { id },
-      select: { slug: true, type: true, group: true, status: true },
+      select: {
+        slug: true,
+        type: true,
+        group: true,
+        status: true,
+        dimensions: true,
+      },
     })
 
     if (!existing) {
@@ -130,6 +136,12 @@ export async function PATCH(
 
     // Normalize group: allow null/undefined
     const nextGroup = (data.group ?? null) as ProductGroup | null
+    const nextDimensions =
+      typeof data.dimensions === 'undefined'
+        ? (existing.dimensions ?? null)
+        : data.dimensions?.trim()
+          ? data.dimensions
+          : null
 
     // Determine which variant IDs should remain
     const incomingIds = data.variants
@@ -151,7 +163,7 @@ export async function PATCH(
             basePriceUAH: data.basePriceUAH,
             description: data.description ?? null,
             info: data.info ?? null,
-            dimensions: data.dimensions || null,
+            dimensions: nextDimensions,
             offerNote: data.offerNote ?? null,
             inStock: data.inStock,
           },
