@@ -44,6 +44,9 @@ type PageProps = {
     productId?: string
     packagingOpen?: string
     editPackagingId?: string
+    recentAddedDate?: string
+    recentAddedFrom?: string
+    recentAddedTo?: string
   }>
 }
 
@@ -98,6 +101,24 @@ function formatQuantity(value: number): string {
   })
 }
 
+function parseDateParam(value?: string): Date | null {
+  if (!value) return null
+  const parsed = new Date(value)
+  return Number.isNaN(parsed.getTime()) ? null : parsed
+}
+
+function startOfDay(date: Date): Date {
+  const next = new Date(date)
+  next.setHours(0, 0, 0, 0)
+  return next
+}
+
+function endOfDay(date: Date): Date {
+  const next = new Date(date)
+  next.setHours(23, 59, 59, 999)
+  return next
+}
+
 const INVENTORY_VIEW_PATHS: Record<InventoryView, string> = {
   overview: '/admin/inventory',
   products: '/admin/inventory/products',
@@ -136,6 +157,9 @@ export default async function InventoryPageView({
   const focusedProductId = params.productId?.trim() ?? ''
   const packagingOpen = params.packagingOpen === '1'
   const editPackagingId = params.editPackagingId?.trim() ?? ''
+  const recentAddedDate = params.recentAddedDate?.trim() ?? ''
+  const recentAddedFrom = params.recentAddedFrom?.trim() ?? ''
+  const recentAddedTo = params.recentAddedTo?.trim() ?? ''
   const basePath = INVENTORY_VIEW_PATHS[view]
   const showProductsSection = view === 'products'
   const showPackagingSection = view === 'packaging'
@@ -795,9 +819,38 @@ export default async function InventoryPageView({
       }
     >(),
   )
-  const recentMaterials = [...materials]
-    .sort((left, right) => right.createdAt.getTime() - left.createdAt.getTime())
-    .slice(0, 10)
+  const parsedRecentDate = parseDateParam(recentAddedDate)
+  const parsedRecentFrom = parseDateParam(recentAddedFrom)
+  const parsedRecentTo = parseDateParam(recentAddedTo)
+  const recentFilterFrom = parsedRecentDate
+    ? startOfDay(parsedRecentDate)
+    : parsedRecentFrom
+      ? startOfDay(parsedRecentFrom)
+      : null
+  const recentFilterTo = parsedRecentDate
+    ? endOfDay(parsedRecentDate)
+    : parsedRecentTo
+      ? endOfDay(parsedRecentTo)
+      : null
+  const hasRecentDateFilter = Boolean(recentFilterFrom || recentFilterTo)
+  const recentMaterialsPool = [...materials].sort(
+    (left, right) => right.createdAt.getTime() - left.createdAt.getTime(),
+  )
+  const recentMaterialsFiltered = hasRecentDateFilter
+    ? recentMaterialsPool.filter((material) => {
+        const createdAt = material.createdAt.getTime()
+        if (recentFilterFrom && createdAt < recentFilterFrom.getTime()) {
+          return false
+        }
+        if (recentFilterTo && createdAt > recentFilterTo.getTime()) {
+          return false
+        }
+        return true
+      })
+    : recentMaterialsPool
+  const recentMaterials = hasRecentDateFilter
+    ? recentMaterialsFiltered
+    : recentMaterialsFiltered.slice(0, 10)
   const recentMaterialsVisible = recentMaterials.slice(0, 5)
   const recentMaterialsHidden = recentMaterials.slice(5)
 
@@ -908,13 +961,82 @@ export default async function InventoryPageView({
             <CardHeader className="border-b border-slate-200">
               <CardTitle>Останні додані матеріали</CardTitle>
               <CardDescription>
-                Швидка навігація до нещодавно доданих позицій.
+                Фільтруй матеріали за конкретною датою або діапазоном дат.
               </CardDescription>
             </CardHeader>
             <CardContent className="p-0">
+              <div className="border-b border-slate-200 p-4">
+                <form
+                  method="get"
+                  action={basePath}
+                  className="grid gap-3 md:grid-cols-[220px_220px_220px_auto_auto]"
+                >
+                  <label className="text-sm font-medium">
+                    Дата
+                    <input
+                      type="date"
+                      name="recentAddedDate"
+                      defaultValue={recentAddedDate}
+                      className="mt-1 w-full rounded-lg border px-3 py-2 text-sm"
+                    />
+                  </label>
+                  <label className="text-sm font-medium">
+                    З
+                    <input
+                      type="date"
+                      name="recentAddedFrom"
+                      defaultValue={recentAddedFrom}
+                      className="mt-1 w-full rounded-lg border px-3 py-2 text-sm"
+                    />
+                  </label>
+                  <label className="text-sm font-medium">
+                    По
+                    <input
+                      type="date"
+                      name="recentAddedTo"
+                      defaultValue={recentAddedTo}
+                      className="mt-1 w-full rounded-lg border px-3 py-2 text-sm"
+                    />
+                  </label>
+                  <div className="flex items-end gap-2">
+                    <button
+                      type="submit"
+                      className={cn(
+                        buttonVariants({
+                          variant: 'default',
+                          size: 'sm',
+                        }),
+                        'h-10',
+                      )}
+                    >
+                      Оновити
+                    </button>
+                    <Link
+                      href={basePath}
+                      className={cn(
+                        buttonVariants({
+                          variant: 'outline',
+                          size: 'sm',
+                        }),
+                        'h-10',
+                      )}
+                    >
+                      Скинути
+                    </Link>
+                  </div>
+                  <div className="flex items-end text-xs text-slate-500">
+                    {hasRecentDateFilter
+                      ? `Знайдено: ${recentMaterials.length}`
+                      : `Показано останніх: ${recentMaterials.length}`}
+                  </div>
+                </form>
+              </div>
+
               {recentMaterials.length === 0 ? (
                 <div className="p-6 text-sm text-gray-600">
-                  Матеріали ще не додані.
+                  {hasRecentDateFilter
+                    ? 'За обраний період матеріалів не знайдено.'
+                    : 'Матеріали ще не додані.'}
                 </div>
               ) : (
                 <>
