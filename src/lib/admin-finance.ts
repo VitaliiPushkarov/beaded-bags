@@ -1,4 +1,4 @@
-import type { Expense, Order, OrderItem, Purchase } from '@prisma/client'
+import type { Expense, Order, OrderItem } from '@prisma/client'
 
 import { buildOrderFinancialSnapshot } from '@/lib/finance'
 
@@ -244,7 +244,7 @@ export function resolveOrderFinance(
 export function buildFinanceSummary(input: {
   orders: FinanceOrder[]
   expenses: Expense[]
-  purchases: Purchase[]
+  materialsCatalogTotalUAH?: number
   productResolver?: FinanceProductResolver
 }) {
   const activeOrders = input.orders.filter(
@@ -283,9 +283,9 @@ export function buildFinanceSummary(input: {
   const otherExpensesUAH = input.expenses
     .filter((expense) => expense.category !== 'ADS' && expense.category !== 'SHIPPING')
     .reduce((sum, expense) => sum + expense.amountUAH, 0)
-  const purchaseCashOutUAH = input.purchases.reduce(
-    (sum, purchase) => sum + purchase.totalUAH,
+  const materialsCatalogTotalUAH = Math.max(
     0,
+    Math.round(input.materialsCatalogTotalUAH ?? 0),
   )
   const avgOrderValueUAH =
     activeOrders.length > 0 ? Math.round(placedRevenueUAH / activeOrders.length) : 0
@@ -300,7 +300,7 @@ export function buildFinanceSummary(input: {
     grossProfitUAH,
     operatingExpensesUAH,
     otherExpensesUAH,
-    purchaseCashOutUAH,
+    materialsCatalogTotalUAH,
     netAfterExpensesUAH: grossProfitUAH - operatingExpensesUAH,
     avgOrderValueUAH,
   }

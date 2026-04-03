@@ -75,11 +75,15 @@ type CostRow = {
   materialsCostUAH: number
   packagingCostUAH: number
   laborCostUAH: number
+  shippingCostUAH: number
   otherCostUAH: number
   unitCostUAH: number
+  unitCostWithShippingUAH: number
   paymentFeeUAH: number
   grossProfitUAH: number
   marginPercent: number
+  readiness: 'ready' | 'attention'
+  readinessIssues: string[]
 }
 
 type CostStatusFilter = 'all' | 'with' | 'missing'
@@ -96,6 +100,7 @@ type SortDirection = 'asc' | 'desc'
 const CostAssemblySchema = z.object({
   productId: z.string().min(1),
   laborCostUAH: z.coerce.number().int().min(0).default(0),
+  shippingCostUAH: z.coerce.number().int().min(0).default(0),
   otherCostUAH: z.coerce.number().int().min(0).default(0),
   notes: z.string().trim().optional(),
   returnTo: z.string().trim().optional(),
@@ -183,6 +188,7 @@ export default async function AdminCostsPage({ searchParams }: PageProps) {
     const parsed = CostAssemblySchema.safeParse({
       productId: formData.get('productId'),
       laborCostUAH: formData.get('laborCostUAH'),
+      shippingCostUAH: formData.get('shippingCostUAH'),
       otherCostUAH: formData.get('otherCostUAH'),
       notes: formData.get('notes'),
       returnTo: formData.get('returnTo'),
@@ -197,11 +203,13 @@ export default async function AdminCostsPage({ searchParams }: PageProps) {
       create: {
         productId: parsed.data.productId,
         laborCostUAH: parsed.data.laborCostUAH,
+        shippingCostUAH: parsed.data.shippingCostUAH,
         otherCostUAH: parsed.data.otherCostUAH,
         notes: parsed.data.notes || null,
       },
       update: {
         laborCostUAH: parsed.data.laborCostUAH,
+        shippingCostUAH: parsed.data.shippingCostUAH,
         otherCostUAH: parsed.data.otherCostUAH,
         notes: parsed.data.notes || null,
       },
@@ -278,20 +286,36 @@ export default async function AdminCostsPage({ searchParams }: PageProps) {
   const rows = products
     .flatMap<CostRow>((product) => {
       const variants = product.variants.length ? product.variants : [null]
-      const packagingCostUAH = product.packagingTemplate?.costUAH ?? 0
-      const laborCostUAH = product.costProfile?.laborCostUAH ?? 0
-      const otherCostUAH = product.costProfile?.otherCostUAH ?? 0
 
       return variants.map((variant) => {
         const materialsCostUAH = calculateMaterialsCostFromUsages(
           product.materialUsages,
           variant?.color,
         )
+        const packagingCostUAH = Math.round(
+          Math.max(0, product.packagingTemplate?.costUAH ?? 0),
+        )
+        const laborCostUAH = Math.round(
+          Math.max(0, product.costProfile?.laborCostUAH ?? 0),
+        )
+        const shippingCostUAH = Math.round(
+          Math.max(0, product.costProfile?.shippingCostUAH ?? 0),
+        )
+        const otherCostUAH = Math.round(
+          Math.max(0, product.costProfile?.otherCostUAH ?? 0),
+        )
         const unitCostUAH = buildManagedUnitCostUAH({
           profile: product.costProfile,
           materialUsages: product.materialUsages,
           packagingTemplateCostUAH: product.packagingTemplate?.costUAH,
           includeShipping: false,
+          variantColor: variant?.color,
+        })
+        const unitCostWithShippingUAH = buildManagedUnitCostUAH({
+          profile: product.costProfile,
+          materialUsages: product.materialUsages,
+          packagingTemplateCostUAH: product.packagingTemplate?.costUAH,
+          includeShipping: true,
           variantColor: variant?.color,
         })
         const salePriceUAH = getVariantSalePrice(product, variant)
@@ -301,6 +325,23 @@ export default async function AdminCostsPage({ searchParams }: PageProps) {
           salePriceUAH,
           unitCostUAH + paymentFeeUAH,
         )
+        const readinessIssues: string[] = []
+        if (product.materialUsages.length === 0) {
+          readinessIssues.push('Не додані матеріали')
+        } else if (materialsCostUAH <= 0) {
+          readinessIssues.push('Нульова вартість матеріалів')
+        }
+        if (!product.packagingTemplate) {
+          readinessIssues.push('Не задано пакування')
+        }
+        if (laborCostUAH <= 0) {
+          readinessIssues.push('Не задана оплата роботи')
+        }
+        if (salePriceUAH > 0 && unitCostUAH >= salePriceUAH) {
+          readinessIssues.push('Собівартість >= ціни продажу')
+        }
+        const readiness: CostRow['readiness'] =
+          readinessIssues.length === 0 ? 'ready' : 'attention'
 
         return {
           product,
@@ -310,11 +351,15 @@ export default async function AdminCostsPage({ searchParams }: PageProps) {
           materialsCostUAH,
           packagingCostUAH,
           laborCostUAH,
+          shippingCostUAH,
           otherCostUAH,
           unitCostUAH,
+          unitCostWithShippingUAH,
           paymentFeeUAH,
           grossProfitUAH,
           marginPercent,
+          readiness,
+          readinessIssues,
         }
       })
     })
@@ -347,9 +392,11 @@ export default async function AdminCostsPage({ searchParams }: PageProps) {
             direction *
               ((a.variant?.sortCatalog ?? 0) - (b.variant?.sortCatalog ?? 0)) ||
             b.product.createdAt.getTime() - a.product.createdAt.getTime()
-          )
+        )
       }
     })
+  const readyRowsCount = rows.filter((row) => row.readiness === 'ready').length
+  const attentionRowsCount = rows.length - readyRowsCount
 
   return (
     <div className="space-y-6">
@@ -357,7 +404,8 @@ export default async function AdminCostsPage({ searchParams }: PageProps) {
         <div>
           <h1 className="text-2xl font-semibold">Собівартість</h1>
           <p className="mt-1 text-sm text-gray-600">
-            Збірка собівартості: матеріали та пакування із Запасів + ручні витрати на одиницю.
+            Збірка собівартості: матеріали та пакування із Запасів + ручні
+            витрати на одиницю.
           </p>
         </div>
 
@@ -449,6 +497,15 @@ export default async function AdminCostsPage({ searchParams }: PageProps) {
         <div className="rounded border bg-white p-4 text-sm text-gray-600">
           Знайдено варіантів:{' '}
           <span className="font-medium text-gray-900">{rows.length}</span>
+          {' · '}Повна калькуляція:{' '}
+          <span className="font-medium text-green-700">{readyRowsCount}</span>
+          {' · '}Потребує уваги:{' '}
+          <span className="font-medium text-amber-700">{attentionRowsCount}</span>
+        </div>
+        <div className="rounded border border-blue-100 bg-blue-50 p-4 text-xs text-blue-900">
+          Для замовлень використовується собівартість <b>без доставки</b>:
+          матеріали + пакування + робота + інші витрати. Доставка на 1 шт
+          показується окремо як повна планова собівартість.
         </div>
 
         {rows.length === 0 ? (
@@ -465,11 +522,15 @@ export default async function AdminCostsPage({ searchParams }: PageProps) {
               materialsCostUAH,
               packagingCostUAH,
               laborCostUAH,
+              shippingCostUAH,
               otherCostUAH,
               unitCostUAH,
+              unitCostWithShippingUAH,
               paymentFeeUAH,
               grossProfitUAH,
               marginPercent,
+              readiness,
+              readinessIssues,
             }) => (
               <details
                 key={`${product.id}-${variant?.id ?? 'base'}`}
@@ -483,6 +544,24 @@ export default async function AdminCostsPage({ searchParams }: PageProps) {
                       <div className="font-medium">{product.name}</div>
                       <div className="mt-1 text-xs text-gray-500">
                         {TYPE_LABELS[product.type]} • {variantLabel}
+                      </div>
+                      <div className="mt-1 flex flex-wrap items-center gap-2">
+                        <span
+                          className={`inline-flex items-center rounded-full border px-2 py-0.5 text-[11px] ${
+                            readiness === 'ready'
+                              ? 'border-green-300 bg-green-50 text-green-700'
+                              : 'border-amber-300 bg-amber-50 text-amber-800'
+                          }`}
+                        >
+                          {readiness === 'ready'
+                            ? 'Калькуляція повна'
+                            : 'Потребує уваги'}
+                        </span>
+                        {readinessIssues.length > 0 ? (
+                          <span className="text-[11px] text-amber-800">
+                            {readinessIssues.join(' · ')}
+                          </span>
+                        ) : null}
                       </div>
                       {product.costProfile?.notes ? (
                         <div className="mt-1 text-xs text-gray-500">
@@ -532,7 +611,7 @@ export default async function AdminCostsPage({ searchParams }: PageProps) {
                 </summary>
 
                 <div className="border-t p-4 sm:p-5 space-y-4">
-                  <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+                  <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-6">
                     <div className="rounded border bg-gray-50 p-3">
                       <div className="text-xs text-gray-500">
                         Матеріали (на варіант)
@@ -553,9 +632,25 @@ export default async function AdminCostsPage({ searchParams }: PageProps) {
                     </div>
                     <div className="rounded border bg-gray-50 p-3">
                       <div className="text-xs text-gray-500">
+                        Доставка на 1 шт
+                      </div>
+                      <div className="mt-1 font-medium">
+                        {formatUAH(shippingCostUAH)}
+                      </div>
+                    </div>
+                    <div className="rounded border bg-gray-50 p-3">
+                      <div className="text-xs text-gray-500">
                         Інші витрати на 1 шт
                       </div>
                       <div className="mt-1 font-medium">{formatUAH(otherCostUAH)}</div>
+                    </div>
+                    <div className="rounded border bg-slate-100 p-3">
+                      <div className="text-xs text-gray-500">
+                        Повна собівартість (з доставкою)
+                      </div>
+                      <div className="mt-1 font-semibold">
+                        {formatUAH(unitCostWithShippingUAH)}
+                      </div>
                     </div>
                   </div>
 
@@ -603,6 +698,18 @@ export default async function AdminCostsPage({ searchParams }: PageProps) {
                         min="0"
                         step="1"
                         defaultValue={otherCostUAH}
+                        className="mt-2 w-full rounded-lg border px-3 py-2 text-sm"
+                      />
+                    </label>
+
+                    <label className="block text-sm font-medium">
+                      Доставка на 1 шт (грн)
+                      <input
+                        name="shippingCostUAH"
+                        type="number"
+                        min="0"
+                        step="1"
+                        defaultValue={shippingCostUAH}
                         className="mt-2 w-full rounded-lg border px-3 py-2 text-sm"
                       />
                     </label>

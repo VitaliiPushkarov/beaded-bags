@@ -22,10 +22,12 @@ import { prisma } from '@/lib/prisma'
 import {
   buildFinanceProductResolver,
   buildFinanceSummary,
+  endOfDay,
   formatDate,
   formatUAH,
   getDateRangeFromSearchParams,
   resolveOrderFinance,
+  startOfDay,
   toDateInputValue,
 } from '@/lib/admin-finance'
 import { buildManagedUnitCostUAH } from '@/lib/management-accounting'
@@ -36,14 +38,73 @@ type PageProps = {
   searchParams: Promise<{
     from?: string
     to?: string
+    preset?: string
   }>
+}
+
+type QuickRange = {
+  key: string
+  label: string
+  from: Date
+  to: Date
+}
+
+function startOfQuarter(date: Date): Date {
+  const quarterStartMonth = Math.floor(date.getMonth() / 3) * 3
+  return new Date(date.getFullYear(), quarterStartMonth, 1)
 }
 
 export default async function AdminFinancePage({ searchParams }: PageProps) {
   const params = await searchParams
   const { from, to } = getDateRangeFromSearchParams(params)
+  const now = new Date()
+  const todayEnd = endOfDay(now)
+  const quickRanges: QuickRange[] = [
+    {
+      key: '7d',
+      label: '7 днів',
+      from: startOfDay(
+        new Date(now.getFullYear(), now.getMonth(), now.getDate() - 6),
+      ),
+      to: todayEnd,
+    },
+    {
+      key: '30d',
+      label: '30 днів',
+      from: startOfDay(
+        new Date(now.getFullYear(), now.getMonth(), now.getDate() - 29),
+      ),
+      to: todayEnd,
+    },
+    {
+      key: 'month',
+      label: 'Місяць',
+      from: new Date(now.getFullYear(), now.getMonth(), 1),
+      to: todayEnd,
+    },
+    {
+      key: 'quarter',
+      label: 'Квартал',
+      from: startOfQuarter(now),
+      to: todayEnd,
+    },
+  ]
+  const selectedFromValue = toDateInputValue(from)
+  const selectedToValue = toDateInputValue(to)
+  const selectedQuickRangeKey = quickRanges.some(
+    (range) => range.key === params.preset,
+  )
+    ? params.preset!
+    : (quickRanges.find((range) => {
+        const rangeFromValue = toDateInputValue(range.from)
+        const rangeToValue = toDateInputValue(range.to)
+        return (
+          selectedFromValue === rangeFromValue &&
+          selectedToValue === rangeToValue
+        )
+      })?.key ?? null)
 
-  const [orders, expenses] = await Promise.all([
+  const [orders, expenses, materials] = await Promise.all([
     prisma.order.findMany({
       where: {
         createdAt: {
@@ -64,6 +125,12 @@ export default async function AdminFinancePage({ searchParams }: PageProps) {
         },
       },
       orderBy: { expenseDate: 'desc' },
+    }),
+    prisma.material.findMany({
+      select: {
+        stockQty: true,
+        unitCostUAH: true,
+      },
     }),
   ])
 
@@ -127,12 +194,58 @@ export default async function AdminFinancePage({ searchParams }: PageProps) {
     })),
   )
 
+  const materialsCatalogTotalUAH = Math.round(
+    materials.reduce(
+      (sum, material) =>
+        sum + Math.max(0, material.stockQty) * Math.max(0, material.unitCostUAH),
+      0,
+    ),
+  )
+
   const summary = buildFinanceSummary({
     orders,
     expenses,
-    purchases: [],
+    materialsCatalogTotalUAH,
     productResolver,
   })
+  const recognizedRevenueUAH = summary.recognizedRevenueUAH
+  const grossMarginPercent =
+    recognizedRevenueUAH > 0
+      ? Math.round((summary.grossProfitUAH / recognizedRevenueUAH) * 100)
+      : 0
+  const cogsSharePercent =
+    recognizedRevenueUAH > 0
+      ? Math.round((summary.itemsCostUAH / recognizedRevenueUAH) * 100)
+      : 0
+  const paymentFeeSharePercent =
+    recognizedRevenueUAH > 0
+      ? Math.round((summary.paymentFeeUAH / recognizedRevenueUAH) * 100)
+      : 0
+  const operatingSharePercent =
+    recognizedRevenueUAH > 0
+      ? Math.round((summary.operatingExpensesUAH / recognizedRevenueUAH) * 100)
+      : 0
+  const otherSharePercent =
+    recognizedRevenueUAH > 0
+      ? Math.round((summary.otherExpensesUAH / recognizedRevenueUAH) * 100)
+      : 0
+  const netMarginPercent =
+    recognizedRevenueUAH > 0
+      ? Math.round((summary.netAfterExpensesUAH / recognizedRevenueUAH) * 100)
+      : 0
+  const totalManagedExpensesUAH =
+    summary.operatingExpensesUAH +
+    summary.otherExpensesUAH
+  const netAfterAllExpensesUAH =
+    summary.grossProfitUAH - totalManagedExpensesUAH
+  const totalExpenseLoadPercent =
+    recognizedRevenueUAH > 0
+      ? Math.round((totalManagedExpensesUAH / recognizedRevenueUAH) * 100)
+      : 0
+  const netAfterAllMarginPercent =
+    recognizedRevenueUAH > 0
+      ? Math.round((netAfterAllExpensesUAH / recognizedRevenueUAH) * 100)
+      : 0
 
   const topProducts = Array.from(
     orders
@@ -179,67 +292,133 @@ export default async function AdminFinancePage({ searchParams }: PageProps) {
 
   return (
     <div className="space-y-6">
-      <div className="flex flex-col gap-3 lg:flex-row lg:items-end lg:justify-between">
+      <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
         <div>
           <h1 className="text-2xl font-semibold">Фінанси</h1>
-          <p className="mt-1 text-sm text-gray-600">
-            Базовий управлінський облік по продажах, собівартості та витратах.
-          </p>
         </div>
 
-        <form className="flex flex-col gap-3 sm:flex-row sm:items-end">
-          <div className="space-y-1.5">
-            <Label htmlFor="finance-from">Від</Label>
-            <Input
-              id="finance-from"
-              type="date"
-              name="from"
-              defaultValue={toDateInputValue(from)}
-            />
+        <div className="space-y-2">
+          <div className="flex flex-wrap items-center justify-end gap-2">
+            {quickRanges.map((range) => {
+              const rangeFromValue = toDateInputValue(range.from)
+              const rangeToValue = toDateInputValue(range.to)
+              const isActive = selectedQuickRangeKey === range.key
+              const href = `/admin/finance?${new URLSearchParams({
+                from: rangeFromValue,
+                to: rangeToValue,
+                preset: range.key,
+              }).toString()}`
+
+              return (
+                <Link
+                  key={range.key}
+                  href={href}
+                  className={buttonVariants({
+                    variant: isActive ? 'default' : 'outline',
+                    size: 'sm',
+                  })}
+                >
+                  {range.label}
+                </Link>
+              )
+            })}
           </div>
-          <div className="space-y-1.5">
-            <Label htmlFor="finance-to">До</Label>
-            <Input
-              id="finance-to"
-              type="date"
-              name="to"
-              defaultValue={toDateInputValue(to)}
-            />
-          </div>
-          <button className={buttonVariants({ variant: 'default' })}>
-            Оновити
-          </button>
-        </form>
+          <form
+            action="/admin/finance"
+            className="flex flex-col gap-3 sm:flex-row sm:items-end"
+          >
+            <div className="space-y-1.5">
+              <Label htmlFor="finance-from">Від:</Label>
+              <Input
+                id="finance-from"
+                type="date"
+                name="from"
+                defaultValue={selectedFromValue}
+              />
+            </div>
+            <div className="space-y-1.5">
+              <Label htmlFor="finance-to">До:</Label>
+              <Input
+                id="finance-to"
+                type="date"
+                name="to"
+                defaultValue={selectedToValue}
+              />
+            </div>
+            <button className={buttonVariants({ variant: 'default' })}>
+              Оновити
+            </button>
+            <Link
+              href="/admin/finance"
+              className={buttonVariants({ variant: 'outline' })}
+            >
+              Скинути
+            </Link>
+          </form>
+        </div>
       </div>
 
-      <section className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
-        {[
-          ['Виручка підтверджена', formatUAH(summary.recognizedRevenueUAH)],
-          ['Замовлень активних', String(summary.activeOrdersCount)],
-          ['Середній чек', formatUAH(summary.avgOrderValueUAH)],
-          [
-            'Собівартість реалізованих товарів',
-            formatUAH(summary.itemsCostUAH),
-          ],
-          ['Платіжні комісії', formatUAH(summary.paymentFeeUAH)],
-          ['Валовий прибуток', formatUAH(summary.grossProfitUAH)],
-          ['Операційні витрати', formatUAH(summary.operatingExpensesUAH)],
-          ['Інші витрати', formatUAH(summary.otherExpensesUAH)],
-          [
-            'Результат після Опер. витрат',
-            formatUAH(summary.netAfterExpensesUAH),
-          ],
-        ].map(([label, value]) => (
-          <Card key={label}>
-            <CardContent className="pt-6">
-              <div className="text-sm text-gray-500">{label}</div>
-              <div className="mt-2 text-2xl font-semibold">{value}</div>
-            </CardContent>
-          </Card>
-        ))}
+      <section className="space-y-3">
+        <div>
+          <h2 className="text-lg font-semibold">Загальна</h2>
+          <p className="text-sm text-gray-600">
+            Коротка картина періоду по замовленнях і фінальному результату.
+          </p>
+        </div>
+        <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+          {[
+            ['Замовлень активних', String(summary.activeOrdersCount)],
+            ['Замовлень підтверджених', String(summary.recognizedOrdersCount)],
+            ['Виручка підтверджена', formatUAH(summary.recognizedRevenueUAH)],
+            [
+              'Фінрезультат після всіх витрат',
+              formatUAH(netAfterAllExpensesUAH),
+            ],
+          ].map(([label, value]) => (
+            <Card key={label}>
+              <CardContent className="pt-6">
+                <div className="text-sm text-gray-500">{label}</div>
+                <div className="mt-2 text-2xl font-semibold">{value}</div>
+              </CardContent>
+            </Card>
+          ))}
+        </div>
+        <div className="rounded border border-slate-200 bg-slate-50 p-3 text-xs text-slate-700">
+          Чиста маржа після всіх витрат: <b>{netAfterAllMarginPercent}%</b>.
+          <span className="ml-2 text-slate-500">
+            Після операційних витрат: <b>{netMarginPercent}%</b>.
+          </span>
+        </div>
       </section>
 
-      <section className="grid gap-6 xl:grid-cols-2">
+      <section className="space-y-3">
+        <div>
+          <h2 className="text-lg font-semibold">Дохід</h2>
+          <p className="text-sm text-gray-600">
+            Показники продажів і собівартості реалізованих товарів.
+          </p>
+        </div>
+        <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+          {[
+            ['Середній чек', formatUAH(summary.avgOrderValueUAH)],
+            ['COGS (реалізоване)', formatUAH(summary.itemsCostUAH)],
+            ['Платіжні комісії', formatUAH(summary.paymentFeeUAH)],
+            ['Валовий прибуток', formatUAH(summary.grossProfitUAH)],
+            ['Валова маржа', `${grossMarginPercent}%`],
+            ['Частка COGS у виручці', `${cogsSharePercent}%`],
+          ].map(([label, value]) => (
+            <Card key={label}>
+              <CardContent className="pt-6">
+                <div className="text-sm text-gray-500">{label}</div>
+                <div className="mt-2 text-2xl font-semibold">{value}</div>
+              </CardContent>
+            </Card>
+          ))}
+        </div>
+        <div className="rounded border border-slate-200 bg-slate-50 p-3 text-xs text-slate-700">
+          Комісії займають <b>{paymentFeeSharePercent}%</b> підтвердженої
+          виручки.
+        </div>
         <Card className="overflow-hidden">
           <CardHeader className="border-b border-slate-200 sm:flex-row sm:items-center sm:justify-between sm:space-y-0">
             <CardTitle>Топ товарів по валовому прибутку</CardTitle>
@@ -288,6 +467,41 @@ export default async function AdminFinancePage({ searchParams }: PageProps) {
             )}
           </CardContent>
         </Card>
+      </section>
+
+      <section className="space-y-3">
+        <div>
+          <h2 className="text-lg font-semibold">Витрати</h2>
+          <p className="text-sm text-gray-600">
+            Операційні та інші витрати за період + сума матеріалів з довідника.
+          </p>
+        </div>
+        <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+          {[
+            ['Операційні витрати', formatUAH(summary.operatingExpensesUAH)],
+            ['Інші витрати', formatUAH(summary.otherExpensesUAH)],
+            [
+              'Сума матеріалів у довіднику',
+              formatUAH(summary.materialsCatalogTotalUAH),
+            ],
+            ['Сумарне навантаження (період)', formatUAH(totalManagedExpensesUAH)],
+          ].map(([label, value]) => (
+            <Card key={label}>
+              <CardContent className="pt-6">
+                <div className="text-sm text-gray-500">{label}</div>
+                <div className="mt-2 text-2xl font-semibold">{value}</div>
+              </CardContent>
+            </Card>
+          ))}
+        </div>
+        <div className="rounded border border-slate-200 bg-slate-50 p-3 text-xs text-slate-700">
+          Структура витрат до виручки: операційні{' '}
+          <b>{operatingSharePercent}%</b>, інші <b>{otherSharePercent}%</b>,
+          загальне навантаження <b>{totalExpenseLoadPercent}%</b>.
+          <span className="ml-2 text-slate-500">
+            Сума матеріалів у довіднику не прив&apos;язана до періоду.
+          </span>
+        </div>
 
         <Card className="overflow-hidden">
           <CardHeader className="border-b border-slate-200 sm:flex-row sm:items-center sm:justify-between sm:space-y-0">
@@ -312,7 +526,9 @@ export default async function AdminFinancePage({ searchParams }: PageProps) {
                       {formatDate(expense.expenseDate)}
                     </div>
                   </div>
-                  <div className="font-medium">{formatUAH(expense.amountUAH)}</div>
+                  <div className="font-medium">
+                    {formatUAH(expense.amountUAH)}
+                  </div>
                 </div>
               ))}
               {expenses.length === 0 ? (

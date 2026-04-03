@@ -209,6 +209,46 @@ export function calculateMaterialsCostFromUsages(
   )
 }
 
+export function buildManagedCostBreakdown(input: {
+  profile: {
+    laborCostUAH: number
+    shippingCostUAH: number
+    otherCostUAH: number
+  } | null
+  materialUsages?: Array<{
+    quantity: number
+    variantColor?: string | null
+    notes?: string | null
+    material: { unitCostUAH: number }
+  }>
+  packagingTemplateCostUAH?: number | null
+  variantColor?: string | null
+}) {
+  const profile = input.profile
+  const materialsCostUAH = calculateMaterialsCostFromUsages(
+    input.materialUsages ?? [],
+    input.variantColor,
+  )
+  const laborCostUAH = roundUAH(profile?.laborCostUAH ?? 0)
+  const packagingCostUAH = roundUAH(input.packagingTemplateCostUAH ?? 0)
+  const shippingCostUAH = roundUAH(profile?.shippingCostUAH ?? 0)
+  const otherCostUAH = roundUAH(profile?.otherCostUAH ?? 0)
+
+  const totalWithoutShippingUAH =
+    materialsCostUAH + laborCostUAH + packagingCostUAH + otherCostUAH
+  const totalWithShippingUAH = totalWithoutShippingUAH + shippingCostUAH
+
+  return {
+    materialsCostUAH,
+    laborCostUAH,
+    packagingCostUAH,
+    shippingCostUAH,
+    otherCostUAH,
+    totalWithoutShippingUAH,
+    totalWithShippingUAH,
+  }
+}
+
 export function buildManagedUnitCostUAH(input: {
   profile: {
     laborCostUAH: number
@@ -225,20 +265,14 @@ export function buildManagedUnitCostUAH(input: {
   includeShipping?: boolean
   variantColor?: string | null
 }): number {
-  const profile = input.profile
-  // Materials cost must come from a single source: product->material usages.
-  // Legacy profile.materialsCostUAH is intentionally ignored to avoid hidden sums.
-  const materialCost = calculateMaterialsCostFromUsages(
-    input.materialUsages ?? [],
-    input.variantColor,
-  )
-  const laborCost = roundUAH(profile?.laborCostUAH ?? 0)
-  // Packaging cost must come from packaging template only.
-  const packagingCost = roundUAH(input.packagingTemplateCostUAH ?? 0)
-  const shippingCost = input.includeShipping
-    ? roundUAH(profile?.shippingCostUAH ?? 0)
-    : 0
-  const otherCost = roundUAH(profile?.otherCostUAH ?? 0)
+  const breakdown = buildManagedCostBreakdown({
+    profile: input.profile,
+    materialUsages: input.materialUsages,
+    packagingTemplateCostUAH: input.packagingTemplateCostUAH,
+    variantColor: input.variantColor,
+  })
 
-  return materialCost + laborCost + packagingCost + shippingCost + otherCost
+  return input.includeShipping
+    ? breakdown.totalWithShippingUAH
+    : breakdown.totalWithoutShippingUAH
 }

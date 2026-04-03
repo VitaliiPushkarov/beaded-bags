@@ -195,6 +195,71 @@
   .admin-content table tbody tr {
     @apply border-slate-200;
   }
+
+  @media (min-width: 1536px) {
+    .admin-topbar {
+      @apply px-10;
+      height: 4.5rem;
+    }
+
+    .admin-sidebar {
+      @apply md:w-72;
+    }
+
+    .admin-nav-item {
+      padding: 0.625rem 0.875rem;
+      font-size: 15px;
+    }
+
+    .admin-content {
+      font-size: 1.0625rem;
+      line-height: 1.55;
+    }
+
+    .admin-content h1 {
+      @apply text-3xl;
+    }
+
+    .admin-content h2 {
+      @apply text-2xl;
+    }
+
+    .admin-content .text-xs {
+      font-size: 0.8125rem;
+      line-height: 1.2rem;
+    }
+
+    .admin-content .text-sm {
+      font-size: 0.95rem;
+      line-height: 1.45rem;
+    }
+
+    .admin-content .text-2xl {
+      font-size: 1.875rem;
+      line-height: 2.25rem;
+    }
+
+    .admin-content input[type='text'],
+    .admin-content input[type='search'],
+    .admin-content input[type='number'],
+    .admin-content input[type='date'],
+    .admin-content input[type='password'],
+    .admin-content input[type='email'],
+    .admin-content select,
+    .admin-content textarea {
+      height: 2.75rem;
+      font-size: 15px;
+    }
+
+    .admin-content textarea {
+      min-height: 5.5rem;
+    }
+
+    .admin-content button,
+    .admin-content a[class*='inline-flex'] {
+      font-size: 0.95rem;
+    }
+  }
 }
 
 @keyframes shimmer {

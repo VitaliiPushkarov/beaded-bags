@@ -25,15 +25,14 @@ import {
 import { formatUAH } from '@/lib/admin-finance'
 import ConfirmSubmitButton from '@/components/admin/ConfirmSubmitButton'
 import { TYPE_LABELS } from '@/lib/labels'
-import {
-  DEFAULT_PACKAGING_TEMPLATE_PRESETS,
-} from '@/lib/management-accounting'
+import { DEFAULT_PACKAGING_TEMPLATE_PRESETS } from '@/lib/management-accounting'
 import {
   getMaterialCategoryLabel,
   materialCategoryToSlug,
   MATERIAL_CATEGORIES,
   getMaterialCategoryDefaultUnit,
 } from '@/lib/material-categories'
+import type { MaterialsBulkCreateActionResult } from '@/lib/admin-materials'
 import { prisma } from '@/lib/prisma'
 import { cn } from '@/lib/utils'
 
@@ -112,6 +111,22 @@ function revalidateInventoryViews() {
   }
 }
 
+function normalizeMaterialInput(value: string): string {
+  return value.replace(/\s+/g, ' ').trim()
+}
+
+function toMaterialMatchKey(input: {
+  name: string
+  category: MaterialCategory
+  color: string
+}): string {
+  return [
+    normalizeMaterialInput(input.name).toLowerCase(),
+    input.category,
+    normalizeMaterialInput(input.color).toLowerCase(),
+  ].join('::')
+}
+
 export default async function InventoryPageView({
   searchParams,
   view = 'overview',
@@ -152,7 +167,9 @@ export default async function InventoryPageView({
     return `/admin/inventory/products/${productId}/variants/${variantId}`
   }
 
-  async function createMaterialsBulk(formData: FormData) {
+  async function createMaterialsBulk(
+    formData: FormData,
+  ): Promise<MaterialsBulkCreateActionResult> {
     'use server'
 
     const rawPayload = String(formData.get('payload') || '')
@@ -170,48 +187,133 @@ export default async function InventoryPageView({
       throw new Error('Не вдалося створити матеріали')
     }
 
+    const normalizedItems = parsed.data.items.map((item) => ({
+      ...item,
+      name: normalizeMaterialInput(item.name),
+      color: normalizeMaterialInput(item.color),
+      unit: normalizeMaterialInput(item.unit),
+    }))
+
     const uniqueKeys = new Set<string>()
-    for (const item of parsed.data.items) {
-      const dedupeKey = `${item.name.toLowerCase()}::${item.category}::${item.color.toLowerCase()}`
+    for (const item of normalizedItems) {
+      const dedupeKey = toMaterialMatchKey(item)
       if (uniqueKeys.has(dedupeKey)) {
-        throw new Error('У формі є дублікати матеріалів з однаковими категорією і кольором')
+        throw new Error(
+          'У формі є дублікати матеріалів з однаковими категорією і кольором',
+        )
       }
       uniqueKeys.add(dedupeKey)
     }
 
-    await prisma.$transaction(
-      parsed.data.items.map((item) =>
-        prisma.material.upsert({
-          where: {
-            name_category_color: {
+    const existingMaterials = await prisma.material.findMany({
+      where: {
+        OR: normalizedItems.map((item) => ({
+          category: item.category,
+          name: {
+            equals: item.name,
+            mode: 'insensitive',
+          },
+          color: {
+            equals: item.color,
+            mode: 'insensitive',
+          },
+        })),
+      },
+      select: {
+        id: true,
+        name: true,
+        category: true,
+        color: true,
+      },
+    })
+
+    const existingByKey = new Map<
+      string,
+      Array<{
+        id: string
+        name: string
+        category: MaterialCategory
+        color: string
+      }>
+    >()
+    for (const material of existingMaterials) {
+      const key = toMaterialMatchKey(material)
+      const rows = existingByKey.get(key) ?? []
+      rows.push(material)
+      existingByKey.set(key, rows)
+    }
+
+    const toCreate = normalizedItems.filter(
+      (item) =>
+        (existingByKey.get(toMaterialMatchKey(item)) ?? []).length === 0,
+    )
+
+    if (toCreate.length > 0) {
+      await prisma.$transaction(
+        toCreate.map((item) =>
+          prisma.material.create({
+            data: {
               name: item.name,
               category: item.category,
               color: item.color,
+              unit: item.unit,
+              stockQty: item.stockQty,
+              unitCostUAH: item.unitCostUAH,
             },
-          },
-          create: {
-            name: item.name,
-            category: item.category,
-            color: item.color,
-            unit: item.unit,
-            stockQty: item.stockQty,
-            unitCostUAH: item.unitCostUAH,
-          },
-          update: {
-            unit: item.unit,
-            stockQty: item.stockQty,
-            unitCostUAH: item.unitCostUAH,
-          },
-        }),
-      ),
-    )
+          }),
+        ),
+      )
 
-    revalidateInventoryViews()
-    revalidatePath('/admin/costs')
-    revalidatePath('/admin/finance')
-    revalidatePath('/admin/inventory/materials')
-    for (const category of MATERIAL_CATEGORIES) {
-      revalidatePath(`/admin/inventory/materials/${materialCategoryToSlug(category)}`)
+      revalidateInventoryViews()
+      revalidatePath('/admin/costs')
+      revalidatePath('/admin/finance')
+      revalidatePath('/admin/inventory/materials')
+      for (const category of MATERIAL_CATEGORIES) {
+        revalidatePath(
+          `/admin/inventory/materials/${materialCategoryToSlug(category)}`,
+        )
+      }
+    }
+
+    const created = toCreate.map((item, index) => {
+      const searchQuery = [item.name, item.color]
+        .filter(Boolean)
+        .join(' ')
+        .trim()
+      const queryString = searchQuery
+        ? `?q=${encodeURIComponent(searchQuery)}`
+        : ''
+      return {
+        id: `created-${index}-${toMaterialMatchKey(item)}`,
+        name: item.name,
+        color: item.color,
+        category: item.category,
+        href: `/admin/inventory/materials/${materialCategoryToSlug(item.category)}${queryString}`,
+      }
+    })
+
+    const existing = existingMaterials.map((material) => {
+      const searchQuery = [material.name, material.color]
+        .filter(Boolean)
+        .join(' ')
+        .trim()
+      const queryString = searchQuery
+        ? `?q=${encodeURIComponent(searchQuery)}`
+        : ''
+      return {
+        id: material.id,
+        name: material.name,
+        color: material.color,
+        category: material.category,
+        href: `/admin/inventory/materials/${materialCategoryToSlug(material.category)}${queryString}`,
+      }
+    })
+
+    return {
+      createdCount: created.length,
+      existingCount: existing.length,
+      created,
+      existing,
     }
   }
 
@@ -693,6 +795,21 @@ export default async function InventoryPageView({
       }
     >(),
   )
+  const recentMaterials = [...materials]
+    .sort((left, right) => right.createdAt.getTime() - left.createdAt.getTime())
+    .slice(0, 10)
+  const recentMaterialsVisible = recentMaterials.slice(0, 5)
+  const recentMaterialsHidden = recentMaterials.slice(5)
+
+  function buildMaterialQuickHref(input: {
+    name: string
+    color: string
+    category: MaterialCategory
+  }) {
+    const q = [input.name, input.color].filter(Boolean).join(' ').trim()
+    const queryString = q ? `?q=${encodeURIComponent(q)}` : ''
+    return `/admin/inventory/materials/${materialCategoryToSlug(input.category)}${queryString}`
+  }
 
   return (
     <div className="space-y-6">
@@ -781,8 +898,135 @@ export default async function InventoryPageView({
                   value: category,
                   label: getMaterialCategoryLabel(category),
                   defaultUnit: getMaterialCategoryDefaultUnit(category),
+                  slug: materialCategoryToSlug(category),
                 }))}
               />
+            </CardContent>
+          </Card>
+
+          <Card className="overflow-hidden">
+            <CardHeader className="border-b border-slate-200">
+              <CardTitle>Останні додані матеріали</CardTitle>
+              <CardDescription>
+                Швидка навігація до нещодавно доданих позицій.
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="p-0">
+              {recentMaterials.length === 0 ? (
+                <div className="p-6 text-sm text-gray-600">
+                  Матеріали ще не додані.
+                </div>
+              ) : (
+                <>
+                  <Table>
+                    <TableHeader>
+                      <TableRow className="hover:bg-transparent">
+                        <TableHead>Матеріал</TableHead>
+                        <TableHead>Категорія</TableHead>
+                        <TableHead className="text-right">Додано</TableHead>
+                        <TableHead className="text-right">Перехід</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {recentMaterialsVisible.map((material) => (
+                        <TableRow key={material.id}>
+                          <TableCell>
+                            <div className="font-medium">{material.name}</div>
+                            <div className="text-xs text-gray-500">
+                              {material.color || 'Без кольору'}
+                            </div>
+                          </TableCell>
+                          <TableCell>
+                            {getMaterialCategoryLabel(material.category)}
+                          </TableCell>
+                          <TableCell className="text-right text-xs text-gray-600">
+                            {material.createdAt.toLocaleString('uk-UA', {
+                              day: '2-digit',
+                              month: '2-digit',
+                              year: 'numeric',
+                              hour: '2-digit',
+                              minute: '2-digit',
+                            })}
+                          </TableCell>
+                          <TableCell className="text-right">
+                            <Link
+                              href={buildMaterialQuickHref({
+                                name: material.name,
+                                color: material.color,
+                                category: material.category,
+                              })}
+                              className={cn(
+                                buttonVariants({
+                                  variant: 'outline',
+                                  size: 'sm',
+                                }),
+                                'h-8',
+                              )}
+                            >
+                              Відкрити
+                            </Link>
+                          </TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+
+                  {recentMaterialsHidden.length > 0 ? (
+                    <details className="border-t border-slate-200">
+                      <summary className="group flex cursor-pointer list-none items-center p-4 text-sm text-slate-700 hover:bg-slate-50">
+                        <span>Показати ще {recentMaterialsHidden.length}</span>
+                        <ChevronDown className="h-4 w-4 text-slate-500 transition-transform group-open:rotate-180" />
+                      </summary>
+                      <Table>
+                        <TableBody>
+                          {recentMaterialsHidden.map((material) => (
+                            <TableRow key={material.id}>
+                              <TableCell>
+                                <div className="font-medium">
+                                  {material.name}
+                                </div>
+                                <div className="text-xs text-gray-500">
+                                  {material.color || 'Без кольору'}
+                                </div>
+                              </TableCell>
+                              <TableCell>
+                                {getMaterialCategoryLabel(material.category)}
+                              </TableCell>
+                              <TableCell className="text-right text-xs text-gray-600">
+                                {material.createdAt.toLocaleString('uk-UA', {
+                                  day: '2-digit',
+                                  month: '2-digit',
+                                  year: 'numeric',
+                                  hour: '2-digit',
+                                  minute: '2-digit',
+                                })}
+                              </TableCell>
+                              <TableCell className="text-right">
+                                <Link
+                                  href={buildMaterialQuickHref({
+                                    name: material.name,
+                                    color: material.color,
+                                    category: material.category,
+                                  })}
+                                  className={cn(
+                                    buttonVariants({
+                                      variant: 'outline',
+                                      size: 'sm',
+                                    }),
+                                    'h-8',
+                                  )}
+                                >
+                                  Відкрити
+                                </Link>
+                              </TableCell>
+                            </TableRow>
+                          ))}
+                        </TableBody>
+                      </Table>
+                    </details>
+                  ) : null}
+                </>
+              )}
             </CardContent>
           </Card>
 
