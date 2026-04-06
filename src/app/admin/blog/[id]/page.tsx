@@ -1,11 +1,28 @@
 import Link from 'next/link'
 
-import BlogPostForm, { mapPublishedAtToInputValue } from '../BlogPostForm'
+import BlogPostForm from '../BlogPostForm'
 import { normalizeBlogSections } from '@/lib/blog'
 import { prisma } from '@/lib/prisma'
 
 type PageProps = {
   params: Promise<{ id: string }>
+}
+
+function mapPublishedAtToInputValue(isoDate?: string | null) {
+  if (!isoDate) return ''
+
+  const date = new Date(isoDate)
+  if (Number.isNaN(date.getTime())) return ''
+
+  const pad = (value: number) => String(value).padStart(2, '0')
+
+  const year = date.getFullYear()
+  const month = pad(date.getMonth() + 1)
+  const day = pad(date.getDate())
+  const hours = pad(date.getHours())
+  const minutes = pad(date.getMinutes())
+
+  return `${year}-${month}-${day}T${hours}:${minutes}`
 }
 
 export default async function AdminBlogEditPage({ params }: PageProps) {
