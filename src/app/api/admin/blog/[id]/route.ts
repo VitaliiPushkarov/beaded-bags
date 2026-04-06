@@ -47,7 +47,7 @@ const BlogPostSchema = z.object({
   readingMinutes: z.coerce.number().int().min(1).max(120).default(4),
   status: z.nativeEnum(BlogPostStatus).default(BlogPostStatus.DRAFT),
   publishedAt: NullableDateSchema.default(null),
-  sections: z.array(BlogSectionSchema).min(1),
+  sections: z.array(BlogSectionSchema).default([]),
 })
 
 function normalizeKeywords(keywords: string[]): string[] {
@@ -87,6 +87,7 @@ export async function PATCH(
         slug: true,
         status: true,
         publishedAt: true,
+        sections: true,
       },
     })
 
@@ -100,6 +101,8 @@ export async function PATCH(
     }
 
     const payload = parsed.data
+    const normalizedIncomingSections = normalizeBlogSections(payload.sections)
+    const normalizedExistingSections = normalizeBlogSections(existing.sections)
 
     const updated = await prisma.blogPost.update({
       where: { id },
@@ -118,7 +121,10 @@ export async function PATCH(
           incomingPublishedAt: payload.publishedAt,
           existingPublishedAt: existing.publishedAt,
         }),
-        sections: normalizeBlogSections(payload.sections),
+        sections:
+          normalizedIncomingSections.length > 0
+            ? normalizedIncomingSections
+            : normalizedExistingSections,
       },
       select: {
         id: true,

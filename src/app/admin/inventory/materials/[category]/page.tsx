@@ -357,9 +357,6 @@ export default async function AdminInventoryMaterialsCategoryPage({
       <Card className="overflow-hidden">
         <CardHeader className="border-b border-slate-200">
           <CardTitle>Матеріали категорії</CardTitle>
-          <CardDescription>
-            Ручне редагування: один рядок — один матеріал.
-          </CardDescription>
         </CardHeader>
 
         <CardContent className="p-0">

@@ -300,10 +300,7 @@ export default async function InventoryPageView({
     }
 
     const created = toCreate.map((item, index) => {
-      const searchQuery = [item.name, item.color]
-        .filter(Boolean)
-        .join(' ')
-        .trim()
+      const searchQuery = item.name.trim()
       const queryString = searchQuery
         ? `?q=${encodeURIComponent(searchQuery)}`
         : ''
@@ -317,10 +314,7 @@ export default async function InventoryPageView({
     })
 
     const existing = existingMaterials.map((material) => {
-      const searchQuery = [material.name, material.color]
-        .filter(Boolean)
-        .join(' ')
-        .trim()
+      const searchQuery = material.name.trim()
       const queryString = searchQuery
         ? `?q=${encodeURIComponent(searchQuery)}`
         : ''
@@ -859,7 +853,7 @@ export default async function InventoryPageView({
     color: string
     category: MaterialCategory
   }) {
-    const q = [input.name, input.color].filter(Boolean).join(' ').trim()
+    const q = input.name.trim()
     const queryString = q ? `?q=${encodeURIComponent(q)}` : ''
     return `/admin/inventory/materials/${materialCategoryToSlug(input.category)}${queryString}`
   }
