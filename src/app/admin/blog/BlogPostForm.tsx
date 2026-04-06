@@ -358,18 +358,6 @@ export default function BlogPostForm({ mode, initial }: Props) {
       <div className="space-y-3">
         <div className="flex items-center justify-between">
           <h2 className="text-lg font-semibold text-slate-900">Секції статті</h2>
-          <button
-            type="button"
-            className="rounded-md border border-slate-300 px-3 py-1.5 text-sm"
-            onClick={() =>
-              setValues((prev) => ({
-                ...prev,
-                sections: [...prev.sections, { ...EMPTY_SECTION }],
-              }))
-            }
-          >
-            Додати секцію
-          </button>
         </div>
 
         {values.sections.map((section, index) => (
@@ -435,25 +423,45 @@ export default function BlogPostForm({ mode, initial }: Props) {
         ))}
       </div>
 
-      <div className="flex flex-wrap items-center gap-3">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <button
-          type="submit"
+          type="button"
           disabled={saving || deleting}
-          className="rounded-md bg-slate-900 px-4 py-2 text-sm font-medium text-white disabled:opacity-60"
+          className="rounded-md border border-slate-300 px-4 py-2 text-sm font-medium text-slate-700 disabled:opacity-60"
+          onClick={() =>
+            setValues((prev) => ({
+              ...prev,
+              sections: [...prev.sections, { ...EMPTY_SECTION }],
+            }))
+          }
         >
-          {saving ? 'Збереження...' : mode === 'create' ? 'Створити статтю' : 'Зберегти зміни'}
+          Додати секцію
         </button>
 
-        {mode === 'edit' ? (
+        <div className="flex flex-wrap items-center gap-3 sm:justify-end">
+          {mode === 'edit' ? (
+            <button
+              type="button"
+              disabled={saving || deleting}
+              onClick={onDelete}
+              className="rounded-md border border-red-300 px-4 py-2 text-sm font-medium text-red-700 disabled:opacity-60"
+            >
+              {deleting ? 'Видалення...' : 'Видалити статтю'}
+            </button>
+          ) : null}
+
           <button
-            type="button"
+            type="submit"
             disabled={saving || deleting}
-            onClick={onDelete}
-            className="rounded-md border border-red-300 px-4 py-2 text-sm font-medium text-red-700 disabled:opacity-60"
+            className="rounded-md bg-slate-900 px-4 py-2 text-sm font-medium text-white disabled:opacity-60"
           >
-            {deleting ? 'Видалення...' : 'Видалити статтю'}
+            {saving
+              ? 'Збереження...'
+              : mode === 'create'
+                ? 'Створити статтю'
+                : 'Зберегти зміни'}
           </button>
-        ) : null}
+        </div>
       </div>
     </form>
   )
