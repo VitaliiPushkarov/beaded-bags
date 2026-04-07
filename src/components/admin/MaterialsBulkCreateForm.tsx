@@ -312,7 +312,8 @@ export default function MaterialsBulkCreateForm({
             Створено: <span className="font-medium">{submitResult.createdCount}</span>
           </div>
           <div>
-            Вже існує: <span className="font-medium">{submitResult.existingCount}</span>
+            Оновлено в запасах:{' '}
+            <span className="font-medium">{submitResult.existingCount}</span>
           </div>
 
           {submitResult.created.length > 0 ? (
@@ -336,7 +337,7 @@ export default function MaterialsBulkCreateForm({
           {submitResult.existing.length > 0 ? (
             <div className="space-y-1">
               <div className="text-xs uppercase tracking-wide text-slate-500">
-                Вже існуючі матеріали
+                Оновлені матеріали
               </div>
               <div className="space-y-1">
                 {submitResult.existing.map((item) => (
@@ -409,7 +410,8 @@ export default function MaterialsBulkCreateForm({
           {exactMatchSuggestions.length > 0 ? (
             <div className="rounded-md border border-amber-200 bg-amber-50 px-2 py-2 text-xs text-amber-900">
               <div className="font-medium">
-                Матеріал з такою назвою вже є:
+                Є матеріали з такою назвою. Після збереження буде оновлено наявний
+                запис за збігом назви, категорії та кольору:
               </div>
               <div className="mt-1 space-y-1">
                 {exactMatchSuggestions.map((item) => {

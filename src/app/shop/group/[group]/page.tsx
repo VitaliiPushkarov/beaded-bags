@@ -2,6 +2,11 @@ import ProductsContainer from '@/components/product/ProductsContainer'
 import { getProductsLite } from '@/lib/db/products'
 import type { Metadata } from 'next'
 import { notFound } from 'next/navigation'
+import {
+  hasFacetedQueryParams,
+  pickFirstQueryValue,
+  type QueryParamValue,
+} from '@/lib/seo/faceted'
 
 export const revalidate = 300
 
@@ -47,7 +52,21 @@ function groupCanonicalSlug(g: DbGroup): string {
 
 type ShopGroupPageProps = {
   params: Promise<{ group: string }>
-  searchParams: Promise<{ q?: string; color?: string }>
+  searchParams: Promise<
+    Record<string, QueryParamValue> & {
+      q?: QueryParamValue
+      color?: QueryParamValue
+      inStock?: QueryParamValue
+      onSale?: QueryParamValue
+      min?: QueryParamValue
+      max?: QueryParamValue
+      sortBase?: QueryParamValue
+      sortPrice?: QueryParamValue
+      subcategory?: QueryParamValue
+      type?: QueryParamValue
+      group?: QueryParamValue
+    }
+  >
 }
 
 export function generateStaticParams() {
@@ -56,13 +75,17 @@ export function generateStaticParams() {
 
 export async function generateMetadata({
   params,
+  searchParams,
 }: ShopGroupPageProps): Promise<Metadata> {
   const { group } = await params
+  const sp = await searchParams
   const dbGroup = normalizeGroupParam(group)
 
   if (!dbGroup) {
     notFound()
   }
+
+  const shouldNoindex = hasFacetedQueryParams(sp)
 
   return {
     title:
@@ -76,6 +99,12 @@ export async function generateMetadata({
     alternates: {
       canonical: `/shop/group/${groupCanonicalSlug(dbGroup)}`,
     },
+    robots: shouldNoindex
+      ? {
+          index: false,
+          follow: true,
+        }
+      : undefined,
   }
 }
 
@@ -92,8 +121,8 @@ export default async function ShopGroupPage({
     notFound()
   }
   const products = await getProductsLite({
-    search: sp.q,
-    color: sp.color,
+    search: pickFirstQueryValue(sp.q),
+    color: pickFirstQueryValue(sp.color),
     group: dbGroup,
   })
   const listLd = {

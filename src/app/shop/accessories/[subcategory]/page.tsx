@@ -9,15 +9,31 @@ import {
   getAccessorySubcategorySlugs,
   matchAccessorySubcategory,
 } from '@/lib/shop-taxonomy'
+import {
+  hasFacetedQueryParams,
+  pickFirstQueryValue,
+  type QueryParamValue,
+} from '@/lib/seo/faceted'
 
 export const revalidate = 300
 
 type AccessorySubcategoryPageProps = {
   params: Promise<{ subcategory: string }>
-  searchParams: Promise<{
-    q?: string
-    color?: string
-  }>
+  searchParams: Promise<
+    Record<string, QueryParamValue> & {
+      q?: QueryParamValue
+      color?: QueryParamValue
+      inStock?: QueryParamValue
+      onSale?: QueryParamValue
+      min?: QueryParamValue
+      max?: QueryParamValue
+      sortBase?: QueryParamValue
+      sortPrice?: QueryParamValue
+      subcategory?: QueryParamValue
+      type?: QueryParamValue
+      group?: QueryParamValue
+    }
+  >
 }
 
 export function generateStaticParams() {
@@ -58,13 +74,17 @@ function buildFaqJsonLd(
 
 export async function generateMetadata({
   params,
+  searchParams,
 }: AccessorySubcategoryPageProps): Promise<Metadata> {
   const { subcategory } = await params
+  const sp = await searchParams
   const config = getAccessorySubcategoryConfig(subcategory)
 
   if (!config) {
     notFound()
   }
+
+  const shouldNoindex = hasFacetedQueryParams(sp)
 
   return {
     title: config.metaTitle,
@@ -72,6 +92,12 @@ export async function generateMetadata({
     alternates: {
       canonical: `/shop/accessories/${subcategory}`,
     },
+    robots: shouldNoindex
+      ? {
+          index: false,
+          follow: true,
+        }
+      : undefined,
   }
 }
 
@@ -88,8 +114,8 @@ export default async function AccessorySubcategoryPage({
   }
 
   const rawProducts = await getProductsLite({
-    search: sp.q,
-    color: sp.color,
+    search: pickFirstQueryValue(sp.q),
+    color: pickFirstQueryValue(sp.color),
     types: ['ACCESSORY'],
   })
   const products = rawProducts.filter((item) =>
@@ -110,8 +136,8 @@ export default async function AccessorySubcategoryPage({
       <ProductsContainer
         initialProducts={products}
         initialFilters={{
-          q: sp.q ?? '',
-          color: sp.color ?? '',
+          q: pickFirstQueryValue(sp.q) ?? '',
+          color: pickFirstQueryValue(sp.color) ?? '',
         }}
         hideTypeFilter
         title={config.label}

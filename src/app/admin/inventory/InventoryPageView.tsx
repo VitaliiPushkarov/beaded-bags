@@ -148,6 +148,35 @@ function toMaterialMatchKey(input: {
   ].join('::')
 }
 
+function buildNextMaterialUnitCostUAH(input: {
+  currentStockQty: number
+  currentUnitCostUAH: number
+  incomingStockQty: number
+  incomingUnitCostUAH: number
+}): number {
+  const currentStockQty = Math.max(0, input.currentStockQty)
+  const currentUnitCostUAH = Math.max(0, input.currentUnitCostUAH)
+  const incomingStockQty = Math.max(0, input.incomingStockQty)
+  const incomingUnitCostUAH = Math.max(0, input.incomingUnitCostUAH)
+
+  if (incomingStockQty > 0 && incomingUnitCostUAH > 0) {
+    const nextStockQty = currentStockQty + incomingStockQty
+    if (nextStockQty > 0) {
+      return (
+        (currentStockQty * currentUnitCostUAH +
+          incomingStockQty * incomingUnitCostUAH) /
+        nextStockQty
+      )
+    }
+  }
+
+  if (incomingStockQty === 0 && incomingUnitCostUAH > 0) {
+    return incomingUnitCostUAH
+  }
+
+  return currentUnitCostUAH
+}
+
 export default async function InventoryPageView({
   searchParams,
   view = 'overview',
@@ -248,17 +277,14 @@ export default async function InventoryPageView({
         name: true,
         category: true,
         color: true,
+        stockQty: true,
+        unitCostUAH: true,
       },
     })
 
     const existingByKey = new Map<
       string,
-      Array<{
-        id: string
-        name: string
-        category: MaterialCategory
-        color: string
-      }>
+      Array<(typeof existingMaterials)[number]>
     >()
     for (const material of existingMaterials) {
       const key = toMaterialMatchKey(material)
@@ -271,10 +297,24 @@ export default async function InventoryPageView({
       (item) =>
         (existingByKey.get(toMaterialMatchKey(item)) ?? []).length === 0,
     )
+    const toUpdate = normalizedItems
+      .map((item) => {
+        const existingRows = existingByKey.get(toMaterialMatchKey(item)) ?? []
+        const existing = existingRows[0]
+        return existing ? { item, existing } : null
+      })
+      .filter(
+        (
+          row,
+        ): row is {
+          item: (typeof normalizedItems)[number]
+          existing: (typeof existingMaterials)[number]
+        } => Boolean(row),
+      )
 
-    if (toCreate.length > 0) {
-      await prisma.$transaction(
-        toCreate.map((item) =>
+    if (toCreate.length > 0 || toUpdate.length > 0) {
+      await prisma.$transaction([
+        ...toCreate.map((item) =>
           prisma.material.create({
             data: {
               name: item.name,
@@ -286,7 +326,21 @@ export default async function InventoryPageView({
             },
           }),
         ),
-      )
+        ...toUpdate.map(({ item, existing }) =>
+          prisma.material.update({
+            where: { id: existing.id },
+            data: {
+              stockQty: Math.max(0, existing.stockQty) + Math.max(0, item.stockQty),
+              unitCostUAH: buildNextMaterialUnitCostUAH({
+                currentStockQty: existing.stockQty,
+                currentUnitCostUAH: existing.unitCostUAH,
+                incomingStockQty: item.stockQty,
+                incomingUnitCostUAH: item.unitCostUAH,
+              }),
+            },
+          }),
+        ),
+      ])
 
       revalidateInventoryViews()
       revalidatePath('/admin/costs')
@@ -313,7 +367,8 @@ export default async function InventoryPageView({
       }
     })
 
-    const existing = existingMaterials.map((material) => {
+    const existing = toUpdate.map(({ existing }) => {
+      const material = existing
       const searchQuery = material.name.trim()
       const queryString = searchQuery
         ? `?q=${encodeURIComponent(searchQuery)}`

@@ -4,18 +4,31 @@ import { getProductsLite } from '@/lib/db/products'
 import type { ProductType } from '@prisma/client'
 import Link from 'next/link'
 import type { Metadata } from 'next'
+import { permanentRedirect } from 'next/navigation'
 import { ACTIVE_PRODUCT_TYPES } from '@/lib/labels'
 import { ACCESSORY_SUBCATEGORIES } from '@/lib/shop-taxonomy'
+import {
+  hasFacetedQueryParams,
+  pickFirstQueryValue,
+  type QueryParamValue,
+} from '@/lib/seo/faceted'
 
 export const revalidate = 300
 
 const ALLOWED_TYPES: ProductType[] = ACTIVE_PRODUCT_TYPES
 type ProductGroup = '' | 'BEADS' | 'WEAVING'
-type ShopSearchParams = {
-  q?: string
-  color?: string
-  type?: string
-  group?: string
+type ShopSearchParams = Record<string, QueryParamValue> & {
+  q?: QueryParamValue
+  color?: QueryParamValue
+  type?: QueryParamValue
+  group?: QueryParamValue
+  subcategory?: QueryParamValue
+  inStock?: QueryParamValue
+  onSale?: QueryParamValue
+  min?: QueryParamValue
+  max?: QueryParamValue
+  sortBase?: QueryParamValue
+  sortPrice?: QueryParamValue
 }
 
 const TYPE_TO_CATEGORY: Record<ProductType, string> = {
@@ -46,8 +59,8 @@ function normalizeType(raw?: string | null): ProductType | null {
 }
 
 function canonicalForShopFilters(sp: ShopSearchParams): string {
-  const safeType = normalizeType(sp.type ?? null)
-  const safeGroup = normalizeGroup(sp.group ?? null)
+  const safeType = normalizeType(pickFirstQueryValue(sp.type))
+  const safeGroup = normalizeGroup(pickFirstQueryValue(sp.group))
 
   // If type/group are combined, keep canonical at /shop to avoid ambiguous mapping.
   if (safeType && safeGroup) return '/shop'
@@ -63,6 +76,7 @@ export async function generateMetadata({
   searchParams: Promise<ShopSearchParams>
 }): Promise<Metadata> {
   const sp = await searchParams
+  const shouldNoindex = hasFacetedQueryParams(sp)
   return {
     title: 'Каталог сумок ручної роботи та аксесуарів',
     description:
@@ -70,6 +84,12 @@ export async function generateMetadata({
     alternates: {
       canonical: canonicalForShopFilters(sp),
     },
+    robots: shouldNoindex
+      ? {
+          index: false,
+          follow: true,
+        }
+      : undefined,
   }
 }
 
@@ -79,10 +99,36 @@ export default async function ShopPage({
   searchParams: Promise<ShopSearchParams>
 }) {
   const sp = await searchParams
-  const safeType = normalizeType(sp.type ?? null)
-  const safeGroup = normalizeGroup(sp.group ?? null)
+  const rawType = pickFirstQueryValue(sp.type)
+  const rawGroup = pickFirstQueryValue(sp.group)
+  const safeType = normalizeType(rawType)
+  const safeGroup = normalizeGroup(rawGroup)
 
-  if (sp.type && !safeType) {
+  const hasNonNavigationFacets = hasFacetedQueryParams(sp, [
+    'q',
+    'color',
+    'subcategory',
+    'inStock',
+    'onSale',
+    'min',
+    'max',
+    'sortBase',
+    'sortPrice',
+  ])
+
+  if (!hasNonNavigationFacets) {
+    if (safeType && !safeGroup) {
+      permanentRedirect(`/shop/${TYPE_TO_CATEGORY[safeType]}`)
+    }
+    if (safeGroup && !safeType) {
+      permanentRedirect(`/shop/group/${safeGroup.toLowerCase()}`)
+    }
+    if (safeType && safeGroup) {
+      permanentRedirect('/shop')
+    }
+  }
+
+  if (rawType && !safeType) {
     return (
       <div className="max-w-6xl mx-auto px-4 py-12">
         <h1 className="text-2xl font-semibold mb-4">
@@ -103,8 +149,8 @@ export default async function ShopPage({
   }
 
   const products = await getProductsLite({
-    search: sp.q,
-    color: sp.color,
+    search: pickFirstQueryValue(sp.q),
+    color: pickFirstQueryValue(sp.color),
     type: safeType ?? undefined,
     group: safeGroup || undefined,
   })
@@ -129,8 +175,8 @@ export default async function ShopPage({
             label: item.label,
           }))}
           initialFilters={{
-            q: sp.q ?? '',
-            color: sp.color ?? '',
+            q: pickFirstQueryValue(sp.q) ?? '',
+            color: pickFirstQueryValue(sp.color) ?? '',
             bagTypes: safeType ?? '',
             group: safeGroup,
           }}

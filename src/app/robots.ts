@@ -13,7 +13,17 @@ export default function robots(): MetadataRoute.Robots {
       {
         userAgent: '*',
         allow: '/',
-        disallow: ['/api/', '/admin'],
+        disallow: [
+          '/api/',
+          '/admin',
+          '/cart',
+          '/checkout',
+          '/login',
+          '/success',
+          // Prevent crawl budget waste on faceted catalog URLs.
+          '/shop?*',
+          '/shop/*?*',
+        ],
       },
     ],
     host: siteUrl,

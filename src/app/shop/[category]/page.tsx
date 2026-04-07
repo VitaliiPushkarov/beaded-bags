@@ -5,19 +5,33 @@ import Link from 'next/link'
 import { notFound, permanentRedirect } from 'next/navigation'
 import {
   ACCESSORY_SUBCATEGORIES,
+  getAccessorySubcategoryConfig,
   getMainShopCategorySlugs,
   getShopCategoryConfig,
 } from '@/lib/shop-taxonomy'
+import {
+  hasFacetedQueryParams,
+  pickFirstQueryValue,
+  type QueryParamValue,
+} from '@/lib/seo/faceted'
 
 export const revalidate = 300
 
 type ShopCategoryPageProps = {
   params: Promise<{ category: string }>
-  searchParams: Promise<{
-    q?: string
-    color?: string
-    subcategory?: string
-  }>
+  searchParams: Promise<
+    Record<string, QueryParamValue> & {
+      q?: QueryParamValue
+      color?: QueryParamValue
+      subcategory?: QueryParamValue
+      inStock?: QueryParamValue
+      onSale?: QueryParamValue
+      min?: QueryParamValue
+      max?: QueryParamValue
+      sortBase?: QueryParamValue
+      sortPrice?: QueryParamValue
+    }
+  >
 }
 
 export function generateStaticParams() {
@@ -58,8 +72,10 @@ function buildFaqJsonLd(
 
 export async function generateMetadata({
   params,
+  searchParams,
 }: ShopCategoryPageProps): Promise<Metadata> {
   const { category } = await params
+  const sp = await searchParams
   const config = getShopCategoryConfig(category)
 
   if (!config) {
@@ -82,12 +98,20 @@ export async function generateMetadata({
     }
   }
 
+  const shouldNoindex = hasFacetedQueryParams(sp)
+
   return {
     title: config.metaTitle,
     description: config.metaDescription,
     alternates: {
       canonical: `/shop/${category.toLowerCase()}`,
     },
+    robots: shouldNoindex
+      ? {
+          index: false,
+          follow: true,
+        }
+      : undefined,
   }
 }
 
@@ -107,9 +131,29 @@ export default async function ShopCategoryPage({
     permanentRedirect(`/shop/${config.redirectTo}`)
   }
 
+  const subcategoryFromQuery = pickFirstQueryValue(sp.subcategory)
+  const hasExtraFacetsForAccessories = hasFacetedQueryParams(sp, [
+    'q',
+    'color',
+    'inStock',
+    'onSale',
+    'min',
+    'max',
+    'sortBase',
+    'sortPrice',
+  ])
+  if (
+    category === 'accessories' &&
+    subcategoryFromQuery &&
+    getAccessorySubcategoryConfig(subcategoryFromQuery) &&
+    !hasExtraFacetsForAccessories
+  ) {
+    permanentRedirect(`/shop/accessories/${subcategoryFromQuery}`)
+  }
+
   const products = await getProductsLite({
-    search: sp.q,
-    color: sp.color,
+    search: pickFirstQueryValue(sp.q),
+    color: pickFirstQueryValue(sp.color),
     type: config.type,
     types: config.types,
     group: config.group,
@@ -135,9 +179,9 @@ export default async function ShopCategoryPage({
       <ProductsContainer
         initialProducts={products}
         initialFilters={{
-          q: sp.q ?? '',
-          color: sp.color ?? '',
-          accessorySubcategory: sp.subcategory ?? '',
+          q: pickFirstQueryValue(sp.q) ?? '',
+          color: pickFirstQueryValue(sp.color) ?? '',
+          accessorySubcategory: subcategoryFromQuery ?? '',
           bagTypes: lockedTypeForPage ?? '',
           group: config.group ?? '',
         }}
