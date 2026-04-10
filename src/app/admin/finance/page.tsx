@@ -247,7 +247,7 @@ export default async function AdminFinancePage({ searchParams }: PageProps) {
       ? Math.round((netAfterAllExpensesUAH / recognizedRevenueUAH) * 100)
       : 0
 
-  const topProducts = Array.from(
+  const soldProducts = Array.from(
     orders
       .filter(
         (order) => order.status === 'PAID' || order.status === 'FULFILLED',
@@ -287,8 +287,22 @@ export default async function AdminFinancePage({ searchParams }: PageProps) {
       )
       .values(),
   )
+  const topProducts = [...soldProducts]
     .sort((a, b) => b.grossProfitUAH - a.grossProfitUAH)
     .slice(0, 10)
+  const soldProductsByRevenue = [...soldProducts].sort(
+    (a, b) => b.revenueUAH - a.revenueUAH,
+  )
+  const soldProductsTopFive = soldProductsByRevenue.slice(0, 5)
+  const soldProductsHidden = soldProductsByRevenue.slice(5)
+  const soldProductsTotalQty = soldProducts.reduce(
+    (sum, item) => sum + item.qty,
+    0,
+  )
+  const soldProductsTotalRevenueUAH = soldProducts.reduce(
+    (sum, item) => sum + item.revenueUAH,
+    0,
+  )
 
   return (
     <div className="space-y-6">
@@ -464,6 +478,101 @@ export default async function AdminFinancePage({ searchParams }: PageProps) {
                   ))}
                 </TableBody>
               </Table>
+            )}
+          </CardContent>
+        </Card>
+
+        <Card className="overflow-hidden">
+          <CardHeader className="border-b border-slate-200">
+            <CardTitle>Продані товари: к-сть і загальна сума</CardTitle>
+            <CardDescription>
+              Аналіз проданих товарів за оплаченими/виконаними замовленнями.
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="p-0">
+            {soldProductsByRevenue.length === 0 ? (
+              <div className="p-4 text-sm text-gray-600">
+                За вибраний період ще немає проданих товарів.
+              </div>
+            ) : (
+              <>
+                <Table className="table-fixed">
+                  <colgroup>
+                    <col />
+                    <col className="w-[180px]" />
+                    <col className="w-[220px]" />
+                  </colgroup>
+                  <TableHeader>
+                    <TableRow className="hover:bg-transparent">
+                      <TableHead>Товар</TableHead>
+                      <TableHead className="text-right">Продано, шт</TableHead>
+                      <TableHead className="text-right">Загальна сума</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {soldProductsTopFive.map((item) => (
+                      <TableRow key={`sold-${item.key}`}>
+                        <TableCell>{item.name}</TableCell>
+                        <TableCell className="text-right">{item.qty}</TableCell>
+                        <TableCell className="text-right">
+                          {formatUAH(item.revenueUAH)}
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+
+                {soldProductsHidden.length > 0 ? (
+                  <details className="group flex flex-col-reverse border-t">
+                    <summary className="flex cursor-pointer list-none items-center justify-between p-4 text-sm text-slate-700 hover:bg-slate-50">
+                      <span className="group-open:hidden">
+                        Показати ще {soldProductsHidden.length} товарів
+                      </span>
+                      <span className="hidden group-open:inline">Згорнути</span>
+                      <span className="text-sm text-slate-500 transition-transform group-open:rotate-180">
+                        ▾
+                      </span>
+                    </summary>
+                    <Table className="table-fixed">
+                      <colgroup>
+                        <col />
+                        <col className="w-[180px]" />
+                        <col className="w-[220px]" />
+                      </colgroup>
+                      <TableBody>
+                        {soldProductsHidden.map((item) => (
+                          <TableRow key={`sold-hidden-${item.key}`}>
+                            <TableCell>{item.name}</TableCell>
+                            <TableCell className="text-right">{item.qty}</TableCell>
+                            <TableCell className="text-right">
+                              {formatUAH(item.revenueUAH)}
+                            </TableCell>
+                          </TableRow>
+                        ))}
+                      </TableBody>
+                    </Table>
+                  </details>
+                ) : null}
+
+                <Table className="table-fixed border-t">
+                  <colgroup>
+                    <col />
+                    <col className="w-[180px]" />
+                    <col className="w-[220px]" />
+                  </colgroup>
+                  <TableBody>
+                    <TableRow className="bg-slate-50 font-medium">
+                      <TableCell>Всього</TableCell>
+                      <TableCell className="text-right">
+                        {soldProductsTotalQty}
+                      </TableCell>
+                      <TableCell className="text-right">
+                        {formatUAH(soldProductsTotalRevenueUAH)}
+                      </TableCell>
+                    </TableRow>
+                  </TableBody>
+                </Table>
+              </>
             )}
           </CardContent>
         </Card>

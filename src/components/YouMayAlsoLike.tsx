@@ -188,7 +188,7 @@ export default function YouMayAlsoLike({
       {/* slider */}
       <div
         ref={scrollerRef}
-        className="flex gap-4 overflow-x-auto scroll-smooth pb-2 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
+        className="flex gap-4 overflow-x-auto scroll-smooth pt-4 pb-2 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
       >
         {(loading ? Array.from({ length: 8 }) : items).map(
           (p: any, idx: number) => {
@@ -274,7 +274,7 @@ export default function YouMayAlsoLike({
                 basis-[85%] sm:basis-[48%] md:basis-[32%] lg:basis-[19%]
               "
               >
-                <Link href={href} className="block">
+                <Link href={href} className="relative block overflow-visible">
                   <div className="relative w-full aspect-4/5 border bg-white overflow-hidden">
                     <Image
                       src={image}
@@ -285,6 +285,11 @@ export default function YouMayAlsoLike({
                       loading="lazy"
                     />
                   </div>
+                  {hasDiscount && (
+                    <div className="pointer-events-none absolute right-0 top-0 z-20 translate-x-[16%] -translate-y-[34%] rotate-[8deg] rounded-[14px] bg-[#ED1C24] px-2 py-0.5 text-[11px] leading-none text-white lg:translate-x-[18%] lg:-translate-y-[36%] lg:rounded-[18px] lg:px-3 lg:py-1 lg:text-sm">
+                      -{discountPercent}%
+                    </div>
+                  )}
 
                   <div className="mt-3 flex items-center justify-between gap-3">
                     <div className="text-sm text-gray-900 truncate">
@@ -294,14 +299,9 @@ export default function YouMayAlsoLike({
                       <div className="text-sm text-gray-900 whitespace-nowrap flex items-baseline gap-1.5">
                         <span>{finalPriceUAH.toLocaleString('uk-UA')} ₴</span>
                         {hasDiscount && (
-                          <>
-                            <span className="text-xs text-gray-500 line-through">
-                              {basePriceUAH.toLocaleString('uk-UA')} ₴
-                            </span>
-                            <span className="text-[10px] border border-black rounded-full px-1.5 py-0.5 self-center">
-                              -{discountPercent}%
-                            </span>
-                          </>
+                          <span className="text-xs text-gray-500 line-through">
+                            {basePriceUAH.toLocaleString('uk-UA')} ₴
+                          </span>
                         )}
                       </div>
                     )}

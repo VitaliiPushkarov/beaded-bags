@@ -90,6 +90,34 @@ function getFinanceNameCandidates(input: string): string[] {
   )
 }
 
+function getFinanceVariantDetails(item: Pick<OrderItem, 'color' | 'modelSize' | 'pouchColor' | 'strapName'>): string[] {
+  const details: string[] = []
+
+  if (item.color?.trim()) details.push(`Колір: ${item.color.trim()}`)
+  if (item.modelSize?.trim()) details.push(`Розмір: ${item.modelSize.trim()}`)
+  if (item.pouchColor?.trim()) details.push(`Мішечок: ${item.pouchColor.trim()}`)
+  if (item.strapName?.trim()) details.push(`Ремінець: ${item.strapName.trim()}`)
+
+  return details
+}
+
+function buildFinanceLineKey(
+  item: Pick<
+    OrderItem,
+    'productId' | 'variantId' | 'name' | 'color' | 'modelSize' | 'pouchColor' | 'strapName'
+  >,
+): string {
+  return [
+    item.productId ?? '',
+    item.variantId ?? '',
+    normalizeFinanceProductKey(item.name),
+    item.color?.trim().toLowerCase() ?? '',
+    item.modelSize?.trim().toLowerCase() ?? '',
+    item.pouchColor?.trim().toLowerCase() ?? '',
+    item.strapName?.trim().toLowerCase() ?? '',
+  ].join('::')
+}
+
 function resolveProductUnitCost(
   item: Pick<OrderItem, 'productId' | 'name'>,
   resolver?: FinanceProductResolver,
@@ -211,9 +239,15 @@ export function resolveOrderFinance(
         ? item.totalCostUAH
         : fallbackLine.totalCostUAH
 
+    const variantDetails = getFinanceVariantDetails(item)
+    const displayName =
+      variantDetails.length > 0
+        ? `${item.name} — ${variantDetails.join(' · ')}`
+        : item.name
+
     return {
-      key: item.productId || item.name,
-      name: item.name,
+      key: buildFinanceLineKey(item),
+      name: displayName,
       qty: item.qty,
       lineRevenueUAH,
       unitCostUAH,

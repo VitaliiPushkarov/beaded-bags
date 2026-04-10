@@ -50,7 +50,7 @@ export default async function Bestsellers() {
         <h2 className="text-2xl font-semibold mb-5 uppercase">Новинки</h2>
 
         <div className="relative flex flex-col gap-2">
-          <div className="flex gap-5 overflow-x-auto scrollbar-always snap-x pb-2">
+          <div className="flex gap-5 overflow-x-auto scrollbar-always snap-x pt-4 pb-2">
             {products.length === 0 ? (
               <div className="text-gray-500 text-sm">
                 Поки що немає товарів.
@@ -101,7 +101,10 @@ export default async function Bestsellers() {
                     key={p.id}
                     className="min-w-[260px] snap-start 2xl:w-[560px] 2xl:min-h-[680px]"
                   >
-                    <Link href={`/products/${p.slug}`}>
+                    <Link
+                      href={`/products/${p.slug}`}
+                      className="relative block overflow-visible"
+                    >
                       <div
                         className="group relative aspect-3/4 bg-gray-100 overflow-hidden border"
                       >
@@ -120,19 +123,19 @@ export default async function Bestsellers() {
                           className="object-cover transition-opacity duration-300 opacity-0 group-hover:opacity-100 group-hover:scale-[1.02]"
                         />
                       </div>
+                      {hasDiscount && (
+                        <div className="pointer-events-none absolute right-0 top-0 z-20 translate-x-[16%] -translate-y-[34%] rotate-[8deg] rounded-[14px] bg-[#ED1C24] px-2 py-0.5 text-[11px] leading-none text-white 2xl:translate-x-[18%] 2xl:-translate-y-[36%] 2xl:rounded-[18px] 2xl:px-3 2xl:py-1 2xl:text-sm">
+                          -{discountPercent}%
+                        </div>
+                      )}
                       <div className="mt-3 flex items-center justify-between gap-4">
                         <div className="text-sm truncate">{p.name}</div>
                         <div className="text-sm text-gray-700 whitespace-nowrap flex items-baseline gap-2">
                           <span>{finalPriceUAH.toLocaleString('uk-UA')} ₴</span>
                           {hasDiscount && (
-                            <>
-                              <span className="text-xs text-gray-500 line-through">
-                                {basePriceUAH.toLocaleString('uk-UA')} ₴
-                              </span>
-                              <span className="text-[10px] border border-black rounded-full px-2 py-0.5 self-center">
-                                -{discountPercent}%
-                              </span>
-                            </>
+                            <span className="text-xs text-gray-500 line-through">
+                              {basePriceUAH.toLocaleString('uk-UA')} ₴
+                            </span>
                           )}
                         </div>
                       </div>
