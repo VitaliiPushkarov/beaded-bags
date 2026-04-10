@@ -93,9 +93,9 @@ export default function ProductCardLarge({
   }`
 
   return (
-    <article className="overflow-visible bg-white mb-8 md:mb-0">
+    <article className="overflow-hidden bg-white mb-8 md:mb-0">
       {/* зображення прив'язане до варіанту */}
-      <Link href={productHref} className="relative block overflow-visible">
+      <Link href={productHref} className="block">
         <div
           className="group relative md:h-[560px] aspect-3/4 2xl:aspect-auto bg-gray-100 2xl:h-[720px] overflow-hidden"
           onMouseEnter={() => setIsHovered(true)}
@@ -135,11 +135,6 @@ export default function ProductCardLarge({
             </>
           )}
         </div>
-        {hasDiscount && (
-          <div className="pointer-events-none absolute right-0 top-0 z-30 translate-x-[16%] -translate-y-[34%] rotate-[8deg] rounded-[16px] bg-[#ED1C24] px-3 py-1 text-sm font-light leading-none text-white md:translate-x-[18%] md:-translate-y-[36%] md:rounded-[24px] md:px-5 md:py-2 md:text-2xl">
-            -{discountPercent}%
-          </div>
-        )}
       </Link>
 
       <div className=" p-1 md:p-3">
@@ -156,9 +151,14 @@ export default function ProductCardLarge({
                 {finalPriceUAH} ₴
               </div>
               {hasDiscount && (
-                <div className="text-xs md:text-base text-gray-500 line-through">
-                  {basePriceUAH} ₴
-                </div>
+                <>
+                  <div className="text-xs md:text-base text-gray-500 line-through">
+                    {basePriceUAH} ₴
+                  </div>
+                  <span className="text-[10px] text-white md:text-xs border  rounded-full px-2 py-0.5 self-center bg-[#DE2222]">
+                    -{discountPercent}%
+                  </span>
+                </>
               )}
             </div>
             {hasDiscount && p.offerNote?.trim() && (

@@ -25,7 +25,7 @@ async function getBestsellers(): Promise<ProductWithVariants[]> {
   const json = (await res.json()) as
     | ProductWithVariants[]
     | { items?: ProductWithVariants[] }
-  const items = Array.isArray(json) ? json : json.items ?? []
+  const items = Array.isArray(json) ? json : (json.items ?? [])
 
   return items
     .filter((item) => {
@@ -50,7 +50,7 @@ export default async function Bestsellers() {
         <h2 className="text-2xl font-semibold mb-5 uppercase">Новинки</h2>
 
         <div className="relative flex flex-col gap-2">
-          <div className="flex gap-5 overflow-x-auto scrollbar-always snap-x pt-4 pb-2">
+          <div className="flex gap-5 overflow-x-auto scrollbar-always snap-x pb-2">
             {products.length === 0 ? (
               <div className="text-gray-500 text-sm">
                 Поки що немає товарів.
@@ -62,12 +62,12 @@ export default async function Bestsellers() {
                     .filter(
                       (v) =>
                         typeof v.sortBestsellers === 'number' &&
-                        v.sortBestsellers > 0
+                        v.sortBestsellers > 0,
                     )
                     .sort(
                       (a, b) =>
                         (a.sortBestsellers ?? 9999) -
-                        (b.sortBestsellers ?? 9999)
+                        (b.sortBestsellers ?? 9999),
                     )[0] || p.variants[0]
 
                 const variantImages = (firstVariant?.images || [])
@@ -82,32 +82,31 @@ export default async function Bestsellers() {
                   variantImages[1]?.url ||
                   primaryImage
 
-                const { basePriceUAH, finalPriceUAH, hasDiscount, discountPercent } =
-                  calcDiscountedPrice({
-                    basePriceUAH:
-                      (typeof firstVariant?.priceUAH === 'number'
-                        ? firstVariant.priceUAH
-                        : null) ??
-                      (typeof p.basePriceUAH === 'number'
-                        ? p.basePriceUAH
-                        : null) ??
-                      0,
-                    discountPercent: firstVariant?.discountPercent,
-                    discountUAH: firstVariant?.discountUAH ?? 0,
-                  })
+                const {
+                  basePriceUAH,
+                  finalPriceUAH,
+                  hasDiscount,
+                  discountPercent,
+                } = calcDiscountedPrice({
+                  basePriceUAH:
+                    (typeof firstVariant?.priceUAH === 'number'
+                      ? firstVariant.priceUAH
+                      : null) ??
+                    (typeof p.basePriceUAH === 'number'
+                      ? p.basePriceUAH
+                      : null) ??
+                    0,
+                  discountPercent: firstVariant?.discountPercent,
+                  discountUAH: firstVariant?.discountUAH ?? 0,
+                })
 
                 return (
                   <div
                     key={p.id}
                     className="min-w-[260px] snap-start 2xl:w-[560px] 2xl:min-h-[680px]"
                   >
-                    <Link
-                      href={`/products/${p.slug}`}
-                      className="relative block overflow-visible"
-                    >
-                      <div
-                        className="group relative aspect-3/4 bg-gray-100 overflow-hidden border"
-                      >
+                    <Link href={`/products/${p.slug}`}>
+                      <div className="group relative aspect-3/4 bg-gray-100 overflow-hidden border">
                         <Image
                           src={primaryImage}
                           alt={p.name}
@@ -123,19 +122,19 @@ export default async function Bestsellers() {
                           className="object-cover transition-opacity duration-300 opacity-0 group-hover:opacity-100 group-hover:scale-[1.02]"
                         />
                       </div>
-                      {hasDiscount && (
-                        <div className="pointer-events-none absolute right-0 top-0 z-20 translate-x-[16%] -translate-y-[34%] rotate-[8deg] rounded-[14px] bg-[#ED1C24] px-2 py-0.5 text-[11px] leading-none text-white 2xl:translate-x-[18%] 2xl:-translate-y-[36%] 2xl:rounded-[18px] 2xl:px-3 2xl:py-1 2xl:text-sm">
-                          -{discountPercent}%
-                        </div>
-                      )}
                       <div className="mt-3 flex items-center justify-between gap-4">
                         <div className="text-sm truncate">{p.name}</div>
                         <div className="text-sm text-gray-700 whitespace-nowrap flex items-baseline gap-2">
                           <span>{finalPriceUAH.toLocaleString('uk-UA')} ₴</span>
                           {hasDiscount && (
-                            <span className="text-xs text-gray-500 line-through">
-                              {basePriceUAH.toLocaleString('uk-UA')} ₴
-                            </span>
+                            <>
+                              <span className="text-xs text-gray-500 line-through">
+                                {basePriceUAH.toLocaleString('uk-UA')} ₴
+                              </span>
+                              <span className="text-[10px] text-white md:text-xs border  rounded-full px-2 py-0.5 self-center bg-[#DE2222]">
+                                -{discountPercent}%
+                              </span>
+                            </>
                           )}
                         </div>
                       </div>

@@ -58,11 +58,6 @@ export default function ProductCard({ product }: ProductCardProps) {
           className="object-cover"
           sizes="(max-width: 768px) 100vw, 320px"
         />
-        {hasDiscount && (
-          <div className="pointer-events-none absolute right-3 top-3 z-20 rotate-[8deg] rounded-[14px] bg-[#ED1C24] px-2.5 py-1 text-xs leading-none text-white">
-            -{discountPercent}%
-          </div>
-        )}
       </Link>
       <div className="p-3 flex-1 flex flex-col gap-2">
         <Link
@@ -75,9 +70,14 @@ export default function ProductCard({ product }: ProductCardProps) {
           <div className="flex items-baseline gap-2">
             <span>{finalPriceUAH.toLocaleString('uk-UA')} ₴</span>
             {hasDiscount && (
-              <span className="text-xs text-gray-500 line-through">
-                {basePriceUAH.toLocaleString('uk-UA')} ₴
-              </span>
+              <>
+                <span className="text-xs text-gray-500 line-through">
+                  {basePriceUAH.toLocaleString('uk-UA')} ₴
+                </span>
+                <span className="text-[10px] text-white md:text-xs border  rounded-full px-2 py-0.5 self-center bg-[#DE2222]">
+                  -{discountPercent}%
+                </span>
+              </>
             )}
           </div>
           {hasDiscount && product.offerNote?.trim() && (
