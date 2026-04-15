@@ -374,18 +374,18 @@ export default async function AdminFinancePage({ searchParams }: PageProps) {
 
       <section className="space-y-3">
         <div>
-          <h2 className="text-lg font-semibold">Загальна</h2>
+          <h2 className="text-lg font-semibold">Загальна картина</h2>
           <p className="text-sm text-gray-600">
-            Коротка картина періоду по замовленнях і фінальному результату.
+            Коротко про замовлення за період і скільки грошей залишилось.
           </p>
         </div>
         <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
           {[
-            ['Замовлень активних', String(summary.activeOrdersCount)],
-            ['Замовлень підтверджених', String(summary.recognizedOrdersCount)],
-            ['Виручка підтверджена', formatUAH(summary.recognizedRevenueUAH)],
+            ['Активні замовлення', String(summary.activeOrdersCount)],
+            ['Підтверджені замовлення', String(summary.recognizedOrdersCount)],
+            ['Сума підтверджених замовлень', formatUAH(summary.recognizedRevenueUAH)],
             [
-              'Фінрезультат після всіх витрат',
+              'Залишок після всіх витрат',
               formatUAH(netAfterAllExpensesUAH),
             ],
           ].map(([label, value]) => (
@@ -398,28 +398,29 @@ export default async function AdminFinancePage({ searchParams }: PageProps) {
           ))}
         </div>
         <div className="rounded border border-slate-200 bg-slate-50 p-3 text-xs text-slate-700">
-          Чиста маржа після всіх витрат: <b>{netAfterAllMarginPercent}%</b>.
+          Частка, що залишилась після всіх витрат:{' '}
+          <b>{netAfterAllMarginPercent}%</b>.
           <span className="ml-2 text-slate-500">
-            Після операційних витрат: <b>{netMarginPercent}%</b>.
+            Після щоденних витрат: <b>{netMarginPercent}%</b>.
           </span>
         </div>
       </section>
 
       <section className="space-y-3">
         <div>
-          <h2 className="text-lg font-semibold">Дохід</h2>
+          <h2 className="text-lg font-semibold">Продажі</h2>
           <p className="text-sm text-gray-600">
-            Показники продажів і собівартості реалізованих товарів.
+            Показуємо, скільки продали, скільки це коштувало і що залишилось.
           </p>
         </div>
         <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
           {[
             ['Середній чек', formatUAH(summary.avgOrderValueUAH)],
-            ['COGS (реалізоване)', formatUAH(summary.itemsCostUAH)],
+            ['Собівартість проданих товарів', formatUAH(summary.itemsCostUAH)],
             ['Платіжні комісії', formatUAH(summary.paymentFeeUAH)],
-            ['Валовий прибуток', formatUAH(summary.grossProfitUAH)],
-            ['Валова маржа', `${grossMarginPercent}%`],
-            ['Частка COGS у виручці', `${cogsSharePercent}%`],
+            ['Прибуток до інших витрат', formatUAH(summary.grossProfitUAH)],
+            ['Частка прибутку до інших витрат', `${grossMarginPercent}%`],
+            ['Частка собівартості у сумі продажів', `${cogsSharePercent}%`],
           ].map(([label, value]) => (
             <Card key={label}>
               <CardContent className="pt-6">
@@ -430,12 +431,12 @@ export default async function AdminFinancePage({ searchParams }: PageProps) {
           ))}
         </div>
         <div className="rounded border border-slate-200 bg-slate-50 p-3 text-xs text-slate-700">
-          Комісії займають <b>{paymentFeeSharePercent}%</b> підтвердженої
-          виручки.
+          Комісії займають <b>{paymentFeeSharePercent}%</b> від суми
+          підтверджених продажів.
         </div>
         <Card className="overflow-hidden">
           <CardHeader className="border-b border-slate-200 sm:flex-row sm:items-center sm:justify-between sm:space-y-0">
-            <CardTitle>Топ товарів по валовому прибутку</CardTitle>
+            <CardTitle>Топ товарів за прибутком</CardTitle>
             <Link
               href="/admin/costs"
               className={buttonVariants({ variant: 'outline', size: 'sm' })}
@@ -456,8 +457,8 @@ export default async function AdminFinancePage({ searchParams }: PageProps) {
                     <TableHead>Товар</TableHead>
                     <TableHead className="text-right">К-сть</TableHead>
                     <TableHead className="text-right">Виручка</TableHead>
-                    <TableHead className="text-right">COGS</TableHead>
-                    <TableHead className="text-right">GP</TableHead>
+                    <TableHead className="text-right">Собівартість</TableHead>
+                    <TableHead className="text-right">Прибуток</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -590,10 +591,10 @@ export default async function AdminFinancePage({ searchParams }: PageProps) {
             ['Операційні витрати', formatUAH(summary.operatingExpensesUAH)],
             ['Інші витрати', formatUAH(summary.otherExpensesUAH)],
             [
-              'Сума матеріалів у довіднику',
+              'Матеріали у довіднику (всього)',
               formatUAH(summary.materialsCatalogTotalUAH),
             ],
-            ['Сумарне навантаження (період)', formatUAH(totalManagedExpensesUAH)],
+            ['Усього витрат за період', formatUAH(totalManagedExpensesUAH)],
           ].map(([label, value]) => (
             <Card key={label}>
               <CardContent className="pt-6">
@@ -604,9 +605,9 @@ export default async function AdminFinancePage({ searchParams }: PageProps) {
           ))}
         </div>
         <div className="rounded border border-slate-200 bg-slate-50 p-3 text-xs text-slate-700">
-          Структура витрат до виручки: операційні{' '}
+          Як витрати співвідносяться з сумою продажів: операційні{' '}
           <b>{operatingSharePercent}%</b>, інші <b>{otherSharePercent}%</b>,
-          загальне навантаження <b>{totalExpenseLoadPercent}%</b>.
+          разом <b>{totalExpenseLoadPercent}%</b>.
           <span className="ml-2 text-slate-500">
             Сума матеріалів у довіднику не прив&apos;язана до періоду.
           </span>
