@@ -57,6 +57,7 @@ const NullablePriceSchema = z.preprocess(
 // --------- Zod schema for product creation (incl. variants, but without straps/addons/images relations) ---------
 const ProductCreateSchema = z.object({
   name: z.string().trim().min(1),
+  nameEn: z.string().trim().optional().nullable(),
   slug: z.string().trim().min(1),
   type: z.enum(ProductType),
   status: z.nativeEnum(ProductStatus).optional().default(ProductStatus.DRAFT),
@@ -65,16 +66,22 @@ const ProductCreateSchema = z.object({
   sortCatalog: z.coerce.number().int().optional().nullable(),
 
   basePriceUAH: NullablePriceSchema.optional(),
+  basePriceUSD: NullablePriceSchema.optional(),
   info: z.string().trim().optional().nullable(),
+  infoEn: z.string().trim().optional().nullable(),
   description: z.string().trim().optional().nullable(),
+  descriptionEn: z.string().trim().optional().nullable(),
   dimensions: z.string().trim().optional().nullable(),
+  dimensionsEn: z.string().trim().optional().nullable(),
   offerNote: z.string().trim().optional().nullable(),
+  offerNoteEn: z.string().trim().optional().nullable(),
   inStock: z.coerce.boolean(),
 
   variants: z
     .array(
       z.object({
         color: z.string().trim().optional().nullable(),
+        colorEn: z.string().trim().optional().nullable(),
         modelSize: z.string().trim().optional().nullable(),
         pouchColor: z.string().trim().optional().nullable(),
         hex: z.string().trim().optional().nullable(),
@@ -83,6 +90,7 @@ const ProductCreateSchema = z.object({
         images: z.array(ImagePath).optional().default([]),
 
         priceUAH: NullablePriceSchema,
+        priceUSD: NullablePriceSchema,
         discountPercent: z.coerce.number().optional().nullable(),
         discountUAH: z.coerce.number().optional().nullable(),
         availabilityStatus: z.enum(AvailabilityStatus).optional().nullable(),
@@ -117,6 +125,7 @@ export async function GET() {
       select: {
         id: true,
         name: true,
+        nameEn: true,
         slug: true,
         type: true,
         status: true,
@@ -124,7 +133,9 @@ export async function GET() {
         sortCatalog: true,
         inStock: true,
         basePriceUAH: true,
+        basePriceUSD: true,
         offerNote: true,
+        offerNoteEn: true,
         createdAt: true,
         updatedAt: true,
         variants: {
@@ -132,11 +143,13 @@ export async function GET() {
           select: {
             id: true,
             color: true,
+            colorEn: true,
             modelSize: true,
             pouchColor: true,
             hex: true,
             image: true,
             priceUAH: true,
+            priceUSD: true,
             discountPercent: true,
             discountUAH: true,
             inStock: true,
@@ -177,6 +190,7 @@ export async function POST(req: NextRequest) {
     const created = await prisma.product.create({
       data: {
         name: data.name,
+        nameEn: data.nameEn ?? null,
         slug: data.slug,
         type: normalizedType,
         // New products should be immediately available as addon candidates.
@@ -185,10 +199,15 @@ export async function POST(req: NextRequest) {
         group: data.group ?? null,
         sortCatalog: sanitizeSortCatalog(data.sortCatalog),
         basePriceUAH: data.basePriceUAH ?? null,
+        basePriceUSD: data.basePriceUSD ?? null,
         description: data.description ?? null,
+        descriptionEn: data.descriptionEn ?? null,
         info: data.info ?? null,
+        infoEn: data.infoEn ?? null,
         dimensions: data.dimensions ?? null,
+        dimensionsEn: data.dimensionsEn ?? null,
         offerNote: data.offerNote ?? null,
+        offerNoteEn: data.offerNoteEn ?? null,
         inStock: data.inStock,
 
         variants: {
@@ -200,6 +219,7 @@ export async function POST(req: NextRequest) {
 
             return {
               color: v.color ?? null,
+              colorEn: v.colorEn ?? null,
               modelSize: v.modelSize?.trim() || null,
               pouchColor: v.pouchColor?.trim() || null,
               hex: v.hex ?? null,
@@ -208,6 +228,7 @@ export async function POST(req: NextRequest) {
                 create: (v.images ?? []).map((url) => ({ url })),
               },
               priceUAH: v.priceUAH ?? null,
+              priceUSD: v.priceUSD ?? null,
               discountPercent: sanitizeDiscountPercent(v.discountPercent),
               discountUAH: v.discountUAH ?? null,
               inStock: isInStockStatus(availabilityStatus),

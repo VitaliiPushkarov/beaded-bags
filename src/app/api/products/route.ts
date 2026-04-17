@@ -24,6 +24,12 @@ export async function GET(req: NextRequest) {
           },
         },
         {
+          nameEn: {
+            contains: search,
+            mode: 'insensitive',
+          },
+        },
+        {
           slug: {
             contains: search,
             mode: 'insensitive',
@@ -32,10 +38,20 @@ export async function GET(req: NextRequest) {
         {
           variants: {
             some: {
-              color: {
-                contains: search,
-                mode: 'insensitive',
-              },
+              OR: [
+                {
+                  color: {
+                    contains: search,
+                    mode: 'insensitive',
+                  },
+                },
+                {
+                  colorEn: {
+                    contains: search,
+                    mode: 'insensitive',
+                  },
+                },
+              ],
             },
           },
         },
@@ -51,12 +67,16 @@ export async function GET(req: NextRequest) {
           id: true,
           slug: true,
           name: true,
+          nameEn: true,
           basePriceUAH: true,
+          basePriceUSD: true,
           variants: {
             take: 1,
             orderBy: { sortCatalog: 'asc' },
             select: {
               image: true,
+              priceUAH: true,
+              priceUSD: true,
               images: {
                 take: 1,
                 orderBy: { sort: 'asc' },
@@ -110,17 +130,24 @@ export async function GET(req: NextRequest) {
         id: true,
         slug: true,
         name: true,
+        nameEn: true,
         type: true,
         group: true,
         basePriceUAH: true,
+        basePriceUSD: true,
+        offerNote: true,
+        offerNoteEn: true,
         createdAt: true,
         variants: {
           take: 6,
           orderBy: { sortCatalog: 'asc' },
           select: {
             id: true,
+            color: true,
+            colorEn: true,
             image: true,
             priceUAH: true,
+            priceUSD: true,
             discountPercent: true,
             discountUAH: true,
             inStock: true,

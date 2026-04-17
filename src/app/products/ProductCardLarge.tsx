@@ -3,14 +3,18 @@ import Link from 'next/link'
 import Image from 'next/image'
 import { useEffect, useMemo, useState } from 'react'
 import VariantSwatches from '@/components/product/VariantSwatches'
-import { calcDiscountedPrice } from '@/lib/pricing'
+import {
+  calcLocalizedDiscountedPrice,
+  formatLocalizedMoney,
+  pickLocalizedText,
+} from '@/lib/localized-product'
 import {
   isOutOfStockStatus,
   isPreorderStatus,
   resolveAvailabilityStatus,
 } from '@/lib/availability'
 import type { ProductCardDTO } from '@/lib/product-card-dto'
-import { useT } from '@/lib/i18n'
+import { useLocale, useLocaleNumberFormat, useT } from '@/lib/i18n'
 /* import { useCart } from '@/app/store/cart'
 import { useUI } from '@/app/store/ui' */
 
@@ -23,11 +27,17 @@ export default function ProductCardLarge({
   p: ProductWithVariants
   preferredColor?: string
 }) {
+  const locale = useLocale()
+  const numberLocale = useLocaleNumberFormat()
   const t = useT()
+  const productName = pickLocalizedText(p.name, p.nameEn, locale)
   const preferredVariantId = useMemo(() => {
     if (!preferredColor) return undefined
-    return p.variants.find((x) => x.color === preferredColor)?.id
-  }, [p.variants, preferredColor])
+    return p.variants.find((x) => {
+      const colorLabel = pickLocalizedText(x.color, x.colorEn, locale)
+      return colorLabel === preferredColor
+    })?.id
+  }, [locale, p.variants, preferredColor])
 
   const [variantId, setVariantId] = useState(
     preferredVariantId ?? p.variants[0]?.id,
@@ -54,12 +64,18 @@ export default function ProductCardLarge({
 
   /* const add = useCart((s) => s.add)
   const openCart = useUI((s) => s.openCart) */
-  const { basePriceUAH, finalPriceUAH, hasDiscount, discountPercent } =
-    calcDiscountedPrice({
-      basePriceUAH: v?.priceUAH ?? p.basePriceUAH ?? 0,
+  const { basePrice, finalPrice, hasDiscount, discountPercent, currency } =
+    calcLocalizedDiscountedPrice({
+      locale,
+      priceUAH: v?.priceUAH ?? p.basePriceUAH ?? 0,
+      priceUSD: (v as any)?.priceUSD ?? (p as any).basePriceUSD ?? null,
       discountPercent: v?.discountPercent,
       discountUAH: v?.discountUAH ?? 0,
     })
+  const finalPriceLabel = formatLocalizedMoney(finalPrice, currency, numberLocale)
+  const basePriceLabel = formatLocalizedMoney(basePrice, currency, numberLocale)
+  const offerNote = pickLocalizedText(p.offerNote, p.offerNoteEn, locale)
+  const variantColorLabel = pickLocalizedText(v?.color, (v as any)?.colorEn, locale)
   const availabilityStatus = resolveAvailabilityStatus({
     availabilityStatus: (v as any)?.availabilityStatus,
     inStock: v?.inStock ?? p.inStock,
@@ -114,7 +130,7 @@ export default function ProductCardLarge({
             <>
               <Image
                 src={primaryImage}
-                alt={`${p.name} — ${v.color}`}
+                alt={`${productName} — ${variantColorLabel}`}
                 fill
                 className={`object-cover transition-opacity duration-300 ${
                   isHovered ? 'opacity-0 scale-[1.02]' : 'opacity-100'
@@ -125,7 +141,7 @@ export default function ProductCardLarge({
               {hoverImage && (
                 <Image
                   src={hoverImage}
-                  alt={`${p.name} — ${v.color} — view 2`}
+                  alt={`${productName} — ${variantColorLabel} — view 2`}
                   fill
                   className={`hidden md:block object-cover transition-opacity duration-300 ${
                     isHovered ? 'opacity-100 scale-[1.02]' : 'opacity-0'
@@ -143,19 +159,19 @@ export default function ProductCardLarge({
         <div className="flex items-center justify-between flex-wrap">
           <Link href={productHref}>
             <h3 className="text-sm md:text-xl font-normal truncate">
-              {p.name}
+              {productName}
             </h3>
           </Link>
 
           <div className="whitespace-nowrap flex flex-col items-end">
             <div className="flex items-baseline gap-2">
               <div className="text-sm md:text-xl font-light">
-                {finalPriceUAH} ₴
+                {finalPriceLabel}
               </div>
               {hasDiscount && (
                 <>
                   <div className="text-xs md:text-base text-gray-500 line-through">
-                    {basePriceUAH} ₴
+                    {basePriceLabel}
                   </div>
                   <span className="text-[10px] text-white md:text-xs border  rounded-full px-2 py-0.5 self-center bg-[#DE2222]">
                     -{discountPercent}%
@@ -163,9 +179,9 @@ export default function ProductCardLarge({
                 </>
               )}
             </div>
-            {hasDiscount && p.offerNote?.trim() && (
+            {hasDiscount && offerNote && (
               <div className="text-[11px] md:text-xs text-gray-600">
-                {p.offerNote.trim()}
+                {offerNote}
               </div>
             )}
           </div>

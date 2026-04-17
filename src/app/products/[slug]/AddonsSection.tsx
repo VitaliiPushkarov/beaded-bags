@@ -1,7 +1,12 @@
 import Link from 'next/link'
 import Image from 'next/image'
 import { Product, ProductVariant, ProductVariantImage } from '@prisma/client'
-import { useT } from '@/lib/i18n'
+import { useLocale, useLocaleNumberFormat, useT } from '@/lib/i18n'
+import {
+  calcLocalizedDiscountedPrice,
+  formatLocalizedMoney,
+  pickLocalizedText,
+} from '@/lib/localized-product'
 
 type AddonVariantUI = ProductVariant & {
   product: Product
@@ -22,14 +27,14 @@ export function AddonsSection(props: {
   addonImageUrl: (av: AddonVariantUI) => string
   addonsTotal: number
 }) {
+  const locale = useLocale()
+  const numberLocale = useLocaleNumberFormat()
   const t = useT()
   const {
     availableAddons,
     selectedAddonVariantIds,
     toggleAddon,
-    addonPricing,
     addonImageUrl,
-    addonsTotal,
   } = props
 
   const inStockAddons = availableAddons.filter((a) => a.inStock)
@@ -47,7 +52,31 @@ export function AddonsSection(props: {
           <div className="flex gap-3 px-1 pb-1">
             {inStockAddons.map((addonV) => {
               const isSelected = selectedAddonVariantIds.includes(addonV.id)
-              const pricing = addonPricing(addonV)
+              const pricing = calcLocalizedDiscountedPrice({
+                locale,
+                priceUAH: addonV.priceUAH ?? addonV.product.basePriceUAH ?? 0,
+                priceUSD:
+                  (addonV as any).priceUSD ??
+                  (addonV.product as any).basePriceUSD ??
+                  null,
+                discountPercent: addonV.discountPercent,
+                discountUAH: addonV.discountUAH ?? 0,
+              })
+              const title = pickLocalizedText(
+                addonV.product.name,
+                (addonV.product as any).nameEn,
+                locale,
+              )
+              const finalPriceLabel = formatLocalizedMoney(
+                pricing.finalPrice,
+                pricing.currency,
+                numberLocale,
+              )
+              const basePriceLabel = formatLocalizedMoney(
+                pricing.basePrice,
+                pricing.currency,
+                numberLocale,
+              )
               return (
                 <div key={addonV.id} className="relative shrink-0 w-[140px]">
                   {/* Картинка як лінк на сторінку аксесуара */}
@@ -55,7 +84,7 @@ export function AddonsSection(props: {
                     <div className="relative w-full aspect-4/5 rounded-lg overflow-hidden bg-gray-100">
                       <Image
                         src={addonImageUrl(addonV)}
-                        alt={addonV.product.name}
+                        alt={title}
                         fill
                         className="object-cover"
                         sizes="(max-width: 768px) 40vw, 140px"
@@ -80,14 +109,14 @@ export function AddonsSection(props: {
 
                   {/* Назва + ціна під картинкою */}
                   <div className="mt-2 text-xs text-gray-900">
-                    {addonV.product.name}
+                    {title}
                   </div>
                   <div className="text-xs text-gray-600 flex items-center gap-1.5 flex-wrap">
-                    <span>{pricing.finalPriceUAH} ₴</span>
+                    <span>{finalPriceLabel}</span>
                     {pricing.hasDiscount && (
                       <>
                         <span className="text-[11px] text-gray-500 line-through">
-                          {pricing.basePriceUAH} ₴
+                          {basePriceLabel}
                         </span>
                         <span className="text-[10px] border border-black rounded-full px-1 py-0.5">
                           -{pricing.discountPercent}%
@@ -102,12 +131,42 @@ export function AddonsSection(props: {
         </div>
       </div>
 
-      {addonsTotal > 0 && (
+      {(() => {
+        const selectedPricings = inStockAddons
+          .filter((addon) => selectedAddonVariantIds.includes(addon.id))
+          .map((addon) =>
+            calcLocalizedDiscountedPrice({
+              locale,
+              priceUAH: addon.priceUAH ?? addon.product.basePriceUAH ?? 0,
+              priceUSD:
+                (addon as any).priceUSD ??
+                (addon.product as any).basePriceUSD ??
+                null,
+              discountPercent: addon.discountPercent,
+              discountUAH: addon.discountUAH ?? 0,
+            }),
+          )
+
+        const selectedTotal = selectedPricings.reduce(
+          (sum, pricing) => sum + pricing.finalPrice,
+          0,
+        )
+
+        if (selectedTotal <= 0) return null
+
+        const totalLabel = formatLocalizedMoney(
+          selectedTotal,
+          selectedPricings[0]?.currency ?? (locale === 'en' ? 'USD' : 'UAH'),
+          numberLocale,
+        )
+
+        return (
         <div className="mt-3 w-full rounded-md border border-gray-200 bg-gray-50 px-3 py-2 text-sm text-gray-800">
           {t('Обрані прикраси', 'Selected add-ons')}:{' '}
-          <span className="font-medium">+{addonsTotal} ₴</span>
+          <span className="font-medium">+{totalLabel}</span>
         </div>
-      )}
+        )
+      })()}
     </>
   )
 }

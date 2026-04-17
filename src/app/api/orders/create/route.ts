@@ -61,8 +61,6 @@ function paymentMethodName(method: string) {
   switch (method) {
     case 'LIQPAY':
       return 'LiqPay'
-    case 'COD':
-      return 'Післяплата'
     case 'BANK_TRANSFER':
       return 'Банківський переказ'
     default:
@@ -121,7 +119,7 @@ const BodySchema = z.object({
   }),
   // frontend може передати варіант оплати, але ми його зафіксуємо нижче
   paymentMethod: z
-    .enum(['LIQPAY', 'COD', 'BANK_TRANSFER'])
+    .enum(['LIQPAY', 'BANK_TRANSFER'])
     .optional(),
 })
 

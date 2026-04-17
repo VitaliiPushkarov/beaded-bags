@@ -21,7 +21,6 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     '/shop',
     '/shop/sumky',
     '/shop/bananky',
-    '/shop/rjukzachky',
     '/shop/shopery',
     '/shop/chohly',
     '/shop/accessories',

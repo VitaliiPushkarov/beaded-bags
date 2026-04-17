@@ -77,19 +77,24 @@ const PRODUCT_CARD_SELECT = {
   id: true,
   slug: true,
   name: true,
+  nameEn: true,
   type: true,
   group: true,
   inStock: true,
   offerNote: true,
+  offerNoteEn: true,
   basePriceUAH: true,
+  basePriceUSD: true,
   variants: {
     orderBy: { sortCatalog: 'asc' },
     select: {
       id: true,
       color: true,
+      colorEn: true,
       hex: true,
       image: true,
       priceUAH: true,
+      priceUSD: true,
       discountPercent: true,
       discountUAH: true,
       inStock: true,
@@ -122,6 +127,7 @@ function buildWhere(params: GetProductsParams): Prisma.ProductWhereInput {
   const where: Prisma.ProductWhereInput = {
     status: 'PUBLISHED',
   }
+  const andFilters: Prisma.ProductWhereInput[] = []
 
   // Filter by type
   if (types && types.length > 0) {
@@ -140,28 +146,76 @@ function buildWhere(params: GetProductsParams): Prisma.ProductWhereInput {
 
   // Search
   if (search && search.trim()) {
-    where.name = {
-      contains: search.trim(),
-      mode: 'insensitive',
-    }
+    const q = search.trim()
+    andFilters.push({
+      OR: [
+        {
+          name: {
+            contains: q,
+            mode: 'insensitive',
+          },
+        },
+        {
+          nameEn: {
+            contains: q,
+            mode: 'insensitive',
+          },
+        },
+        {
+          slug: {
+            contains: q,
+            mode: 'insensitive',
+          },
+        },
+        {
+          variants: {
+            some: {
+              OR: [
+                {
+                  color: {
+                    contains: q,
+                    mode: 'insensitive',
+                  },
+                },
+                {
+                  colorEn: {
+                    contains: q,
+                    mode: 'insensitive',
+                  },
+                },
+              ],
+            },
+          },
+        },
+      ],
+    })
   }
 
   // Variant color filter
   if (color && color.trim()) {
-    where.variants = {
-      some: {
-        color: color.trim(),
+    const colorValue = color.trim()
+    andFilters.push({
+      variants: {
+        some: {
+          OR: [{ color: colorValue }, { colorEn: colorValue }],
+        },
       },
-    }
+    })
   }
 
   // Bestseller filter → now based on variants.sortBestsellers
   if (forBestsellers) {
-    where.variants = {
-      some: {
-        sortBestsellers: { gt: 0 },
+    andFilters.push({
+      variants: {
+        some: {
+          sortBestsellers: { gt: 0 },
+        },
       },
-    }
+    })
+  }
+
+  if (andFilters.length > 0) {
+    where.AND = andFilters
   }
 
   return where
@@ -231,7 +285,9 @@ export async function getProductMetaBySlug(slug: string) {
     select: {
       slug: true,
       name: true,
+      nameEn: true,
       description: true,
+      descriptionEn: true,
       variants: {
         orderBy: { sortCatalog: 'asc' },
         select: {

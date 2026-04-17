@@ -1,10 +1,14 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { z } from 'zod'
-import { PaymentMethod } from '@prisma/client'
-
 import { prisma } from '@/lib/prisma'
 import { buildOrderFinancialSnapshot } from '@/lib/finance'
 import { buildManagedUnitCostUAH } from '@/lib/management-accounting'
+
+const SupportedPaymentMethodSchema = z.enum([
+  'LIQPAY',
+  'BANK_TRANSFER',
+  'WAYFORPAY',
+])
 
 const BodySchema = z.object({
   items: z
@@ -41,7 +45,7 @@ const BodySchema = z.object({
     npWarehouseRef: z.string().min(1),
     npWarehouseName: z.string().min(1),
   }),
-  paymentMethod: z.nativeEnum(PaymentMethod),
+  paymentMethod: SupportedPaymentMethodSchema,
 })
 
 export async function POST(req: NextRequest) {

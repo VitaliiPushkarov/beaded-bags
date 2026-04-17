@@ -95,12 +95,14 @@ type VariantSizeInput = {
 type VariantInput = {
   id?: string
   color: string
+  colorEn: string
   modelSize: string
   pouchColor: string
   hex: string
   image: string
   images: string[]
   priceUAH: string
+  priceUSD: string
   discountPercent: string
   discountUAH?: string
   shippingNote: string
@@ -116,18 +118,24 @@ type VariantInput = {
 type ProductFormValues = {
   id?: string
   name: string
+  nameEn: string
   slug: string
   type: ProductType
   status: ProductStatus
   group: ProductGroup | ''
   sortCatalog: string
   basePriceUAH: string
+  basePriceUSD: string
   description: string
+  descriptionEn: string
   inStock: boolean
   variants: VariantInput[]
   info?: string
+  infoEn?: string
   dimensions?: string
+  dimensionsEn?: string
   offerNote?: string
+  offerNoteEn?: string
 }
 
 type AddonVariantOption = {
@@ -192,6 +200,12 @@ export default function ProductForm({
     initial
       ? {
           ...initial,
+          nameEn: initial.nameEn ?? '',
+          basePriceUSD: initial.basePriceUSD ?? '',
+          descriptionEn: initial.descriptionEn ?? '',
+          infoEn: initial.infoEn ?? '',
+          dimensionsEn: initial.dimensionsEn ?? '',
+          offerNoteEn: initial.offerNoteEn ?? '',
           status: initial.status ?? 'DRAFT',
           variants: (initial.variants || []).map((v) => {
             const images = normalizeImages(v.images)
@@ -204,10 +218,12 @@ export default function ProductForm({
             })
             return {
               ...v,
+              colorEn: (v as any).colorEn ?? '',
               modelSize: (v as any).modelSize ?? '',
               pouchColor: (v as any).pouchColor ?? '',
               images: seededImages,
               image: main,
+              priceUSD: (v as any).priceUSD ?? '',
               availabilityStatus,
               inStock: isInStockStatus(availabilityStatus),
               straps: (v.straps || []).map((s) => ({
@@ -236,26 +252,34 @@ export default function ProductForm({
         }
       : {
           name: '',
+          nameEn: '',
           slug: '',
           type: 'BAG',
           status: 'DRAFT',
           group: '',
           sortCatalog: '',
           basePriceUAH: '',
+          basePriceUSD: '',
           description: '',
+          descriptionEn: '',
           info: '',
+          infoEn: '',
           dimensions: '',
+          dimensionsEn: '',
           offerNote: '',
+          offerNoteEn: '',
           inStock: true,
           variants: [
             {
               color: '',
+              colorEn: '',
               modelSize: '',
               pouchColor: '',
               hex: '',
               image: '',
               images: [],
               priceUAH: '',
+              priceUSD: '',
               discountPercent: '',
               discountUAH: '',
               shippingNote: '',
@@ -435,12 +459,14 @@ export default function ProductForm({
         ...prev.variants,
         {
           color: '',
+          colorEn: '',
           modelSize: '',
           pouchColor: '',
           hex: '',
           image: '',
           images: [],
           priceUAH: '',
+          priceUSD: '',
           discountPercent: '',
           discountUAH: '',
           shippingNote: '',
@@ -475,7 +501,9 @@ export default function ProductForm({
         status: values.status,
         sortCatalog: values.sortCatalog ? Number(values.sortCatalog) : 0,
         basePriceUAH: values.basePriceUAH ? Number(values.basePriceUAH) : null,
+        basePriceUSD: values.basePriceUSD ? Number(values.basePriceUSD) : null,
         offerNote: values.offerNote?.trim() || null,
+        offerNoteEn: values.offerNoteEn?.trim() || null,
         variants: values.variants.map((v) => {
           const availabilityStatus = resolveAvailabilityStatus({
             availabilityStatus: v.availabilityStatus,
@@ -486,12 +514,14 @@ export default function ProductForm({
             availabilityStatus,
             id: v.id,
             color: v.color,
+            colorEn: v.colorEn,
             modelSize: v.modelSize,
             pouchColor: v.pouchColor,
             hex: v.hex,
             image: v.image,
             images: normalizeImages(v.images),
             priceUAH: v.priceUAH ? Number(v.priceUAH) : null,
+            priceUSD: v.priceUSD ? Number(v.priceUSD) : null,
             discountPercent: v.discountPercent
               ? Math.max(0, Math.min(100, Number(v.discountPercent)))
               : null,
@@ -632,7 +662,7 @@ export default function ProductForm({
         </div> */}
 
         <div className="grid gap-4">
-          <div className="grid gap-4 sm:grid-cols-2">
+          <div className="grid gap-4 sm:grid-cols-3">
             <label className="block text-sm font-medium">
               Назва
               <input
@@ -642,6 +672,17 @@ export default function ProductForm({
                   setValues((v) => ({ ...v, name: e.target.value }))
                 }
                 required
+              />
+            </label>
+
+            <label className="block text-sm font-medium">
+              Назва (EN)
+              <input
+                className="mt-2 w-full border rounded-lg px-3 py-2 text-sm border-blue-300"
+                value={values.nameEn}
+                onChange={(e) =>
+                  setValues((v) => ({ ...v, nameEn: e.target.value }))
+                }
               />
             </label>
 
@@ -658,7 +699,7 @@ export default function ProductForm({
             </label>
           </div>
 
-          <div className="grid gap-4 sm:grid-cols-5">
+          <div className="grid gap-4 sm:grid-cols-6">
             <label className="block text-sm font-medium">
               Тип
               <select
@@ -736,6 +777,21 @@ export default function ProductForm({
             </label>
 
             <label className="block text-sm font-medium">
+              Базова ціна (USD)
+              <input
+                className="mt-2 w-full border rounded-lg px-3 py-2 text-sm border-blue-300"
+                inputMode="numeric"
+                value={values.basePriceUSD}
+                onChange={(e) =>
+                  setValues((v) => ({
+                    ...v,
+                    basePriceUSD: e.target.value.replace(/[^\d]/g, ''),
+                  }))
+                }
+              />
+            </label>
+
+            <label className="block text-sm font-medium">
               Позиція в каталозі
               <input
                 className="mt-2 w-full border rounded-lg px-3 py-2 text-sm border-blue-300"
@@ -796,6 +852,55 @@ export default function ProductForm({
                     setValues((v) => ({ ...v, offerNote: e.target.value }))
                   }
                   placeholder="Пропозиція діє до ..."
+                />
+              </label>
+            </div>
+          </div>
+
+          <div className="grid gap-4 sm:grid-cols-2">
+            <label className="block text-sm font-medium">
+              Опис (EN)
+              <textarea
+                className="mt-2 w-full border rounded-lg px-3 py-2 text-sm min-h-64 border-blue-300"
+                value={values.descriptionEn}
+                onChange={(e) =>
+                  setValues((v) => ({ ...v, descriptionEn: e.target.value }))
+                }
+              />
+            </label>
+
+            <div className="grid gap-4">
+              <label className="block text-sm font-medium">
+                Info (EN)
+                <textarea
+                  className="mt-2 w-full border rounded-lg px-3 py-2 text-sm min-h-20 border-blue-300"
+                  value={values.infoEn}
+                  onChange={(e) =>
+                    setValues((v) => ({ ...v, infoEn: e.target.value }))
+                  }
+                />
+              </label>
+
+              <label className="block text-sm font-medium">
+                Dimensions (EN)
+                <textarea
+                  className="mt-2 w-full border rounded-lg px-3 py-2 text-sm min-h-20 border-blue-300"
+                  value={values.dimensionsEn}
+                  onChange={(e) =>
+                    setValues((v) => ({ ...v, dimensionsEn: e.target.value }))
+                  }
+                />
+              </label>
+
+              <label className="block text-sm font-medium">
+                Offer text under price (EN)
+                <input
+                  className="mt-2 w-full border rounded-lg px-3 py-2 text-sm border-blue-300"
+                  value={values.offerNoteEn || ''}
+                  onChange={(e) =>
+                    setValues((v) => ({ ...v, offerNoteEn: e.target.value }))
+                  }
+                  placeholder="Offer valid until ..."
                 />
               </label>
             </div>
@@ -1073,6 +1178,16 @@ export default function ProductForm({
                     />
                   </label>
                   <label className="block text-sm font-medium ">
+                    Color (EN)
+                    <input
+                      className="mt-1 w-full border rounded px-2 py-1 text-sm border-blue-300"
+                      value={v.colorEn}
+                      onChange={(e) =>
+                        onVariantChange(index, { colorEn: e.target.value })
+                      }
+                    />
+                  </label>
+                  <label className="block text-sm font-medium ">
                     HEX
                     <input
                       className="mt-1 w-full border rounded px-2 py-1 text-sm border-blue-300"
@@ -1101,6 +1216,19 @@ export default function ProductForm({
                       onChange={(e) =>
                         onVariantChange(index, {
                           priceUAH: e.target.value.replace(/[^\d]/g, ''),
+                        })
+                      }
+                    />
+                  </label>
+                  <label className="block text-sm font-medium ">
+                    Ціна (USD)
+                    <input
+                      className="mt-1 w-full border rounded px-2 py-1 text-sm border-blue-300"
+                      inputMode="numeric"
+                      value={v.priceUSD}
+                      onChange={(e) =>
+                        onVariantChange(index, {
+                          priceUSD: e.target.value.replace(/[^\d]/g, ''),
                         })
                       }
                     />

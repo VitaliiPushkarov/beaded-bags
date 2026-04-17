@@ -35,7 +35,7 @@ type ShopSearchParams = Record<string, QueryParamValue> & {
 const TYPE_TO_CATEGORY: Record<ProductType, string> = {
   BAG: 'sumky',
   BELT_BAG: 'bananky',
-  BACKPACK: 'rjukzachky',
+  BACKPACK: 'sumky',
   SHOPPER: 'shopery',
   CASE: 'chohly',
   ORNAMENTS: 'accessories',

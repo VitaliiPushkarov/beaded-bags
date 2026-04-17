@@ -7,7 +7,10 @@ import { ProductClient } from './ProductClient'
 import type { ProductType } from '@prisma/client'
 import type { ProductWithVariants } from './productTypes'
 import type { Metadata } from 'next'
-import { calcDiscountedPrice } from '@/lib/pricing'
+import {
+  calcLocalizedDiscountedPrice,
+  pickLocalizedText,
+} from '@/lib/localized-product'
 import { TYPE_LABELS } from '@/lib/labels'
 import { resolveAvailabilityStatus, toSchemaOrgAvailability } from '@/lib/availability'
 import { getProductBySlug, getProductMetaBySlug } from '@/lib/db/products'
@@ -23,8 +26,8 @@ function getTypeToRoute(locale: 'uk' | 'en') {
       href: '/shop/bananky',
     },
     BACKPACK: {
-      label: locale === 'en' ? 'Backpacks' : 'Рюкзачки',
-      href: '/shop/rjukzachky',
+      label: locale === 'en' ? 'Bags' : 'Сумки',
+      href: '/shop/sumky',
     },
     SHOPPER: {
       label: locale === 'en' ? 'Shoppers' : 'Шопери',
@@ -66,9 +69,13 @@ export async function generateMetadata(props: {
     product.variants.find((v) => v.image)?.image ||
     '/img/placeholder.png'
 
-  const title = product.name
+  const title = pickLocalizedText(product.name, (product as any).nameEn, locale)
   const description =
-    product.description ??
+    pickLocalizedText(
+      product.description,
+      (product as any).descriptionEn,
+      locale,
+    ) ||
     (locale === 'en'
       ? 'Handmade bag from the GERDAN collection.'
       : 'Сумка ручної роботи з колекції GERDAN. Український бренд аксесуарів.')
@@ -119,7 +126,20 @@ export default async function ProductPage({
     crumbs.push(TYPE_TO_ROUTE[product.type])
   }
 
-  crumbs.push({ label: product.name || (locale === 'en' ? 'Product' : 'Товар') })
+  const localizedProductName = pickLocalizedText(
+    product.name,
+    (product as any).nameEn,
+    locale,
+  )
+  const localizedDescription = pickLocalizedText(
+    product.description,
+    (product as any).descriptionEn,
+    locale,
+  )
+
+  crumbs.push({
+    label: localizedProductName || (locale === 'en' ? 'Product' : 'Товар'),
+  })
 
   const firstVariant = product.variants[0]
 
@@ -153,7 +173,7 @@ export default async function ProductPage({
   const colors = Array.from(
     new Set(
       product.variants
-        .map((v) => v.color)
+        .map((v) => pickLocalizedText(v.color, (v as any).colorEn, locale))
         .filter((c): c is string => typeof c === 'string' && c.length > 0),
     ),
   )
@@ -163,7 +183,7 @@ export default async function ProductPage({
     shippingRate: {
       '@type': 'MonetaryAmount',
       value: '0',
-      currency: 'UAH',
+      currency: locale === 'en' ? 'USD' : 'UAH',
     },
     shippingDestination: {
       '@type': 'DefinedRegion',
@@ -197,18 +217,29 @@ export default async function ProductPage({
 
   const variantOffers = (product.variants.length ? product.variants : [null]).map(
     (variant) => {
-      const { finalPriceUAH } = calcDiscountedPrice({
-        basePriceUAH:
+      const pricing = calcLocalizedDiscountedPrice({
+        locale,
+        priceUAH:
           variant?.priceUAH ?? firstVariant?.priceUAH ?? product.basePriceUAH ?? 0,
+        priceUSD:
+          (variant as any)?.priceUSD ??
+          (firstVariant as any)?.priceUSD ??
+          (product as any).basePriceUSD ??
+          null,
         discountPercent: variant?.discountPercent ?? firstVariant?.discountPercent,
         discountUAH: variant?.discountUAH ?? firstVariant?.discountUAH,
       })
+      const localizedColor = pickLocalizedText(
+        variant?.color,
+        (variant as any)?.colorEn,
+        locale,
+      )
 
       return {
         '@type': 'Offer',
         sku: variant?.id ?? firstVariant?.id ?? product.id,
-        priceCurrency: 'UAH',
-        price: finalPriceUAH,
+        priceCurrency: pricing.currency,
+        price: pricing.finalPrice,
         priceValidUntil,
         availability: toSchemaOrgAvailability(
           variant
@@ -227,17 +258,20 @@ export default async function ProductPage({
         },
         shippingDetails,
         hasMerchantReturnPolicy: returnPolicy,
-        ...(variant?.color ? { color: variant.color } : {}),
+        ...(localizedColor ? { color: localizedColor } : {}),
       }
     },
   )
 
   const prices = variantOffers.map((offer) => Number(offer.price))
+  const offerCurrency =
+    (variantOffers[0]?.priceCurrency as 'UAH' | 'USD' | undefined) ||
+    (locale === 'en' ? 'USD' : 'UAH')
   const aggregateOffer =
     variantOffers.length > 1
       ? {
           '@type': 'AggregateOffer',
-          priceCurrency: 'UAH',
+          priceCurrency: offerCurrency,
           lowPrice: Math.min(...prices),
           highPrice: Math.max(...prices),
           offerCount: variantOffers.length,
@@ -248,8 +282,8 @@ export default async function ProductPage({
   const productLd = {
     '@context': 'https://schema.org/',
     '@type': 'Product',
-    name: product.name,
-    description: product.description,
+    name: localizedProductName || product.name,
+    description: localizedDescription || product.description,
     image: imageUrls,
     sku: firstVariant?.id ?? product.id,
     mpn: firstVariant?.id ?? product.id,
@@ -266,7 +300,7 @@ export default async function ProductPage({
     additionalProperty: [
       {
         '@type': 'PropertyValue',
-        name: 'Виготовлення',
+        name: locale === 'en' ? 'Production' : 'Виготовлення',
         value: locale === 'en' ? 'Handmade' : 'Ручна робота',
       },
       {

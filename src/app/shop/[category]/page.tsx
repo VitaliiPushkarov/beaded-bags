@@ -23,7 +23,6 @@ function categoryTitleByLocale(category: string, locale: 'uk' | 'en'): string {
   const map: Record<string, string> = {
     sumky: 'Bags',
     bananky: 'Belt Bags',
-    rjukzachky: 'Backpacks',
     shopery: 'Shoppers',
     chohly: 'Cases',
     accessories: 'Accessories',

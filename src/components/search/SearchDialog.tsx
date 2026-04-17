@@ -3,15 +3,24 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
 import Link from 'next/link'
 import SearchIcon from '@/components/icons/Search'
-import { useLocaleNumberFormat, useT } from '@/lib/i18n'
+import { useLocale, useLocaleNumberFormat, useT } from '@/lib/i18n'
+import {
+  formatLocalizedMoney,
+  pickLocalizedMoney,
+  pickLocalizedText,
+} from '@/lib/localized-product'
 
 type SearchProduct = {
   id: string
   slug: string
   name: string
+  nameEn?: string | null
   basePriceUAH?: number | null
+  basePriceUSD?: number | null
   variants?: {
     image?: string | null
+    priceUAH?: number | null
+    priceUSD?: number | null
     images?: { url?: string | null }[]
   }[]
 }
@@ -32,6 +41,7 @@ function getProductImage(p: SearchProduct): string {
 }
 
 export default function SearchDialog() {
+  const locale = useLocale()
   const t = useT()
   const numberLocale = useLocaleNumberFormat()
   const [open, setOpen] = useState(false)
@@ -232,6 +242,26 @@ export default function SearchDialog() {
                 )}
                 {visibleResults.map((p) => (
                   <li key={p.id} className="hover:bg-gray-50">
+                    {(() => {
+                      const title = pickLocalizedText(p.name, p.nameEn, locale)
+                      const money = pickLocalizedMoney({
+                        locale,
+                        priceUAH:
+                          p.variants?.[0]?.priceUAH ??
+                          p.basePriceUAH ??
+                          null,
+                        priceUSD:
+                          p.variants?.[0]?.priceUSD ??
+                          p.basePriceUSD ??
+                          null,
+                      })
+                      const hasAnyPrice =
+                        typeof p.variants?.[0]?.priceUAH === 'number' ||
+                        typeof p.variants?.[0]?.priceUSD === 'number' ||
+                        typeof p.basePriceUAH === 'number' ||
+                        typeof p.basePriceUSD === 'number'
+
+                      return (
                     <Link
                       href={`/products/${p.slug}`}
                       onClick={() => {
@@ -249,14 +279,20 @@ export default function SearchDialog() {
                         }}
                       />
                       <div className="flex-1">
-                        <div className="text-sm">{p.name}</div>
-                        {typeof p.basePriceUAH === 'number' ? (
+                        <div className="text-sm">{title}</div>
+                        {hasAnyPrice ? (
                           <div className="text-xs text-gray-500">
-                            {p.basePriceUAH.toLocaleString(numberLocale)} ₴
+                            {formatLocalizedMoney(
+                              money.amount,
+                              money.currency,
+                              numberLocale,
+                            )}
                           </div>
                         ) : null}
                       </div>
                     </Link>
+                      )
+                    })()}
                   </li>
                 ))}
                 {canShowAllMobile && (

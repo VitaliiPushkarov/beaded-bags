@@ -44,12 +44,12 @@ export default async function InfoPage() {
               : 'Онлайн-оплата працює через LiqPay checkout: банківська картка, Apple Pay та Google Pay (на сумісних пристроях/браузерах).'}
           </p>
           <p className="font-semibold">
-            {isEn ? 'Cash on delivery' : 'Оплата при отриманні'}
+            {isEn ? 'Bank transfer' : 'Банківський переказ'}
           </p>
           <p className="text-gray-700">
             {isEn
-              ? 'Nova Poshta cash on delivery, additional fee: 20 UAH + 2% of payment amount. This payment method is available for orders without custom changes.'
-              : '(післяплата Нова пошта, додаткова комісія: 20 грн + 2% від суми платежу). Даний спосіб оплати дійсний для замовлень без будь-яких змін (вибір кольору з нашої палітри не є зміною).'}
+              ? 'After creating the order, we will send you payment details.'
+              : 'Після створення замовлення ми надішлемо реквізити для оплати.'}
           </p>
 
           <p className="text-gray-700">
@@ -95,11 +95,6 @@ export default async function InfoPage() {
               {isEn
                 ? 'Pickup at branch or courier delivery.'
                 : 'Самовивіз із відділення або доставка курʼєром.'}
-            </li>
-            <li>
-              {isEn
-                ? 'Cash on delivery with Nova Poshta fee (20 UAH + 2%).'
-                : 'Післяплата — з комісією «Нової пошти» (20 грн + 2%).'}
             </li>
           </ul>
           <p className="text-gray-700">

@@ -3,15 +3,23 @@ import Link from 'next/link'
 import Image from 'next/image'
 import { useCart } from '@/app/store/cart'
 import { useUI } from '../store/ui'
-import { calcDiscountedPrice } from '@/lib/pricing'
+import {
+  calcLocalizedDiscountedPrice,
+  formatLocalizedMoney,
+  pickLocalizedText,
+} from '@/lib/localized-product'
+import { useLocale, useLocaleNumberFormat, useT } from '@/lib/i18n'
 
 type ProductCardProps = {
   product: {
     id: string
     slug: string
     name: string
+    nameEn?: string | null
     basePriceUAH: number | null
+    basePriceUSD?: number | null
     offerNote?: string | null
+    offerNoteEn?: string | null
     mainImage?: string | null
     images?: string[] | null
     variants?: {
@@ -19,25 +27,47 @@ type ProductCardProps = {
       image: string | null
       inStock: boolean
       priceUAH: number | null
+      priceUSD?: number | null
       discountPercent?: number | null
       discountUAH?: number | null
       color: string | null
+      colorEn?: string | null
       hex: string | null
     }[]
   }
 }
 
 export default function ProductCard({ product }: ProductCardProps) {
+  const locale = useLocale()
+  const numberLocale = useLocaleNumberFormat()
+  const t = useT()
   const add = useCart((s) => s.add)
   const openCart = useUI((s) => s.openCart)
 
   const firstVariant = product.variants?.[0]
-  const { basePriceUAH, finalPriceUAH, hasDiscount, discountPercent } =
-    calcDiscountedPrice({
-      basePriceUAH: firstVariant?.priceUAH ?? product.basePriceUAH ?? 0,
+  const { basePrice, finalPrice, hasDiscount, discountPercent, currency } =
+    calcLocalizedDiscountedPrice({
+      locale,
+      priceUAH: firstVariant?.priceUAH ?? product.basePriceUAH ?? 0,
+      priceUSD: (firstVariant as any)?.priceUSD ?? product.basePriceUSD ?? null,
       discountPercent: firstVariant?.discountPercent,
       discountUAH: firstVariant?.discountUAH ?? 0,
     })
+  const { finalPrice: finalPriceUAHForCart } = calcLocalizedDiscountedPrice({
+    locale: 'uk',
+    priceUAH: firstVariant?.priceUAH ?? product.basePriceUAH ?? 0,
+    discountPercent: firstVariant?.discountPercent,
+    discountUAH: firstVariant?.discountUAH ?? 0,
+  })
+  const finalPriceLabel = formatLocalizedMoney(finalPrice, currency, numberLocale)
+  const basePriceLabel = formatLocalizedMoney(basePrice, currency, numberLocale)
+  const productName = pickLocalizedText(product.name, product.nameEn, locale)
+  const offerNote = pickLocalizedText(product.offerNote, product.offerNoteEn, locale)
+  const colorLabel = pickLocalizedText(
+    firstVariant?.color,
+    (firstVariant as any)?.colorEn,
+    locale,
+  )
 
   const img =
     product.mainImage ||
@@ -53,7 +83,7 @@ export default function ProductCard({ product }: ProductCardProps) {
       >
         <Image
           src={img}
-          alt={product.name}
+          alt={productName}
           fill
           className="object-cover"
           sizes="(max-width: 768px) 100vw, 320px"
@@ -64,15 +94,15 @@ export default function ProductCard({ product }: ProductCardProps) {
           href={`/products/${product.slug}`}
           className="text-sm font-medium line-clamp-2"
         >
-          {product.name}
+          {productName}
         </Link>
         <div className="text-sm text-gray-700">
           <div className="flex items-baseline gap-2">
-            <span>{finalPriceUAH.toLocaleString('uk-UA')} ₴</span>
+            <span>{finalPriceLabel}</span>
             {hasDiscount && (
               <>
                 <span className="text-xs text-gray-500 line-through">
-                  {basePriceUAH.toLocaleString('uk-UA')} ₴
+                  {basePriceLabel}
                 </span>
                 <span className="text-[10px] text-white md:text-xs border  rounded-full px-2 py-0.5 self-center bg-[#DE2222]">
                   -{discountPercent}%
@@ -80,9 +110,9 @@ export default function ProductCard({ product }: ProductCardProps) {
               </>
             )}
           </div>
-          {hasDiscount && product.offerNote?.trim() && (
+          {hasDiscount && offerNote && (
             <div className="text-[11px] text-gray-600">
-              {product.offerNote.trim()}
+              {offerNote}
             </div>
           )}
         </div>
@@ -91,11 +121,11 @@ export default function ProductCard({ product }: ProductCardProps) {
             const item = {
               productId: product.id,
               variantId: firstVariant?.id ?? '',
-              name: product.name,
-              color: firstVariant?.color ?? null,
+              name: productName,
+              color: colorLabel || null,
               modelSize: null,
               pouchColor: null,
-              priceUAH: finalPriceUAH,
+              priceUAH: finalPriceUAHForCart,
               image: img,
               qty: 1,
               slug: product.slug,
@@ -110,7 +140,7 @@ export default function ProductCard({ product }: ProductCardProps) {
           }}
           className="mt-auto inline-flex items-center justify-center rounded bg-black text-white py-2 text-sm hover:bg-[#FF3D8C] transition"
         >
-          Додати в кошик
+          {t('Додати в кошик', 'Add to cart')}
         </button>
       </div>
     </article>

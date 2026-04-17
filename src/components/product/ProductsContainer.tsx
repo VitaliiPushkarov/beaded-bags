@@ -17,6 +17,7 @@ import { resolveDiscountPercent } from '@/lib/pricing'
 import { matchAccessorySubcategory } from '@/lib/shop-taxonomy'
 import { isInStockStatus, resolveAvailabilityStatus } from '@/lib/availability'
 import { useLocale, useT } from '@/lib/i18n'
+import { pickLocalizedMoney, pickLocalizedText } from '@/lib/localized-product'
 
 export type UIFilters = {
   q: string
@@ -49,12 +50,47 @@ const DEFAULT_FILTERS: UIFilters = {
 type ProductWithVariants = CardProductWithVariants
 const EMPTY_SUBCATEGORY_OPTIONS: Array<{ value: string; label: string }> = []
 
-function getMinPrice(p: ProductWithVariants) {
+function localizedProductName(p: ProductWithVariants, locale: 'uk' | 'en') {
+  return pickLocalizedText(p.name, p.nameEn, locale)
+}
+
+function localizedVariantColor(
+  v: ProductWithVariants['variants'][number],
+  locale: 'uk' | 'en',
+) {
+  return pickLocalizedText(v.color, v.colorEn, locale)
+}
+
+function getComparablePrices(p: ProductWithVariants, locale: 'uk' | 'en') {
   const list: number[] = []
-  if (typeof p.basePriceUAH === 'number') list.push(p.basePriceUAH)
+  const hasProductPrice =
+    typeof p.basePriceUAH === 'number' || typeof p.basePriceUSD === 'number'
+  if (hasProductPrice) {
+    list.push(
+      pickLocalizedMoney({
+        locale,
+        priceUAH: p.basePriceUAH,
+        priceUSD: p.basePriceUSD,
+      }).amount,
+    )
+  }
   p.variants?.forEach((v) => {
-    if (typeof v.priceUAH === 'number') list.push(v.priceUAH)
+    const hasVariantPrice =
+      typeof v.priceUAH === 'number' || typeof v.priceUSD === 'number'
+    if (!hasVariantPrice) return
+    list.push(
+      pickLocalizedMoney({
+        locale,
+        priceUAH: v.priceUAH,
+        priceUSD: v.priceUSD,
+      }).amount,
+    )
   })
+  return list
+}
+
+function getMinPrice(p: ProductWithVariants, locale: 'uk' | 'en') {
+  const list = getComparablePrices(p, locale)
   return list.length ? Math.min(...list) : 0
 }
 
@@ -147,10 +183,14 @@ function normalizeAccessorySubcategoryParam(
   return options.some((item) => item.value === value) ? value : ''
 }
 
-function matchesColor(p: ProductWithVariants, color: string) {
+function matchesColor(
+  p: ProductWithVariants,
+  color: string,
+  locale: 'uk' | 'en',
+) {
   if (!color) return true
 
-  return !!p.variants?.some((v) => v.color === color)
+  return !!p.variants?.some((v) => localizedVariantColor(v, locale) === color)
 }
 
 function isOnSale(p: ProductWithVariants) {
@@ -279,8 +319,11 @@ export default function ProductsContainer({
     if (toApply.q.trim()) {
       const q = toApply.q.trim().toLowerCase()
       arr = arr.filter((p) => {
-        const pool = [p.name?.toLowerCase() || '']
-        p.variants?.forEach((v) => v.color && pool.push(v.color.toLowerCase()))
+        const pool = [localizedProductName(p, locale).toLowerCase()]
+        p.variants?.forEach((v) => {
+          const colorLabel = localizedVariantColor(v, locale)
+          if (colorLabel) pool.push(colorLabel.toLowerCase())
+        })
         return pool.some((x) => x.includes(q))
       })
     }
@@ -322,18 +365,14 @@ export default function ProductsContainer({
 
     // колір
     if (toApply.color) {
-      arr = arr.filter((p) => matchesColor(p, toApply.color))
+      arr = arr.filter((p) => matchesColor(p, toApply.color, locale))
     }
 
     // ціна
     const minNum = toApply.min ? Number(toApply.min) || 0 : -Infinity
     const maxNum = toApply.max ? Number(toApply.max) || Infinity : Infinity
     arr = arr.filter((p) => {
-      const prices: number[] = []
-      if (typeof p.basePriceUAH === 'number') prices.push(p.basePriceUAH)
-      p.variants?.forEach((v) => {
-        if (typeof v.priceUAH === 'number') prices.push(v.priceUAH)
-      })
+      const prices = getComparablePrices(p, locale)
       if (!prices.length) prices.push(0)
       return prices.some((price) => price >= minNum && price <= maxNum)
     })
@@ -342,16 +381,28 @@ export default function ProductsContainer({
     // пріоритет: ціна (якщо вибрана) → інакше popular → інакше (new або без) лишаємо порядок як є
     if (toApply.sortPrice === 'asc') {
       arr.sort((a, b) => {
-        const d = getMinPrice(a) - getMinPrice(b)
-        return d !== 0 ? d : (a.name || '').localeCompare(b.name || '')
+        const d = getMinPrice(a, locale) - getMinPrice(b, locale)
+        return d !== 0
+          ? d
+          : localizedProductName(a, locale).localeCompare(
+              localizedProductName(b, locale),
+            )
       })
     } else if (toApply.sortPrice === 'desc') {
       arr.sort((a, b) => {
-        const d = getMinPrice(b) - getMinPrice(a)
-        return d !== 0 ? d : (a.name || '').localeCompare(b.name || '')
+        const d = getMinPrice(b, locale) - getMinPrice(a, locale)
+        return d !== 0
+          ? d
+          : localizedProductName(a, locale).localeCompare(
+              localizedProductName(b, locale),
+            )
       })
     } else if (toApply.sortBase === 'popular') {
-      arr.sort((a, b) => (a.name || '').localeCompare(b.name || ''))
+      arr.sort((a, b) =>
+        localizedProductName(a, locale).localeCompare(
+          localizedProductName(b, locale),
+        ),
+      )
     }
 
     setApplied(toApply)
@@ -408,8 +459,11 @@ export default function ProductsContainer({
     if (previewFilters.q.trim()) {
       const q = previewFilters.q.trim().toLowerCase()
       arr = arr.filter((p) => {
-        const pool = [p.name?.toLowerCase() || '']
-        p.variants?.forEach((v) => v.color && pool.push(v.color.toLowerCase()))
+        const pool = [localizedProductName(p, locale).toLowerCase()]
+        p.variants?.forEach((v) => {
+          const colorLabel = localizedVariantColor(v, locale)
+          if (colorLabel) pool.push(colorLabel.toLowerCase())
+        })
         return pool.some((x) => x.includes(q))
       })
     }
@@ -447,7 +501,9 @@ export default function ProductsContainer({
     }
 
     if (previewFilters.color) {
-      arr = arr.filter((p) => matchesColor(p, previewFilters.color))
+      arr = arr.filter((p) =>
+        matchesColor(p, previewFilters.color, locale),
+      )
     }
 
     const minNum = previewFilters.min
@@ -457,11 +513,7 @@ export default function ProductsContainer({
       ? Number(previewFilters.max) || Infinity
       : Infinity
     arr = arr.filter((p) => {
-      const prices: number[] = []
-      if (typeof p.basePriceUAH === 'number') prices.push(p.basePriceUAH)
-      p.variants?.forEach((v) => {
-        if (typeof v.priceUAH === 'number') prices.push(v.priceUAH)
-      })
+      const prices = getComparablePrices(p, locale)
       if (!prices.length) prices.push(0)
       return prices.some((price) => price >= minNum && price <= maxNum)
     })
@@ -469,7 +521,8 @@ export default function ProductsContainer({
     const set = new Set<string>()
     for (const p of arr) {
       p.variants?.forEach((v) => {
-        if (v.color) set.add(v.color)
+        const colorLabel = localizedVariantColor(v, locale)
+        if (colorLabel) set.add(colorLabel)
       })
     }
 
@@ -477,7 +530,7 @@ export default function ProductsContainer({
     if (ui.color) set.add(ui.color)
 
     return Array.from(set)
-  }, [base, ui, lockedType, lockedGroup, subcategoryOptions])
+  }, [base, ui, lockedType, lockedGroup, subcategoryOptions, locale])
 
   // chips (тільки з застосованих)
   const chips = useMemo(() => {
@@ -577,8 +630,11 @@ export default function ProductsContainer({
     if (next.q.trim()) {
       const q = next.q.trim().toLowerCase()
       arr = arr.filter((p) => {
-        const pool = [p.name?.toLowerCase() || '']
-        p.variants?.forEach((v) => v.color && pool.push(v.color.toLowerCase()))
+        const pool = [localizedProductName(p, locale).toLowerCase()]
+        p.variants?.forEach((v) => {
+          const colorLabel = localizedVariantColor(v, locale)
+          if (colorLabel) pool.push(colorLabel.toLowerCase())
+        })
         return pool.some((x) => x.includes(q))
       })
     }
@@ -602,17 +658,13 @@ export default function ProductsContainer({
       )
     }
     if (next.color) {
-      arr = arr.filter((p) => matchesColor(p, next.color))
+      arr = arr.filter((p) => matchesColor(p, next.color, locale))
     }
 
     const minNum = next.min ? Number(next.min) || 0 : -Infinity
     const maxNum = next.max ? Number(next.max) || Infinity : Infinity
     arr = arr.filter((p) => {
-      const prices: number[] = []
-      if (typeof p.basePriceUAH === 'number') prices.push(p.basePriceUAH)
-      p.variants?.forEach((v) => {
-        if (typeof v.priceUAH === 'number') prices.push(v.priceUAH)
-      })
+      const prices = getComparablePrices(p, locale)
       if (!prices.length) prices.push(0)
       return prices.some((price) => price >= minNum && price <= maxNum)
     })

@@ -309,6 +309,7 @@ export default async function AdminProductEditPage({ params }: PageProps) {
   const initial = {
     id: product.id,
     name: product.name,
+    nameEn: (product as any).nameEn ?? '',
     slug: product.slug,
     type: (product.type === 'ORNAMENTS'
       ? 'ACCESSORY'
@@ -317,10 +318,15 @@ export default async function AdminProductEditPage({ params }: PageProps) {
     group: product.group as ProductGroup,
     sortCatalog: String(product.sortCatalog ?? 0),
     basePriceUAH: product.basePriceUAH?.toString() ?? '',
+    basePriceUSD: (product as any).basePriceUSD?.toString() ?? '',
     description: product.description ?? '',
+    descriptionEn: (product as any).descriptionEn ?? '',
     info: product.info ?? '',
+    infoEn: (product as any).infoEn ?? '',
     dimensions: product.dimensions ?? '',
+    dimensionsEn: (product as any).dimensionsEn ?? '',
     offerNote: product.offerNote ?? '',
+    offerNoteEn: (product as any).offerNoteEn ?? '',
     inStock: product.inStock,
     variants: product.variants.map((v) => {
       const images =
@@ -333,12 +339,14 @@ export default async function AdminProductEditPage({ params }: PageProps) {
       return {
         id: v.id,
         color: v.color ?? '',
+        colorEn: (v as any).colorEn ?? '',
         modelSize: (v as any).modelSize ?? '',
         pouchColor: (v as any).pouchColor ?? '',
         hex: v.hex ?? '',
         image: main,
         images,
         priceUAH: v.priceUAH?.toString() ?? '',
+        priceUSD: (v as any).priceUSD?.toString() ?? '',
         discountPercent: resolveDiscountPercent({
           basePriceUAH: v.priceUAH ?? product.basePriceUAH ?? 0,
           discountPercent: v.discountPercent,

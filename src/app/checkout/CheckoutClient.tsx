@@ -532,27 +532,6 @@ export default function CheckoutClient() {
               </div>
             </label>
 
-            {/* Післяплата */}
-            <label className="flex items-start gap-3 cursor-pointer">
-              <input
-                type="radio"
-                name="payment"
-                className="mt-1 w-4 h-4"
-                checked={co.paymentMethod === 'COD'}
-                onChange={() => co.setPaymentMethod('COD')}
-              />
-              <div>
-                <p className="font-medium uppercase">
-                  {t('Післяплата', 'Cash on delivery')}
-                </p>
-                <p className="text-gray-600">
-                  {t(
-                    'Оплата при отриманні на відділенні Нової Пошти. Комісія НП: 2% + 20 грн.',
-                    'Pay on delivery at Nova Poshta branch. Nova Poshta fee: 2% + 20 UAH.',
-                  )}
-                </p>
-              </div>
-            </label>
           </div>
         </div>
 

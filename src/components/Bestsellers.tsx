@@ -1,7 +1,11 @@
 import Image from 'next/image'
 import Link from 'next/link'
 import type { Product, ProductVariant } from '@prisma/client'
-import { calcDiscountedPrice } from '@/lib/pricing'
+import {
+  calcLocalizedDiscountedPrice,
+  formatLocalizedMoney,
+  pickLocalizedText,
+} from '@/lib/localized-product'
 import { matchAccessorySubcategory } from '@/lib/shop-taxonomy'
 import { getRequestLocale } from '@/lib/server-locale'
 
@@ -42,6 +46,7 @@ async function getBestsellers(): Promise<ProductWithVariants[]> {
 
 export default async function Bestsellers() {
   const locale = await getRequestLocale()
+  const numberLocale = locale === 'en' ? 'en-US' : 'uk-UA'
   const products = await getBestsellers()
 
   const placeholder = '/img/placeholder.png'
@@ -61,6 +66,11 @@ export default async function Bestsellers() {
               </div>
             ) : (
               products.map((p) => {
+                const productName = pickLocalizedText(
+                  p.name,
+                  (p as any).nameEn,
+                  locale,
+                )
                 const firstVariant =
                   p.variants
                     .filter(
@@ -87,12 +97,14 @@ export default async function Bestsellers() {
                   primaryImage
 
                 const {
-                  basePriceUAH,
-                  finalPriceUAH,
+                  basePrice,
+                  finalPrice,
                   hasDiscount,
                   discountPercent,
-                } = calcDiscountedPrice({
-                  basePriceUAH:
+                  currency,
+                } = calcLocalizedDiscountedPrice({
+                  locale,
+                  priceUAH:
                     (typeof firstVariant?.priceUAH === 'number'
                       ? firstVariant.priceUAH
                       : null) ??
@@ -100,9 +112,27 @@ export default async function Bestsellers() {
                       ? p.basePriceUAH
                       : null) ??
                     0,
+                  priceUSD:
+                    (typeof (firstVariant as any)?.priceUSD === 'number'
+                      ? (firstVariant as any).priceUSD
+                      : null) ??
+                    (typeof (p as any).basePriceUSD === 'number'
+                      ? (p as any).basePriceUSD
+                      : null) ??
+                    null,
                   discountPercent: firstVariant?.discountPercent,
                   discountUAH: firstVariant?.discountUAH ?? 0,
                 })
+                const finalPriceLabel = formatLocalizedMoney(
+                  finalPrice,
+                  currency,
+                  numberLocale,
+                )
+                const basePriceLabel = formatLocalizedMoney(
+                  basePrice,
+                  currency,
+                  numberLocale,
+                )
 
                 return (
                   <div
@@ -113,35 +143,27 @@ export default async function Bestsellers() {
                       <div className="group relative aspect-3/4 bg-gray-100 overflow-hidden border">
                         <Image
                           src={primaryImage}
-                          alt={p.name}
+                          alt={productName}
                           fill
                           sizes="(max-width: 768px) 60vw, 260px"
                           className="object-cover transition-opacity duration-300 group-hover:opacity-0 group-hover:scale-[1.02]"
                         />
                         <Image
                           src={hoverImage}
-                          alt={`${p.name} hover`}
+                          alt={`${productName} hover`}
                           fill
                           sizes="(max-width: 768px) 60vw, 260px"
                           className="object-cover transition-opacity duration-300 opacity-0 group-hover:opacity-100 group-hover:scale-[1.02]"
                         />
                       </div>
                       <div className="mt-3 flex items-center justify-between gap-4">
-                        <div className="text-sm truncate">{p.name}</div>
+                        <div className="text-sm truncate">{productName}</div>
                         <div className="text-sm text-gray-700 whitespace-nowrap flex items-baseline gap-2">
-                          <span>
-                            {finalPriceUAH.toLocaleString(
-                              locale === 'en' ? 'en-US' : 'uk-UA',
-                            )}{' '}
-                            ₴
-                          </span>
+                          <span>{finalPriceLabel}</span>
                           {hasDiscount && (
                             <>
                               <span className="text-xs text-gray-500 line-through">
-                                {basePriceUAH.toLocaleString(
-                                  locale === 'en' ? 'en-US' : 'uk-UA',
-                                )}{' '}
-                                ₴
+                                {basePriceLabel}
                               </span>
                               <span className="text-[10px] text-white md:text-xs border  rounded-full px-2 py-0.5 self-center bg-[#DE2222]">
                                 -{discountPercent}%

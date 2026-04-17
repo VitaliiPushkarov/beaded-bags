@@ -11,7 +11,11 @@ import { usePreorder } from './usePreorder'
 import { ProductActions } from './ProductActions'
 import { AddonsSection } from './AddonsSection'
 import type { ProductWithVariants } from './productTypes'
-import { calcDiscountedPrice } from '@/lib/pricing'
+import {
+  calcLocalizedDiscountedPrice,
+  formatLocalizedMoney,
+  pickLocalizedText,
+} from '@/lib/localized-product'
 import ProductTabs from '@/components/product/ProductTabs'
 import VariantSwatches from '@/components/product/VariantSwatches'
 import {
@@ -19,7 +23,7 @@ import {
   isPreorderStatus,
   resolveAvailabilityStatus,
 } from '@/lib/availability'
-import { useLocale, useT } from '@/lib/i18n'
+import { useLocale, useLocaleNumberFormat, useT } from '@/lib/i18n'
 
 const ProductGallery = dynamic(() => import('@/components/ProductGallery'), {
   ssr: false,
@@ -158,7 +162,9 @@ function collectOptionImages(
 
 export function ProductInteractive({ p }: { p: ProductWithVariants }) {
   const locale = useLocale()
+  const numberLocale = useLocaleNumberFormat()
   const t = useT()
+  const productName = pickLocalizedText(p.name, (p as any).nameEn, locale)
   const [selectedColorKey, setSelectedColorKey] = useState<string | undefined>()
   const [isColorLockedByEntry, setIsColorLockedByEntry] = useState(false)
   const [selectedSizeId, setSelectedSizeId] = useState<string | undefined>()
@@ -182,7 +188,12 @@ export function ProductInteractive({ p }: { p: ProductWithVariants }) {
     >()
 
     for (const variant of p.variants) {
-      const key = toOptionKey(variant.color)
+      const localizedColor = pickLocalizedText(
+        variant.color,
+        (variant as any).colorEn,
+        locale,
+      )
+      const key = toOptionKey(localizedColor)
       const existing = map.get(key)
       const rank = availabilityRank(variant)
       const sort =
@@ -191,7 +202,7 @@ export function ProductInteractive({ p }: { p: ProductWithVariants }) {
       if (!existing) {
         map.set(key, {
           key,
-          label: toOptionLabel(variant.color, locale === 'en' ? 'Base' : 'Базовий'),
+          label: toOptionLabel(localizedColor, locale === 'en' ? 'Base' : 'Базовий'),
           hex: variant.hex ?? null,
           minSort: sort,
           rank,
@@ -212,14 +223,17 @@ export function ProductInteractive({ p }: { p: ProductWithVariants }) {
       if (a.minSort !== b.minSort) return a.minSort - b.minSort
       return a.label.localeCompare(b.label, 'uk')
     })
-  }, [p.variants])
+  }, [locale, p.variants])
 
   const variantsByColor = useMemo(() => {
     if (!selectedColorKey) return p.variants
     return p.variants.filter(
-      (variant) => toOptionKey(variant.color) === selectedColorKey,
+      (variant) =>
+        toOptionKey(
+          pickLocalizedText(variant.color, (variant as any).colorEn, locale),
+        ) === selectedColorKey,
     )
-  }, [p.variants, selectedColorKey])
+  }, [locale, p.variants, selectedColorKey])
 
   const v = useMemo(
     () =>
@@ -288,14 +302,22 @@ export function ProductInteractive({ p }: { p: ProductWithVariants }) {
     const initialVariant = hashVariant || choosePreferredVariant(p.variants)
     if (!initialVariant) return
 
-    setSelectedColorKey(toOptionKey(initialVariant.color))
+    setSelectedColorKey(
+      toOptionKey(
+        pickLocalizedText(
+          initialVariant.color,
+          (initialVariant as any).colorEn,
+          locale,
+        ),
+      ),
+    )
     setSelectedSizeId(undefined)
     setSelectedPouchId(undefined)
     setStrapId(undefined)
     setIsColorLockedByEntry(Boolean(hashVariant))
 
     didInitVariantFromUrlRef.current = true
-  }, [p.variants])
+  }, [locale, p.variants])
 
   useEffect(() => {
     if (!colorOptions.length) return
@@ -429,9 +451,18 @@ export function ProductInteractive({ p }: { p: ProductWithVariants }) {
   const variantInStock = isInStockStatus(availabilityStatus)
   const variantPreorder = isPreorderStatus(availabilityStatus)
 
-  const { basePriceUAH, finalPriceUAH, hasDiscount, discountPercent } =
-    calcDiscountedPrice({
-      basePriceUAH: v?.priceUAH ?? p.basePriceUAH ?? 0,
+  const { basePrice, finalPrice, hasDiscount, discountPercent, currency } =
+    calcLocalizedDiscountedPrice({
+      locale,
+      priceUAH: v?.priceUAH ?? p.basePriceUAH ?? 0,
+      priceUSD: (v as any)?.priceUSD ?? (p as any).basePriceUSD ?? null,
+      discountPercent: v?.discountPercent,
+      discountUAH: v?.discountUAH ?? 0,
+    })
+  const { basePrice: basePriceUAH, finalPrice: finalPriceUAH } =
+    calcLocalizedDiscountedPrice({
+      locale: 'uk',
+      priceUAH: v?.priceUAH ?? p.basePriceUAH ?? 0,
       discountPercent: v?.discountPercent,
       discountUAH: v?.discountUAH ?? 0,
     })
@@ -441,12 +472,34 @@ export function ProductInteractive({ p }: { p: ProductWithVariants }) {
     selectedPouchExtraPriceUAH +
     selectedStrapExtraPriceUAH
 
-  const basePriceWithOptionsUAH = basePriceUAH + extraTotalUAH
+  const basePriceWithOptions = basePrice + extraTotalUAH
+  const finalPriceWithOptions = finalPrice + extraTotalUAH
   const finalPriceWithOptionsUAH = finalPriceUAH + extraTotalUAH
+  const finalPriceLabel = formatLocalizedMoney(
+    finalPriceWithOptions,
+    currency,
+    numberLocale,
+  )
+  const basePriceLabel = formatLocalizedMoney(
+    basePriceWithOptions,
+    currency,
+    numberLocale,
+  )
 
   const shippingNote =
     ((v as any)?.shippingNote as string | undefined | null) ||
     t('Відправка протягом 1–3 днів', 'Ships within 1-3 days')
+  const offerNote = pickLocalizedText(
+    p.offerNote,
+    (p as any).offerNoteEn,
+    locale,
+  )
+  const selectedVariantColor = pickLocalizedText(
+    v?.color,
+    (v as any)?.colorEn,
+    locale,
+  )
+  const optionPriceUnitLabel = currency === 'USD' ? 'USD' : t('грн', 'UAH')
 
   const selectedColorLabel = colorOptions.find(
     (option) => option.key === selectedColorKey,
@@ -552,8 +605,8 @@ export function ProductInteractive({ p }: { p: ProductWithVariants }) {
   }, [stepIds])
 
   const viewContentName = buildVariantSelectionLabel({
-    productName: p.name,
-    color: v?.color ?? null,
+    productName,
+    color: selectedVariantColor,
     size: selectedSize?.size ?? null,
     pouchColor: selectedPouch?.color ?? null,
     locale,
@@ -641,7 +694,7 @@ export function ProductInteractive({ p }: { p: ProductWithVariants }) {
       productId: p.id,
       variantId: v.id,
       name: viewContentName,
-      color: v.color ?? null,
+      color: selectedVariantColor || null,
       modelSize: selectedSize?.size ?? null,
       pouchColor: selectedPouch?.color ?? null,
       priceUAH: finalPriceWithOptionsUAH,
@@ -658,15 +711,25 @@ export function ProductInteractive({ p }: { p: ProductWithVariants }) {
       const addonV = addonsByVariantId[addonVariantId]
       if (!addonV) return
 
-      const name = `${addonV.product.name}${
-        addonV.color ? ` — ${addonV.color}` : ''
+      const addonName = pickLocalizedText(
+        addonV.product.name,
+        (addonV.product as any).nameEn,
+        locale,
+      )
+      const addonColor = pickLocalizedText(
+        addonV.color,
+        (addonV as any).colorEn,
+        locale,
+      )
+      const name = `${addonName}${
+        addonColor ? ` — ${addonColor}` : ''
       }`
 
       add({
         productId: addonV.product.id,
         variantId: addonV.id,
         name,
-        color: addonV.color ?? null,
+        color: addonColor || null,
         modelSize: null,
         pouchColor: null,
         priceUAH: addonPrice(addonV),
@@ -705,18 +768,18 @@ export function ProductInteractive({ p }: { p: ProductWithVariants }) {
 
         <div className="flex flex-col items-start w-full lg:w-[33%] pt-7 md:pt-0">
           <h1 className=" md:text-[38px] text-2xl font-fixel-display font-medium md:mb-6 mb-3">
-            {p.name}
+            {productName}
           </h1>
 
           <div className="mb-1">
             <div className="flex items-baseline gap-2">
               <div className="text-lg md:text-2xl">
-                {finalPriceWithOptionsUAH} ₴
+                {finalPriceLabel}
               </div>
               {hasDiscount && (
                 <>
                   <div className="text-sm md:text-lg text-gray-500 line-through">
-                    {basePriceWithOptionsUAH} ₴
+                    {basePriceLabel}
                   </div>
                   <span className="text-[10px] md:text-xs border  rounded-full px-2 py-0.5 self-center text-white bg-[#DE2222]  ">
                     -{discountPercent}%
@@ -724,9 +787,9 @@ export function ProductInteractive({ p }: { p: ProductWithVariants }) {
                 </>
               )}
             </div>
-            {hasDiscount && p.offerNote?.trim() && (
+            {hasDiscount && offerNote && (
               <div className="text-[11px] md:text-xs text-gray-600 mt-1">
-                {p.offerNote.trim()}
+                {offerNote}
               </div>
             )}
           </div>
@@ -860,7 +923,7 @@ export function ProductInteractive({ p }: { p: ProductWithVariants }) {
                                   }`}
                                 >
                                   {size.size}
-                                  {extra > 0 ? ` (+${extra} ${t('грн', 'UAH')})` : ''}
+                                  {extra > 0 ? ` (+${extra} ${optionPriceUnitLabel})` : ''}
                                 </button>
                               )
                             })}
@@ -902,7 +965,7 @@ export function ProductInteractive({ p }: { p: ProductWithVariants }) {
                                   }`}
                                 >
                                   {pouch.color}
-                                  {extra > 0 ? ` (+${extra} ${t('грн', 'UAH')})` : ''}
+                                  {extra > 0 ? ` (+${extra} ${optionPriceUnitLabel})` : ''}
                                 </button>
                               )
                             })}
@@ -955,7 +1018,7 @@ export function ProductInteractive({ p }: { p: ProductWithVariants }) {
                                   ) : null}
                                   <span>
                                     {strap.name}
-                                    {extra > 0 ? ` (+${extra} ${t('грн', 'UAH')})` : ''}
+                                    {extra > 0 ? ` (+${extra} ${optionPriceUnitLabel})` : ''}
                                   </span>
                                 </button>
                               )
@@ -978,7 +1041,9 @@ export function ProductInteractive({ p }: { p: ProductWithVariants }) {
                     <div className="font-medium text-gray-900 mb-1">
                       {t('Ваш вибір', 'Your selection')}:
                     </div>
-                    {v?.color && <div>{t('Колір', 'Color')}: {v.color}</div>}
+                    {selectedVariantColor && (
+                      <div>{t('Колір', 'Color')}: {selectedVariantColor}</div>
+                    )}
                     {selectedSize?.size && (
                       <div>{t('Розмір', 'Size')}: {selectedSize.size}</div>
                     )}
@@ -1002,16 +1067,21 @@ export function ProductInteractive({ p }: { p: ProductWithVariants }) {
                   <div className="mb-4 w-full">
                     <div className="mb-2 flex items-center gap-2 text-sm text-gray-600">
                       <span>{t('Колір', 'Color')}:</span>
-                      {v?.color && (
+                      {selectedVariantColor && (
                         <span className="font-medium text-gray-900">
-                          {v.color}
+                          {selectedVariantColor}
                         </span>
                       )}
                     </div>
                     <VariantSwatches
                       variants={simpleSwatchEntries.map((entry) => ({
                         id: entry.variant.id,
-                        color: entry.variant.color ?? null,
+                        color:
+                          pickLocalizedText(
+                            entry.variant.color,
+                            (entry.variant as any).colorEn,
+                            locale,
+                          ) || null,
                         hex: entry.hex ?? null,
                         inStock: entry.variant.inStock,
                         availabilityStatus: (entry.variant as any)
@@ -1057,7 +1127,7 @@ export function ProductInteractive({ p }: { p: ProductWithVariants }) {
             <PreorderModal
               open={preorderOpen}
               status={preorderStatus}
-              productName={p.name}
+              productName={productName}
               variantLabel={viewContentName || undefined}
               leadName={leadName}
               setLeadName={setLeadName}
@@ -1071,9 +1141,17 @@ export function ProductInteractive({ p }: { p: ProductWithVariants }) {
           )}
 
           <ProductTabs
-            description={p.description}
-            info={p.info}
-            dimensions={p.dimensions}
+            description={pickLocalizedText(
+              p.description,
+              (p as any).descriptionEn,
+              locale,
+            )}
+            info={pickLocalizedText(p.info, (p as any).infoEn, locale)}
+            dimensions={pickLocalizedText(
+              p.dimensions,
+              (p as any).dimensionsEn,
+              locale,
+            )}
           />
 
           <div className="mt-8 space-y-3 text-sm text-gray-700">

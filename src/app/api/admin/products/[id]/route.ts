@@ -57,12 +57,14 @@ const NullablePriceSchema = z.preprocess(
 const VariantSchema = z.object({
   id: z.string().optional(),
   color: z.string().optional().nullable(),
+  colorEn: z.string().optional().nullable(),
   modelSize: z.string().optional().nullable(),
   pouchColor: z.string().optional().nullable(),
   hex: z.string().optional().nullable(),
   image: ImagePath.optional().nullable(),
   images: z.array(ImagePath).optional().default([]),
   priceUAH: NullablePriceSchema,
+  priceUSD: NullablePriceSchema,
   discountPercent: z.coerce.number().optional().nullable(),
   discountUAH: z.coerce.number().optional().nullable(),
   availabilityStatus: z.enum(AvailabilityStatus).optional().nullable(),
@@ -76,16 +78,22 @@ const VariantSchema = z.object({
 
 const ProductSchema = z.object({
   name: z.string().min(1),
+  nameEn: z.string().optional().nullable(),
   slug: z.string().min(1),
   type: z.enum(ProductType),
   status: z.nativeEnum(ProductStatus).optional(),
   group: z.enum(ProductGroup).optional().nullable(),
   sortCatalog: z.coerce.number().int().optional().nullable(),
   basePriceUAH: NullablePriceSchema,
+  basePriceUSD: NullablePriceSchema,
   description: z.string().optional().nullable(),
+  descriptionEn: z.string().optional().nullable(),
   info: z.string().optional().nullable(),
+  infoEn: z.string().optional().nullable(),
   dimensions: z.string().optional().nullable(),
+  dimensionsEn: z.string().optional().nullable(),
   offerNote: z.string().optional().nullable(),
+  offerNoteEn: z.string().optional().nullable(),
   inStock: z.coerce.boolean(),
   variants: z.array(VariantSchema).min(1),
 })
@@ -115,6 +123,7 @@ export async function PATCH(
         group: true,
         status: true,
         dimensions: true,
+        dimensionsEn: true,
       },
     })
 
@@ -142,6 +151,12 @@ export async function PATCH(
         : data.dimensions?.trim()
           ? data.dimensions
           : null
+    const nextDimensionsEn =
+      typeof data.dimensionsEn === 'undefined'
+        ? ((existing as any).dimensionsEn ?? null)
+        : data.dimensionsEn?.trim()
+          ? data.dimensionsEn
+          : null
 
     // Determine which variant IDs should remain
     const incomingIds = data.variants
@@ -155,16 +170,22 @@ export async function PATCH(
           where: { id },
           data: {
             name: data.name,
+            nameEn: data.nameEn ?? null,
             slug: data.slug,
             type: normalizedType as ProductType,
             status: data.status ?? existing.status,
             group: nextGroup,
             sortCatalog: sanitizeSortCatalog(data.sortCatalog),
             basePriceUAH: data.basePriceUAH,
+            basePriceUSD: data.basePriceUSD,
             description: data.description ?? null,
+            descriptionEn: data.descriptionEn ?? null,
             info: data.info ?? null,
+            infoEn: data.infoEn ?? null,
             dimensions: nextDimensions,
+            dimensionsEn: nextDimensionsEn,
             offerNote: data.offerNote ?? null,
+            offerNoteEn: data.offerNoteEn ?? null,
             inStock: data.inStock,
           },
           select: { id: true },
@@ -184,6 +205,7 @@ export async function PATCH(
               data: {
                 productId: id,
                 color: v.color ?? null,
+                colorEn: v.colorEn ?? null,
                 modelSize: v.modelSize?.trim() || null,
                 pouchColor: v.pouchColor?.trim() || null,
                 hex: v.hex ?? null,
@@ -193,6 +215,7 @@ export async function PATCH(
                   create: (v.images ?? []).map((url) => ({ url })),
                 },
                 priceUAH: v.priceUAH ?? null,
+                priceUSD: v.priceUSD ?? null,
                 discountPercent: sanitizeDiscountPercent(v.discountPercent),
                 discountUAH: v.discountUAH ?? null,
                 inStock: isInStockStatus(availabilityStatus),
@@ -362,6 +385,7 @@ export async function PATCH(
               data: {
                 productId: id,
                 color: v.color ?? null,
+                colorEn: v.colorEn ?? null,
                 modelSize: v.modelSize?.trim() || null,
                 pouchColor: v.pouchColor?.trim() || null,
                 hex: v.hex ?? null,
@@ -370,6 +394,7 @@ export async function PATCH(
                   create: (v.images ?? []).map((url) => ({ url })),
                 },
                 priceUAH: v.priceUAH ?? null,
+                priceUSD: v.priceUSD ?? null,
                 discountPercent: sanitizeDiscountPercent(v.discountPercent),
                 discountUAH: v.discountUAH ?? null,
                 inStock: isInStockStatus(availabilityStatus),

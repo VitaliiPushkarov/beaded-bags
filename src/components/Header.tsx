@@ -12,6 +12,37 @@ import { useLocale, useT } from '@/lib/i18n'
 export default function Header() {
   const locale = useLocale()
   const t = useT()
+  const localeOptions =
+    locale === 'en'
+      ? [
+          {
+            id: 'en',
+            label: 'International',
+            href: 'https://en.gerdan.online',
+            hrefLang: 'en',
+          },
+          {
+            id: 'uk',
+            label: 'Україна',
+            href: 'https://gerdan.online',
+            hrefLang: 'uk',
+          },
+        ]
+      : [
+          {
+            id: 'uk',
+            label: 'Україна',
+            href: 'https://gerdan.online',
+            hrefLang: 'uk',
+          },
+          {
+            id: 'en',
+            label: 'International',
+            href: 'https://en.gerdan.online',
+            hrefLang: 'en',
+          },
+        ]
+  const activeLocaleOptionId = locale === 'en' ? 'en' : 'uk'
   /* const { items } = useCart() */
   /* const count = items.reduce((s, i) => s + i.qty, 0) */
 
@@ -138,17 +169,32 @@ export default function Header() {
             >
               {t('БЛОГ', 'BLOG')}
             </Link>
-            <a
-              href={
-                locale === 'en'
-                  ? 'https://gerdan.online'
-                  : 'https://ca.gerdan.online'
-              }
-              className="hidden lg:inline-block hover:opacity-70 text-[12px] font-medium tracking-wide"
-              hrefLang={locale === 'en' ? 'uk' : 'en'}
-            >
-              {locale === 'en' ? 'UA' : 'EN'}
-            </a>
+            <details className="relative hidden lg:block">
+              <summary className="list-none [&::-webkit-details-marker]:hidden flex items-center gap-1 cursor-pointer text-[12px] font-medium tracking-wide hover:opacity-70">
+                {localeOptions[0]?.label}
+                <span aria-hidden>▾</span>
+              </summary>
+              <div className="absolute right-0 top-[calc(100%+8px)] min-w-[170px] bg-white border border-gray-200 py-1 shadow-sm">
+                {localeOptions.map((item) => {
+                  const isActive = item.id === activeLocaleOptionId
+                  return (
+                    <a
+                      key={item.id}
+                      href={item.href}
+                      hrefLang={item.hrefLang}
+                      aria-current={isActive ? 'page' : undefined}
+                      className={`block px-3 py-2 text-[12px] tracking-wide ${
+                        isActive
+                          ? 'bg-gray-100 font-semibold'
+                          : 'hover:bg-gray-50'
+                      }`}
+                    >
+                      {item.label}
+                    </a>
+                  )
+                })}
+              </div>
+            </details>
             <SearchDialog />
             <CartButton />
             {/* <a
@@ -216,11 +262,6 @@ export default function Header() {
                   {t('Бананки', 'Belt bags')}
                 </Link>
               </li>
-              {/* <li className="border-b py-4 border-gray-300">
-                <Link href="/shop/rjukzachky" onClick={closeMobileMenu}>
-                  Рюкзачки
-                </Link>
-              </li> */}
               <li className="border-b py-4 border-gray-300">
                 <Link href="/shop/chohly" onClick={closeMobileMenu}>
                   {t('Чохли', 'Cases')}
@@ -276,16 +317,28 @@ export default function Header() {
                 </Link>
               </li>
               <li className="border-b py-4 border-gray-300">
-                <a
-                  href={
-                    locale === 'en'
-                      ? 'https://gerdan.online'
-                      : 'https://ca.gerdan.online'
-                  }
-                  onClick={closeMobileMenu}
-                >
-                  {locale === 'en' ? 'Українська' : 'English'}
-                </a>
+                <div className="space-y-2">
+                  <p className="uppercase text-xs tracking-wide text-gray-500">
+                    {t('Регіон', 'Region')}
+                  </p>
+                  <div className="flex flex-col gap-1">
+                    {localeOptions.map((item) => {
+                      const isActive = item.id === activeLocaleOptionId
+                      return (
+                        <a
+                          key={item.id}
+                          href={item.href}
+                          hrefLang={item.hrefLang}
+                          onClick={closeMobileMenu}
+                          aria-current={isActive ? 'page' : undefined}
+                          className={isActive ? 'font-semibold' : ''}
+                        >
+                          {item.label}
+                        </a>
+                      )
+                    })}
+                  </div>
+                </div>
               </li>
             </ul>
           </aside>

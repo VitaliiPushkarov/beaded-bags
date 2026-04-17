@@ -11,19 +11,25 @@ model Product {
   id                  String              @id @default(cuid())
   slug                String              @unique
   name                String
+  nameEn              String?
   description         String?
+  descriptionEn       String?
   type                ProductType
   basePriceUAH        Int?
+  basePriceUSD        Int?
   inStock             Boolean             @default(true)
   createdAt           DateTime            @default(now())
   updatedAt           DateTime            @updatedAt
   dimensions          String?
+  dimensionsEn        String?
   info                String?
+  infoEn              String?
   group               ProductGroup?
   sortCatalog         Int                 @default(0)
   sortSlider          Int?
   isAddon             Boolean             @default(false)
   offerNote           String?
+  offerNoteEn         String?
   packagingTemplateId String?
   status              ProductStatus       @default(DRAFT)
   packagingTemplate   PackagingTemplate?  @relation(fields: [packagingTemplateId], references: [id])
@@ -157,12 +163,14 @@ model ProductVariant {
   productId             String
   sku                   String?                  @unique
   color                 String?
+  colorEn               String?
   modelSize             String?
   pouchColor            String?
   hex                   String?
   image                 String?
   inStock               Boolean                  @default(true)
   priceUAH              Int?
+  priceUSD              Int?
   sortCatalog           Int?                     @default(0)
   sortBestsellers       Int?                     @default(0)
   discountUAH           Int?                     @default(0)

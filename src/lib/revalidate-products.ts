@@ -5,7 +5,7 @@ import { getAccessorySubcategorySlugs } from '@/lib/shop-taxonomy'
 const CATEGORY_BY_TYPE: Record<ProductType, string> = {
   BAG: 'sumky',
   BELT_BAG: 'bananky',
-  BACKPACK: 'rjukzachky',
+  BACKPACK: 'sumky',
   SHOPPER: 'shopery',
   CASE: 'chohly',
   ORNAMENTS: 'accessories',

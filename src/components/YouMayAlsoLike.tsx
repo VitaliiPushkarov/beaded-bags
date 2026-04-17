@@ -2,13 +2,20 @@ import { useEffect, useRef, useState } from 'react'
 import Link from 'next/link'
 import Image from 'next/image'
 import { ChevronLeft, ChevronRight } from 'lucide-react'
-import { calcDiscountedPrice } from '@/lib/pricing'
-import { useLocaleNumberFormat, useT } from '@/lib/i18n'
+import {
+  calcLocalizedDiscountedPrice,
+  formatLocalizedMoney,
+  pickLocalizedText,
+} from '@/lib/localized-product'
+import { useLocale, useLocaleNumberFormat, useT } from '@/lib/i18n'
 
 type LiteVariant = {
   id?: string
   image?: string | null
+  color?: string | null
+  colorEn?: string | null
   priceUAH?: number | null
+  priceUSD?: number | null
   discountPercent?: number | null
   discountUAH?: number | null
   inStock?: boolean | null
@@ -41,6 +48,7 @@ export default function YouMayAlsoLike({
   pinnedSlugs?: string[]
   limit?: number
 }) {
+  const locale = useLocale()
   const t = useT()
   const numberLocale = useLocaleNumberFormat()
   const scrollerRef = useRef<HTMLDivElement | null>(null)
@@ -219,9 +227,12 @@ export default function YouMayAlsoLike({
 
             const normalizedVariants = variants.map((variant) => ({
               variant,
-              pricing: calcDiscountedPrice({
-                basePriceUAH:
+              pricing: calcLocalizedDiscountedPrice({
+                locale,
+                priceUAH:
                   variant?.priceUAH ?? p?.basePriceUAH ?? p?.priceUAH ?? 0,
+                priceUSD:
+                  variant?.priceUSD ?? p?.basePriceUSD ?? p?.priceUSD ?? null,
                 discountPercent: variant?.discountPercent,
                 discountUAH: variant?.discountUAH ?? 0,
               }),
@@ -239,8 +250,8 @@ export default function YouMayAlsoLike({
                 if (a.pricing.hasDiscount !== b.pricing.hasDiscount) {
                   return a.pricing.hasDiscount ? -1 : 1
                 }
-                if (a.pricing.finalPriceUAH !== b.pricing.finalPriceUAH) {
-                  return a.pricing.finalPriceUAH - b.pricing.finalPriceUAH
+                if (a.pricing.finalPrice !== b.pricing.finalPrice) {
+                  return a.pricing.finalPrice - b.pricing.finalPrice
                 }
                 if (a.sortCatalog !== b.sortCatalog) {
                   return a.sortCatalog - b.sortCatalog
@@ -261,13 +272,28 @@ export default function YouMayAlsoLike({
 
             const hasAnyPrice =
               typeof cardVariant?.variant?.priceUAH === 'number' ||
+              typeof cardVariant?.variant?.priceUSD === 'number' ||
               typeof p?.basePriceUAH === 'number' ||
+              typeof p?.basePriceUSD === 'number' ||
               typeof p?.priceUAH === 'number'
-            const { basePriceUAH, finalPriceUAH, hasDiscount, discountPercent } =
+            const { basePrice, finalPrice, hasDiscount, discountPercent, currency } =
               cardVariant?.pricing ??
-              calcDiscountedPrice({
-                basePriceUAH: p?.basePriceUAH ?? p?.priceUAH ?? 0,
+              calcLocalizedDiscountedPrice({
+                locale,
+                priceUAH: p?.basePriceUAH ?? p?.priceUAH ?? 0,
+                priceUSD: p?.basePriceUSD ?? p?.priceUSD ?? null,
               })
+            const productName = pickLocalizedText(p?.name, p?.nameEn, locale)
+            const finalPriceLabel = formatLocalizedMoney(
+              finalPrice,
+              currency,
+              numberLocale,
+            )
+            const basePriceLabel = formatLocalizedMoney(
+              basePrice,
+              currency,
+              numberLocale,
+            )
 
             return (
               <div
@@ -281,7 +307,7 @@ export default function YouMayAlsoLike({
                   <div className="relative w-full aspect-4/5 border bg-white overflow-hidden">
                     <Image
                       src={image}
-                      alt={p?.name ?? 'Product'}
+                      alt={productName || 'Product'}
                       fill
                       className="object-cover"
                       sizes="(min-width: 1024px) 20vw, (min-width: 640px) 45vw, 85vw"
@@ -291,17 +317,15 @@ export default function YouMayAlsoLike({
 
                   <div className="mt-3 flex items-center justify-between gap-3">
                     <div className="text-sm text-gray-900 truncate">
-                      {p?.name}
+                      {productName}
                     </div>
                     {hasAnyPrice && (
                       <div className="text-sm text-gray-900 whitespace-nowrap flex items-baseline gap-1.5">
-                        <span>
-                          {finalPriceUAH.toLocaleString(numberLocale)} ₴
-                        </span>
+                        <span>{finalPriceLabel}</span>
                         {hasDiscount && (
                           <>
                             <span className="text-xs text-gray-500 line-through">
-                              {basePriceUAH.toLocaleString(numberLocale)} ₴
+                              {basePriceLabel}
                             </span>
                             <span className="text-[10px] border border-black rounded-full px-1.5 py-0.5 self-center">
                               -{discountPercent}%

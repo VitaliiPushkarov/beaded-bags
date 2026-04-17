@@ -33,9 +33,14 @@ const STATUS_LABELS: Record<OrderStatus, string> = {
 const PAYMENT_METHOD_LABELS: Record<PaymentMethod, string> = {
   LIQPAY: 'LiqPay',
   WAYFORPAY: 'WayForPay',
-  COD: 'Післяплата / готівка',
+  COD: 'Архівний спосіб',
   BANK_TRANSFER: 'Банківський переказ',
 }
+const MANUAL_PAYMENT_METHODS: PaymentMethod[] = [
+  PaymentMethod.LIQPAY,
+  PaymentMethod.BANK_TRANSFER,
+  PaymentMethod.WAYFORPAY,
+]
 
 const MANUAL_SOURCE_LABELS = {
   MESSENGER: 'Месенджер',
@@ -236,7 +241,7 @@ export default async function AdminOrdersPage() {
       subtotalUAH,
       discountUAH,
       totalUAH,
-      paymentMethod: parsed.data.paymentMethod ?? PaymentMethod.COD,
+      paymentMethod: parsed.data.paymentMethod ?? PaymentMethod.BANK_TRANSFER,
       lines: items.map((item) => ({
         qty: item.qty,
         priceUAH: item.priceUAH,
@@ -292,7 +297,7 @@ export default async function AdminOrdersPage() {
         npCityName: 'Ручне замовлення',
         npWarehouseRef: 'manual-point',
         npWarehouseName: 'Не вказано',
-        paymentMethod: parsed.data.paymentMethod ?? PaymentMethod.COD,
+        paymentMethod: parsed.data.paymentMethod ?? PaymentMethod.BANK_TRANSFER,
         paymentRaw: {
           manualOrder: true,
           source: sourceLabel,
@@ -465,8 +470,8 @@ export default async function AdminOrdersPage() {
                 <div className="space-y-1.5">
                   <Label htmlFor="order-payment">Оплата</Label>
                   <Select id="order-payment" name="paymentMethod" defaultValue="">
-                    <option value="">За замовчуванням (Післяплата / готівка)</option>
-                    {Object.values(PaymentMethod).map((method) => (
+                    <option value="">За замовчуванням (Банківський переказ)</option>
+                    {MANUAL_PAYMENT_METHODS.map((method) => (
                       <option key={method} value={method}>
                         {PAYMENT_METHOD_LABELS[method]}
                       </option>
