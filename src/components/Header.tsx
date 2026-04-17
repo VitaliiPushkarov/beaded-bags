@@ -17,13 +17,13 @@ export default function Header() {
       ? [
           {
             id: 'en',
-            label: 'International',
+            label: 'INTERNATIONAL',
             href: 'https://en.gerdan.online',
             hrefLang: 'en',
           },
           {
             id: 'uk',
-            label: 'Україна',
+            label: 'УКРАЇНА',
             href: 'https://gerdan.online',
             hrefLang: 'uk',
           },
@@ -31,13 +31,13 @@ export default function Header() {
       : [
           {
             id: 'uk',
-            label: 'Україна',
+            label: 'УКРАЇНА',
             href: 'https://gerdan.online',
             hrefLang: 'uk',
           },
           {
             id: 'en',
-            label: 'International',
+            label: 'INTERNATIONAL',
             href: 'https://en.gerdan.online',
             hrefLang: 'en',
           },
@@ -174,7 +174,7 @@ export default function Header() {
                 {localeOptions[0]?.label}
                 <span aria-hidden>▾</span>
               </summary>
-              <div className="absolute right-0 top-[calc(100%+8px)] min-w-[170px] bg-white border border-gray-200 py-1 shadow-sm">
+              <div className="absolute right-0 top-[calc(100%+8px)] min-w-[170px] bg-white border border-gray-200 shadow-sm">
                 {localeOptions.map((item) => {
                   const isActive = item.id === activeLocaleOptionId
                   return (

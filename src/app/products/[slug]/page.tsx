@@ -12,7 +12,10 @@ import {
   pickLocalizedText,
 } from '@/lib/localized-product'
 import { TYPE_LABELS } from '@/lib/labels'
-import { resolveAvailabilityStatus, toSchemaOrgAvailability } from '@/lib/availability'
+import {
+  resolveAvailabilityStatus,
+  toSchemaOrgAvailability,
+} from '@/lib/availability'
 import { getProductBySlug, getProductMetaBySlug } from '@/lib/db/products'
 import { getRequestLocale } from '@/lib/server-locale'
 
@@ -62,7 +65,7 @@ export async function generateMetadata(props: {
   if (!product) return {}
 
   const allImages = product.variants.flatMap((v) =>
-    v.images.map((img) => img.url)
+    v.images.map((img) => img.url),
   )
   const mainImage =
     allImages[0] ||
@@ -145,7 +148,7 @@ export default async function ProductPage({
 
   // всі картинки з усіх варіантів
   const allImages = product.variants.flatMap((v) =>
-    v.images.map((img) => img.url)
+    v.images.map((img) => img.url),
   )
   const mainImage =
     allImages[0] ||
@@ -161,7 +164,7 @@ export default async function ProductPage({
   const priceValidUntil = new Date(
     now.getFullYear(),
     now.getMonth() + m,
-    now.getDate()
+    now.getDate(),
   )
     .toISOString()
     .split('T')[0]
@@ -215,53 +218,57 @@ export default async function ProductPage({
     returnFees: 'https://schema.org/FreeReturn',
   }
 
-  const variantOffers = (product.variants.length ? product.variants : [null]).map(
-    (variant) => {
-      const pricing = calcLocalizedDiscountedPrice({
-        locale,
-        priceUAH:
-          variant?.priceUAH ?? firstVariant?.priceUAH ?? product.basePriceUAH ?? 0,
-        priceUSD:
-          (variant as any)?.priceUSD ??
-          (firstVariant as any)?.priceUSD ??
-          (product as any).basePriceUSD ??
-          null,
-        discountPercent: variant?.discountPercent ?? firstVariant?.discountPercent,
-        discountUAH: variant?.discountUAH ?? firstVariant?.discountUAH,
-      })
-      const localizedColor = pickLocalizedText(
-        variant?.color,
-        (variant as any)?.colorEn,
-        locale,
-      )
+  const variantOffers = (
+    product.variants.length ? product.variants : [null]
+  ).map((variant) => {
+    const pricing = calcLocalizedDiscountedPrice({
+      locale,
+      priceUAH:
+        variant?.priceUAH ??
+        firstVariant?.priceUAH ??
+        product.basePriceUAH ??
+        0,
+      priceUSD:
+        (variant as any)?.priceUSD ??
+        (firstVariant as any)?.priceUSD ??
+        (product as any).basePriceUSD ??
+        null,
+      discountPercent:
+        variant?.discountPercent ?? firstVariant?.discountPercent,
+      discountUAH: variant?.discountUAH ?? firstVariant?.discountUAH,
+    })
+    const localizedColor = pickLocalizedText(
+      variant?.color,
+      (variant as any)?.colorEn,
+      locale,
+    )
 
-      return {
-        '@type': 'Offer',
-        sku: variant?.id ?? firstVariant?.id ?? product.id,
-        priceCurrency: pricing.currency,
-        price: pricing.finalPrice,
-        priceValidUntil,
-        availability: toSchemaOrgAvailability(
-          variant
-            ? resolveAvailabilityStatus({
-                availabilityStatus: (variant as any).availabilityStatus,
-                inStock: variant.inStock,
-              })
-            : fallbackAvailabilityStatus,
-        ),
-        itemCondition: 'https://schema.org/NewCondition',
-        url: productUrl,
-        seller: {
-          '@type': 'Organization',
-          name: 'GERDAN',
-          url: SITE_URL,
-        },
-        shippingDetails,
-        hasMerchantReturnPolicy: returnPolicy,
-        ...(localizedColor ? { color: localizedColor } : {}),
-      }
-    },
-  )
+    return {
+      '@type': 'Offer',
+      sku: variant?.id ?? firstVariant?.id ?? product.id,
+      priceCurrency: pricing.currency,
+      price: pricing.finalPrice,
+      priceValidUntil,
+      availability: toSchemaOrgAvailability(
+        variant
+          ? resolveAvailabilityStatus({
+              availabilityStatus: (variant as any).availabilityStatus,
+              inStock: variant.inStock,
+            })
+          : fallbackAvailabilityStatus,
+      ),
+      itemCondition: 'https://schema.org/NewCondition',
+      url: productUrl,
+      seller: {
+        '@type': 'Organization',
+        name: 'GERDAN',
+        url: SITE_URL,
+      },
+      shippingDetails,
+      hasMerchantReturnPolicy: returnPolicy,
+      ...(localizedColor ? { color: localizedColor } : {}),
+    }
+  })
 
   const prices = variantOffers.map((offer) => Number(offer.price))
   const offerCurrency =
@@ -288,14 +295,13 @@ export default async function ProductPage({
     sku: firstVariant?.id ?? product.id,
     mpn: firstVariant?.id ?? product.id,
     url: productUrl,
-    category:
-      product.type
-        ? locale === 'en'
-          ? TYPE_TO_ROUTE[product.type].label
-          : TYPE_LABELS[product.type]
-        : locale === 'en'
-          ? 'Accessories'
-          : 'Аксесуари',
+    category: product.type
+      ? locale === 'en'
+        ? TYPE_TO_ROUTE[product.type].label
+        : TYPE_LABELS[product.type]
+      : locale === 'en'
+        ? 'Accessories'
+        : 'Аксесуари',
     ...(colors.length ? { color: colors.join(', ') } : {}),
     additionalProperty: [
       {
@@ -306,7 +312,7 @@ export default async function ProductPage({
       {
         '@type': 'PropertyValue',
         name: locale === 'en' ? 'Brand country' : 'Країна бренду',
-        value: locale === 'en' ? 'Ukraine' : 'Україна',
+        value: locale === 'en' ? 'Ukraine' : 'УКРАЇНА',
       },
     ],
     brand: {
