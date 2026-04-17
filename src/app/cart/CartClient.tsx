@@ -11,15 +11,20 @@ import {
   emitPromoChanged,
   calcDiscountUAH,
 } from '@/lib/promo'
+import { useT } from '@/lib/i18n'
 
 function QtyBox({
   onDec,
   onInc,
   value,
+  decLabel,
+  incLabel,
 }: {
   onDec: () => void
   onInc: () => void
   value: number
+  decLabel: string
+  incLabel: string
 }) {
   return (
     <div
@@ -31,7 +36,7 @@ function QtyBox({
     >
       <button
         onClick={onDec}
-        aria-label="Менше"
+        aria-label={decLabel}
         className="text-2xl leading-none cursor-pointer"
       >
         −
@@ -39,7 +44,7 @@ function QtyBox({
       <span className="w-6 text-center">{value}</span>
       <button
         onClick={onInc}
-        aria-label="Більше"
+        aria-label={incLabel}
         className="text-2xl leading-none cursor-pointer"
       >
         ＋
@@ -54,6 +59,7 @@ const useCartRemove = () => useCart((s) => s.remove)
 const useCartTotal = () => useCart((s) => s.total)
 
 export default function CartPage() {
+  const t = useT()
   const items = useCartItems()
   const setQty = useCartSetQty()
   const remove = useCartRemove()
@@ -116,17 +122,19 @@ export default function CartPage() {
 
   return (
     <section className="max-w-[1400px] mx-auto px-4 lg:px-6 py-6 lg:py-12">
-      <h1 className="text-4xl lg:text-5xl font-fixel-display mb-8">Кошик</h1>
+      <h1 className="text-4xl lg:text-5xl font-fixel-display mb-8">
+        {t('Кошик', 'Cart')}
+      </h1>
 
       <div className="grid lg:grid-cols-[1fr_460px] gap-10">
         {/* LEFT: таблиця */}
         <div>
           {/* заголовки таблиці */}
           <div className="hidden lg:grid grid-cols-[2fr_1fr_1fr_1fr] gap-6 uppercase tracking-wide text-sm pb-3 border-b border-black ">
-            <div>Товар</div>
-            <div className="text-center">Ціна</div>
-            <div className="text-center">Кількість</div>
-            <div className="text-right">Разом</div>
+            <div>{t('Товар', 'Product')}</div>
+            <div className="text-center">{t('Ціна', 'Price')}</div>
+            <div className="text-center">{t('Кількість', 'Quantity')}</div>
+            <div className="text-right">{t('Разом', 'Total')}</div>
           </div>
 
           {/* рядки */}
@@ -157,25 +165,27 @@ export default function CartPage() {
                       </Link>
                       {it.color && (
                         <div className="mt-1 text-sm text-gray-600">
-                          Колір: {it.color}
+                          {t('Колір', 'Color')}: {it.color}
                         </div>
                       )}
                       {it.modelSize && (
                         <div className="mt-1 text-sm text-gray-600">
-                          Розмір моделі: {it.modelSize}
+                          {t('Розмір моделі', 'Size')}: {it.modelSize}
                         </div>
                       )}
                       {it.pouchColor && (
                         <div className="mt-1 text-sm text-gray-600">
-                          Мішечок: {it.pouchColor}
+                          {t('Мішечок', 'Pouch')}: {it.pouchColor}
                         </div>
                       )}
                       {it.strapName && (
                         <div className="mt-1 text-sm text-gray-600">
-                          Ремінець: {it.strapName}
+                          {t('Ремінець', 'Strap')}: {it.strapName}
                         </div>
                       )}
-                      <div className="mt-2 text-gray-700">В наявності</div>
+                      <div className="mt-2 text-gray-700">
+                        {t('В наявності', 'In stock')}
+                      </div>
                       <button
                         onClick={() =>
                           remove(
@@ -188,7 +198,7 @@ export default function CartPage() {
                         }
                         className="mt-3 text-black underline underline-offset-4 hover:no-underline cursor-pointer"
                       >
-                        Видалити
+                        {t('Видалити', 'Remove')}
                       </button>
                     </div>
                   </div>
@@ -202,6 +212,8 @@ export default function CartPage() {
                   <div className="lg:text-center">
                     <QtyBox
                       value={it.qty}
+                      decLabel={t('Менше', 'Decrease')}
+                      incLabel={t('Більше', 'Increase')}
                       onDec={() => {
                         const n = it.qty - 1
                         if (n <= 0) {
@@ -248,33 +260,39 @@ export default function CartPage() {
 
         {/* RIGHT: сума замовлення */}
         <aside className="h-fit lg:sticky lg:top-8 border border-black rounded p-6 space-y-6 ">
-          <h2 className="text-2xl font-fixel-display">Сума замовлення</h2>
+          <h2 className="text-2xl font-fixel-display">
+            {t('Сума замовлення', 'Order summary')}
+          </h2>
 
           <div className="flex items-center justify-between text-lg">
-            <span>Вартість замовлення</span>
+            <span>{t('Вартість замовлення', 'Subtotal')}</span>
             <span className="font-semibold">{subtotalUAH} грн</span>
           </div>
 
           {isPromoApplied && discountUAH > 0 && (
             <div className="flex items-center justify-between text-lg">
-              <span className="text-gray-700">Знижка ({discountPct}%)</span>
+              <span className="text-gray-700">
+                {t('Знижка', 'Discount')} ({discountPct}%)
+              </span>
               <span className="font-semibold">−{discountUAH} грн</span>
             </div>
           )}
 
           <div>
             <div className="text-sm uppercase tracking-wide text-gray-700">
-              Доставка
+              {t('Доставка', 'Shipping')}
             </div>
-            <div className="mt-2">Нова Пошта</div>
+            <div className="mt-2">{t('Нова Пошта', 'Nova Poshta')}</div>
           </div>
 
           <div>
-            <label className="block text-sm text-gray-700">Є промокод?</label>
+            <label className="block text-sm text-gray-700">
+              {t('Є промокод?', 'Have a promo code?')}
+            </label>
             <div className="mt-2 flex">
               <input
                 className="flex-1 border border-black rounded-l px-3 py-2 outline-none"
-                placeholder="Введіть код"
+                placeholder={t('Введіть код', 'Enter code')}
                 value={promoInput}
                 onChange={(e) => setPromoInput(e.target.value)}
                 onBlur={() => setPromoTouched(true)}
@@ -285,7 +303,7 @@ export default function CartPage() {
                   onClick={removePromo}
                   className="px-5 border border-l-0 border-black rounded-r hover:bg-black hover:text-white transition cursor-pointer"
                   aria-label="Remove promo"
-                  title="Скасувати промокод"
+                  title={t('Скасувати промокод', 'Remove promo code')}
                 >
                   ✕
                 </button>
@@ -295,7 +313,7 @@ export default function CartPage() {
                   onClick={applyPromo}
                   className="px-5 border border-l-0 border-black rounded-r hover:bg-black hover:text-white transition cursor-pointer"
                   aria-label="Apply promo"
-                  title="Застосувати промокод"
+                  title={t('Застосувати промокод', 'Apply promo code')}
                 >
                   →
                 </button>
@@ -306,19 +324,21 @@ export default function CartPage() {
               promoInput.trim() &&
               !isPromoApplied &&
               !isPromoValid && (
-                <p className="mt-2 text-xs text-rose-600">Невірний промокод</p>
+                <p className="mt-2 text-xs text-rose-600">
+                  {t('Невірний промокод', 'Invalid promo code')}
+                </p>
               )}
 
             {isPromoApplied && (
               <p className="mt-2 text-xs text-green-700">
-                Промокод застосовано:{' '}
+                {t('Промокод застосовано', 'Promo code applied')}:{' '}
                 <span className="font-medium">{appliedPromoCode}</span>
               </p>
             )}
           </div>
 
           <div className="flex items-center justify-between text-xl pt-2">
-            <span className="uppercase tracking-wide">Разом</span>
+            <span className="uppercase tracking-wide">{t('Разом', 'Total')}</span>
             <span className="font-semibold">{finalTotalUAH} грн</span>
           </div>
           <div className="w-full">
@@ -340,7 +360,7 @@ export default function CartPage() {
               }}
               className="flex justify-center items-center w-full h-14 text-lg rounded bg-black text-white hover:bg-[#FF3D8C] transition cursor-pointer"
             >
-              Перейти до оформлення
+              {t('Перейти до оформлення', 'Proceed to checkout')}
             </Link>
           </div>
         </aside>

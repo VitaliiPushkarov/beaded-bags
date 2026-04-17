@@ -1,6 +1,7 @@
 import Link from 'next/link'
 import Image from 'next/image'
 import { Product, ProductVariant, ProductVariantImage } from '@prisma/client'
+import { useT } from '@/lib/i18n'
 
 type AddonVariantUI = ProductVariant & {
   product: Product
@@ -21,6 +22,7 @@ export function AddonsSection(props: {
   addonImageUrl: (av: AddonVariantUI) => string
   addonsTotal: number
 }) {
+  const t = useT()
   const {
     availableAddons,
     selectedAddonVariantIds,
@@ -37,7 +39,9 @@ export function AddonsSection(props: {
   return (
     <>
       <div className="mt-6 w-full">
-        <div className="mb-3 text-sm font-medium text-gray-700">Доповнити:</div>
+        <div className="mb-3 text-sm font-medium text-gray-700">
+          {t('Доповнити:', 'Add-ons:')}
+        </div>
 
         <div className="-mx-1 overflow-x-auto">
           <div className="flex gap-3 px-1 pb-1">
@@ -100,7 +104,8 @@ export function AddonsSection(props: {
 
       {addonsTotal > 0 && (
         <div className="mt-3 w-full rounded-md border border-gray-200 bg-gray-50 px-3 py-2 text-sm text-gray-800">
-          Обрані прикраси: <span className="font-medium">+{addonsTotal} ₴</span>
+          {t('Обрані прикраси', 'Selected add-ons')}:{' '}
+          <span className="font-medium">+{addonsTotal} ₴</span>
         </div>
       )}
     </>

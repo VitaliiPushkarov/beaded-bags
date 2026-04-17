@@ -10,12 +10,14 @@ import type { Swiper as SwiperType } from 'swiper'
 import 'swiper/css'
 import 'swiper/css/navigation'
 import 'photoswipe/dist/photoswipe.css'
+import { useT } from '@/lib/i18n'
 
 type PhotoGalleryProps = {
   images: string[]
 }
 
 export default function PhotoGallery({ images }: PhotoGalleryProps) {
+  const t = useT()
   const placeholder = '/img/placeholder.png'
   const list = useMemo(() => (images.length ? images : [placeholder]), [images])
   const hasMultipleImages = list.length > 1
@@ -175,7 +177,7 @@ export default function PhotoGallery({ images }: PhotoGalleryProps) {
                       >
                         <Image
                           src={src || placeholder}
-                          alt="Фото товару"
+                          alt={t('Фото товару', 'Product image')}
                           fill
                           className="object-cover"
                           priority={i === 0}
@@ -217,7 +219,7 @@ export default function PhotoGallery({ images }: PhotoGalleryProps) {
           <button
             className="photo-gallery-prev absolute -left-3 top-1/2 -translate-y-1/2 z-10 bg-white shadow-sm rounded-full border h-10 w-10
                    hidden md:flex items-center justify-center hover:border-white hover:bg-[#FF3D8C] hover:text-white transition cursor-pointer"
-            aria-label="Попереднє фото"
+            aria-label={t('Попереднє фото', 'Previous image')}
             type="button"
           >
             <svg width="20" height="20" viewBox="0 0 24 24">
@@ -235,7 +237,7 @@ export default function PhotoGallery({ images }: PhotoGalleryProps) {
           <button
             className="photo-gallery-next absolute -right-3 top-1/2 -translate-y-1/2 z-10 bg-white shadow-sm rounded-full border h-10 w-10
                    hidden md:flex items-center justify-center hover:border-white hover:bg-[#FF3D8C] hover:text-white transition cursor-pointer"
-            aria-label="Наступне фото"
+            aria-label={t('Наступне фото', 'Next image')}
             type="button"
           >
             <svg width="20" height="20" viewBox="0 0 24 24">

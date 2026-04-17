@@ -3,16 +3,18 @@ import Image from 'next/image'
 import { useCart } from '@/app/store/cart'
 import { useUI } from '@/app/store/ui'
 import { useIsMounted } from '@/lib/useIsMounted'
+import { useT } from '@/lib/i18n'
 
 export default function CartButton() {
   const openCart = useUI((s) => s.openCart)
   const count = useCart((s) => s.items.reduce((sum, i) => sum + i.qty, 0))
   const isMounted = useIsMounted()
+  const t = useT()
   return (
     <button
       type="button"
       onClick={openCart}
-      aria-label="Відкрити кошик"
+      aria-label={t('Відкрити кошик', 'Open cart')}
       className="relative inline-flex h-8 w-8 items-center justify-center cursor-pointer"
     >
       <Image

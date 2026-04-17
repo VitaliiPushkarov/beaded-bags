@@ -1,6 +1,7 @@
 'use client'
 import { useState } from 'react'
 import { CareInfoBlock } from '@/components/product/CareInfoBlock'
+import { useT } from '@/lib/i18n'
 
 type Props = {
   description?: string | null
@@ -23,14 +24,15 @@ export default function ProductTabs({
   info,
   dimensions,
 }: Props) {
+  const t = useT()
   const [tab, setTab] = useState<'description' | 'info' | 'dimensions'>(
     'description',
   )
 
   const tabs = [
-    { key: 'description', label: 'ОПИС' },
-    { key: 'info', label: 'ІНФО' },
-    { key: 'dimensions', label: 'ЗАМІРИ' },
+    { key: 'description', label: t('ОПИС', 'DESCRIPTION') },
+    { key: 'info', label: t('ІНФО', 'INFO') },
+    { key: 'dimensions', label: t('ЗАМІРИ', 'DIMENSIONS') },
   ] as const
 
   return (

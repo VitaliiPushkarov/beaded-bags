@@ -1,3 +1,5 @@
+import { useT } from '@/lib/i18n'
+
 export default function AppliedChips({
   chips,
   onRemove,
@@ -7,9 +9,10 @@ export default function AppliedChips({
   onRemove: (key: string) => void
   onClear: () => void
 }) {
+  const t = useT()
   return (
     <div className="flex flex-wrap items-center gap-3 mb-6">
-      <span className="text-sm text-gray-600">Ви шукали:</span>
+      <span className="text-sm text-gray-600">{t('Ви шукали:', 'You searched:')}</span>
       {chips.map((ch) => (
         <button
           key={ch.key}
@@ -24,7 +27,7 @@ export default function AppliedChips({
         onClick={onClear}
         className="ml-2 text-sm underline text-gray-600 hover:text-black cursor-pointer"
       >
-        Видалити все
+        {t('Видалити все', 'Clear all')}
       </button>
     </div>
   )

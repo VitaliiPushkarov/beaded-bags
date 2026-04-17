@@ -14,8 +14,23 @@ import {
   pickFirstQueryValue,
   type QueryParamValue,
 } from '@/lib/seo/faceted'
+import { getRequestLocale } from '@/lib/server-locale'
 
 export const revalidate = 300
+
+function categoryTitleByLocale(category: string, locale: 'uk' | 'en'): string {
+  if (locale !== 'en') return getShopCategoryConfig(category)?.title || category
+  const map: Record<string, string> = {
+    sumky: 'Bags',
+    bananky: 'Belt Bags',
+    rjukzachky: 'Backpacks',
+    shopery: 'Shoppers',
+    chohly: 'Cases',
+    accessories: 'Accessories',
+    prykrasy: 'Accessories',
+  }
+  return map[category] || category
+}
 
 type ShopCategoryPageProps = {
   params: Promise<{ category: string }>
@@ -74,6 +89,7 @@ export async function generateMetadata({
   params,
   searchParams,
 }: ShopCategoryPageProps): Promise<Metadata> {
+  const locale = await getRequestLocale()
   const { category } = await params
   const sp = await searchParams
   const config = getShopCategoryConfig(category)
@@ -86,8 +102,14 @@ export async function generateMetadata({
     const target = getShopCategoryConfig(config.redirectTo)
     const targetPath = `/shop/${config.redirectTo}`
     return {
-      title: target?.metaTitle ?? config.metaTitle,
-      description: target?.metaDescription ?? config.metaDescription,
+      title:
+        locale === 'en'
+          ? `${categoryTitleByLocale(config.redirectTo, locale)} | GERDAN`
+          : target?.metaTitle ?? config.metaTitle,
+      description:
+        locale === 'en'
+          ? `Browse ${categoryTitleByLocale(config.redirectTo, locale)} by GERDAN.`
+          : target?.metaDescription ?? config.metaDescription,
       alternates: {
         canonical: targetPath,
       },
@@ -101,8 +123,14 @@ export async function generateMetadata({
   const shouldNoindex = hasFacetedQueryParams(sp)
 
   return {
-    title: config.metaTitle,
-    description: config.metaDescription,
+    title:
+      locale === 'en'
+        ? `${categoryTitleByLocale(category, locale)} | GERDAN`
+        : config.metaTitle,
+    description:
+      locale === 'en'
+        ? `Browse ${categoryTitleByLocale(category, locale)} by GERDAN.`
+        : config.metaDescription,
     alternates: {
       canonical: `/shop/${category.toLowerCase()}`,
     },
@@ -119,6 +147,7 @@ export default async function ShopCategoryPage({
   params,
   searchParams,
 }: ShopCategoryPageProps) {
+  const locale = await getRequestLocale()
   const { category } = await params
   const sp = await searchParams
   const config = getShopCategoryConfig(category)
@@ -187,16 +216,20 @@ export default async function ShopCategoryPage({
         }}
         lockedType={lockedTypeForPage}
         accessorySubcategoryOptions={accessorySubcategoryOptions}
-        title={config.title}
+        title={categoryTitleByLocale(category, locale)}
       />
 
       <section className="max-w-[1440px] mx-auto px-5 md:px-[50px] pb-12 md:pb-16 md:pt-16 mt-12 md:mt-22">
         <div className=" mb-6">
           <h2 className="text-xl md:text-2xl mb-3">
-            {config.metaTitle} від GERDAN
+            {locale === 'en'
+              ? `${categoryTitleByLocale(category, locale)} by GERDAN`
+              : `${config.metaTitle} від GERDAN`}
           </h2>
           <p className="text-gray-700 leading-relaxed whitespace-pre-line">
-            {config.intro}
+            {locale === 'en'
+              ? 'Detailed category description in English is being prepared.'
+              : config.intro}
           </p>
         </div>
 
@@ -218,9 +251,11 @@ export default async function ShopCategoryPage({
         )} */}
 
         <div className=" mt-6 md:mt-12">
-          <h2 className="text-xl md:text-2xl mb-4">Поширені питання</h2>
+          <h2 className="text-xl md:text-2xl mb-4">
+            {locale === 'en' ? 'FAQ' : 'Поширені питання'}
+          </h2>
           <div className="space-y-3">
-            {config.faqs.map((item) => (
+            {(locale === 'en' ? [] : config.faqs).map((item) => (
               <details key={item.question} className="border rounded-sm p-3">
                 <summary className="font-medium cursor-pointer">
                   {item.question}

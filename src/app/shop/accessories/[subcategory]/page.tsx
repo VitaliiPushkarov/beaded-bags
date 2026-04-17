@@ -14,8 +14,25 @@ import {
   pickFirstQueryValue,
   type QueryParamValue,
 } from '@/lib/seo/faceted'
+import { getRequestLocale } from '@/lib/server-locale'
 
 export const revalidate = 300
+
+function accessorySubcategoryTitle(slug: string, fallback: string, locale: 'uk' | 'en') {
+  if (locale !== 'en') return fallback
+  const map: Record<string, string> = {
+    breloky: 'Keychains',
+    gerdany: 'Gerdans',
+    sylyanky: 'Sylyanky',
+    mitenky: 'Mittens',
+    shapky: 'Beanies',
+    sharfy: 'Scarves',
+    rezynky: 'Hair Ties',
+    chepchyky: 'Bonnets',
+    'navushnyky-viazani': 'Knitted Headphones',
+  }
+  return map[slug] || fallback
+}
 
 type AccessorySubcategoryPageProps = {
   params: Promise<{ subcategory: string }>
@@ -76,6 +93,7 @@ export async function generateMetadata({
   params,
   searchParams,
 }: AccessorySubcategoryPageProps): Promise<Metadata> {
+  const locale = await getRequestLocale()
   const { subcategory } = await params
   const sp = await searchParams
   const config = getAccessorySubcategoryConfig(subcategory)
@@ -87,8 +105,14 @@ export async function generateMetadata({
   const shouldNoindex = hasFacetedQueryParams(sp)
 
   return {
-    title: config.metaTitle,
-    description: config.metaDescription,
+    title:
+      locale === 'en'
+        ? `${accessorySubcategoryTitle(subcategory, config.label, locale)} | GERDAN`
+        : config.metaTitle,
+    description:
+      locale === 'en'
+        ? `Browse ${accessorySubcategoryTitle(subcategory, config.label, locale)} by GERDAN.`
+        : config.metaDescription,
     alternates: {
       canonical: `/shop/accessories/${subcategory}`,
     },
@@ -105,6 +129,7 @@ export default async function AccessorySubcategoryPage({
   params,
   searchParams,
 }: AccessorySubcategoryPageProps) {
+  const locale = await getRequestLocale()
   const { subcategory } = await params
   const sp = await searchParams
   const config = getAccessorySubcategoryConfig(subcategory)
@@ -124,7 +149,7 @@ export default async function AccessorySubcategoryPage({
 
   const itemListLd = buildItemListJsonLd(
     products.map((item) => item.slug),
-    config.label,
+    accessorySubcategoryTitle(subcategory, config.label, locale),
   )
   const faqLd = buildFaqJsonLd(config.faqs)
   const siblingSubcategories = ACCESSORY_SUBCATEGORIES.filter(
@@ -140,15 +165,21 @@ export default async function AccessorySubcategoryPage({
           color: pickFirstQueryValue(sp.color) ?? '',
         }}
         hideTypeFilter
-        title={config.label}
+        title={accessorySubcategoryTitle(subcategory, config.label, locale)}
       />
 
       <section className="max-w-[1440px] mx-auto px-5 md:px-[50px] pb-12 md:pb-16 md:pt-16 mt-12 md:mt-22">
         <div className="  mb-6">
           <h2 className="text-xl md:text-2xl mb-3">
-            {config.metaTitle} від GERDAN
+            {locale === 'en'
+              ? `${accessorySubcategoryTitle(subcategory, config.label, locale)} by GERDAN`
+              : `${config.metaTitle} від GERDAN`}
           </h2>
-          <p className="text-gray-700 leading-relaxed">{config.intro}</p>
+          <p className="text-gray-700 leading-relaxed">
+            {locale === 'en'
+              ? 'Detailed category description in English is being prepared.'
+              : config.intro}
+          </p>
         </div>
 
         {/* <div className="border rounded-md p-5 md:p-7 mb-6">
@@ -175,9 +206,11 @@ export default async function AccessorySubcategoryPage({
         </div> */}
 
         <div className=" mt-6 md:mt-12 ">
-          <h2 className="text-xl md:text-2xl mb-4">Поширені питання</h2>
+          <h2 className="text-xl md:text-2xl mb-4">
+            {locale === 'en' ? 'FAQ' : 'Поширені питання'}
+          </h2>
           <div className="space-y-3">
-            {config.faqs.map((item) => (
+            {(locale === 'en' ? [] : config.faqs).map((item) => (
               <details key={item.question} className="border rounded-sm p-3">
                 <summary className="font-medium cursor-pointer">
                   {item.question}

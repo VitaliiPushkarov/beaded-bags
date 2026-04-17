@@ -3,6 +3,7 @@ import Bestsellers from '@/components/Bestsellers'
 import HeroBlock from '@/components/HeroBlock'
 import type { Metadata } from 'next'
 import CategorySection from '@/components/CategorySection'
+import { getRequestLocale } from '@/lib/server-locale'
 
 const HeroImages = dynamic(() => import('@/components/HeroImages'), {
   loading: () => <section className="h-[520px] md:h-[620px]" />,
@@ -18,24 +19,44 @@ const InstagramSlider = dynamic(() => import('@/components/InstagramSlider'), {
 
 const SITE_URL = 'https://gerdan.online'
 
-export const metadata: Metadata = {
-  title: 'Сумки ручної роботи, аксесуари та чохли з бісеру',
-  description:
-    'GERDAN — сумки ручної роботи, сумки з бісеру, плетені сумки, чохли та брелоки. Каталог українського бренду аксесуарів.',
-  keywords: [
-    'сумки ручної роботи',
-    'сумки з бісеру',
-    'плетені сумки',
-    'чохли з бісеру',
-    'брелоки',
-    'аксесуари',
-  ],
-  alternates: {
-    canonical: '/',
-  },
+export async function generateMetadata(): Promise<Metadata> {
+  const locale = await getRequestLocale()
+  return {
+    title:
+      locale === 'en'
+        ? 'Handmade Bags, Accessories and Beaded Cases'
+        : 'Сумки ручної роботи, аксесуари та чохли з бісеру',
+    description:
+      locale === 'en'
+        ? 'GERDAN - handmade bags, beaded bags, woven bags, cases and accessories.'
+        : 'GERDAN — сумки ручної роботи, сумки з бісеру, плетені сумки, чохли та брелоки. Каталог українського бренду аксесуарів.',
+    keywords:
+      locale === 'en'
+        ? [
+            'handmade bags',
+            'beaded bags',
+            'woven bags',
+            'beaded cases',
+            'keychains',
+            'accessories',
+          ]
+        : [
+            'сумки ручної роботи',
+            'сумки з бісеру',
+            'плетені сумки',
+            'чохли з бісеру',
+            'брелоки',
+            'аксесуари',
+          ],
+    alternates: {
+      canonical: '/',
+    },
+  }
 }
 
-export default function Home() {
+export default async function Home() {
+  const locale = await getRequestLocale()
+  const isEn = locale === 'en'
   const organizationJsonLd = {
     '@context': 'https://schema.org',
     '@type': 'Organization',
@@ -49,7 +70,7 @@ export default function Home() {
         telephone: '+380955837060',
         contactType: 'customer support',
         areaServed: 'UA',
-        availableLanguage: ['uk'],
+        availableLanguage: isEn ? ['en', 'uk'] : ['uk'],
       },
     ],
   }
@@ -57,11 +78,15 @@ export default function Home() {
   const webPageJsonLd = {
     '@context': 'https://schema.org',
     '@type': 'WebPage',
-    name: 'GERDAN — сумки ручної роботи та аксесуари',
+    name: isEn
+      ? 'GERDAN - handmade bags and accessories'
+      : 'GERDAN — сумки ручної роботи та аксесуари',
     url: SITE_URL,
     description:
-      'Сумки ручної роботи, сумки з бісеру, плетені сумки, чохли та аксесуари українського бренду GERDAN.',
-    inLanguage: 'uk',
+      isEn
+        ? 'Handmade bags, beaded bags, woven bags, cases and accessories by GERDAN.'
+        : 'Сумки ручної роботи, сумки з бісеру, плетені сумки, чохли та аксесуари українського бренду GERDAN.',
+    inLanguage: isEn ? 'en' : 'uk',
     isPartOf: {
       '@type': 'WebSite',
       name: 'GERDAN',
@@ -81,7 +106,9 @@ export default function Home() {
         dangerouslySetInnerHTML={{ __html: JSON.stringify(webPageJsonLd) }}
       />
       <h1 className="sr-only">
-        Сумки ручної роботи, сумки з бісеру та аксесуари GERDAN
+        {isEn
+          ? 'Handmade bags, beaded bags and accessories by GERDAN'
+          : 'Сумки ручної роботи, сумки з бісеру та аксесуари GERDAN'}
       </h1>
       <HeroBlock />
       <Bestsellers />

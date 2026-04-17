@@ -1,5 +1,6 @@
 import Link from 'next/link'
 import Image from 'next/image'
+import { getRequestLocale } from '@/lib/server-locale'
 
 const HOME_CATEGORY_CARDS = [
   {
@@ -33,27 +34,47 @@ const HOME_CATEGORY_CARDS = [
     subtitle: 'Брелоки, гердани, силянки',
   },
 ] as const
-export default function CategorySection() {
+export default async function CategorySection() {
+  const locale = await getRequestLocale()
+  const cards = HOME_CATEGORY_CARDS.map((card) => {
+    if (locale !== 'en') return card
+    const map: Record<string, { title: string; subtitle: string }> = {
+      '/shop/sumky': { title: 'Bags', subtitle: 'Handmade bags' },
+      '/shop/bananky': { title: 'Belt Bags', subtitle: 'Compact daily format' },
+      '/shop/shopery': { title: 'Shoppers', subtitle: 'Spacious city models' },
+      '/shop/chohly': { title: 'Cases', subtitle: 'Practical accents' },
+      '/shop/accessories': {
+        title: 'Accessories',
+        subtitle: 'Keychains, gerdans, sylyanky',
+      },
+    }
+    const translated = map[card.href]
+    return translated ? { ...card, ...translated } : card
+  })
+
   return (
     <section className="max-w-[1440px] px-5 md:px-6 py-12">
       <div className="flex items-end justify-between gap-4 mb-4">
-        <h2 className="text-2xl uppercase font-semibold">КАТЕГОРІЇ ТОВАРІВ</h2>
+        <h2 className="text-2xl uppercase font-semibold">
+          {locale === 'en' ? 'PRODUCT CATEGORIES' : 'КАТЕГОРІЇ ТОВАРІВ'}
+        </h2>
         <Link
           href="/shop"
           className="text-sm underline underline-offset-2 hover:no-underline"
         >
-          Всі товари
+          {locale === 'en' ? 'All products' : 'Всі товари'}
         </Link>
       </div>
       <div className="md:w-[50%] ">
         <p className="text-gray-700 leading-relaxed mb-6">
-          У каталозі GERDAN представлені сумки ручної роботи, сумки з бісеру,
-          плетені сумки, чохли та аксесуари для щоденних і акцентних образів.
+          {locale === 'en'
+            ? 'GERDAN catalog features handmade bags, beaded bags, woven bags, cases and accessories for daily and statement looks.'
+            : 'У каталозі GERDAN представлені сумки ручної роботи, сумки з бісеру, плетені сумки, чохли та аксесуари для щоденних і акцентних образів.'}
         </p>
       </div>
 
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
-        {HOME_CATEGORY_CARDS.map((card) => (
+        {cards.map((card) => (
           <Link
             key={card.href}
             href={card.href}

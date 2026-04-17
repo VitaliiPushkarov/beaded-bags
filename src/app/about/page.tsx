@@ -1,17 +1,45 @@
 import Image from 'next/image'
 import type { Metadata } from 'next'
 import { Skeleton } from '@/components/ui/Skeleton'
+import { getRequestLocale } from '@/lib/server-locale'
 
-export const metadata: Metadata = {
-  title: 'Про нас',
-  description:
-    'GERDAN — бренд українських аксесуарів, що зберігає дух ремесла у формі сьогодення.',
-  alternates: {
-    canonical: '/about',
-  },
+export async function generateMetadata(): Promise<Metadata> {
+  const locale = await getRequestLocale()
+  return {
+    title: locale === 'en' ? 'About us' : 'Про нас',
+    description:
+      locale === 'en'
+        ? 'GERDAN is a Ukrainian accessories brand that preserves craft spirit in contemporary forms.'
+        : 'GERDAN — бренд українських аксесуарів, що зберігає дух ремесла у формі сьогодення.',
+    alternates: {
+      canonical: '/about',
+    },
+  }
 }
 
-export default function AboutPage() {
+export default async function AboutPage() {
+  const locale = await getRequestLocale()
+  const isEn = locale === 'en'
+
+  const paragraphs = isEn
+    ? [
+        'We are a brand from the heart of Ukraine, from the city of Kropyvnytskyi.',
+        'GERDAN is about Ukrainian culture, craft spirit, and beauty.',
+        'For generations, women created beadwork by hand and passed it on as heritage.',
+        'Each thread has its own story, each bead carries a piece of soul.',
+        'We preserve the memory of Ukrainian craft in modern accessory forms.',
+        'Every bag is a small collection meant to stay in your memories.',
+      ]
+    : [
+        'Ми — бренд із серця України, з маленького міста Кропивницький.',
+        'Власниця Лера і майстриня Таня, які люблять створювати красу своїми руками.',
+        'Ґердан — це про українську культуру, дух та красу.',
+        'Століттями наші бабусі створювали прикраси своїми руками та передавали це, як спадщину з покоління в покоління. Колись ґерданом жінки оберігали себе, розповідали про свій рід, про любов і свої мрії.',
+        'У кожній нитці своя історія, у кожній намистині — частинка душі.',
+        'Наш бренд пропонує закарбувати пам\'ять про українське ремесло у формах сьогодення.',
+        'Створюючи сучасні аксесуари, ми не просто прикрашаємо — ми відроджуємо традицію носити силу, жіночність і тепло у деталях, що не старіють із часом.',
+        'Кожна сумка — маленька колекція, що буде гріти душу та залишить свій яскравий слід у спогадах цього покоління.',
+      ]
   return (
     <div className="relative lg:h-[2445px] 2xl:h-full">
       {/* Фон */}
@@ -70,40 +98,9 @@ export default function AboutPage() {
             </h1>
 
             <div className="space-y-4 text-lg  md:text-[20px] leading-tight tracking-tighter">
-              <p>
-                Ми — бренд із серця України, з маленького <br></br> міста
-                Кропивницький.
-              </p>
-              <p>
-                Власниця Лера і майстриня Таня, які люблять <br></br> створювати
-                красу своїми руками.
-              </p>
-              <p>Ґердан — це про українську культуру, дух та красу.</p>
-              <p>
-                Століттями наші бабусі створювали прикраси <br></br> своїми
-                руками та передавали це, як спадщину з <br></br> покоління в
-                покоління. Колись ґерданом жінки <br></br>
-                оберігали себе, розповідали про свій рід, <br></br> про любов і
-                свої мрії.
-              </p>
-              <p>
-                У кожній нитці своя історія, у кожній <br></br>намистині —
-                частинка душі.
-              </p>
-              <p>
-                Наш бренд пропонує закарбувати пам&apos;ять про <br></br>{' '}
-                українське ремесло у формах сьогодення.
-              </p>
-              <p>
-                Створюючи сучасні аксесуари, ми не просто <br></br> прикрашаємо
-                — ми відроджуємо традицію <br></br>
-                носити силу, жіночність і тепло у деталях, <br></br>
-                що не старіють із часом.
-              </p>
-              <p>
-                Кожна сумка — маленька колекція, що буде гріти душу та <br></br>{' '}
-                залишить свій яскравий слід у спогадах цього покоління.
-              </p>
+              {paragraphs.map((paragraph) => (
+                <p key={paragraph}>{paragraph}</p>
+              ))}
             </div>
           </div>
 

@@ -10,6 +10,7 @@ import { IMaskInput } from 'react-imask'
 
 import { usePromo } from '@/lib/usePromo'
 import { calcDiscountUAH, resolvePromoCode } from '@/lib/promo'
+import { useT } from '@/lib/i18n'
 
 type CheckoutFormState = {
   name: string
@@ -64,6 +65,7 @@ function clearCheckoutFormDraft() {
 }
 
 export default function CheckoutClient() {
+  const t = useT()
   const router = useRouter()
   const sp = useSearchParams()
   const paymentResult = sp.get('payment')
@@ -117,13 +119,23 @@ export default function CheckoutClient() {
 
   useEffect(() => {
     if (paymentResult === 'cancelled') {
-      setError('Оплату скасовано. Дані клієнта збережено, спробуйте ще раз.')
+      setError(
+        t(
+          'Оплату скасовано. Дані клієнта збережено, спробуйте ще раз.',
+          'Payment cancelled. Customer data is saved, please try again.',
+        ),
+      )
       return
     }
     if (paymentResult === 'failed') {
-      setError('Оплата не пройшла. Дані клієнта збережено, спробуйте ще раз.')
+      setError(
+        t(
+          'Оплата не пройшла. Дані клієнта збережено, спробуйте ще раз.',
+          'Payment failed. Customer data is saved, please try again.',
+        ),
+      )
     }
-  }, [paymentResult])
+  }, [paymentResult, t])
 
   const cart = useCart()
   const co = useCheckout()
@@ -186,15 +198,20 @@ export default function CheckoutClient() {
         phone: true,
         email: true,
       })
-      setError('Перевірте правильність полів форми')
+      setError(t('Перевірте правильність полів форми', 'Please check form fields'))
       return
     }
     if (!co.np.cityRef || !co.np.warehouseRef) {
-      setError('Оберіть місто та відділення Нової Пошти')
+      setError(
+        t(
+          'Оберіть місто та відділення Нової Пошти',
+          'Select city and Nova Poshta branch',
+        ),
+      )
       return
     }
     if (cart.items.length === 0) {
-      setError('Кошик порожній')
+      setError(t('Кошик порожній', 'Cart is empty'))
       return
     }
 
@@ -261,7 +278,7 @@ export default function CheckoutClient() {
 
       const json = await res.json()
       if (!res.ok) {
-        setError('Помилка створення замовлення')
+        setError(t('Помилка створення замовлення', 'Failed to create order'))
         console.error(json)
         return
       }
@@ -279,7 +296,7 @@ export default function CheckoutClient() {
           const payJson = await payRes.json()
           if (!payRes.ok) {
             console.error(payJson)
-            setError('Помилка створення платежу')
+            setError(t('Помилка створення платежу', 'Failed to create payment'))
             return
           }
 
@@ -290,7 +307,12 @@ export default function CheckoutClient() {
           }
 
           if (!checkoutUrl || !data || !signature) {
-            setError('Неповні дані платежу від сервера')
+            setError(
+              t(
+                'Неповні дані платежу від сервера',
+                'Incomplete payment data from server',
+              ),
+            )
             return
           }
 
@@ -317,7 +339,12 @@ export default function CheckoutClient() {
           return
         } catch (e) {
           console.error(e)
-          setError('Помилка ініціалізації онлайн-оплати')
+          setError(
+            t(
+              'Помилка ініціалізації онлайн-оплати',
+              'Online payment initialization failed',
+            ),
+          )
           return
         }
       }
@@ -331,7 +358,7 @@ export default function CheckoutClient() {
       return
     } catch (e) {
       console.error(e)
-      setError('Невідома помилка мережі')
+      setError(t('Невідома помилка мережі', 'Unknown network error'))
     } finally {
       setLoading(false)
     }
@@ -341,7 +368,7 @@ export default function CheckoutClient() {
     <section className="max-w-[1000px] mx-auto grid lg:grid-cols-[1fr_360px] gap-10 px-4 py-10">
       <div className="space-y-8">
         <h1 className="text-2xl mb-1 md:text-3xl font-fixel-display font-bold">
-          Оформлення замовлення
+          {t('Оформлення замовлення', 'Checkout')}
         </h1>
 
         {/* Контакти */}
@@ -354,11 +381,14 @@ export default function CheckoutClient() {
                 setForm({ ...form, name: lettersOnly(e.target.value) })
               }
               onBlur={() => setTouched({ ...touched, name: true })}
-              placeholder="ІМʼЯ*"
+              placeholder={t("ІМʼЯ*", 'FIRST NAME*')}
             />
             {touched.name && !isNameValid(form.name) && (
               <p className="text-xs text-rose-600 mt-1">
-                Введіть лише літери, мінімум 2 символи
+                {t(
+                  'Введіть лише літери, мінімум 2 символи',
+                  'Use letters only, at least 2 characters',
+                )}
               </p>
             )}
           </div>
@@ -374,11 +404,14 @@ export default function CheckoutClient() {
                 setForm({ ...form, patronymic: lettersOnly(e.target.value) })
               }
               onBlur={() => setTouched({ ...touched, patronymic: true })}
-              placeholder="ПО БАТЬКОВІ*"
+              placeholder={t('ПО БАТЬКОВІ*', 'MIDDLE NAME*')}
             />
             {touched.patronymic && !isNameValid(form.patronymic) && (
               <p className="text-xs text-rose-600 mt-1">
-                Введіть лише літери, мінімум 2 символи
+                {t(
+                  'Введіть лише літери, мінімум 2 символи',
+                  'Use letters only, at least 2 characters',
+                )}
               </p>
             )}
           </div>
@@ -390,11 +423,14 @@ export default function CheckoutClient() {
                 setForm({ ...form, surname: lettersOnly(e.target.value) })
               }
               onBlur={() => setTouched({ ...touched, surname: true })}
-              placeholder="ПРІЗВИЩЕ*"
+              placeholder={t('ПРІЗВИЩЕ*', 'LAST NAME*')}
             />
             {touched.surname && !isNameValid(form.surname) && (
               <p className="text-xs text-rose-600 mt-1">
-                Введіть лише літери, мінімум 2 символи
+                {t(
+                  'Введіть лише літери, мінімум 2 символи',
+                  'Use letters only, at least 2 characters',
+                )}
               </p>
             )}
           </div>
@@ -417,7 +453,10 @@ export default function CheckoutClient() {
             />
             {touched.phone && !isUaPhoneValid(normalizeUaPhone(form.phone)) && (
               <p className="text-xs text-rose-600 mt-1">
-                Введіть номер у форматі +380 XX XXX XX XX
+                {t(
+                  'Введіть номер у форматі +380 XX XXX XX XX',
+                  'Enter phone number in +380 XX XXX XX XX format',
+                )}
               </p>
             )}
           </div>
@@ -427,11 +466,11 @@ export default function CheckoutClient() {
               value={form.email}
               onChange={(e) => setForm({ ...form, email: e.target.value })}
               onBlur={() => setTouched({ ...touched, email: true })}
-              placeholder="EMAIL АДРЕСА*"
+              placeholder={t('EMAIL АДРЕСА*', 'EMAIL ADDRESS*')}
             />
             {touched.email && !isEmailValid(form.email) && (
               <p className="text-xs text-rose-600 mt-1">
-                Неправильно введено email
+                {t('Неправильно введено email', 'Invalid email format')}
               </p>
             )}
           </div>
@@ -439,13 +478,13 @@ export default function CheckoutClient() {
 
         {/* Доставка НП */}
         <div className="space-y-4">
-          <h2 className="text-xl font-semibold">Доставка</h2>
+          <h2 className="text-xl font-semibold">{t('Доставка', 'Shipping')}</h2>
           <NovaPoshtaPicker />
         </div>
 
         {/* Оплата */}
         <div className="space-y-4">
-          <h2 className="text-xl font-semibold">Оплата</h2>
+          <h2 className="text-xl font-semibold">{t('Оплата', 'Payment')}</h2>
 
           <div className="space-y-3 text-sm">
             {/* Онлайн оплата LiqPay */}
@@ -459,10 +498,13 @@ export default function CheckoutClient() {
               />
               <div>
                 <p className="font-medium uppercase">
-                  Онлайн оплата (LiqPay)
+                  {t('Онлайн оплата (LiqPay)', 'Online payment (LiqPay)')}
                 </p>
                 <p className="text-gray-600">
-                  Картка, Apple Pay або Google Pay на сторінці LiqPay checkout.
+                  {t(
+                    'Картка, Apple Pay або Google Pay на сторінці LiqPay checkout.',
+                    'Card, Apple Pay or Google Pay on LiqPay checkout page.',
+                  )}
                 </p>
               </div>
             </label>
@@ -478,9 +520,14 @@ export default function CheckoutClient() {
               />
 
               <div>
-                <p className="font-medium uppercase">Оплата по реквізитам</p>
+                <p className="font-medium uppercase">
+                  {t('Оплата по реквізитам', 'Bank transfer')}
+                </p>
                 <p className="text-gray-600">
-                  Після створення замовлення ми надішлемо реквізити для оплати.
+                  {t(
+                    'Після створення замовлення ми надішлемо реквізити для оплати.',
+                    'We will send bank details after the order is created.',
+                  )}
                 </p>
               </div>
             </label>
@@ -495,10 +542,14 @@ export default function CheckoutClient() {
                 onChange={() => co.setPaymentMethod('COD')}
               />
               <div>
-                <p className="font-medium uppercase">Післяплата</p>
+                <p className="font-medium uppercase">
+                  {t('Післяплата', 'Cash on delivery')}
+                </p>
                 <p className="text-gray-600">
-                  Оплата при отриманні на відділенні Нової Пошти. Комісія НП: 2%
-                  + 20 грн.
+                  {t(
+                    'Оплата при отриманні на відділенні Нової Пошти. Комісія НП: 2% + 20 грн.',
+                    'Pay on delivery at Nova Poshta branch. Nova Poshta fee: 2% + 20 UAH.',
+                  )}
                 </p>
               </div>
             </label>
@@ -531,26 +582,26 @@ export default function CheckoutClient() {
                 <span className="line-clamp-2">{item.name}</span>
                 {item.color && (
                   <span className="text-xs text-gray-500">
-                    Колір: {item.color}
+                    {t('Колір', 'Color')}: {item.color}
                   </span>
                 )}
                 {item.modelSize && (
                   <span className="text-xs text-gray-500">
-                    Розмір моделі: {item.modelSize}
+                    {t('Розмір моделі', 'Size')}: {item.modelSize}
                   </span>
                 )}
                 {item.pouchColor && (
                   <span className="text-xs text-gray-500">
-                    Мішечок: {item.pouchColor}
+                    {t('Мішечок', 'Pouch')}: {item.pouchColor}
                   </span>
                 )}
                 {item.strapName && (
                   <span className="text-xs text-gray-500">
-                    Ремінець: {item.strapName}
+                    {t('Ремінець', 'Strap')}: {item.strapName}
                   </span>
                 )}
                 <span className="text-xs text-gray-500">
-                  {item.qty} шт · {item.priceUAH} грн
+                  {item.qty} {t('шт', 'pcs')} · {item.priceUAH} грн
                 </span>
               </div>
             </div>
@@ -559,23 +610,23 @@ export default function CheckoutClient() {
 
         {/* Підсумок */}
         <div className="flex items-center justify-between">
-          <span>Товарів</span>
+          <span>{t('Товарів', 'Items')}</span>
           <span>{cart.items.reduce((n, i) => n + i.qty, 0)}</span>
         </div>
         <div className="flex items-center justify-between">
-          <span>Вартість</span>
+          <span>{t('Вартість', 'Subtotal')}</span>
           <span className="font-semibold">{subtotalUAH} грн</span>
         </div>
 
         {discountUAH > 0 && (
           <div className="flex items-center justify-between text-sm text-gray-600">
-            <span>Знижка (промокод)</span>
+            <span>{t('Знижка (промокод)', 'Discount (promo code)')}</span>
             <span>- {discountUAH} грн</span>
           </div>
         )}
 
         <div className="flex items-center justify-between">
-          <span>До сплати</span>
+          <span>{t('До сплати', 'Total')}</span>
           <span className="font-semibold">{finalTotalUAH} грн</span>
         </div>
 
@@ -584,7 +635,9 @@ export default function CheckoutClient() {
           disabled={loading}
           className="w-full h-12 rounded bg-black text-white hover:bg-[#FF3D8C] transition disabled:opacity-60 cursor-pointer"
         >
-          {loading ? 'Створюємо замовлення…' : 'Підтвердити замовлення'}
+          {loading
+            ? t('Створюємо замовлення…', 'Creating order...')
+            : t('Підтвердити замовлення', 'Confirm order')}
         </button>
       </aside>
     </section>

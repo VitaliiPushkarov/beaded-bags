@@ -1,18 +1,29 @@
 import { Suspense } from 'react'
 import CheckoutClient from './CheckoutClient'
 import type { Metadata } from 'next'
+import { getRequestLocale } from '@/lib/server-locale'
 
-export const metadata: Metadata = {
-  title: 'Оформлення замовлення',
-  robots: {
-    index: false,
-    follow: false,
-  },
+export async function generateMetadata(): Promise<Metadata> {
+  const locale = await getRequestLocale()
+  return {
+    title: locale === 'en' ? 'Checkout' : 'Оформлення замовлення',
+    robots: {
+      index: false,
+      follow: false,
+    },
+  }
 }
 
-export default function CheckoutPage() {
+export default async function CheckoutPage() {
+  const locale = await getRequestLocale()
   return (
-    <Suspense fallback={<div className="p-6 text-center">Завантаження…</div>}>
+    <Suspense
+      fallback={
+        <div className="p-6 text-center">
+          {locale === 'en' ? 'Loading...' : 'Завантаження…'}
+        </div>
+      }
+    >
       <CheckoutClient />
     </Suspense>
   )

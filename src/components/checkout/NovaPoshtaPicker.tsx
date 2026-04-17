@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from 'react'
 import { useCheckout } from '@/stores/checkout'
+import { useLocale, useT } from '@/lib/i18n'
 
 const POPULAR_CITY_NAMES = [
   'Київ',
@@ -42,8 +43,11 @@ type WH = {
 }
 
 export default function NovaPoshtaPicker() {
+  const locale = useLocale()
+  const t = useT()
   const np = useCheckout((s) => s.np)
   const setNP = useCheckout((s) => s.setNP)
+  const isEn = locale === 'en'
 
   const [whLoading, setWhLoading] = useState(false)
 
@@ -207,7 +211,7 @@ export default function NovaPoshtaPicker() {
           ...w,
           label:
             w.label ??
-            `${w.isPostomat ? 'Поштомат ' : '№'}${w.number}, ${w.address}`,
+            `${w.isPostomat ? t('Поштомат ', 'Parcel locker ') : t('№', '#')}${w.number}, ${w.address}`,
         }))
 
         setAllWh(hydrated)
@@ -272,7 +276,7 @@ export default function NovaPoshtaPicker() {
             ...w,
             label:
               w.label ??
-              `${w.isPostomat ? 'Поштомат ' : '№'}${w.number}, ${w.address}`,
+              `${w.isPostomat ? t('Поштомат ', 'Parcel locker ') : t('№', '#')}${w.number}, ${w.address}`,
           }))
 
           setWh(hydrated)
@@ -327,7 +331,8 @@ export default function NovaPoshtaPicker() {
 
   function pickWarehouse(w: WH) {
     const lbl =
-      w.label ?? `${w.isPostomat ? 'Поштомат ' : '№'}${w.number}, ${w.address}`
+      w.label ??
+      `${w.isPostomat ? t('Поштомат ', 'Parcel locker ') : t('№', '#')}${w.number}, ${w.address}`
     setNP({ warehouseRef: w.ref, warehouseText: lbl })
     setQWh(lbl)
     setWh([]) // сховати список
@@ -351,7 +356,7 @@ export default function NovaPoshtaPicker() {
             className="mt-1 flex w-full items-center justify-between  border-b pr-3 py-2 text-left text-[12px]"
           >
             <span className={np.cityName ? 'text-black' : 'text-gray-400'}>
-              {np.cityName || 'ОБЕРІТЬ МІСТО*'}
+              {np.cityName || t('ОБЕРІТЬ МІСТО*', 'SELECT CITY*')}
             </span>
 
             {/* стрілка ▼ / ▲ */}
@@ -384,7 +389,7 @@ export default function NovaPoshtaPicker() {
                     }
                   }}
                   onKeyDown={onCityKeyDown}
-                  placeholder="Введіть назву міста"
+                  placeholder={t('Введіть назву міста', 'Enter city name')}
                   className="w-full text-sm outline-none placeholder:tracking-[0.12em] placeholder:uppercase placeholder:text-gray-400"
                 />
               </div>
@@ -392,7 +397,7 @@ export default function NovaPoshtaPicker() {
               {/* city list */}
               {loadingCities ? (
                 <div className="px-3 py-4 text-sm text-gray-500">
-                  Завантаження...
+                  {t('Завантаження...', 'Loading...')}
                 </div>
               ) : cities.length > 0 ? (
                 cities.map((c, i) => {
@@ -459,7 +464,8 @@ export default function NovaPoshtaPicker() {
             className="flex w-full items-center justify-between border-b pr-3 py-2 text-[12px]"
           >
             <span className={np.warehouseText ? 'text-black' : 'text-gray-400'}>
-              {np.warehouseText || 'ОБЕРІТЬ ВІДДІЛЕННЯ*'}
+              {np.warehouseText ||
+                t('ОБЕРІТЬ ВІДДІЛЕННЯ*', 'SELECT BRANCH / LOCKER*')}
             </span>
 
             {/* стрілочка ▼ / ▲ */}
@@ -486,25 +492,25 @@ export default function NovaPoshtaPicker() {
                     setActiveWhIdx(-1)
                   }}
                   onKeyDown={onWhKeyDown}
-                  placeholder="Введіть значення для пошуку"
+                  placeholder={t('Введіть значення для пошуку', 'Enter search value')}
                   className="w-full text-sm outline-none placeholder:tracking-[0.12em] placeholder:uppercase placeholder:text-gray-400"
                 />
               </div>
 
               {loadingWh ? (
                 <div className="px-3 py-4 text-sm text-gray-500">
-                  Завантаження...
+                  {t('Завантаження...', 'Loading...')}
                 </div>
               ) : wh.length === 0 ? (
                 <div className="px-3 py-4 text-sm text-gray-500">
-                  Відділення не знайдено
+                  {t('Відділення не знайдено', 'No branches found')}
                 </div>
               ) : (
                 wh.map((w, i) => {
                   const active = i === activeWhIdx
                   const label =
                     w.label ??
-                    `${w.isPostomat ? 'Поштомат ' : '№'}${w.number}, ${
+                    `${w.isPostomat ? t('Поштомат ', 'Parcel locker ') : t('№', '#')}${w.number}, ${
                       w.address
                     }`
 
@@ -523,8 +529,8 @@ export default function NovaPoshtaPicker() {
                     >
                       <div className="font-semibold">
                         {w.isPostomat
-                          ? `Поштомат №${w.number}`
-                          : `Відділення №${w.number}`}
+                          ? `${t('Поштомат', 'Parcel locker')} ${isEn ? '#' : '№'}${w.number}`
+                          : `${t('Відділення', 'Branch')} ${isEn ? '#' : '№'}${w.number}`}
                       </div>
                       <div
                         className={
@@ -547,10 +553,10 @@ export default function NovaPoshtaPicker() {
       {/* Підсумок */}
       <div className=" bg-gray-50 p-3 text-sm text-gray-700">
         <div>
-          Місто: <b>{np.cityName || '—'}</b>
+          {t('Місто', 'City')}: <b>{np.cityName || '—'}</b>
         </div>
         <div>
-          Відділення: <b>{np.warehouseText || '—'}</b>
+          {t('Відділення', 'Branch')}: <b>{np.warehouseText || '—'}</b>
         </div>
       </div>
     </div>

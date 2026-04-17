@@ -10,6 +10,7 @@ import {
   resolveAvailabilityStatus,
 } from '@/lib/availability'
 import type { ProductCardDTO } from '@/lib/product-card-dto'
+import { useT } from '@/lib/i18n'
 /* import { useCart } from '@/app/store/cart'
 import { useUI } from '@/app/store/ui' */
 
@@ -22,6 +23,7 @@ export default function ProductCardLarge({
   p: ProductWithVariants
   preferredColor?: string
 }) {
+  const t = useT()
   const preferredVariantId = useMemo(() => {
     if (!preferredColor) return undefined
     return p.variants.find((x) => x.color === preferredColor)?.id
@@ -65,9 +67,9 @@ export default function ProductCardLarge({
   const isPreorder = isPreorderStatus(availabilityStatus)
   const isOutOfStock = isOutOfStockStatus(availabilityStatus)
   const stockBadgeLabel = isPreorder
-    ? 'Доступно до передзамовлення'
+    ? t('Доступно до передзамовлення', 'Available for preorder')
     : isOutOfStock
-      ? 'Немає в наявності'
+      ? t('Немає в наявності', 'Out of stock')
       : null
 
   const CARD_SIZES =

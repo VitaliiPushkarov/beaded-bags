@@ -1,9 +1,14 @@
 'use client'
 
 import { ProductType } from '@prisma/client'
-import { ACTIVE_PRODUCT_TYPES, TYPE_LABELS, COLOR_LABELS } from '@/lib/labels'
+import {
+  ACTIVE_PRODUCT_TYPES,
+  getColorLabel,
+  getTypeLabel,
+} from '@/lib/labels'
 import { useEffect, useId } from 'react'
 import clsx from 'clsx'
+import { useLocale, useT } from '@/lib/i18n'
 
 export type FiltersValue = {
   q: string
@@ -50,6 +55,8 @@ export default function ProductsFilter({
   onMobileClose,
   onApply,
 }: Props) {
+  const locale = useLocale()
+  const t = useT()
   const ui = value
   const shouldShowAccessorySubcategory =
     showAccessorySubcategory && (accessorySubcategoryOptions?.length ?? 0) > 0
@@ -82,7 +89,7 @@ export default function ProductsFilter({
                 onChange={(e) => onChange({ ...ui, inStock: e.target.checked })}
                 className="w-4 h-4 cursor-pointer"
               />
-              В наявності
+              {t('В наявності', 'In stock')}
             </label>
 
             {/* On sale */}
@@ -93,7 +100,7 @@ export default function ProductsFilter({
                 onChange={(e) => onChange({ ...ui, onSale: e.target.checked })}
                 className="w-4 h-4 cursor-pointer"
               />
-              On sale
+              {t('On sale', 'On sale')}
             </label>
 
             {/* сортування: базове (новинки/популярні) */}
@@ -110,7 +117,7 @@ export default function ProductsFilter({
                 }
                 onChange={() => {}}
               />
-              <span>Новинки</span>
+              <span>{t('Новинки', 'New')}</span>
             </label>
             <label className="inline-flex items-center md:gap-2 gap-1 cursor-pointer">
               <input
@@ -125,7 +132,7 @@ export default function ProductsFilter({
                 }
                 onChange={() => {}}
               />
-              <span>Популярні</span>
+              <span>{t('Популярні', 'Popular')}</span>
             </label>
 
             {/* сортування: за ціною (незалежне) */}
@@ -168,7 +175,9 @@ export default function ProductsFilter({
             {/* Група - якщо не зафіксований */}
             {!lockGroup && (
               <div className="flex items-center gap-3">
-                <span className="uppercase tracking-wide">Група:</span>
+                <span className="uppercase tracking-wide">
+                  {t('Група', 'Group')}:
+                </span>
                 <select
                   className="border px-3 py-1 rounded bg-white w-40 cursor-pointer"
                   value={ui.group}
@@ -179,9 +188,9 @@ export default function ProductsFilter({
                     })
                   }
                 >
-                  <option value="">Всі</option>
-                  <option value="BEADS">Бісер</option>
-                  <option value="WEAVING">Плетіння</option>
+                  <option value="">{t('Всі', 'All')}</option>
+                  <option value="BEADS">{t('Бісер', 'Beads')}</option>
+                  <option value="WEAVING">{t('Плетіння', 'Weaving')}</option>
                 </select>
               </div>
             )}
@@ -189,7 +198,9 @@ export default function ProductsFilter({
             {/* Тип — якщо не зафіксований */}
             {shouldShowAccessorySubcategory && (
               <div className="flex items-center gap-3">
-                <span className="uppercase tracking-wide">Підкатегорія:</span>
+                <span className="uppercase tracking-wide">
+                  {t('Підкатегорія', 'Subcategory')}:
+                </span>
                 <select
                   className="border px-3 py-1 rounded bg-white w-56 cursor-pointer"
                   value={ui.accessorySubcategory}
@@ -200,7 +211,7 @@ export default function ProductsFilter({
                     })
                   }
                 >
-                  <option value="">Всі</option>
+                  <option value="">{t('Всі', 'All')}</option>
                   {accessorySubcategoryOptions?.map((item) => (
                     <option key={item.value} value={item.value}>
                       {item.label}
@@ -212,7 +223,9 @@ export default function ProductsFilter({
 
             {!lockType && !hideTypeFilter && (
               <div className="flex items-center gap-3">
-                <span className="uppercase tracking-wide">Тип:</span>
+                <span className="uppercase tracking-wide">
+                  {t('Тип', 'Type')}:
+                </span>
                 <select
                   className="border px-3 py-1 rounded bg-white w-40 cursor-pointer"
                   value={ui.bagTypes || ''}
@@ -223,10 +236,10 @@ export default function ProductsFilter({
                     })
                   }
                 >
-                  <option value="">Всі</option>
+                  <option value="">{t('Всі', 'All')}</option>
                   {TYPE_OPTIONS.map((bt) => (
                     <option key={bt} value={bt}>
-                      {TYPE_LABELS[bt] ?? bt}
+                      {getTypeLabel(bt, locale)}
                     </option>
                   ))}
                 </select>
@@ -235,16 +248,18 @@ export default function ProductsFilter({
 
             {/* Колір */}
             <div className="flex items-center gap-3">
-              <span className="uppercase tracking-wide">Колір:</span>
+              <span className="uppercase tracking-wide">
+                {t('Колір', 'Color')}:
+              </span>
               <select
                 className="border px-3 py-1 rounded bg-white w-40 cursor-pointer"
                 value={ui.color}
                 onChange={(e) => onChange({ ...ui, color: e.target.value })}
               >
-                <option value="">Всі</option>
+                <option value="">{t('Всі', 'All')}</option>
                 {colors.map((c) => (
                   <option key={c} value={c}>
-                    {COLOR_LABELS[c] || c}
+                    {getColorLabel(c, locale)}
                   </option>
                 ))}
               </select>
@@ -253,9 +268,9 @@ export default function ProductsFilter({
 
           {/* третій рядок: ціна */}
           <div className="mt-[34px] flex items-center gap-3">
-            <span>Ціна:</span>
+            <span>{t('Ціна', 'Price')}:</span>
             <input
-              placeholder="60 грн"
+              placeholder={t('60 грн', '60 UAH')}
               inputMode="numeric"
               value={ui.min}
               onChange={(e) =>
@@ -266,9 +281,9 @@ export default function ProductsFilter({
               }
               className="w-20 border-b border-black bg-transparent outline-none text-gray-700 placeholder-gray-400"
             />
-            <span>до</span>
+            <span>{t('до', 'to')}</span>
             <input
-              placeholder="3500 грн"
+              placeholder={t('3500 грн', '3500 UAH')}
               inputMode="numeric"
               value={ui.max}
               onChange={(e) =>
@@ -316,13 +331,13 @@ export default function ProductsFilter({
         >
           {/* Header */}
           <div className="flex items-center justify-between px-4 py-3 border-b">
-            <h3 className="text-lg font-medium">Фільтри</h3>
+            <h3 className="text-lg font-medium">{t('Фільтри', 'Filters')}</h3>
             <button
               type="button"
               onClick={onMobileClose}
               className="px-3 py-1 rounded border hover:bg-gray-50"
             >
-              Закрити
+              {t('Закрити', 'Close')}
             </button>
           </div>
 
@@ -338,7 +353,7 @@ export default function ProductsFilter({
               onClick={onApply}
               className="w-full h-11 rounded bg-black text-white hover:bg-[#FF3D8C] transition disabled:opacity-50 cursor-pointer"
             >
-              Застосувати
+              {t('Застосувати', 'Apply')}
             </button>
           </div>
         </div>

@@ -7,8 +7,11 @@ import CartButton from './CartButton'
 import { useState, useEffect } from 'react'
 import CatalogMenu from './CatalogMenu'
 import { usePathname } from 'next/navigation'
+import { useLocale, useT } from '@/lib/i18n'
 
 export default function Header() {
+  const locale = useLocale()
+  const t = useT()
   /* const { items } = useCart() */
   /* const count = items.reduce((s, i) => s + i.qty, 0) */
 
@@ -115,26 +118,37 @@ export default function Header() {
               href="/info"
               className="hidden lg:inline-block hover:opacity-70 text-[12px] font-medium tracking-wide"
             >
-              ІНФО
+              {t('ІНФО', 'INFO')}
             </Link>
             <Link
               href="/about"
               className="hidden lg:inline-block hover:opacity-70 text-[12px] font-medium tracking-wide"
             >
-              ПРО НАС
+              {t('ПРО НАС', 'ABOUT')}
             </Link>
             <Link
               href="/contacts"
               className="hidden lg:inline-block hover:opacity-70 text-[12px] font-medium tracking-wide"
             >
-              КОНТАКТИ
+              {t('КОНТАКТИ', 'CONTACTS')}
             </Link>
             <Link
               href="/blog"
               className="hidden lg:inline-block hover:opacity-70 text-[12px] font-medium tracking-wide"
             >
-              БЛОГ
+              {t('БЛОГ', 'BLOG')}
             </Link>
+            <a
+              href={
+                locale === 'en'
+                  ? 'https://gerdan.online'
+                  : 'https://ca.gerdan.online'
+              }
+              className="hidden lg:inline-block hover:opacity-70 text-[12px] font-medium tracking-wide"
+              hrefLang={locale === 'en' ? 'uk' : 'en'}
+            >
+              {locale === 'en' ? 'UA' : 'EN'}
+            </a>
             <SearchDialog />
             <CartButton />
             {/* <a
@@ -184,22 +198,22 @@ export default function Header() {
             </button>
             <ul className="flex flex-col gap-1 text-[14px] text-lg">
               <li className="font-semibold uppercase tracking-wider  mb-6">
-                Меню
+                {t('Меню', 'Menu')}
               </li>
               <li className="font-medium border-b py-4 border-gray-300">
                 <Link href="/shop" onClick={closeMobileMenu}>
-                  Всі товари
+                  {t('Всі товари', 'All products')}
                 </Link>
               </li>
 
               <li className="border-b py-4 border-gray-300">
                 <Link href="/shop/sumky" onClick={closeMobileMenu}>
-                  Сумки
+                  {t('Сумки', 'Bags')}
                 </Link>
               </li>
               <li className="border-b py-4 border-gray-300">
                 <Link href="/shop/bananky" onClick={closeMobileMenu}>
-                  Бананки
+                  {t('Бананки', 'Belt bags')}
                 </Link>
               </li>
               {/* <li className="border-b py-4 border-gray-300">
@@ -209,18 +223,18 @@ export default function Header() {
               </li> */}
               <li className="border-b py-4 border-gray-300">
                 <Link href="/shop/chohly" onClick={closeMobileMenu}>
-                  Чохли
+                  {t('Чохли', 'Cases')}
                 </Link>
               </li>
               <li className="border-b py-4 border-gray-300">
                 <Link href="/shop/shopery" onClick={closeMobileMenu}>
-                  Шопери
+                  {t('Шопери', 'Shoppers')}
                 </Link>
               </li>
 
               <li className="border-b py-4 border-gray-300">
                 <Link href="/shop/group/beads" onClick={closeMobileMenu}>
-                  Бісер
+                  {t('Бісер', 'Beads')}
                 </Link>
               </li>
               <li className="border-b py-4 border-gray-300">
@@ -228,38 +242,50 @@ export default function Header() {
                   href="/shop/accessories/breloky"
                   onClick={closeMobileMenu}
                 >
-                  Брелоки
+                  {t('Брелоки', 'Keychains')}
                 </Link>
               </li>
               <li className="border-b py-4 border-gray-300">
                 <Link href="/shop/group/weaving" onClick={closeMobileMenu}>
-                  Плетіння
+                  {t('Плетіння', 'Weaving')}
                 </Link>
               </li>
               <li className="border-b py-4 border-gray-300">
                 <Link href="/shop/accessories" onClick={closeMobileMenu}>
-                  Аксесуари
+                  {t('Аксесуари', 'Accessories')}
                 </Link>
               </li>
               <li className=" border-b py-4 border-gray-300">
                 <Link href="/info" onClick={closeMobileMenu}>
-                  Інфо
+                  {t('Інфо', 'Info')}
                 </Link>
               </li>
               <li className="border-b py-4 border-gray-300">
                 <Link href="/about" onClick={closeMobileMenu}>
-                  Про нас
+                  {t('Про нас', 'About')}
                 </Link>
               </li>
               <li className="border-b py-4 border-gray-300">
                 <Link href="/contacts" onClick={closeMobileMenu}>
-                  Контакти
+                  {t('Контакти', 'Contacts')}
                 </Link>
               </li>
               <li className="border-b py-4 border-gray-300">
                 <Link href="/blog" onClick={closeMobileMenu}>
-                  Блог
+                  {t('Блог', 'Blog')}
                 </Link>
+              </li>
+              <li className="border-b py-4 border-gray-300">
+                <a
+                  href={
+                    locale === 'en'
+                      ? 'https://gerdan.online'
+                      : 'https://ca.gerdan.online'
+                  }
+                  onClick={closeMobileMenu}
+                >
+                  {locale === 'en' ? 'Українська' : 'English'}
+                </a>
               </li>
             </ul>
           </aside>

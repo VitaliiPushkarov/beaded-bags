@@ -19,6 +19,7 @@ import {
   isPreorderStatus,
   resolveAvailabilityStatus,
 } from '@/lib/availability'
+import { useLocale, useT } from '@/lib/i18n'
 
 const ProductGallery = dynamic(() => import('@/components/ProductGallery'), {
   ssr: false,
@@ -91,12 +92,13 @@ function choosePreferredVariant(
 }
 
 function ProductGalleryFallback({ src }: { src: string }) {
+  const t = useT()
   return (
     <div className="relative w-full">
       <div className="relative md:h-[420px] md:h-[580px] w-full overflow-hidden rounded bg-white">
         <Image
           src={src}
-          alt="Фото товару"
+          alt={t('Фото товару', 'Product image')}
           fill
           className="object-cover"
           priority
@@ -112,11 +114,17 @@ function buildVariantSelectionLabel(params: {
   color?: string | null
   size?: string | null
   pouchColor?: string | null
+  locale: 'uk' | 'en'
 }) {
+  const isEn = params.locale === 'en'
   const parts = [
     params.color?.trim(),
-    params.size?.trim() ? `Розмір: ${params.size.trim()}` : null,
-    params.pouchColor?.trim() ? `Мішечок: ${params.pouchColor.trim()}` : null,
+    params.size?.trim()
+      ? `${isEn ? 'Size' : 'Розмір'}: ${params.size.trim()}`
+      : null,
+    params.pouchColor?.trim()
+      ? `${isEn ? 'Pouch' : 'Мішечок'}: ${params.pouchColor.trim()}`
+      : null,
   ].filter((part): part is string => Boolean(part))
 
   return parts.length
@@ -149,6 +157,8 @@ function collectOptionImages(
 }
 
 export function ProductInteractive({ p }: { p: ProductWithVariants }) {
+  const locale = useLocale()
+  const t = useT()
   const [selectedColorKey, setSelectedColorKey] = useState<string | undefined>()
   const [isColorLockedByEntry, setIsColorLockedByEntry] = useState(false)
   const [selectedSizeId, setSelectedSizeId] = useState<string | undefined>()
@@ -181,7 +191,7 @@ export function ProductInteractive({ p }: { p: ProductWithVariants }) {
       if (!existing) {
         map.set(key, {
           key,
-          label: toOptionLabel(variant.color, 'Базовий'),
+          label: toOptionLabel(variant.color, locale === 'en' ? 'Base' : 'Базовий'),
           hex: variant.hex ?? null,
           minSort: sort,
           rank,
@@ -436,7 +446,7 @@ export function ProductInteractive({ p }: { p: ProductWithVariants }) {
 
   const shippingNote =
     ((v as any)?.shippingNote as string | undefined | null) ||
-    'Відправка протягом 1–3 днів'
+    t('Відправка протягом 1–3 днів', 'Ships within 1-3 days')
 
   const selectedColorLabel = colorOptions.find(
     (option) => option.key === selectedColorKey,
@@ -546,6 +556,7 @@ export function ProductInteractive({ p }: { p: ProductWithVariants }) {
     color: v?.color ?? null,
     size: selectedSize?.size ?? null,
     pouchColor: selectedPouch?.color ?? null,
+    locale,
   })
 
   const viewedKeyRef = useRef<string>('')
@@ -740,10 +751,13 @@ export function ProductInteractive({ p }: { p: ProductWithVariants }) {
               }
             >
               {variantInStock
-                ? 'Є в наявності'
+                ? t('Є в наявності', 'In stock')
                 : variantPreorder
-                  ? 'Відкрито передзамовлення (7–14 робочих днів). Залиште контакт — ми напишемо вам.'
-                  : 'Немає в наявності'}
+                  ? t(
+                      'Відкрито передзамовлення (7–14 робочих днів). Залиште контакт — ми напишемо вам.',
+                      'Pre-order is open (7-14 business days). Leave contact details and we will reach out.',
+                    )
+                  : t('Немає в наявності', 'Out of stock')}
             </span>
           </div>
 
@@ -756,10 +770,11 @@ export function ProductInteractive({ p }: { p: ProductWithVariants }) {
                   <div className="w-full rounded-xl border border-gray-200 p-3 md:p-4 mb-4 bg-white">
                     <div className="mb-3 flex items-center justify-between gap-3">
                       <div className="text-sm font-medium text-gray-900 uppercase tracking-wide">
-                        Конструктор
+                        {t('Конструктор', 'Configurator')}
                       </div>
                       <div className="text-xs text-gray-600">
-                        Крок {completedSteps} з {totalSteps}
+                        {t('Крок', 'Step')} {completedSteps} {t('з', 'of')}{' '}
+                        {totalSteps}
                       </div>
                     </div>
 
@@ -773,7 +788,8 @@ export function ProductInteractive({ p }: { p: ProductWithVariants }) {
                     <div className="space-y-4">
                       <div>
                         <div className="mb-2 text-xs uppercase tracking-wide text-gray-500">
-                          Крок {stepNumberById.get('color')}: Загальний колір
+                          {t('Крок', 'Step')} {stepNumberById.get('color')}:{' '}
+                          {t('Загальний колір', 'Base color')}
                         </div>
                         <div className="flex flex-wrap gap-2">
                           {colorOptions.map((option) => {
@@ -811,7 +827,8 @@ export function ProductInteractive({ p }: { p: ProductWithVariants }) {
                         </div>
                         {isColorLockedByEntry && (
                           <div className="mt-2 text-xs text-gray-500">
-                            Початковий колір із каталогу:{' '}
+                            {t('Початковий колір із каталогу', 'Initial color from catalog')}
+                            :{' '}
                             {selectedColorLabel || '—'}
                           </div>
                         )}
@@ -820,7 +837,8 @@ export function ProductInteractive({ p }: { p: ProductWithVariants }) {
                       {showSizeStepBlock && (
                         <div>
                           <div className="mb-2 text-xs uppercase tracking-wide text-gray-500">
-                            Крок {stepNumberById.get('size')}: Розмір
+                            {t('Крок', 'Step')} {stepNumberById.get('size')}:{' '}
+                            {t('Розмір', 'Size')}
                           </div>
                           <div className="flex flex-wrap gap-2">
                             {sizeOptions.map((size) => {
@@ -842,14 +860,17 @@ export function ProductInteractive({ p }: { p: ProductWithVariants }) {
                                   }`}
                                 >
                                   {size.size}
-                                  {extra > 0 ? ` (+${extra} грн)` : ''}
+                                  {extra > 0 ? ` (+${extra} ${t('грн', 'UAH')})` : ''}
                                 </button>
                               )
                             })}
                           </div>
                           {!selectedSizeId && (
                             <div className="mt-2 text-xs text-red-600">
-                              Оберіть розмір, щоб продовжити.
+                              {t(
+                                'Оберіть розмір, щоб продовжити.',
+                                'Choose size to continue.',
+                              )}
                             </div>
                           )}
                         </div>
@@ -858,7 +879,8 @@ export function ProductInteractive({ p }: { p: ProductWithVariants }) {
                       {showPouchStepBlock && (
                         <div>
                           <div className="mb-2 text-xs uppercase tracking-wide text-gray-500">
-                            Крок {stepNumberById.get('pouch')}: Колір мішечка
+                            {t('Крок', 'Step')} {stepNumberById.get('pouch')}:{' '}
+                            {t('Колір мішечка', 'Pouch color')}
                           </div>
                           <div className="flex flex-wrap gap-2">
                             {pouchOptions.map((pouch) => {
@@ -880,14 +902,17 @@ export function ProductInteractive({ p }: { p: ProductWithVariants }) {
                                   }`}
                                 >
                                   {pouch.color}
-                                  {extra > 0 ? ` (+${extra} грн)` : ''}
+                                  {extra > 0 ? ` (+${extra} ${t('грн', 'UAH')})` : ''}
                                 </button>
                               )
                             })}
                           </div>
                           {!selectedPouchId && (
                             <div className="mt-2 text-xs text-red-600">
-                              Оберіть колір мішечка, щоб продовжити.
+                              {t(
+                                'Оберіть колір мішечка, щоб продовжити.',
+                                'Choose pouch color to continue.',
+                              )}
                             </div>
                           )}
                         </div>
@@ -896,7 +921,8 @@ export function ProductInteractive({ p }: { p: ProductWithVariants }) {
                       {showStrapStepBlock && (
                         <div>
                           <div className="mb-2 text-xs uppercase tracking-wide text-gray-500">
-                            Крок {stepNumberById.get('strap')}: Ремінець
+                            {t('Крок', 'Step')} {stepNumberById.get('strap')}:{' '}
+                            {t('Ремінець', 'Strap')}
                           </div>
                           <div className="flex flex-wrap gap-2">
                             {strapOptions.map((strap) => {
@@ -929,7 +955,7 @@ export function ProductInteractive({ p }: { p: ProductWithVariants }) {
                                   ) : null}
                                   <span>
                                     {strap.name}
-                                    {extra > 0 ? ` (+${extra} грн)` : ''}
+                                    {extra > 0 ? ` (+${extra} ${t('грн', 'UAH')})` : ''}
                                   </span>
                                 </button>
                               )
@@ -937,7 +963,10 @@ export function ProductInteractive({ p }: { p: ProductWithVariants }) {
                           </div>
                           {!strapId && (
                             <div className="mt-2 text-xs text-red-600">
-                              Оберіть ремінець, щоб продовжити.
+                              {t(
+                                'Оберіть ремінець, щоб продовжити.',
+                                'Choose strap to continue.',
+                              )}
                             </div>
                           )}
                         </div>
@@ -947,17 +976,19 @@ export function ProductInteractive({ p }: { p: ProductWithVariants }) {
 
                   <div className="mb-4 w-full rounded-lg border border-gray-100 bg-gray-50 px-3 py-2 text-xs text-gray-700">
                     <div className="font-medium text-gray-900 mb-1">
-                      Ваш вибір:
+                      {t('Ваш вибір', 'Your selection')}:
                     </div>
-                    {v?.color && <div>Колір: {v.color}</div>}
+                    {v?.color && <div>{t('Колір', 'Color')}: {v.color}</div>}
                     {selectedSize?.size && (
-                      <div>Розмір: {selectedSize.size}</div>
+                      <div>{t('Розмір', 'Size')}: {selectedSize.size}</div>
                     )}
                     {selectedPouch?.color && (
-                      <div>Колір мішечка: {selectedPouch.color}</div>
+                      <div>
+                        {t('Колір мішечка', 'Pouch color')}: {selectedPouch.color}
+                      </div>
                     )}
                     {selectedStrap?.name && (
-                      <div>Ремінець: {selectedStrap.name}</div>
+                      <div>{t('Ремінець', 'Strap')}: {selectedStrap.name}</div>
                     )}
                     {/*  {!isConfigurationComplete && (
                       <div className="mt-1 text-red-600">
@@ -970,7 +1001,7 @@ export function ProductInteractive({ p }: { p: ProductWithVariants }) {
                 simpleSwatchEntries.length > 1 && (
                   <div className="mb-4 w-full">
                     <div className="mb-2 flex items-center gap-2 text-sm text-gray-600">
-                      <span>Колір:</span>
+                      <span>{t('Колір', 'Color')}:</span>
                       {v?.color && (
                         <span className="font-medium text-gray-900">
                           {v.color}
@@ -1051,7 +1082,7 @@ export function ProductInteractive({ p }: { p: ProductWithVariants }) {
             </div>
 
             <p>
-              Маєте питання? Напишіть нам у{' '}
+              {t('Маєте питання? Напишіть нам у', 'Have questions? Message us on')}{' '}
               <a
                 href="https://instagram.com/gerdan.studio"
                 target="_blank"

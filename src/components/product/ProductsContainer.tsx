@@ -7,11 +7,16 @@ import AppliedChips from './AppliedChips'
 import ProductsGrid from './ProductsGrid'
 import Breadcrumbs from '../ui/BreadCrumbs'
 import type { ProductType } from '@prisma/client'
-import { ACTIVE_PRODUCT_TYPES, TYPE_LABELS, COLOR_LABELS } from '@/lib/labels'
+import {
+  ACTIVE_PRODUCT_TYPES,
+  getColorLabel,
+  getTypeLabel,
+} from '@/lib/labels'
 import type { ProductWithVariants as CardProductWithVariants } from '@/app/products/ProductCardLarge'
 import { resolveDiscountPercent } from '@/lib/pricing'
 import { matchAccessorySubcategory } from '@/lib/shop-taxonomy'
 import { isInStockStatus, resolveAvailabilityStatus } from '@/lib/availability'
+import { useLocale, useT } from '@/lib/i18n'
 
 export type UIFilters = {
   q: string
@@ -128,9 +133,9 @@ function matchesSelectedType(
   return product.type === selectedType
 }
 
-function groupLabel(g: UIFilters['group']): string {
-  if (g === 'BEADS') return 'Бісер'
-  if (g === 'WEAVING') return 'Плетіння'
+function groupLabel(g: UIFilters['group'], locale: 'uk' | 'en'): string {
+  if (g === 'BEADS') return locale === 'en' ? 'Beads' : 'Бісер'
+  if (g === 'WEAVING') return locale === 'en' ? 'Weaving' : 'Плетіння'
   return ''
 }
 
@@ -186,6 +191,8 @@ export default function ProductsContainer({
   accessorySubcategoryOptions?: Array<{ value: string; label: string }>
   title?: string
 }) {
+  const locale = useLocale()
+  const t = useT()
   // початковий масив
   const [base] = useState<ProductWithVariants[]>(initialProducts)
   const [visible, setVisible] = useState<ProductWithVariants[]>(initialProducts)
@@ -479,14 +486,18 @@ export default function ProductsContainer({
       label: string
     }[] = []
     if (applied.q.trim()) out.push({ key: 'q', label: `“${applied.q.trim()}”` })
-    if (applied.inStock) out.push({ key: 'inStock', label: 'В наявності' })
+    if (applied.inStock)
+      out.push({ key: 'inStock', label: t('В наявності', 'In stock') })
     if (applied.onSale) out.push({ key: 'onSale', label: 'On sale' })
     if (!lockedGroup && applied.group)
-      out.push({ key: 'group', label: `Група: ${groupLabel(applied.group)}` })
+      out.push({
+        key: 'group',
+        label: `${t('Група', 'Group')}: ${groupLabel(applied.group, locale)}`,
+      })
     if (!lockedType && applied.bagTypes)
       out.push({
         key: 'bagTypes',
-        label: `Тип: ${TYPE_LABELS[applied.bagTypes] || applied.bagTypes}`,
+        label: `${t('Тип', 'Type')}: ${getTypeLabel(applied.bagTypes, locale) || applied.bagTypes}`,
       })
     if (isAccessoryType(lockedType ?? applied.bagTypes) && applied.accessorySubcategory) {
       const subcategoryLabel = subcategoryOptions.find(
@@ -494,7 +505,7 @@ export default function ProductsContainer({
       )?.label
       out.push({
         key: 'accessorySubcategory',
-        label: `Підкатегорія: ${
+        label: `${t('Підкатегорія', 'Subcategory')}: ${
           subcategoryLabel || applied.accessorySubcategory
         }`,
       })
@@ -502,31 +513,35 @@ export default function ProductsContainer({
     if (applied.color)
       out.push({
         key: 'color',
-        label: `Колір: ${COLOR_LABELS[applied.color] || applied.color}`,
+        label: `${t('Колір', 'Color')}: ${getColorLabel(applied.color, locale) || applied.color}`,
       })
     if (applied.min || applied.max)
       out.push({
         key: 'price',
-        label: `Ціна: ${applied.min || '—'} — ${applied.max || '—'}`,
+        label: `${t('Ціна', 'Price')}: ${applied.min || '—'} — ${applied.max || '—'}`,
       })
     if (applied.sortBase) {
       out.push({
         key: 'sortBase',
-        label: `Сортування: ${
-          applied.sortBase === 'new' ? 'Новинки' : 'Популярні'
+        label: `${t('Сортування', 'Sorting')}: ${
+          applied.sortBase === 'new'
+            ? t('Новинки', 'New')
+            : t('Популярні', 'Popular')
         }`,
       })
     }
     if (applied.sortPrice) {
       out.push({
         key: 'sortPrice',
-        label: `Сортування: ${
-          applied.sortPrice === 'asc' ? 'Ціна ↑' : 'Ціна ↓'
+        label: `${t('Сортування', 'Sorting')}: ${
+          applied.sortPrice === 'asc'
+            ? `${t('Ціна', 'Price')} ↑`
+            : `${t('Ціна', 'Price')} ↓`
         }`,
       })
     }
     return out
-  }, [applied, lockedType, lockedGroup, subcategoryOptions])
+  }, [applied, lockedType, lockedGroup, subcategoryOptions, locale, t])
 
   const removeChip = (key: string) => {
     let next: UIFilters
@@ -634,19 +649,19 @@ export default function ProductsContainer({
     <div className="max-w-[1440px] mx-auto py-6 px-5 md:px-[50px]">
       <Breadcrumbs />
       <div className="flex items-center justify-between py-4 lg:mb-6 lg:items-end">
-        <h1 className="text-2xl lg:text-3xl">{title}</h1>
+        <h1 className="text-2xl lg:text-3xl">{locale === 'en' && title === 'Каталог' ? 'Catalog' : title}</h1>
         <button
           onClick={() => setMobileOpen(true)}
           className="uppercase flex items-center gap-2 lg:hidden"
         >
-          Фільтр +
+          {t('Фільтр', 'Filter')} +
         </button>
         <button
           onClick={apply}
           disabled={!isDirty}
           className="hidden lg:inline-flex items-center justify-center px-6 py-2 rounded bg-black text-white hover:bg-[#FF3D8C] transition h-11 w-[275px] disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
         >
-          Застосувати
+          {t('Застосувати', 'Apply')}
         </button>
       </div>
 

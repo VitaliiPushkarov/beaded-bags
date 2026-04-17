@@ -9,8 +9,10 @@ import { useIsMounted } from '@/lib/useIsMounted'
 import { pushMetaInitiateCheckout } from '@/lib/analytics/datalayer'
 import { usePromo } from '@/lib/usePromo'
 import { resolvePromoCode, calcDiscountUAH } from '@/lib/promo'
+import { useT } from '@/lib/i18n'
 
 export default function CartDrawer() {
+  const t = useT()
   const cartOpen = useUI((s) => s.cartOpen)
   const closeCart = useUI((s) => s.closeCart)
   const items = useCart((s) => s.items)
@@ -69,7 +71,7 @@ export default function CartDrawer() {
         {/* Panel */}
         <aside
           role="dialog"
-          aria-label="Кошик"
+          aria-label={t('Кошик', 'Cart')}
           className={` fixed top-0 right-0 h-dvh bg-white shadow-2xl transition-transform duration-300
                     w-full sm:w-[480px] lg:w-[33.333%]
                     ${cartOpen ? 'translate-x-0' : 'translate-x-full'}`}
@@ -78,11 +80,12 @@ export default function CartDrawer() {
             {/* Header */}
             <div className="flex items-center justify-between px-5 py-4 border-b flex-none">
               <h2 className="text-xl font-medium" suppressHydrationWarning>
-                Кошик {isMounted && items.length ? `(${items.length})` : ''}
+                {t('Кошик', 'Cart')}{' '}
+                {isMounted && items.length ? `(${items.length})` : ''}
               </h2>
               <button
                 onClick={closeCart}
-                aria-label="Закрити"
+                aria-label={t('Закрити', 'Close')}
                 className="text-5xl font-light leading-none cursor-pointer flex items-center"
               >
                 <span className="text-2xl leading-none">&times;</span>
@@ -91,7 +94,7 @@ export default function CartDrawer() {
 
             {/* Scrollable items list */}
             <div className="flex-1 overflow-auto px-5 py-4 space-y-4">
-              {items.length === 0 && <p>Кошик порожній.</p>}
+              {items.length === 0 && <p>{t('Кошик порожній.', 'Cart is empty.')}</p>}
 
               {items.map((it) => (
                 <div
@@ -122,22 +125,22 @@ export default function CartDrawer() {
                       </div>
                       {it.color && (
                         <div className="text-xs mt-1 text-gray-600">
-                          Колір: {it.color}
+                          {t('Колір', 'Color')}: {it.color}
                         </div>
                       )}
                       {it.modelSize && (
                         <div className="text-xs mt-1 text-gray-600">
-                          Розмір моделі: {it.modelSize}
+                          {t('Розмір моделі', 'Size')}: {it.modelSize}
                         </div>
                       )}
                       {it.pouchColor && (
                         <div className="text-xs mt-1 text-gray-600">
-                          Мішечок: {it.pouchColor}
+                          {t('Мішечок', 'Pouch')}: {it.pouchColor}
                         </div>
                       )}
                       {it.strapName && (
                         <div className="text-xs mt-1 text-gray-600">
-                          Ремінець: {it.strapName}
+                          {t('Ремінець', 'Strap')}: {it.strapName}
                         </div>
                       )}
 
@@ -153,7 +156,7 @@ export default function CartDrawer() {
                         }}
                         className="mt-2 text-rose-600 hover:text-rose-700 text-sm cursor-pointer"
                       >
-                        Видалити
+                        {t('Видалити', 'Remove')}
                       </button>
                     </div>
                   </div>
@@ -183,7 +186,7 @@ export default function CartDrawer() {
                             )
                           }
                         }}
-                        aria-label="Менше"
+                        aria-label={t('Менше', 'Decrease')}
                       >
                         −
                       </button>
@@ -200,7 +203,7 @@ export default function CartDrawer() {
                             it.pouchId,
                           )
                         }}
-                        aria-label="Більше"
+                        aria-label={t('Більше', 'Increase')}
                       >
                         +
                       </button>
@@ -217,7 +220,7 @@ export default function CartDrawer() {
                   className="flex items-center justify-between text-sm text-gray-600"
                   suppressHydrationWarning
                 >
-                  <span>Знижка (промокод)</span>
+                  <span>{t('Знижка (промокод)', 'Discount (promo code)')}</span>
                   <span>- {discountUAH} грн</span>
                 </div>
               )}
@@ -226,7 +229,7 @@ export default function CartDrawer() {
                 className="flex items-center justify-between text-lg"
                 suppressHydrationWarning
               >
-                <span>Разом:</span>
+                <span>{t('Разом', 'Total')}:</span>
                 <span className="font-semibold">{finalTotalUAH} грн</span>
               </div>
 
@@ -235,7 +238,7 @@ export default function CartDrawer() {
                 onClick={closeCart}
                 className="block w-full text-center rounded bg-black text-white py-3 hover:bg-[#FF3D8C] transition"
               >
-                Переглянути кошик
+                {t('Переглянути кошик', 'View cart')}
               </Link>
 
               <Link
@@ -259,7 +262,7 @@ export default function CartDrawer() {
                 }}
                 className="block w-full text-center rounded border border-black py-3 hover:bg-black hover:text-white transition"
               >
-                Оформлення замовлення
+                {t('Оформлення замовлення', 'Checkout')}
               </Link>
             </div>
           </div>

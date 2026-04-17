@@ -3,6 +3,7 @@ import Link from 'next/link'
 import Image from 'next/image'
 import { ChevronLeft, ChevronRight } from 'lucide-react'
 import { calcDiscountedPrice } from '@/lib/pricing'
+import { useLocaleNumberFormat, useT } from '@/lib/i18n'
 
 type LiteVariant = {
   id?: string
@@ -40,6 +41,8 @@ export default function YouMayAlsoLike({
   pinnedSlugs?: string[]
   limit?: number
 }) {
+  const t = useT()
+  const numberLocale = useLocaleNumberFormat()
   const scrollerRef = useRef<HTMLDivElement | null>(null)
   const [items, setItems] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
@@ -164,14 +167,14 @@ export default function YouMayAlsoLike({
   return (
     <div className="relative">
       <h3 className="text-2xl font-semibold mb-5 uppercase">
-        Вам також може сподобатись
+        {t('Вам також може сподобатись', 'You may also like')}
       </h3>
       {/* arrows */}
       <button
         type="button"
         onClick={() => scrollByAmount('left')}
         className="hidden md:flex absolute -left-3 top-1/2 -translate-y-1/2 z-10 h-10 w-10 items-center justify-center rounded-full border bg-white shadow-sm hover:bg-[#FF3D8C] hover:text-white transition cursor-pointer"
-        aria-label="Prev"
+        aria-label={t('Попередні', 'Previous')}
       >
         <ChevronLeft className="h-5 w-5" />
       </button>
@@ -180,7 +183,7 @@ export default function YouMayAlsoLike({
         type="button"
         onClick={() => scrollByAmount('right')}
         className="hidden md:flex absolute -right-3 top-1/2 -translate-y-1/2 z-10 h-10 w-10 items-center justify-center rounded-full border bg-white shadow-sm hover:bg-[#FF3D8C] hover:text-white transition cursor-pointer"
-        aria-label="Next"
+        aria-label={t('Наступні', 'Next')}
       >
         <ChevronRight className="h-5 w-5" />
       </button>
@@ -292,11 +295,13 @@ export default function YouMayAlsoLike({
                     </div>
                     {hasAnyPrice && (
                       <div className="text-sm text-gray-900 whitespace-nowrap flex items-baseline gap-1.5">
-                        <span>{finalPriceUAH.toLocaleString('uk-UA')} ₴</span>
+                        <span>
+                          {finalPriceUAH.toLocaleString(numberLocale)} ₴
+                        </span>
                         {hasDiscount && (
                           <>
                             <span className="text-xs text-gray-500 line-through">
-                              {basePriceUAH.toLocaleString('uk-UA')} ₴
+                              {basePriceUAH.toLocaleString(numberLocale)} ₴
                             </span>
                             <span className="text-[10px] border border-black rounded-full px-1.5 py-0.5 self-center">
                               -{discountPercent}%

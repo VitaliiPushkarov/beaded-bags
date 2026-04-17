@@ -3,8 +3,9 @@
 import Link from 'next/link'
 import { usePathname, useSearchParams } from 'next/navigation'
 import { useMemo } from 'react'
-import { TYPE_LABELS } from '@/lib/labels'
+import { getTypeLabel } from '@/lib/labels'
 import type { ProductType } from '@prisma/client'
+import { useLocale } from '@/lib/i18n'
 
 type Crumb = { label: string; href?: string }
 const SITE_URL = 'https://gerdan.online'
@@ -15,7 +16,7 @@ const nice = (s: string) =>
     .replace(/\b\w/g, (m) => m.toUpperCase())
 
 /** Мапа підписів для поширених роутів/фільтрів */
-const LABELS: Record<string, string> = {
+const LABELS_UK: Record<string, string> = {
   shop: 'Каталог',
   sumky: 'Сумки',
   bananky: 'Бананки',
@@ -45,10 +46,40 @@ const LABELS: Record<string, string> = {
   blog: 'Блог',
 }
 
-function typeLabel(t?: string | null) {
+const LABELS_EN: Record<string, string> = {
+  shop: 'Catalog',
+  sumky: 'Bags',
+  bananky: 'Belt Bags',
+  rjukzachky: 'Backpacks',
+  shopery: 'Shoppers',
+  chohly: 'Cases',
+  prykrasy: 'Accessories',
+  accessories: 'Accessories',
+  breloky: 'Keychains',
+  gerdany: 'Gerdans',
+  sylyanky: 'Sylyanky',
+  mitenky: 'Mittens',
+  'navushnyky-viazani': 'Knitted Headphones',
+  sharfy: 'Scarves',
+  rezynky: 'Hair Ties',
+  shapky: 'Beanies',
+  chepchyky: 'Bonnets',
+  about: 'About',
+  info: 'Info',
+  checkout: 'Checkout',
+  success: 'Success',
+  pay: 'Payment',
+  oferta: 'Public offer',
+  policy: 'Privacy policy',
+  cashback: 'Returns & exchange',
+  contacts: 'Contacts',
+  blog: 'Blog',
+}
+
+function typeLabel(t?: string | null, locale: 'uk' | 'en' = 'uk') {
   if (!t) return ''
   const asEnum = (t.toUpperCase?.() ?? t) as ProductType
-  return TYPE_LABELS[asEnum] || nice(t)
+  return getTypeLabel(asEnum, locale) || nice(t)
 }
 
 import { Suspense } from 'react'
@@ -62,6 +93,8 @@ export default function Breadcrumbs(props: { override?: Crumb[] }) {
 }
 
 function BreadcrumbsInner({ override }: { override?: Crumb[] }) {
+  const locale = useLocale()
+  const labels = locale === 'en' ? LABELS_EN : LABELS_UK
   const pathname = usePathname()
   const sp = useSearchParams()
 
@@ -69,13 +102,13 @@ function BreadcrumbsInner({ override }: { override?: Crumb[] }) {
     if (override) return override
 
     const parts = (pathname || '/').split('/').filter(Boolean)
-    const acc: Crumb[] = [{ label: 'Головна', href: '/' }]
+    const acc: Crumb[] = [{ label: locale === 'en' ? 'Home' : 'Головна', href: '/' }]
 
     let href = ''
     parts.forEach((p, idx) => {
       href += `/${p}`
       const isLast = idx === parts.length - 1
-      const baseLabel = LABELS[p] || nice(p)
+      const baseLabel = labels[p] || nice(p)
 
       // спец-випадок: сторінка каталогу з фільтрами (?type=… & group=… & color=…)
       if (p === 'products') {
@@ -86,15 +119,19 @@ function BreadcrumbsInner({ override }: { override?: Crumb[] }) {
 
         if (group) {
           list.push({
-            label: `Група: ${nice(group)}`,
+            label: `${locale === 'en' ? 'Group' : 'Група'}: ${nice(group)}`,
             href: `/products?group=${encodeURIComponent(group)}`,
           })
         }
         if (type) {
-          list.push({ label: `Тип: ${typeLabel(type)}` })
+          list.push({
+            label: `${locale === 'en' ? 'Type' : 'Тип'}: ${typeLabel(type, locale)}`,
+          })
         }
         if (color) {
-          list.push({ label: `Колір: ${nice(color)}` })
+          list.push({
+            label: `${locale === 'en' ? 'Color' : 'Колір'}: ${nice(color)}`,
+          })
         }
         return acc.push(...list)
       }
@@ -104,7 +141,7 @@ function BreadcrumbsInner({ override }: { override?: Crumb[] }) {
     })
 
     return acc
-  }, [pathname, sp, override])
+  }, [pathname, sp, override, locale, labels])
 
   const jsonLd = useMemo(() => {
     if (crumbs.length <= 1) return null
@@ -124,7 +161,10 @@ function BreadcrumbsInner({ override }: { override?: Crumb[] }) {
 
   return (
     <>
-      <nav aria-label="Хлібні крихти" className="mb-5 md:mb-10">
+      <nav
+        aria-label={locale === 'en' ? 'Breadcrumbs' : 'Хлібні крихти'}
+        className="mb-5 md:mb-10"
+      >
         <ol className="flex flex-wrap items-center gap-2 text-sm text-gray-600">
           {crumbs.map((c, i) => {
             const last = i === crumbs.length - 1

@@ -12,6 +12,7 @@ import {
   pickFirstQueryValue,
   type QueryParamValue,
 } from '@/lib/seo/faceted'
+import { getRequestLocale } from '@/lib/server-locale'
 
 export const revalidate = 300
 
@@ -75,12 +76,18 @@ export async function generateMetadata({
 }: {
   searchParams: Promise<ShopSearchParams>
 }): Promise<Metadata> {
+  const locale = await getRequestLocale()
   const sp = await searchParams
   const shouldNoindex = hasFacetedQueryParams(sp)
   return {
-    title: 'Каталог сумок ручної роботи та аксесуарів',
+    title:
+      locale === 'en'
+        ? 'Catalog of Handmade Bags and Accessories'
+        : 'Каталог сумок ручної роботи та аксесуарів',
     description:
-      'Каталог GERDAN: сумки ручної роботи, сумки з бісеру, плетені сумки, чохли та аксесуари.',
+      locale === 'en'
+        ? 'GERDAN catalog: handmade bags, beaded bags, woven bags, cases and accessories.'
+        : 'Каталог GERDAN: сумки ручної роботи, сумки з бісеру, плетені сумки, чохли та аксесуари.',
     alternates: {
       canonical: canonicalForShopFilters(sp),
     },
@@ -98,6 +105,7 @@ export default async function ShopPage({
 }: {
   searchParams: Promise<ShopSearchParams>
 }) {
+  const locale = await getRequestLocale()
   const sp = await searchParams
   const rawType = pickFirstQueryValue(sp.type)
   const rawGroup = pickFirstQueryValue(sp.group)
@@ -132,17 +140,20 @@ export default async function ShopPage({
     return (
       <div className="max-w-6xl mx-auto px-4 py-12">
         <h1 className="text-2xl font-semibold mb-4">
-          Категорія скоро буде доступна
+          {locale === 'en'
+            ? 'This category will be available soon'
+            : 'Категорія скоро буде доступна'}
         </h1>
         <p className="text-gray-600 mb-6">
-          Ви перейшли за посиланням на категорію, яку ми ще не додали в каталог.
-          Оберіть інший розділ або перегляньте всі товари.
+          {locale === 'en'
+            ? 'You opened a category link that is not yet in our catalog. Choose another section or browse all products.'
+            : 'Ви перейшли за посиланням на категорію, яку ми ще не додали в каталог. Оберіть інший розділ або перегляньте всі товари.'}
         </p>
         <Link
           href="/shop"
           className="inline-flex items-center rounded bg-black text-white px-4 py-2 text-sm hover:bg-neutral-800"
         >
-          Усі товари
+          {locale === 'en' ? 'All products' : 'Усі товари'}
         </Link>
       </div>
     )

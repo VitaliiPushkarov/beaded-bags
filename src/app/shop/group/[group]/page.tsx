@@ -7,6 +7,7 @@ import {
   pickFirstQueryValue,
   type QueryParamValue,
 } from '@/lib/seo/faceted'
+import { getRequestLocale } from '@/lib/server-locale'
 
 export const revalidate = 300
 
@@ -37,11 +38,11 @@ function toUiGroup(g: DbGroup): UiGroup {
   return ''
 }
 
-function titleForGroup(g: DbGroup): string {
-  if (g === 'BEADS') return 'Бісер'
-  if (g === 'WEAVING') return 'Плетіння'
+function titleForGroup(g: DbGroup, locale: 'uk' | 'en' = 'uk'): string {
+  if (g === 'BEADS') return locale === 'en' ? 'Beads' : 'Бісер'
+  if (g === 'WEAVING') return locale === 'en' ? 'Weaving' : 'Плетіння'
 
-  return 'Група'
+  return locale === 'en' ? 'Group' : 'Група'
 }
 
 function groupCanonicalSlug(g: DbGroup): string {
@@ -77,6 +78,7 @@ export async function generateMetadata({
   params,
   searchParams,
 }: ShopGroupPageProps): Promise<Metadata> {
+  const locale = await getRequestLocale()
   const { group } = await params
   const sp = await searchParams
   const dbGroup = normalizeGroupParam(group)
@@ -90,12 +92,20 @@ export async function generateMetadata({
   return {
     title:
       dbGroup === 'BEADS'
-        ? 'Сумки та аксесуари з бісеру'
-        : 'Плетені сумки та аксесуари',
+        ? locale === 'en'
+          ? 'Beaded Bags and Accessories'
+          : 'Сумки та аксесуари з бісеру'
+        : locale === 'en'
+          ? 'Woven Bags and Accessories'
+          : 'Плетені сумки та аксесуари',
     description:
       dbGroup === 'BEADS'
-        ? 'Каталог GERDAN групи "Бісер": сумки з бісеру, чохли з бісеру та акцентні аксесуари.'
-        : 'Каталог GERDAN групи "Плетіння": плетені сумки, шопери та аксесуари ручної роботи.',
+        ? locale === 'en'
+          ? 'GERDAN beads group catalog: beaded bags, beaded cases and statement accessories.'
+          : 'Каталог GERDAN групи "Бісер": сумки з бісеру, чохли з бісеру та акцентні аксесуари.'
+        : locale === 'en'
+          ? 'GERDAN weaving group catalog: woven bags, shoppers and handmade accessories.'
+          : 'Каталог GERDAN групи "Плетіння": плетені сумки, шопери та аксесуари ручної роботи.',
     alternates: {
       canonical: `/shop/group/${groupCanonicalSlug(dbGroup)}`,
     },
@@ -112,6 +122,7 @@ export default async function ShopGroupPage({
   params,
   searchParams,
 }: ShopGroupPageProps) {
+  const locale = await getRequestLocale()
   const { group } = await params
   const sp = await searchParams
 
@@ -128,7 +139,7 @@ export default async function ShopGroupPage({
   const listLd = {
     '@context': 'https://schema.org',
     '@type': 'ItemList',
-    name: titleForGroup(dbGroup),
+    name: titleForGroup(dbGroup, locale),
     itemListElement: products.slice(0, 24).map((product, index) => ({
       '@type': 'ListItem',
       position: index + 1,
@@ -140,7 +151,7 @@ export default async function ShopGroupPage({
       <ProductsContainer
         initialProducts={products}
         lockedGroup={dbGroup}
-        title={titleForGroup(dbGroup)}
+        title={titleForGroup(dbGroup, locale)}
       />
       <script
         type="application/ld+json"

@@ -3,6 +3,7 @@
 import Image from 'next/image'
 import dynamic from 'next/dynamic'
 import { useEffect, useRef, useState } from 'react'
+import { useT } from '@/lib/i18n'
 
 const InstagramSliderInner = dynamic(() => import('./InstagramSliderInner'), {
   ssr: false,
@@ -32,6 +33,7 @@ const previewImages = [
 ]
 
 export default function InstagramSlider() {
+  const t = useT()
   const containerRef = useRef<HTMLDivElement | null>(null)
   const [active, setActive] = useState(false)
 
@@ -74,7 +76,7 @@ export default function InstagramSlider() {
                 target="_blank"
                 rel="noopener noreferrer"
                 className="block shrink-0 w-[75%] sm:w-[48%] md:w-[24%]"
-                aria-label="Перейти в Instagram"
+                aria-label={t('Перейти в Instagram', 'Open Instagram')}
               >
                 <div className="relative w-full h-[360px] md:h-[420px] overflow-hidden bg-gray-100">
                   <Image

@@ -3,6 +3,7 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
 import Link from 'next/link'
 import SearchIcon from '@/components/icons/Search'
+import { useLocaleNumberFormat, useT } from '@/lib/i18n'
 
 type SearchProduct = {
   id: string
@@ -31,6 +32,8 @@ function getProductImage(p: SearchProduct): string {
 }
 
 export default function SearchDialog() {
+  const t = useT()
+  const numberLocale = useLocaleNumberFormat()
   const [open, setOpen] = useState(false)
   const [q, setQ] = useState('')
   const [results, setResults] = useState<SearchProduct[]>([])
@@ -164,7 +167,7 @@ export default function SearchDialog() {
     <>
       {/* trigger */}
       <button
-        aria-label="Пошук (/)"
+        aria-label={t('Пошук (/)', 'Search (/)')}
         onClick={() => {
           setShowAll(false)
           setOpen(true)
@@ -201,7 +204,7 @@ export default function SearchDialog() {
                     setQ(e.target.value)
                     setShowAll(false)
                   }}
-                  placeholder="Пошук товарів…"
+                  placeholder={t('Пошук товарів…', 'Search products...')}
                   className="flex-1 py-3 outline-none placeholder:text-gray-400"
                 />
                 <button
@@ -209,7 +212,7 @@ export default function SearchDialog() {
                     setOpen(false)
                     setShowAll(false)
                   }}
-                  aria-label="Закрити пошук"
+                  aria-label={t('Закрити пошук', 'Close search')}
                   className="ml-2 text-xl font-light leading-none cursor-pointer "
                 >
                   <span className="text-2xl leading-none">&times;</span>
@@ -218,11 +221,13 @@ export default function SearchDialog() {
 
               <ul className="flex-1 min-h-0 overflow-auto divide-y lg:max-h-80">
                 {q && loading && (
-                  <li className="p-4 text-sm text-gray-500">Пошук…</li>
+                  <li className="p-4 text-sm text-gray-500">
+                    {t('Пошук…', 'Searching...')}
+                  </li>
                 )}
                 {q && !loading && visibleResults.length === 0 && (
                   <li className="p-4 text-sm text-gray-500">
-                    Нічого не знайдено
+                    {t('Нічого не знайдено', 'No results found')}
                   </li>
                 )}
                 {visibleResults.map((p) => (
@@ -247,7 +252,7 @@ export default function SearchDialog() {
                         <div className="text-sm">{p.name}</div>
                         {typeof p.basePriceUAH === 'number' ? (
                           <div className="text-xs text-gray-500">
-                            {p.basePriceUAH.toLocaleString('uk-UA')} ₴
+                            {p.basePriceUAH.toLocaleString(numberLocale)} ₴
                           </div>
                         ) : null}
                       </div>
@@ -261,7 +266,7 @@ export default function SearchDialog() {
                       onClick={() => setShowAll(true)}
                       className="w-full h-11 border border-black bg-white text-black text-sm font-medium hover:bg-black hover:text-white transition"
                     >
-                      Показати всі ({matchesCount})
+                      {t('Показати всі', 'Show all')} ({matchesCount})
                     </button>
                   </div>
                 )}

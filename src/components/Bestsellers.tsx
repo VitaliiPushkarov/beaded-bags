@@ -3,6 +3,7 @@ import Link from 'next/link'
 import type { Product, ProductVariant } from '@prisma/client'
 import { calcDiscountedPrice } from '@/lib/pricing'
 import { matchAccessorySubcategory } from '@/lib/shop-taxonomy'
+import { getRequestLocale } from '@/lib/server-locale'
 
 type ProductWithVariants = Product & {
   variants: (ProductVariant & {
@@ -40,6 +41,7 @@ async function getBestsellers(): Promise<ProductWithVariants[]> {
 }
 
 export default async function Bestsellers() {
+  const locale = await getRequestLocale()
   const products = await getBestsellers()
 
   const placeholder = '/img/placeholder.png'
@@ -47,13 +49,15 @@ export default async function Bestsellers() {
   return (
     <section className="mx-auto py-12">
       <div className="max-w-full px-6">
-        <h2 className="text-2xl font-semibold mb-5 uppercase">Новинки</h2>
+        <h2 className="text-2xl font-semibold mb-5 uppercase">
+          {locale === 'en' ? 'New arrivals' : 'Новинки'}
+        </h2>
 
         <div className="relative flex flex-col gap-2">
           <div className="flex gap-5 overflow-x-auto scrollbar-always snap-x pb-2">
             {products.length === 0 ? (
               <div className="text-gray-500 text-sm">
-                Поки що немає товарів.
+                {locale === 'en' ? 'No products yet.' : 'Поки що немає товарів.'}
               </div>
             ) : (
               products.map((p) => {
@@ -125,11 +129,19 @@ export default async function Bestsellers() {
                       <div className="mt-3 flex items-center justify-between gap-4">
                         <div className="text-sm truncate">{p.name}</div>
                         <div className="text-sm text-gray-700 whitespace-nowrap flex items-baseline gap-2">
-                          <span>{finalPriceUAH.toLocaleString('uk-UA')} ₴</span>
+                          <span>
+                            {finalPriceUAH.toLocaleString(
+                              locale === 'en' ? 'en-US' : 'uk-UA',
+                            )}{' '}
+                            ₴
+                          </span>
                           {hasDiscount && (
                             <>
                               <span className="text-xs text-gray-500 line-through">
-                                {basePriceUAH.toLocaleString('uk-UA')} ₴
+                                {basePriceUAH.toLocaleString(
+                                  locale === 'en' ? 'en-US' : 'uk-UA',
+                                )}{' '}
+                                ₴
                               </span>
                               <span className="text-[10px] text-white md:text-xs border  rounded-full px-2 py-0.5 self-center bg-[#DE2222]">
                                 -{discountPercent}%
@@ -149,7 +161,7 @@ export default async function Bestsellers() {
               href="/shop"
               className="inline-flex items-center justify-center mt-4 underline hover:no-underline"
             >
-              Всі товари
+              {locale === 'en' ? 'All products' : 'Всі товари'}
             </Link>
           </div>
         </div>

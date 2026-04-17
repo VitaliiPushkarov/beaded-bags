@@ -11,17 +11,35 @@ import { calcDiscountedPrice } from '@/lib/pricing'
 import { TYPE_LABELS } from '@/lib/labels'
 import { resolveAvailabilityStatus, toSchemaOrgAvailability } from '@/lib/availability'
 import { getProductBySlug, getProductMetaBySlug } from '@/lib/db/products'
+import { getRequestLocale } from '@/lib/server-locale'
 
 const SITE_URL = 'https://gerdan.online'
 
-const TYPE_TO_ROUTE: Record<ProductType, { label: string; href: string }> = {
-  BAG: { label: 'Сумки', href: '/shop/sumky' },
-  BELT_BAG: { label: 'Бананки', href: '/shop/bananky' },
-  BACKPACK: { label: 'Рюкзачки', href: '/shop/rjukzachky' },
-  SHOPPER: { label: 'Шопери', href: '/shop/shopery' },
-  CASE: { label: 'Чохли', href: '/shop/chohly' },
-  ORNAMENTS: { label: 'Аксесуари', href: '/shop/accessories' },
-  ACCESSORY: { label: 'Аксесуари', href: '/shop/accessories' },
+function getTypeToRoute(locale: 'uk' | 'en') {
+  return {
+    BAG: { label: locale === 'en' ? 'Bags' : 'Сумки', href: '/shop/sumky' },
+    BELT_BAG: {
+      label: locale === 'en' ? 'Belt Bags' : 'Бананки',
+      href: '/shop/bananky',
+    },
+    BACKPACK: {
+      label: locale === 'en' ? 'Backpacks' : 'Рюкзачки',
+      href: '/shop/rjukzachky',
+    },
+    SHOPPER: {
+      label: locale === 'en' ? 'Shoppers' : 'Шопери',
+      href: '/shop/shopery',
+    },
+    CASE: { label: locale === 'en' ? 'Cases' : 'Чохли', href: '/shop/chohly' },
+    ORNAMENTS: {
+      label: locale === 'en' ? 'Accessories' : 'Аксесуари',
+      href: '/shop/accessories',
+    },
+    ACCESSORY: {
+      label: locale === 'en' ? 'Accessories' : 'Аксесуари',
+      href: '/shop/accessories',
+    },
+  } satisfies Record<ProductType, { label: string; href: string }>
 }
 
 function toAbsoluteAssetUrl(url: string): string {
@@ -33,6 +51,7 @@ function toAbsoluteAssetUrl(url: string): string {
 export async function generateMetadata(props: {
   params: Promise<{ slug: string }>
 }): Promise<Metadata> {
+  const locale = await getRequestLocale()
   const { slug } = await props.params
 
   const product = await getProductMetaBySlug(slug)
@@ -50,7 +69,9 @@ export async function generateMetadata(props: {
   const title = product.name
   const description =
     product.description ??
-    'Сумка ручної роботи з колекції GERDAN. Український бренд аксесуарів.'
+    (locale === 'en'
+      ? 'Handmade bag from the GERDAN collection.'
+      : 'Сумка ручної роботи з колекції GERDAN. Український бренд аксесуарів.')
 
   return {
     title,
@@ -76,6 +97,7 @@ export default async function ProductPage({
 }: {
   params: Promise<{ slug: string }>
 }) {
+  const locale = await getRequestLocale()
   const { slug } = await params
 
   const p = await getProductBySlug(slug)
@@ -86,16 +108,18 @@ export default async function ProductPage({
 
   const product = p as ProductWithVariants
 
+  const TYPE_TO_ROUTE = getTypeToRoute(locale)
+
   const crumbs = [
-    { label: 'Головна', href: '/' },
-    { label: 'Каталог', href: '/shop' },
+    { label: locale === 'en' ? 'Home' : 'Головна', href: '/' },
+    { label: locale === 'en' ? 'Catalog' : 'Каталог', href: '/shop' },
   ] as { label: string; href?: string }[]
 
   if (product.type && TYPE_TO_ROUTE[product.type]) {
     crumbs.push(TYPE_TO_ROUTE[product.type])
   }
 
-  crumbs.push({ label: product.name || 'Товар' })
+  crumbs.push({ label: product.name || (locale === 'en' ? 'Product' : 'Товар') })
 
   const firstVariant = product.variants[0]
 
@@ -230,18 +254,25 @@ export default async function ProductPage({
     sku: firstVariant?.id ?? product.id,
     mpn: firstVariant?.id ?? product.id,
     url: productUrl,
-    category: product.type ? TYPE_LABELS[product.type] : 'Аксесуари',
+    category:
+      product.type
+        ? locale === 'en'
+          ? TYPE_TO_ROUTE[product.type].label
+          : TYPE_LABELS[product.type]
+        : locale === 'en'
+          ? 'Accessories'
+          : 'Аксесуари',
     ...(colors.length ? { color: colors.join(', ') } : {}),
     additionalProperty: [
       {
         '@type': 'PropertyValue',
         name: 'Виготовлення',
-        value: 'Ручна робота',
+        value: locale === 'en' ? 'Handmade' : 'Ручна робота',
       },
       {
         '@type': 'PropertyValue',
-        name: 'Країна бренду',
-        value: 'Україна',
+        name: locale === 'en' ? 'Brand country' : 'Країна бренду',
+        value: locale === 'en' ? 'Ukraine' : 'Україна',
       },
     ],
     brand: {

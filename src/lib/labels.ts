@@ -1,4 +1,5 @@
 import { ProductType } from '@prisma/client'
+import type { Locale } from './locale'
 
 export const TYPE_LABELS: Record<ProductType, string> = {
   BAG: 'Сумки',
@@ -8,6 +9,16 @@ export const TYPE_LABELS: Record<ProductType, string> = {
   CASE: 'Чохли',
   ORNAMENTS: 'Аксесуари',
   ACCESSORY: 'Аксесуари',
+}
+
+export const TYPE_LABELS_EN: Record<ProductType, string> = {
+  BAG: 'Bags',
+  BELT_BAG: 'Belt Bags',
+  BACKPACK: 'Backpacks',
+  SHOPPER: 'Shoppers',
+  CASE: 'Cases',
+  ORNAMENTS: 'Accessories',
+  ACCESSORY: 'Accessories',
 }
 
 export const ACTIVE_PRODUCT_TYPES: ProductType[] = [
@@ -57,6 +68,29 @@ export const COLOR_LABELS: Record<string, string> = {
   Olive: 'Оливкова',
   Deep: 'Глибока зелень',
   Violet: 'Фіолетова',
+}
+
+export const COLOR_LABELS_EN: Record<string, string> = {
+  Pink: 'Pink',
+  Red: 'Red',
+  Blue: 'Blue',
+  White: 'White',
+  Sand: 'Sand',
+  Olive: 'Olive',
+  Deep: 'Deep Green',
+  Violet: 'Violet',
+}
+
+export function getTypeLabel(
+  type: ProductType,
+  locale: Locale = 'uk',
+): string {
+  return locale === 'en' ? TYPE_LABELS_EN[type] : TYPE_LABELS[type]
+}
+
+export function getColorLabel(color: string, locale: Locale = 'uk'): string {
+  if (locale === 'en') return COLOR_LABELS_EN[color] || color
+  return COLOR_LABELS[color] || color
 }
 
 export function toDbTypePrisma(input?: string | null): ProductType | undefined {

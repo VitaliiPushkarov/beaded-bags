@@ -1,5 +1,6 @@
 import type { AvailabilityStatus } from '@prisma/client'
 import { isInStockStatus, isPreorderStatus } from '@/lib/availability'
+import { useT } from '@/lib/i18n'
 
 export function ProductActions(props: {
   availabilityStatus: AvailabilityStatus
@@ -7,6 +8,7 @@ export function ProductActions(props: {
   onPreorder: () => void
   canSubmit?: boolean
 }) {
+  const t = useT()
   const { availabilityStatus, onAddToCart, onPreorder, canSubmit = true } = props
   const variantInStock = isInStockStatus(availabilityStatus)
   const variantPreorder = isPreorderStatus(availabilityStatus)
@@ -22,7 +24,9 @@ export function ProductActions(props: {
         onClick={onAddToCart}
         disabled={!canSubmit}
       >
-        {canSubmit ? 'Додати в кошик' : 'Оберіть параметри'}
+        {canSubmit
+          ? t('Додати в кошик', 'Add to cart')
+          : t('Оберіть параметри', 'Choose options')}
       </button>
     )
   }
@@ -39,7 +43,9 @@ export function ProductActions(props: {
         onClick={onPreorder}
         disabled={!canSubmit}
       >
-        {canSubmit ? 'Передзамовити' : 'Оберіть параметри'}
+        {canSubmit
+          ? t('Передзамовити', 'Pre-order')
+          : t('Оберіть параметри', 'Choose options')}
       </button>
     )
   }
@@ -49,7 +55,7 @@ export function ProductActions(props: {
       className="mt-3 inline-flex items-center justify-center w-full h-10 bg-black text-white px-5 text-[18px] py-2 opacity-50 cursor-not-allowed"
       disabled
     >
-      Немає в наявності
+      {t('Немає в наявності', 'Out of stock')}
     </button>
   )
 }

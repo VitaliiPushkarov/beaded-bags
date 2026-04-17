@@ -1,6 +1,7 @@
 import ProductCardLarge, {
   ProductWithVariants as ProductsGridWithVariants,
 } from '@/app/products/ProductCardLarge'
+import { useT } from '@/lib/i18n'
 
 type ProductWithVariants = ProductsGridWithVariants
 
@@ -13,6 +14,7 @@ export default function ProductsGrid({
   loading: boolean
   preferredColor?: string
 }) {
+  const t = useT()
   if (loading) {
     return (
       <div className="grid grid-cols-2 lg:grid-cols-3 gap-5 mt-6">
@@ -29,7 +31,7 @@ export default function ProductsGrid({
   if (!products.length) {
     return (
       <div className="text-gray-500 mt-6">
-        За вашим запитом нічого не знайдено.
+        {t('За вашим запитом нічого не знайдено.', 'No products found.')}
       </div>
     )
   }

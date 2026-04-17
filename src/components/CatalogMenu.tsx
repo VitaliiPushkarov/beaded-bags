@@ -5,6 +5,7 @@ import { useState, useRef } from 'react'
 import { ChevronDown } from 'lucide-react'
 import clsx from 'clsx'
 import { ACCESSORY_SUBCATEGORIES } from '@/lib/shop-taxonomy'
+import { useT, useLocale } from '@/lib/i18n'
 
 type MegaMenuLink = {
   key: string
@@ -13,33 +14,58 @@ type MegaMenuLink = {
   children?: Array<{ label: string; href: string }>
 }
 
-const DISCOVER_LINKS: Array<{ label: string; href: string }> = [
-  { label: 'Всі', href: '/shop' },
-  { label: 'Бісер', href: '/shop/group/beads' },
-  { label: 'Плетіння', href: '/shop/group/weaving' },
-]
-
-const CATEGORY_LINKS: MegaMenuLink[] = [
-  { key: 'sumky', label: 'Сумки', href: '/shop/sumky' },
-  { key: 'bananky', label: 'Бананки', href: '/shop/bananky' },
-  { key: 'shopery', label: 'Шопери', href: '/shop/shopery' },
-  { key: 'chohly', label: 'Чохли', href: '/shop/chohly' },
-  {
-    key: 'accessories',
-    label: 'Аксесуари',
-    href: '/shop/accessories',
-    children: ACCESSORY_SUBCATEGORIES.map((subcategory) => ({
-      label: subcategory.label,
-      href: `/shop/accessories/${subcategory.slug}`,
-    })),
-  },
-]
+function accessorySubcategoryLabel(slug: string, ukLabel: string): string {
+  const map: Record<string, string> = {
+    breloky: 'Keychains',
+    gerdany: 'Gerdans',
+    sylyanky: 'Sylyanky',
+    mitenky: 'Mittens',
+    shapky: 'Beanies',
+    sharfy: 'Scarves',
+    rezynky: 'Hair Ties',
+    chepchyky: 'Bonnets',
+    'navushnyky-viazani': 'Knitted Headphones',
+  }
+  return map[slug] || ukLabel
+}
 
 export default function CatalogMegaMenu({
   onLinkClick,
 }: {
   onLinkClick?: () => void
 }) {
+  const locale = useLocale()
+  const t = useT()
+
+  const DISCOVER_LINKS: Array<{ label: string; href: string }> = [
+    { label: t('Всі', 'All'), href: '/shop' },
+    { label: t('Бісер', 'Beads'), href: '/shop/group/beads' },
+    { label: t('Плетіння', 'Weaving'), href: '/shop/group/weaving' },
+  ]
+
+  const CATEGORY_LINKS: MegaMenuLink[] = [
+    { key: 'sumky', label: t('Сумки', 'Bags'), href: '/shop/sumky' },
+    {
+      key: 'bananky',
+      label: t('Бананки', 'Belt Bags'),
+      href: '/shop/bananky',
+    },
+    { key: 'shopery', label: t('Шопери', 'Shoppers'), href: '/shop/shopery' },
+    { key: 'chohly', label: t('Чохли', 'Cases'), href: '/shop/chohly' },
+    {
+      key: 'accessories',
+      label: t('Аксесуари', 'Accessories'),
+      href: '/shop/accessories',
+      children: ACCESSORY_SUBCATEGORIES.map((subcategory) => ({
+        label:
+          locale === 'en'
+            ? accessorySubcategoryLabel(subcategory.slug, subcategory.label)
+            : subcategory.label,
+        href: `/shop/accessories/${subcategory.slug}`,
+      })),
+    },
+  ]
+
   const [open, setOpen] = useState(false)
   const [activeCategoryKey, setActiveCategoryKey] = useState<string>(
     CATEGORY_LINKS[0]?.key ?? 'sumky',
@@ -81,7 +107,7 @@ export default function CatalogMegaMenu({
     >
       <div className="flex items-center gap-1 text-[12px] font-medium tracking-wide">
         <Link href="/shop" onClick={handleLinkClick}>
-          КАТАЛОГ
+          {t('КАТАЛОГ', 'CATALOG')}
         </Link>
         <button
           type="button"
@@ -155,7 +181,7 @@ export default function CatalogMegaMenu({
                     className="block hover:opacity-70 text-[12px] font-medium tracking-wide uppercase"
                     onClick={handleLinkClick}
                   >
-                    Всі
+                    {t('Всі', 'All')}
                   </Link>
                   {activeCategory.children?.map((child) => (
                     <Link
