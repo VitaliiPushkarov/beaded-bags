@@ -13,7 +13,8 @@
     "import:gerdan:db": "node --import tsx scripts/imports/gerdan-import-db.ts",
     "import:materials:db": "node --import tsx scripts/imports/materials-import-db.ts",
     "import:materials:variants:db": "node --import tsx scripts/imports/variant-materials-import-db.ts",
-    "test:imports": "node --import tsx --test src/lib/imports/*.test.ts"
+    "test:imports": "node --import tsx --test src/lib/imports/*.test.ts",
+    "telegram:webhook:set": "node --import tsx scripts/telegram/set-webhook.ts"
   },
   "dependencies": {
     "@neondatabase/serverless": "^1.0.2",

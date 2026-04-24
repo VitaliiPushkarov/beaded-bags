@@ -39,6 +39,8 @@ model Product {
   materialUsages      ProductMaterial[]
   variants            ProductVariant[]
   productionBatches   ProductionBatch[]
+  artisanRates        ArtisanRate[]
+  artisanProductions  ArtisanProduction[]
 
   @@index([type])
   @@index([group])
@@ -399,16 +401,101 @@ model PurchaseItem {
 }
 
 model Expense {
-  id          String          @id @default(cuid())
-  title       String
-  category    ExpenseCategory
-  amountUAH   Int
-  expenseDate DateTime
-  notes       String?
-  createdAt   DateTime        @default(now())
-  updatedAt   DateTime        @updatedAt
+  id                 String              @id @default(cuid())
+  title              String
+  category           ExpenseCategory
+  amountUAH          Int
+  expenseDate        DateTime
+  notes              String?
+  createdAt          DateTime            @default(now())
+  updatedAt          DateTime            @updatedAt
+  artisanProductions ArtisanProduction[] @relation("ArtisanProductionPaidExpense")
 
   @@index([expenseDate, category])
+}
+
+model Artisan {
+  id               String               @id @default(cuid())
+  name             String
+  phone            String?
+  telegramUserId   String?              @unique
+  telegramChatId   String?              @unique
+  telegramUsername String?
+  accessCode       String               @unique
+  isActive         Boolean              @default(true)
+  notes            String?
+  createdAt        DateTime             @default(now())
+  updatedAt        DateTime             @updatedAt
+  rates            ArtisanRate[]
+  productions      ArtisanProduction[]
+  sessions         TelegramBotSession[]
+
+  @@index([name])
+  @@index([isActive])
+}
+
+model ArtisanRate {
+  id             String              @id @default(cuid())
+  artisanId      String
+  productId      String
+  ratePerUnitUAH Int
+  isActive       Boolean             @default(true)
+  notes          String?
+  createdAt      DateTime            @default(now())
+  updatedAt      DateTime            @updatedAt
+  artisan        Artisan             @relation(fields: [artisanId], references: [id], onDelete: Cascade)
+  product        Product             @relation(fields: [productId], references: [id], onDelete: Cascade)
+  productions    ArtisanProduction[]
+
+  @@unique([artisanId, productId])
+  @@index([artisanId, isActive])
+  @@index([productId, isActive])
+}
+
+model ArtisanProduction {
+  id                       String                  @id @default(cuid())
+  artisanId                String
+  productId                String
+  rateId                   String?
+  qty                      Int
+  ratePerUnitSnapshotUAH   Int
+  totalLaborUAH            Int
+  producedAt               DateTime                @default(now())
+  status                   ArtisanProductionStatus @default(SUBMITTED)
+  source                   ArtisanProductionSource @default(TELEGRAM_BOT)
+  notes                    String?
+  telegramUpdateId         Int?
+  approvedAt               DateTime?
+  approvedByTelegramUserId String?
+  paidAt                   DateTime?
+  paidExpenseId            String?
+  createdAt                DateTime                @default(now())
+  updatedAt                DateTime                @updatedAt
+  artisan                  Artisan                 @relation(fields: [artisanId], references: [id], onDelete: Cascade)
+  product                  Product                 @relation(fields: [productId], references: [id], onDelete: Cascade)
+  rate                     ArtisanRate?            @relation(fields: [rateId], references: [id], onDelete: SetNull)
+  paidExpense              Expense?                @relation("ArtisanProductionPaidExpense", fields: [paidExpenseId], references: [id], onDelete: SetNull)
+
+  @@index([artisanId, producedAt])
+  @@index([productId, producedAt])
+  @@index([status, producedAt])
+  @@index([rateId])
+  @@index([paidExpenseId])
+}
+
+model TelegramBotSession {
+  id           String                 @id @default(cuid())
+  chatId       String                 @unique
+  userId       String?
+  artisanId    String?
+  step         TelegramBotSessionStep @default(IDLE)
+  draftPayload Json?
+  createdAt    DateTime               @default(now())
+  updatedAt    DateTime               @updatedAt
+  artisan      Artisan?               @relation(fields: [artisanId], references: [id], onDelete: SetNull)
+
+  @@index([userId])
+  @@index([artisanId])
 }
 
 model PreorderLead {
@@ -431,20 +518,20 @@ model PreorderLead {
 }
 
 model BlogPost {
-  id            String         @id @default(cuid())
-  slug          String         @unique
-  title         String
-  excerpt       String
-  description   String
-  coverImage    String
-  coverImageAlt String
-  keywords      String[]       @default([])
-  publishedAt   DateTime?
-  readingMinutes Int           @default(4)
-  status        BlogPostStatus @default(DRAFT)
-  sections      Json
-  createdAt     DateTime       @default(now())
-  updatedAt     DateTime       @updatedAt
+  id             String         @id @default(cuid())
+  slug           String         @unique
+  title          String
+  excerpt        String
+  description    String
+  coverImage     String
+  coverImageAlt  String
+  keywords       String[]       @default([])
+  publishedAt    DateTime?
+  readingMinutes Int            @default(4)
+  status         BlogPostStatus @default(DRAFT)
+  sections       Json
+  createdAt      DateTime       @default(now())
+  updatedAt      DateTime       @updatedAt
 
   @@index([status, publishedAt])
 }
@@ -559,4 +646,23 @@ enum PurchaseStatus {
   RECEIVED
   PAID
   CANCELLED
+}
+
+enum ArtisanProductionStatus {
+  SUBMITTED
+  APPROVED
+  PAID
+  REJECTED
+}
+
+enum ArtisanProductionSource {
+  TELEGRAM_BOT
+  IMPORT
+  MANUAL
+}
+
+enum TelegramBotSessionStep {
+  IDLE
+  AWAITING_QTY
+  AWAITING_CONFIRM
 }
