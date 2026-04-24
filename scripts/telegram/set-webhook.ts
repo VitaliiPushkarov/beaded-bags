@@ -1,3 +1,7 @@
+import { loadEnvConfig } from '@next/env'
+
+loadEnvConfig(process.cwd())
+
 function normalizeBaseUrl(value: string): string {
   return value.endsWith('/') ? value.slice(0, -1) : value
 }
@@ -29,9 +33,7 @@ async function callTelegram(token: string, method: string, payload: object) {
 }
 
 async function main() {
-  const token =
-    process.env.TELEGRAM_PRODUCTION_BOT_TOKEN?.trim() ||
-    process.env.TELEGRAM_BOT_TOKEN?.trim()
+  const token = process.env.TELEGRAM_PRODUCTION_BOT_TOKEN?.trim()
   const baseUrl = process.env.TELEGRAM_WEBHOOK_BASE_URL?.trim()
   const webhookPath = normalizePath(
     process.env.TELEGRAM_WEBHOOK_PATH?.trim() || '/api/telegram/production/webhook',
@@ -39,9 +41,7 @@ async function main() {
   const secretToken = process.env.TELEGRAM_WEBHOOK_SECRET?.trim()
 
   if (!token) {
-    throw new Error(
-      'Missing TELEGRAM_PRODUCTION_BOT_TOKEN (or TELEGRAM_BOT_TOKEN fallback)',
-    )
+    throw new Error('Missing TELEGRAM_PRODUCTION_BOT_TOKEN')
   }
 
   if (!baseUrl) {

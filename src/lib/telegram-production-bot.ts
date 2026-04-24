@@ -94,6 +94,61 @@ function toTelegramId(value: number | string): string {
   return String(value)
 }
 
+function parseInteger(input: string): number | null {
+  const normalized = input.replace(/\s+/g, '')
+  if (!/^\d+$/.test(normalized)) return null
+  const parsed = Number(normalized)
+  if (!Number.isInteger(parsed) || parsed <= 0) return null
+  return parsed
+}
+
+function parseCommand(text: string): { command: string; args: string } | null {
+  if (!text.startsWith('/')) return null
+
+  const trimmed = text.trim()
+  const firstSpace = trimmed.indexOf(' ')
+  const commandPart = firstSpace === -1 ? trimmed : trimmed.slice(0, firstSpace)
+  const args = firstSpace === -1 ? '' : trimmed.slice(firstSpace + 1).trim()
+
+  const command = commandPart.slice(1).split('@')[0]?.trim().toLowerCase() || ''
+  if (!command) return null
+
+  return { command, args }
+}
+
+function chunkButtons<T>(items: T[], chunkSize: number): T[][] {
+  const rows: T[][] = []
+  for (let index = 0; index < items.length; index += chunkSize) {
+    rows.push(items.slice(index, index + chunkSize))
+  }
+  return rows
+}
+
+function getOwnerUserIds(): string[] {
+  return parseCsvIds(process.env.TELEGRAM_OWNER_USER_IDS)
+}
+
+function isOwner(userId: string): boolean {
+  return getOwnerUserIds().includes(userId)
+}
+
+function getBotToken(): string | null {
+  const token = process.env.TELEGRAM_PRODUCTION_BOT_TOKEN?.trim()
+  return token || null
+}
+
+function buildSessionKey(input: {
+  chatId: string
+  userId: string
+  chatType: TelegramChat['type']
+}): string {
+  if (input.chatType === 'private') {
+    return `p:${input.chatId}`
+  }
+
+  return `g:${input.chatId}:u:${input.userId}`
+}
+
 function parseSessionDraft(draftPayload: Prisma.JsonValue | null): SessionDraft {
   if (!draftPayload || typeof draftPayload !== 'object' || Array.isArray(draftPayload)) {
     return {}
@@ -120,101 +175,10 @@ function buildSessionDraftJson(draft: SessionDraft): Prisma.JsonObject {
   return payload
 }
 
-function parseInteger(input: string): number | null {
-  const normalized = input.replace(/\s+/g, '')
-  if (!/^\d+$/.test(normalized)) return null
-  const parsed = Number(normalized)
-  if (!Number.isInteger(parsed) || parsed <= 0) return null
-  return parsed
-}
-
-function parseCommand(text: string): { command: string; args: string } | null {
-  if (!text.startsWith('/')) return null
-  const trimmed = text.trim()
-  const firstSpace = trimmed.indexOf(' ')
-  const commandPart = firstSpace === -1 ? trimmed : trimmed.slice(0, firstSpace)
-  const args = firstSpace === -1 ? '' : trimmed.slice(firstSpace + 1).trim()
-
-  const command = commandPart.slice(1).split('@')[0]?.trim().toLowerCase() || ''
-  if (!command) return null
-
-  return {
-    command,
-    args,
-  }
-}
-
-function chunkButtons<T>(items: T[], chunkSize: number): T[][] {
-  const rows: T[][] = []
-  for (let index = 0; index < items.length; index += chunkSize) {
-    rows.push(items.slice(index, index + chunkSize))
-  }
-  return rows
-}
-
-function getOwnerUserIds(): string[] {
-  return parseCsvIds(process.env.TELEGRAM_OWNER_USER_IDS)
-}
-
-async function getOwnerChatIds(): Promise<string[]> {
-  const explicit = parseCsvIds(process.env.TELEGRAM_PRODUCTION_OWNER_CHAT_IDS)
-  const fallback = parseCsvIds(process.env.TELEGRAM_CHAT_ID)
-  const ownerUserIds = getOwnerUserIds()
-
-  if (ownerUserIds.length === 0) {
-    return Array.from(new Set([...explicit, ...fallback]))
-  }
-
-  const discoveredSessions = await prisma.telegramBotSession.findMany({
-    where: {
-      userId: { in: ownerUserIds },
-    },
-    select: {
-      chatId: true,
-    },
-    take: 100,
-  })
-
-  const discovered = discoveredSessions
-    .map((session) => session.chatId.trim())
-    .filter(Boolean)
-
-  return Array.from(new Set([...explicit, ...fallback, ...discovered]))
-}
-
-function isOwner(userId: string): boolean {
-  const owners = getOwnerUserIds()
-  return owners.includes(userId)
-}
-
-async function rememberOwnerChat(input: { userId: string; chatId: string }) {
-  if (!isOwner(input.userId)) return
-
-  await prisma.telegramBotSession.upsert({
-    where: { chatId: input.chatId },
-    create: {
-      chatId: input.chatId,
-      userId: input.userId,
-      step: TelegramBotSessionStep.IDLE,
-      draftPayload: {},
-    },
-    update: {
-      userId: input.userId,
-    },
-  })
-}
-
-function getBotToken(): string | null {
-  const token =
-    process.env.TELEGRAM_PRODUCTION_BOT_TOKEN?.trim() ||
-    process.env.TELEGRAM_BOT_TOKEN?.trim()
-  return token || null
-}
-
 async function callTelegramApi<T = unknown>(method: string, payload: object): Promise<T | null> {
   const token = getBotToken()
   if (!token) {
-    console.warn('[telegram-production] TELEGRAM_BOT_TOKEN is not configured')
+    console.warn('[telegram-production] TELEGRAM_PRODUCTION_BOT_TOKEN is not configured')
     return null
   }
 
@@ -286,47 +250,57 @@ async function answerCallbackQuery(input: {
 async function findLinkedArtisanByTelegram(input: {
   userId: string
   chatId: string
+  chatType: TelegramChat['type']
   username?: string
 }) {
-  const artisan = await prisma.artisan.findFirst({
+  let artisan = await prisma.artisan.findFirst({
     where: {
       isActive: true,
-      OR: [{ telegramUserId: input.userId }, { telegramChatId: input.chatId }],
+      telegramUserId: input.userId,
     },
   })
 
-  if (!artisan) return null
-
-  const needsUpdate =
-    artisan.telegramUserId !== input.userId ||
-    artisan.telegramChatId !== input.chatId ||
-    artisan.telegramUsername !== (input.username ?? null)
-
-  if (needsUpdate) {
-    return prisma.artisan.update({
-      where: { id: artisan.id },
-      data: {
-        telegramUserId: input.userId,
+  if (!artisan && input.chatType === 'private') {
+    artisan = await prisma.artisan.findFirst({
+      where: {
+        isActive: true,
         telegramChatId: input.chatId,
-        telegramUsername: input.username ?? null,
       },
     })
   }
 
-  return artisan
+  if (!artisan) return null
+
+  const shouldUpdateUserId = artisan.telegramUserId !== input.userId
+  const shouldUpdateUsername = artisan.telegramUsername !== (input.username ?? null)
+  const shouldUpdateChatId =
+    input.chatType === 'private' && artisan.telegramChatId !== input.chatId
+
+  if (!shouldUpdateUserId && !shouldUpdateUsername && !shouldUpdateChatId) {
+    return artisan
+  }
+
+  return prisma.artisan.update({
+    where: { id: artisan.id },
+    data: {
+      telegramUserId: input.userId,
+      telegramUsername: input.username ?? null,
+      ...(input.chatType === 'private' ? { telegramChatId: input.chatId } : {}),
+    },
+  })
 }
 
 async function setSession(input: {
-  chatId: string
+  sessionKey: string
   userId?: string
   artisanId?: string
   step: TelegramBotSessionStep
   draft?: SessionDraft
 }) {
   await prisma.telegramBotSession.upsert({
-    where: { chatId: input.chatId },
+    where: { chatId: input.sessionKey },
     create: {
-      chatId: input.chatId,
+      chatId: input.sessionKey,
       userId: input.userId ?? null,
       artisanId: input.artisanId ?? null,
       step: input.step,
@@ -341,23 +315,24 @@ async function setSession(input: {
   })
 }
 
-async function clearSession(chatId: string) {
+async function clearSession(sessionKey: string) {
   await setSession({
-    chatId,
+    sessionKey,
     step: TelegramBotSessionStep.IDLE,
     draft: {},
   })
 }
 
-async function getSession(chatId: string) {
-  return prisma.telegramBotSession.findUnique({ where: { chatId } })
+async function getSession(sessionKey: string) {
+  return prisma.telegramBotSession.findUnique({ where: { chatId: sessionKey } })
 }
 
 function buildMasterHelpText() {
   return [
     '<b>Команди майстра</b>',
     '/register CODE - прив\'язати акаунт майстра',
-    '/record - зафіксувати виробіток',
+    '/record - зафіксувати виробіток (обрати виріб)',
+    '/qty 10 - ввести кількість після вибору виробу',
     '/my - мій звіт за поточний місяць',
     '/help - підказка',
   ].join('\n')
@@ -377,14 +352,39 @@ function buildOwnerHelpText() {
   ].join('\n')
 }
 
-async function notifyOwnersAboutSubmission(productionId: string): Promise<void> {
+function buildWhoAmIText(input: {
+  userId: string
+  chatId: string
+  chatType: TelegramChat['type']
+  username?: string
+}): string {
+  const ownerUserIds = getOwnerUserIds()
+  const isOwnerUser = ownerUserIds.includes(input.userId)
+
+  return [
+    '<b>Who Am I</b>',
+    `<b>user_id:</b> <code>${escapeHtml(input.userId)}</code>`,
+    `<b>chat_id:</b> <code>${escapeHtml(input.chatId)}</code>`,
+    `<b>chat_type:</b> <code>${escapeHtml(input.chatType)}</code>`,
+    `<b>username:</b> ${escapeHtml(input.username ?? '(none)')}`,
+    `<b>is_owner:</b> ${isOwnerUser ? 'yes' : 'no'}`,
+    `<b>owners_env_count:</b> ${ownerUserIds.length}`,
+    isOwnerUser
+      ? 'Owner-доступ активний.'
+      : 'Додайте цей user_id в TELEGRAM_OWNER_USER_IDS та redeploy.',
+  ].join('\n')
+}
+
+async function notifyOwnersAboutSubmission(input: {
+  productionId: string
+  targetChatId: string
+}): Promise<void> {
   const production = await prisma.artisanProduction.findUnique({
-    where: { id: productionId },
+    where: { id: input.productionId },
     include: {
       artisan: true,
       product: {
         select: {
-          id: true,
           name: true,
           slug: true,
         },
@@ -393,14 +393,6 @@ async function notifyOwnersAboutSubmission(productionId: string): Promise<void> 
   })
 
   if (!production) return
-
-  const ownerChatIds = await getOwnerChatIds()
-  if (ownerChatIds.length === 0) {
-    console.warn(
-      '[telegram-production] no owner chats configured. Set TELEGRAM_PRODUCTION_OWNER_CHAT_IDS or run any owner command (/pending, /report, /help) in a target chat first.',
-    )
-    return
-  }
 
   const text = [
     '🧵 <b>Новий виробіток</b>',
@@ -413,28 +405,22 @@ async function notifyOwnersAboutSubmission(productionId: string): Promise<void> 
     `<b>ID:</b> <code>${production.id}</code>`,
   ].join('\n')
 
-  const keyboard: TelegramInlineKeyboardButton[][] = [
-    [
-      {
-        text: '✅ Підтвердити',
-        callback_data: `${CALLBACK_PREFIX}:approve:${production.id}`,
-      },
-      {
-        text: '❌ Відхилити',
-        callback_data: `${CALLBACK_PREFIX}:reject:${production.id}`,
-      },
+  await sendTelegramMessage({
+    chatId: input.targetChatId,
+    text,
+    inlineKeyboard: [
+      [
+        {
+          text: '✅ Підтвердити',
+          callback_data: `${CALLBACK_PREFIX}:approve:${production.id}`,
+        },
+        {
+          text: '❌ Відхилити',
+          callback_data: `${CALLBACK_PREFIX}:reject:${production.id}`,
+        },
+      ],
     ],
-  ]
-
-  await Promise.all(
-    ownerChatIds.map((chatId) =>
-      sendTelegramMessage({
-        chatId,
-        text,
-        inlineKeyboard: keyboard,
-      }),
-    ),
-  )
+  })
 }
 
 async function sendProductionStatusToArtisan(input: {
@@ -481,6 +467,7 @@ async function sendProductionStatusToArtisan(input: {
 
 async function handleRegisterCommand(input: {
   chatId: string
+  chatType: TelegramChat['type']
   userId: string
   username?: string
   args: string
@@ -523,30 +510,38 @@ async function handleRegisterCommand(input: {
     where: { id: artisan.id },
     data: {
       telegramUserId: input.userId,
-      telegramChatId: input.chatId,
       telegramUsername: input.username ?? null,
+      ...(input.chatType === 'private' ? { telegramChatId: input.chatId } : {}),
     },
   })
 
-  await clearSession(input.chatId)
+  const sessionKey = buildSessionKey({
+    chatId: input.chatId,
+    userId: input.userId,
+    chatType: input.chatType,
+  })
+
+  await clearSession(sessionKey)
 
   await sendTelegramMessage({
     chatId: input.chatId,
     text: [
       `✅ Майстра <b>${escapeHtml(updated.name)}</b> успішно прив\'язано.`,
-      'Тепер використовуй <code>/record</code> для фіксації виробітку.',
+      'Тепер використовуй <code>/record</code>, далі <code>/qty N</code>.',
     ].join('\n'),
   })
 }
 
 async function handleRecordCommand(input: {
   chatId: string
+  chatType: TelegramChat['type']
   userId: string
   username?: string
 }) {
   const artisan = await findLinkedArtisanByTelegram({
     userId: input.userId,
     chatId: input.chatId,
+    chatType: input.chatType,
     username: input.username,
   })
 
@@ -569,7 +564,6 @@ async function handleRecordCommand(input: {
     include: {
       product: {
         select: {
-          id: true,
           name: true,
           slug: true,
         },
@@ -591,7 +585,13 @@ async function handleRecordCommand(input: {
     return
   }
 
-  await clearSession(input.chatId)
+  const sessionKey = buildSessionKey({
+    chatId: input.chatId,
+    userId: input.userId,
+    chatType: input.chatType,
+  })
+
+  await clearSession(sessionKey)
 
   const rows = chunkButtons(
     rates.map((rate) => ({
@@ -617,12 +617,14 @@ async function handleRecordCommand(input: {
 
 async function handleMyCommand(input: {
   chatId: string
+  chatType: TelegramChat['type']
   userId: string
   username?: string
 }) {
   const artisan = await findLinkedArtisanByTelegram({
     userId: input.userId,
     chatId: input.chatId,
+    chatType: input.chatType,
     username: input.username,
   })
 
@@ -682,99 +684,142 @@ async function handleMyCommand(input: {
   })
 }
 
-async function handleMasterFreeText(input: {
+async function processQtyInput(input: {
   chatId: string
+  chatType: TelegramChat['type']
   userId: string
   username?: string
-  text: string
+  qtyRaw: string
 }) {
   const artisan = await findLinkedArtisanByTelegram({
     userId: input.userId,
     chatId: input.chatId,
+    chatType: input.chatType,
     username: input.username,
   })
 
-  if (!artisan) return
-
-  const session = await getSession(input.chatId)
-  if (!session || session.step === TelegramBotSessionStep.IDLE) return
-
-  const draft = parseSessionDraft(session.draftPayload)
-
-  if (session.step === TelegramBotSessionStep.AWAITING_QTY) {
-    const qty = parseInteger(input.text)
-    if (!qty || qty > 5000) {
-      await sendTelegramMessage({
-        chatId: input.chatId,
-        text: 'Введи коректну кількість (ціле число від 1 до 5000).',
-      })
-      return
-    }
-
-    if (!draft.rateId) {
-      await clearSession(input.chatId)
-      await sendTelegramMessage({
-        chatId: input.chatId,
-        text: 'Сесія застаріла. Виконай <code>/record</code> ще раз.',
-      })
-      return
-    }
-
-    const rate = await prisma.artisanRate.findFirst({
-      where: {
-        id: draft.rateId,
-        artisanId: artisan.id,
-        isActive: true,
-      },
-      include: {
-        product: {
-          select: {
-            name: true,
-            slug: true,
-          },
-        },
-      },
-    })
-
-    if (!rate) {
-      await clearSession(input.chatId)
-      await sendTelegramMessage({
-        chatId: input.chatId,
-        text: 'Ставка більше неактивна. Запусти <code>/record</code> знову.',
-      })
-      return
-    }
-
-    const total = qty * rate.ratePerUnitUAH
-
-    await setSession({
-      chatId: input.chatId,
-      userId: input.userId,
-      artisanId: artisan.id,
-      step: TelegramBotSessionStep.AWAITING_CONFIRM,
-      draft: {
-        rateId: rate.id,
-        qty,
-      },
-    })
-
+  if (!artisan) {
     await sendTelegramMessage({
       chatId: input.chatId,
-      text: [
-        'Підтверди запис:',
-        `<b>Виріб:</b> ${escapeHtml(rate.product.name)} (${escapeHtml(rate.product.slug)})`,
-        `<b>К-сть:</b> ${qty}`,
-        `<b>Ставка:</b> ${formatUAH(rate.ratePerUnitUAH)}`,
-        `<b>Сума:</b> ${formatUAH(total)}`,
-      ].join('\n'),
-      inlineKeyboard: [
-        [
-          { text: '✅ Підтвердити', callback_data: `${CALLBACK_PREFIX}:confirm` },
-          { text: '↩️ Скасувати', callback_data: `${CALLBACK_PREFIX}:cancel` },
-        ],
-      ],
+      text: 'Спочатку виконай <code>/register CODE</code>.',
     })
+    return
+  }
 
+  const sessionKey = buildSessionKey({
+    chatId: input.chatId,
+    userId: input.userId,
+    chatType: input.chatType,
+  })
+
+  const session = await getSession(sessionKey)
+  if (!session || session.step !== TelegramBotSessionStep.AWAITING_QTY) {
+    await sendTelegramMessage({
+      chatId: input.chatId,
+      text: 'Немає активного вибору виробу. Почни з <code>/record</code>.',
+    })
+    return
+  }
+
+  const qty = parseInteger(input.qtyRaw)
+  if (!qty || qty > 5000) {
+    await sendTelegramMessage({
+      chatId: input.chatId,
+      text: 'Введи коректну кількість: <code>/qty 10</code> (від 1 до 5000).',
+    })
+    return
+  }
+
+  const draft = parseSessionDraft(session.draftPayload)
+  if (!draft.rateId) {
+    await clearSession(sessionKey)
+    await sendTelegramMessage({
+      chatId: input.chatId,
+      text: 'Сесія застаріла. Виконай <code>/record</code> ще раз.',
+    })
+    return
+  }
+
+  const rate = await prisma.artisanRate.findFirst({
+    where: {
+      id: draft.rateId,
+      artisanId: artisan.id,
+      isActive: true,
+    },
+    include: {
+      product: {
+        select: {
+          name: true,
+          slug: true,
+        },
+      },
+    },
+  })
+
+  if (!rate) {
+    await clearSession(sessionKey)
+    await sendTelegramMessage({
+      chatId: input.chatId,
+      text: 'Ставка більше неактивна. Запусти <code>/record</code> знову.',
+    })
+    return
+  }
+
+  const total = qty * rate.ratePerUnitUAH
+
+  await setSession({
+    sessionKey,
+    userId: input.userId,
+    artisanId: artisan.id,
+    step: TelegramBotSessionStep.AWAITING_CONFIRM,
+    draft: {
+      rateId: rate.id,
+      qty,
+    },
+  })
+
+  await sendTelegramMessage({
+    chatId: input.chatId,
+    text: [
+      'Підтверди запис:',
+      `<b>Виріб:</b> ${escapeHtml(rate.product.name)} (${escapeHtml(rate.product.slug)})`,
+      `<b>К-сть:</b> ${qty}`,
+      `<b>Ставка:</b> ${formatUAH(rate.ratePerUnitUAH)}`,
+      `<b>Сума:</b> ${formatUAH(total)}`,
+    ].join('\n'),
+    inlineKeyboard: [
+      [
+        { text: '✅ Підтвердити', callback_data: `${CALLBACK_PREFIX}:confirm` },
+        { text: '↩️ Скасувати', callback_data: `${CALLBACK_PREFIX}:cancel` },
+      ],
+    ],
+  })
+}
+
+async function handleMasterFreeText(input: {
+  chatId: string
+  chatType: TelegramChat['type']
+  userId: string
+  username?: string
+  text: string
+}) {
+  const sessionKey = buildSessionKey({
+    chatId: input.chatId,
+    userId: input.userId,
+    chatType: input.chatType,
+  })
+
+  const session = await getSession(sessionKey)
+  if (!session || session.step === TelegramBotSessionStep.IDLE) return
+
+  if (session.step === TelegramBotSessionStep.AWAITING_QTY) {
+    await processQtyInput({
+      chatId: input.chatId,
+      chatType: input.chatType,
+      userId: input.userId,
+      username: input.username,
+      qtyRaw: input.text,
+    })
     return
   }
 
@@ -803,7 +848,7 @@ async function handleOwnerCommand(input: {
       return
     }
 
-    let created = null as Awaited<ReturnType<typeof prisma.artisan.create>> | null
+    let created: Awaited<ReturnType<typeof prisma.artisan.create>> | null = null
     for (let attempt = 0; attempt < 5 && !created; attempt += 1) {
       const accessCode = String(Math.floor(100000 + Math.random() * 900000))
       try {
@@ -913,7 +958,7 @@ async function handleOwnerCommand(input: {
     await sendTelegramMessage({
       chatId,
       text: [
-        `✅ Ставка встановлена`,
+        '✅ Ставка встановлена',
         `<b>Майстер:</b> ${escapeHtml(artisan.name)} (${escapeHtml(artisan.accessCode)})`,
         `<b>Виріб:</b> ${escapeHtml(product.name)} (${escapeHtml(product.slug)})`,
         `<b>Ставка:</b> ${formatUAH(rate)}`,
@@ -945,7 +990,6 @@ async function handleOwnerCommand(input: {
       select: {
         id: true,
         name: true,
-        accessCode: true,
       },
     })
 
@@ -966,7 +1010,6 @@ async function handleOwnerCommand(input: {
       },
       select: {
         id: true,
-        name: true,
         slug: true,
       },
     })
@@ -1123,7 +1166,10 @@ async function handleOwnerCommand(input: {
 
     await sendTelegramMessage({
       chatId,
-      text: ['<b>Доступні товари (slug)</b>', ...products.map((product) => `• <code>${escapeHtml(product.slug)}</code> — ${escapeHtml(product.name)}`)].join('\n'),
+      text: [
+        '<b>Доступні товари (slug)</b>',
+        ...products.map((product) => `• <code>${escapeHtml(product.slug)}</code> — ${escapeHtml(product.name)}`),
+      ].join('\n'),
     })
     return
   }
@@ -1280,13 +1326,16 @@ async function handleCommand(input: {
   username?: string
 }) {
   const isOwnerUser = isOwner(input.userId)
-
-  if (isOwnerUser) {
-    await rememberOwnerChat({
-      userId: input.userId,
-      chatId: input.chatId,
-    })
-  }
+  const ownerOnly = new Set([
+    'new_master',
+    'masters',
+    'set_rate',
+    'disable_rate',
+    'rates',
+    'products',
+    'pending',
+    'report',
+  ])
 
   if (input.command === 'help' || input.command === 'start') {
     const parts = [buildMasterHelpText()]
@@ -1302,18 +1351,32 @@ async function handleCommand(input: {
     return
   }
 
-  if (isOwnerUser) {
-    const ownerOnly = new Set([
-      'new_master',
-      'masters',
-      'set_rate',
-      'disable_rate',
-      'rates',
-      'products',
-      'pending',
-      'report',
-    ])
+  if (input.command === 'whoami') {
+    await sendTelegramMessage({
+      chatId: input.chatId,
+      text: buildWhoAmIText({
+        userId: input.userId,
+        chatId: input.chatId,
+        chatType: input.chatType,
+        username: input.username,
+      }),
+    })
+    return
+  }
 
+  if (ownerOnly.has(input.command) && !isOwnerUser) {
+    await sendTelegramMessage({
+      chatId: input.chatId,
+      text: [
+        'Недостатньо прав для цієї команди.',
+        `Ваш user_id: <code>${escapeHtml(input.userId)}</code>`,
+        'Додайте його в TELEGRAM_OWNER_USER_IDS і зробіть redeploy.',
+      ].join('\n'),
+    })
+    return
+  }
+
+  if (isOwnerUser) {
     if (ownerOnly.has(input.command)) {
       await handleOwnerCommand({
         command: input.command,
@@ -1325,16 +1388,9 @@ async function handleCommand(input: {
   }
 
   if (input.command === 'register') {
-    if (input.chatType !== 'private') {
-      await sendTelegramMessage({
-        chatId: input.chatId,
-        text: 'Для реєстрації майстра напиши цю команду боту в приватному чаті.',
-      })
-      return
-    }
-
     await handleRegisterCommand({
       chatId: input.chatId,
+      chatType: input.chatType,
       userId: input.userId,
       username: input.username,
       args: input.args,
@@ -1343,33 +1399,38 @@ async function handleCommand(input: {
   }
 
   if (input.command === 'record') {
-    if (input.chatType !== 'private') {
-      await sendTelegramMessage({
-        chatId: input.chatId,
-        text: 'Фіксація виробітку доступна тільки в приватному чаті з ботом.',
-      })
-      return
-    }
-
     await handleRecordCommand({
       chatId: input.chatId,
+      chatType: input.chatType,
       userId: input.userId,
       username: input.username,
     })
     return
   }
 
-  if (input.command === 'my') {
-    if (input.chatType !== 'private') {
+  if (input.command === 'qty') {
+    if (!input.args.trim()) {
       await sendTelegramMessage({
         chatId: input.chatId,
-        text: 'Команда /my доступна тільки в приватному чаті з ботом.',
+        text: 'Формат: <code>/qty 10</code>',
       })
       return
     }
 
+    await processQtyInput({
+      chatId: input.chatId,
+      chatType: input.chatType,
+      userId: input.userId,
+      username: input.username,
+      qtyRaw: input.args,
+    })
+    return
+  }
+
+  if (input.command === 'my') {
     await handleMyCommand({
       chatId: input.chatId,
+      chatType: input.chatType,
       userId: input.userId,
       username: input.username,
     })
@@ -1697,16 +1758,7 @@ async function handleCallbackQuery(callback: TelegramCallbackQuery) {
     }
 
     const ownerChatId = callback.message?.chat?.id
-    if (!ownerChatId) {
-      await answerCallbackQuery({
-        callbackQueryId: callback.id,
-        text: 'Не знайдено chat id',
-        showAlert: true,
-      })
-      return
-    }
-
-    if (!entityId) {
+    if (!ownerChatId || !entityId) {
       await answerCallbackQuery({
         callbackQueryId: callback.id,
         text: 'Некоректний callback payload',
@@ -1754,9 +1806,11 @@ async function handleCallbackQuery(callback: TelegramCallbackQuery) {
 
   const chatId = toTelegramId(message.chat.id)
   const userId = fromUserId
+  const chatType = message.chat.type
+  const sessionKey = buildSessionKey({ chatId, userId, chatType })
 
   if (action === 'cancel') {
-    await clearSession(chatId)
+    await clearSession(sessionKey)
     await answerCallbackQuery({
       callbackQueryId: callback.id,
       text: 'Скасовано',
@@ -1772,6 +1826,7 @@ async function handleCallbackQuery(callback: TelegramCallbackQuery) {
     const artisan = await findLinkedArtisanByTelegram({
       userId,
       chatId,
+      chatType,
       username: callback.from.username,
     })
 
@@ -1811,7 +1866,7 @@ async function handleCallbackQuery(callback: TelegramCallbackQuery) {
     }
 
     await setSession({
-      chatId,
+      sessionKey,
       userId,
       artisanId: artisan.id,
       step: TelegramBotSessionStep.AWAITING_QTY,
@@ -1830,7 +1885,7 @@ async function handleCallbackQuery(callback: TelegramCallbackQuery) {
       text: [
         `Обрано: <b>${escapeHtml(rate.product.name)}</b> (${escapeHtml(rate.product.slug)})`,
         `Ставка: <b>${formatUAH(rate.ratePerUnitUAH)}</b>`,
-        'Тепер надішли кількість (ціле число).',
+        'Тепер надішли <code>/qty N</code> (наприклад, <code>/qty 7</code>).',
       ].join('\n'),
     })
     return
@@ -1840,6 +1895,7 @@ async function handleCallbackQuery(callback: TelegramCallbackQuery) {
     const artisan = await findLinkedArtisanByTelegram({
       userId,
       chatId,
+      chatType,
       username: callback.from.username,
     })
 
@@ -1852,9 +1908,9 @@ async function handleCallbackQuery(callback: TelegramCallbackQuery) {
       return
     }
 
-    const session = await getSession(chatId)
+    const session = await getSession(sessionKey)
     if (!session || session.step !== TelegramBotSessionStep.AWAITING_CONFIRM) {
-      await clearSession(chatId)
+      await clearSession(sessionKey)
       await answerCallbackQuery({
         callbackQueryId: callback.id,
         text: 'Сесія застаріла. Запусти /record ще раз.',
@@ -1865,7 +1921,7 @@ async function handleCallbackQuery(callback: TelegramCallbackQuery) {
 
     const draft = parseSessionDraft(session.draftPayload)
     if (!draft.rateId || !draft.qty) {
-      await clearSession(chatId)
+      await clearSession(sessionKey)
       await answerCallbackQuery({
         callbackQueryId: callback.id,
         text: 'Сесія неповна. Запусти /record ще раз.',
@@ -1883,7 +1939,6 @@ async function handleCallbackQuery(callback: TelegramCallbackQuery) {
       include: {
         product: {
           select: {
-            id: true,
             name: true,
             slug: true,
           },
@@ -1892,7 +1947,7 @@ async function handleCallbackQuery(callback: TelegramCallbackQuery) {
     })
 
     if (!rate) {
-      await clearSession(chatId)
+      await clearSession(sessionKey)
       await answerCallbackQuery({
         callbackQueryId: callback.id,
         text: 'Ставка більше недоступна. Повтори /record.',
@@ -1915,7 +1970,7 @@ async function handleCallbackQuery(callback: TelegramCallbackQuery) {
       },
     })
 
-    await clearSession(chatId)
+    await clearSession(sessionKey)
 
     await answerCallbackQuery({
       callbackQueryId: callback.id,
@@ -1933,7 +1988,10 @@ async function handleCallbackQuery(callback: TelegramCallbackQuery) {
       ].join('\n'),
     })
 
-    await notifyOwnersAboutSubmission(production.id)
+    await notifyOwnersAboutSubmission({
+      productionId: production.id,
+      targetChatId: chatId,
+    })
     return
   }
 
@@ -1947,12 +2005,10 @@ async function handleCallbackQuery(callback: TelegramCallbackQuery) {
 async function handleMessage(message: TelegramMessage) {
   const chatId = toTelegramId(message.chat.id)
   const from = message.from
-
   if (!from) return
 
   const userId = toTelegramId(from.id)
   const text = message.text?.trim() || ''
-
   if (!text) return
 
   const parsedCommand = parseCommand(text)
@@ -1968,10 +2024,9 @@ async function handleMessage(message: TelegramMessage) {
     return
   }
 
-  if (message.chat.type !== 'private') return
-
   await handleMasterFreeText({
     chatId,
+    chatType: message.chat.type,
     userId,
     username: from.username,
     text,

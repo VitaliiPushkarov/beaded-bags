@@ -21,9 +21,7 @@ function hasValidWebhookSecret(req: NextRequest): boolean {
 }
 
 function getProductionBotToken(): string | null {
-  const token =
-    process.env.TELEGRAM_PRODUCTION_BOT_TOKEN?.trim() ||
-    process.env.TELEGRAM_BOT_TOKEN?.trim()
+  const token = process.env.TELEGRAM_PRODUCTION_BOT_TOKEN?.trim()
   return token || null
 }
 
@@ -34,23 +32,20 @@ function isTelegramUpdatePayload(value: unknown): value is { update_id: number }
 }
 
 export async function GET() {
-  const token = getProductionBotToken()
+  const hasProductionBotToken = Boolean(getProductionBotToken())
   return NextResponse.json({
     ok: true,
     feature: 'telegram-production-bot-webhook',
-    hasBotToken: Boolean(token),
+    hasBotToken: hasProductionBotToken,
     hasWebhookSecret: Boolean(process.env.TELEGRAM_WEBHOOK_SECRET),
     hasOwnerUsers: Boolean(process.env.TELEGRAM_OWNER_USER_IDS),
-    usingDedicatedProductionBotToken: Boolean(
-      process.env.TELEGRAM_PRODUCTION_BOT_TOKEN,
-    ),
   })
 }
 
 export async function POST(req: NextRequest) {
   if (!getProductionBotToken()) {
     console.error(
-      '[telegram-production] TELEGRAM_PRODUCTION_BOT_TOKEN/TELEGRAM_BOT_TOKEN is not configured',
+      '[telegram-production] TELEGRAM_PRODUCTION_BOT_TOKEN is not configured',
     )
     return NextResponse.json(
       { ok: false, error: 'Production bot token is not configured' },

@@ -7,11 +7,12 @@
 ### Що реалізовано
 
 - Реєстрація майстра в боті через код (`/register CODE`)
-- Фіксація виробітку майстром (`/record`)
+- Фіксація виробітку майстром (`/record` -> `/qty N` -> підтвердження)
 - Автопідтягування ставки за 1 шт (ставка прив'язана до `майстер + виріб`)
 - Підтвердження/відхилення запису власником через inline-кнопки
 - Фіксація виплати власником з автозаписом у `Expense` (`PAYROLL`)
 - Базові звіти для майстра (`/my`) і власника (`/report`)
+- Підтримка роботи в одній Telegram-групі для майстрів і власників
 
 ## Database Changes
 
@@ -30,22 +31,17 @@
 
 Обов'язкові:
 
-- `TELEGRAM_PRODUCTION_BOT_TOKEN` - токен Telegram-бота для виробництва (рекомендовано окремий бот)
-- `TELEGRAM_BOT_TOKEN` - fallback токен, якщо `TELEGRAM_PRODUCTION_BOT_TOKEN` не задано
+- `TELEGRAM_PRODUCTION_BOT_TOKEN` - токен Telegram-бота для виробництва
 - `TELEGRAM_OWNER_USER_IDS` - Telegram user id власників, через кому (приклад: `12345,67890`)
 
 Рекомендовані:
 
 - `TELEGRAM_WEBHOOK_SECRET` - секрет для перевірки webhook header `x-telegram-bot-api-secret-token`
-- `TELEGRAM_PRODUCTION_OWNER_CHAT_IDS` - (optional) chat ids, куди надсилати заявки на підтвердження (через кому)
 
 Для скрипта установки webhook:
 
 - `TELEGRAM_WEBHOOK_BASE_URL` - публічна https адреса проєкту (приклад: `https://example.com`)
 - `TELEGRAM_WEBHOOK_PATH` (optional) - дефолт: `/api/telegram/production/webhook`
-
-Примітка: якщо `TELEGRAM_PRODUCTION_OWNER_CHAT_IDS` не задано, бот також використовує чати, де owner (з `TELEGRAM_OWNER_USER_IDS`) вже запускав команди (`/pending`, `/report`, `/help`).
-Як fallback додатково використовується `TELEGRAM_CHAT_ID`.
 
 ## Setup
 
@@ -87,7 +83,8 @@ GET /api/telegram/production/webhook
 ## Artisan Commands
 
 - `/register CODE` - прив'язати Telegram до майстра
-- `/record` - фіксація виробітку (виріб -> кількість -> підтвердження)
+- `/record` - вибір виробу
+- `/qty N` - ввести кількість (наприклад, `/qty 6`)
 - `/my` - мій звіт за поточний місяць
 - `/help` - підказка
 
@@ -101,4 +98,4 @@ GET /api/telegram/production/webhook
 - Оплата запису (`PAID`) автоматично створює `Expense` категорії `PAYROLL`.
 - Для безпечної роботи в production обов'язково використовуйте `TELEGRAM_WEBHOOK_SECRET`.
 - Власники визначаються тільки через `TELEGRAM_OWNER_USER_IDS`.
-- Якщо не задавати `TELEGRAM_PRODUCTION_BOT_TOKEN`, production-бот працюватиме на `TELEGRAM_BOT_TOKEN`.
+- Бот по виробництву працює тільки на `TELEGRAM_PRODUCTION_BOT_TOKEN` (без fallback на інший токен).
