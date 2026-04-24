@@ -68,6 +68,7 @@ const TELEGRAM_API_TIMEOUT_MS = 4500
 const CALLBACK_PREFIX = 'prod'
 const OWNER_VARIANTS_PAGE_SIZE = 8
 const MENU_BUTTONS = {
+  register: '🔐 Реєстрація',
   record: '🧵 Новий запис',
   my: '📊 Мій звіт',
   help: '❓ Допомога',
@@ -192,6 +193,80 @@ function parseCommand(text: string): { command: string; args: string } | null {
   if (!command) return null
 
   return { command, args }
+}
+
+function normalizeCommand(command: string): string {
+  const normalized = command.trim().toLowerCase()
+  const aliases: Record<string, string> = {
+    start: 'start',
+    dopomoha: 'help',
+    help: 'help',
+    'допомога': 'help',
+    hto_ya: 'whoami',
+    whoami: 'whoami',
+    'хто_я': 'whoami',
+
+    reyestraciya: 'register',
+    reyestratsiya: 'register',
+    registraciya: 'register',
+    register: 'register',
+    'реєстрація': 'register',
+
+    zapys: 'record',
+    record: 'record',
+    'запис': 'record',
+
+    kilkist: 'qty',
+    qty: 'qty',
+    'кількість': 'qty',
+
+    miy_zvit: 'my',
+    my: 'my',
+    'мій_звіт': 'my',
+
+    novyy_maister: 'new_master',
+    novyy_master: 'new_master',
+    new_master: 'new_master',
+
+    maistry: 'masters',
+    masters: 'masters',
+    'майстри': 'masters',
+
+    vstanovyty_stavku: 'set_rate',
+    set_rate: 'set_rate',
+
+    masovo_stavky: 'set_rate_bulk',
+    set_rate_bulk: 'set_rate_bulk',
+    set_rates: 'set_rate_bulk',
+
+    vymknuty_stavku: 'disable_rate',
+    disable_rate: 'disable_rate',
+
+    stavky: 'rates',
+    rates: 'rates',
+    'ставки': 'rates',
+
+    menu_stavok: 'rates_menu',
+    rates_menu: 'rates_menu',
+
+    tovary: 'products',
+    products: 'products',
+    'товари': 'products',
+
+    varianty: 'variants',
+    variants: 'variants',
+    'варіанти': 'variants',
+
+    ochikuyut: 'pending',
+    pending: 'pending',
+    'очікують': 'pending',
+
+    zvit: 'report',
+    report: 'report',
+    'звіт': 'report',
+  }
+
+  return aliases[normalized] ?? normalized
 }
 
 function chunkButtons<T>(items: T[], chunkSize: number): T[][] {
@@ -346,6 +421,24 @@ async function answerCallbackQuery(input: {
   })
 }
 
+async function deleteTelegramMessage(input: { chatId: string; messageId: number }): Promise<void> {
+  await callTelegramApi('deleteMessage', {
+    chat_id: input.chatId,
+    message_id: input.messageId,
+  })
+}
+
+async function deleteCallbackMessage(callback: TelegramCallbackQuery): Promise<void> {
+  const chatId = callback.message?.chat?.id
+  const messageId = callback.message?.message_id
+  if (!chatId || !messageId) return
+
+  await deleteTelegramMessage({
+    chatId: toTelegramId(chatId),
+    messageId,
+  })
+}
+
 async function findLinkedArtisanByTelegram(input: {
   userId: string
   chatId: string
@@ -428,29 +521,31 @@ async function getSession(sessionKey: string) {
 
 function buildMasterHelpText() {
   return [
-    '<b>Команди майстра</b>',
-    '/register CODE - прив\'язати акаунт майстра',
-    '/record - зафіксувати виробіток (обрати варіант)',
-    '/qty 10 - ввести кількість після вибору варіанту',
-    '/my - мій звіт за поточний місяць',
-    '/help - підказка',
+    '<b>Команди майстра (UA)</b>',
+    '/reyestraciya CODE - прив\'язати акаунт майстра',
+    '/zapys - зафіксувати виробіток (обрати варіант)',
+    '/miy_zvit - мій звіт за поточний місяць',
+    '/dopomoha - підказка',
+    '',
+    'Після вибору варіанту надішли лише число (наприклад: <code>7</code>).',
   ].join('\n')
 }
 
 function buildOwnerHelpText() {
   return [
-    '<b>Команди власника</b>',
-    '/new_master Ім\'я Прізвище',
-    '/masters',
-    '/set_rate CODE VARIANT_ID RATE',
-    '/set_rate_bulk CODE RATE id1,id2,...',
-    '/disable_rate CODE VARIANT_ID',
-    '/rates CODE',
-    '/rates_menu',
-    '/products [query]',
-    '/variants [query]',
-    '/pending',
-    '/report',
+    '<b>Команди власника (UA)</b>',
+    '/novyy_maister Ім\'я Прізвище',
+    '/maistry',
+    '/vstanovyty_stavku CODE VARIANT_ID RATE',
+    '/masovo_stavky CODE RATE id1,id2,...',
+    '/vymknuty_stavku CODE VARIANT_ID',
+    '/stavky CODE',
+    '/menu_stavok',
+    '/tovary [query]',
+    '/varianty [query]',
+    '/ochikuyut',
+    '/zvit',
+    '/hto_ya',
   ].join('\n')
 }
 
@@ -479,7 +574,8 @@ function buildWhoAmIText(input: {
 
 function buildMainMenuKeyboard(isOwnerUser: boolean): TelegramReplyKeyboardButton[][] {
   const rows: TelegramReplyKeyboardButton[][] = [
-    [{ text: MENU_BUTTONS.record }, { text: MENU_BUTTONS.my }],
+    [{ text: MENU_BUTTONS.register }, { text: MENU_BUTTONS.record }],
+    [{ text: MENU_BUTTONS.my }],
     [{ text: MENU_BUTTONS.help }],
   ]
 
@@ -495,15 +591,16 @@ function buildMainMenuKeyboard(isOwnerUser: boolean): TelegramReplyKeyboardButto
 }
 
 function mapMenuButtonToCommand(text: string): string | null {
-  if (text === MENU_BUTTONS.record) return 'record'
-  if (text === MENU_BUTTONS.my) return 'my'
-  if (text === MENU_BUTTONS.help) return 'help'
-  if (text === MENU_BUTTONS.pending) return 'pending'
-  if (text === MENU_BUTTONS.report) return 'report'
-  if (text === MENU_BUTTONS.products) return 'products'
-  if (text === MENU_BUTTONS.variants) return 'variants'
-  if (text === MENU_BUTTONS.masters) return 'masters'
-  if (text === MENU_BUTTONS.ratesMenu) return 'rates_menu'
+  if (text === MENU_BUTTONS.register) return 'reyestraciya'
+  if (text === MENU_BUTTONS.record) return 'zapys'
+  if (text === MENU_BUTTONS.my) return 'miy_zvit'
+  if (text === MENU_BUTTONS.help) return 'dopomoha'
+  if (text === MENU_BUTTONS.pending) return 'ochikuyut'
+  if (text === MENU_BUTTONS.report) return 'zvit'
+  if (text === MENU_BUTTONS.products) return 'tovary'
+  if (text === MENU_BUTTONS.variants) return 'varianty'
+  if (text === MENU_BUTTONS.masters) return 'maistry'
+  if (text === MENU_BUTTONS.ratesMenu) return 'menu_stavok'
   return null
 }
 
@@ -788,7 +885,7 @@ async function handleRegisterCommand(input: {
   if (!code) {
     await sendTelegramMessage({
       chatId: input.chatId,
-      text: 'Вкажи код у форматі: <code>/register CODE</code>',
+      text: 'Вкажи код у форматі: <code>/reyestraciya CODE</code>',
     })
     return
   }
@@ -839,7 +936,7 @@ async function handleRegisterCommand(input: {
     chatId: input.chatId,
     text: [
       `✅ Майстра <b>${escapeHtml(updated.name)}</b> успішно прив\'язано.`,
-      'Тепер використовуй <code>/record</code>, далі <code>/qty N</code>.',
+      'Використовуй кнопку <b>🧵 Новий запис</b> і надішли кількість числом.',
     ].join('\n'),
     replyKeyboard: buildMainMenuKeyboard(isOwner(input.userId)),
   })
@@ -863,7 +960,7 @@ async function handleRecordCommand(input: {
       chatId: input.chatId,
       text: [
         'Цей Telegram не прив\'язаний до майстра.',
-        'Надішли <code>/register CODE</code>, де CODE дає власник.',
+        'Надішли <code>/reyestraciya CODE</code>, де CODE дає власник.',
       ].join('\n'),
     })
     return
@@ -951,7 +1048,7 @@ async function handleMyCommand(input: {
   if (!artisan) {
     await sendTelegramMessage({
       chatId: input.chatId,
-      text: 'Спочатку виконай <code>/register CODE</code>.',
+      text: 'Спочатку виконай <code>/reyestraciya CODE</code>.',
     })
     return
   }
@@ -1021,7 +1118,7 @@ async function processQtyInput(input: {
   if (!artisan) {
     await sendTelegramMessage({
       chatId: input.chatId,
-      text: 'Спочатку виконай <code>/register CODE</code>.',
+      text: 'Спочатку виконай <code>/reyestraciya CODE</code>.',
     })
     return
   }
@@ -1036,7 +1133,7 @@ async function processQtyInput(input: {
   if (!session || session.step !== TelegramBotSessionStep.AWAITING_QTY) {
     await sendTelegramMessage({
       chatId: input.chatId,
-      text: 'Немає активного вибору варіанту. Почни з <code>/record</code>.',
+      text: 'Немає активного вибору варіанту. Використай кнопку <b>🧵 Новий запис</b>.',
     })
     return
   }
@@ -1045,7 +1142,7 @@ async function processQtyInput(input: {
   if (!qty || qty > 5000) {
     await sendTelegramMessage({
       chatId: input.chatId,
-      text: 'Введи коректну кількість: <code>/qty 10</code> (від 1 до 5000).',
+      text: 'Введи коректну кількість числом (від 1 до 5000).',
     })
     return
   }
@@ -1055,7 +1152,7 @@ async function processQtyInput(input: {
     await clearSession(sessionKey)
     await sendTelegramMessage({
       chatId: input.chatId,
-      text: 'Сесія застаріла. Виконай <code>/record</code> ще раз.',
+      text: 'Сесія застаріла. Повтори через кнопку <b>🧵 Новий запис</b>.',
     })
     return
   }
@@ -1089,7 +1186,7 @@ async function processQtyInput(input: {
     await clearSession(sessionKey)
     await sendTelegramMessage({
       chatId: input.chatId,
-      text: 'Ставка більше неактивна. Запусти <code>/record</code> знову.',
+      text: 'Ставка більше неактивна. Повтори через кнопку <b>🧵 Новий запис</b>.',
     })
     return
   }
@@ -1339,7 +1436,7 @@ async function handleOwnerCommand(input: {
     if (name.length < 2) {
       await sendTelegramMessage({
         chatId,
-        text: 'Формат: <code>/new_master Ім\'я Прізвище</code>',
+        text: 'Формат: <code>/novyy_maister Ім\'я Прізвище</code>',
       })
       return
     }
@@ -1373,7 +1470,7 @@ async function handleOwnerCommand(input: {
       text: [
         `✅ Створено майстра: <b>${escapeHtml(created.name)}</b>`,
         `Код реєстрації: <code>${escapeHtml(created.accessCode)}</code>`,
-        'Передай код майстру для команди <code>/register CODE</code>.',
+        'Передай код майстру для команди <code>/reyestraciya CODE</code>.',
       ].join('\n'),
     })
     return
@@ -1388,7 +1485,7 @@ async function handleOwnerCommand(input: {
     if (!code || !variantId || !rate) {
       await sendTelegramMessage({
         chatId,
-        text: 'Формат: <code>/set_rate CODE VARIANT_ID RATE</code>',
+        text: 'Формат: <code>/vstanovyty_stavku CODE VARIANT_ID RATE</code>',
       })
       return
     }
@@ -1433,7 +1530,7 @@ async function handleOwnerCommand(input: {
     if (!variant) {
       await sendTelegramMessage({
         chatId,
-        text: 'Варіант не знайдено. Перевір VARIANT_ID або використай /variants.',
+        text: 'Варіант не знайдено. Перевір VARIANT_ID або використай <code>/varianty</code>.',
       })
       return
     }
@@ -1480,8 +1577,8 @@ async function handleOwnerCommand(input: {
       await sendTelegramMessage({
         chatId,
         text: [
-          'Формат: <code>/set_rate_bulk CODE RATE id1,id2,id3</code>',
-          'Приклад: <code>/set_rate_bulk 123456 450 cm7abc...,cm7def...,cm7ghi...</code>',
+          'Формат: <code>/masovo_stavky CODE RATE id1,id2,id3</code>',
+          'Приклад: <code>/masovo_stavky 123456 450 cm7abc...,cm7def...,cm7ghi...</code>',
         ].join('\n'),
       })
       return
@@ -1605,7 +1702,7 @@ async function handleOwnerCommand(input: {
     if (!code || !variantId) {
       await sendTelegramMessage({
         chatId,
-        text: 'Формат: <code>/disable_rate CODE VARIANT_ID</code>',
+        text: 'Формат: <code>/vymknuty_stavku CODE VARIANT_ID</code>',
       })
       return
     }
@@ -1684,7 +1781,7 @@ async function handleOwnerCommand(input: {
     if (!code) {
       await sendTelegramMessage({
         chatId,
-        text: 'Формат: <code>/rates CODE</code>',
+        text: 'Формат: <code>/stavky CODE</code>',
       })
       return
     }
@@ -1731,7 +1828,7 @@ async function handleOwnerCommand(input: {
     if (artisans.length === 0) {
       await sendTelegramMessage({
         chatId,
-        text: 'Майстрів ще немає. Створи через <code>/new_master</code>.',
+        text: 'Майстрів ще немає. Створи через <code>/novyy_maister</code>.',
       })
       return
     }
@@ -1789,7 +1886,7 @@ async function handleOwnerCommand(input: {
             `• <code>${escapeHtml(product.slug)}</code> — ${escapeHtml(product.name)} (варіантів: ${product._count.variants})`,
         ),
         '',
-        'Для ставок поштучно використовуй <code>/variants [query]</code> і передавай VARIANT_ID у /set_rate.',
+        'Для ставок поштучно використовуй <code>/varianty [query]</code> і передавай VARIANT_ID у <code>/vstanovyty_stavku</code>.',
       ].join('\n'),
     })
     return
@@ -2016,7 +2113,8 @@ async function handleOwnerCommand(input: {
 
   await sendTelegramMessage({
     chatId,
-    text: 'Невідома команда власника. Використай /help.',
+    text: 'Невідома команда власника. Використай <code>/dopomoha</code> або кнопки нижче.',
+    replyKeyboard: buildMainMenuKeyboard(true),
   })
 }
 
@@ -2028,6 +2126,7 @@ async function handleCommand(input: {
   userId: string
   username?: string
 }) {
+  const command = normalizeCommand(input.command)
   const isOwnerUser = isOwner(input.userId)
   const ownerOnly = new Set([
     'new_master',
@@ -2044,7 +2143,7 @@ async function handleCommand(input: {
     'report',
   ])
 
-  if (input.command === 'help' || input.command === 'start') {
+  if (command === 'help' || command === 'start') {
     const parts = [buildMasterHelpText()]
     if (isOwnerUser) {
       parts.push('')
@@ -2059,7 +2158,7 @@ async function handleCommand(input: {
     return
   }
 
-  if (input.command === 'whoami') {
+  if (command === 'whoami') {
     await sendTelegramMessage({
       chatId: input.chatId,
       text: buildWhoAmIText({
@@ -2072,7 +2171,7 @@ async function handleCommand(input: {
     return
   }
 
-  if (ownerOnly.has(input.command) && !isOwnerUser) {
+  if (ownerOnly.has(command) && !isOwnerUser) {
     await sendTelegramMessage({
       chatId: input.chatId,
       text: [
@@ -2085,9 +2184,9 @@ async function handleCommand(input: {
   }
 
   if (isOwnerUser) {
-    if (ownerOnly.has(input.command)) {
+    if (ownerOnly.has(command)) {
       await handleOwnerCommand({
-        command: input.command,
+        command,
         args: input.args,
         chatId: input.chatId,
       })
@@ -2095,7 +2194,7 @@ async function handleCommand(input: {
     }
   }
 
-  if (input.command === 'register') {
+  if (command === 'register') {
     await handleRegisterCommand({
       chatId: input.chatId,
       chatType: input.chatType,
@@ -2106,7 +2205,7 @@ async function handleCommand(input: {
     return
   }
 
-  if (input.command === 'record') {
+  if (command === 'record') {
     await handleRecordCommand({
       chatId: input.chatId,
       chatType: input.chatType,
@@ -2116,11 +2215,11 @@ async function handleCommand(input: {
     return
   }
 
-  if (input.command === 'qty') {
+  if (command === 'qty') {
     if (!input.args.trim()) {
       await sendTelegramMessage({
         chatId: input.chatId,
-        text: 'Формат: <code>/qty 10</code>',
+        text: 'Надішли кількість числом (наприклад: <code>10</code>).',
       })
       return
     }
@@ -2135,7 +2234,7 @@ async function handleCommand(input: {
     return
   }
 
-  if (input.command === 'my') {
+  if (command === 'my') {
     await handleMyCommand({
       chatId: input.chatId,
       chatType: input.chatType,
@@ -2147,7 +2246,8 @@ async function handleCommand(input: {
 
   await sendTelegramMessage({
     chatId: input.chatId,
-    text: 'Невідома команда. Використай /help.',
+    text: 'Невідома команда. Використай <code>/dopomoha</code> або кнопки нижче.',
+    replyKeyboard: buildMainMenuKeyboard(isOwnerUser),
   })
 }
 
@@ -2535,6 +2635,7 @@ async function handleCallbackQuery(callback: TelegramCallbackQuery) {
         ownerChatId: toTelegramId(ownerChatId),
         callbackQueryId: callback.id,
       })
+      await deleteCallbackMessage(callback)
       return
     }
 
@@ -2544,6 +2645,7 @@ async function handleCallbackQuery(callback: TelegramCallbackQuery) {
         ownerChatId: toTelegramId(ownerChatId),
         callbackQueryId: callback.id,
       })
+      await deleteCallbackMessage(callback)
       return
     }
 
@@ -2552,6 +2654,7 @@ async function handleCallbackQuery(callback: TelegramCallbackQuery) {
       ownerChatId: toTelegramId(ownerChatId),
       callbackQueryId: callback.id,
     })
+    await deleteCallbackMessage(callback)
     return
   }
 
@@ -2797,8 +2900,9 @@ async function handleCallbackQuery(callback: TelegramCallbackQuery) {
     })
     await sendTelegramMessage({
       chatId,
-      text: 'Дію скасовано. Для нового запису використовуй <code>/record</code>.',
+      text: 'Дію скасовано. Для нового запису використовуй кнопку <b>🧵 Новий запис</b>.',
     })
+    await deleteCallbackMessage(callback)
     return
   }
 
@@ -2813,7 +2917,7 @@ async function handleCallbackQuery(callback: TelegramCallbackQuery) {
     if (!artisan) {
       await answerCallbackQuery({
         callbackQueryId: callback.id,
-        text: 'Спочатку виконай /register CODE',
+        text: 'Спочатку виконай /reyestraciya CODE',
         showAlert: true,
       })
       return
@@ -2875,7 +2979,7 @@ async function handleCallbackQuery(callback: TelegramCallbackQuery) {
         `Обрано: <b>${escapeHtml(formatVariantLabel(rate.variant))}</b>`,
         `<b>Variant ID:</b> <code>${escapeHtml(rate.variantId)}</code>`,
         `Ставка: <b>${formatUAH(rate.ratePerUnitUAH)}</b>`,
-        'Тепер надішли <code>/qty N</code> (наприклад, <code>/qty 7</code>).',
+        'Тепер надішли кількість одним числом (наприклад, <code>7</code>).',
       ].join('\n'),
     })
     return
@@ -2892,7 +2996,7 @@ async function handleCallbackQuery(callback: TelegramCallbackQuery) {
     if (!artisan) {
       await answerCallbackQuery({
         callbackQueryId: callback.id,
-        text: 'Спочатку виконай /register CODE',
+        text: 'Спочатку виконай /reyestraciya CODE',
         showAlert: true,
       })
       return
@@ -2903,7 +3007,7 @@ async function handleCallbackQuery(callback: TelegramCallbackQuery) {
       await clearSession(sessionKey)
       await answerCallbackQuery({
         callbackQueryId: callback.id,
-        text: 'Сесія застаріла. Запусти /record ще раз.',
+        text: 'Сесія застаріла. Повтори через кнопку "Новий запис".',
         showAlert: true,
       })
       return
@@ -2914,7 +3018,7 @@ async function handleCallbackQuery(callback: TelegramCallbackQuery) {
       await clearSession(sessionKey)
       await answerCallbackQuery({
         callbackQueryId: callback.id,
-        text: 'Сесія неповна. Запусти /record ще раз.',
+        text: 'Сесія неповна. Повтори через кнопку "Новий запис".',
         showAlert: true,
       })
       return
@@ -2950,7 +3054,7 @@ async function handleCallbackQuery(callback: TelegramCallbackQuery) {
       await clearSession(sessionKey)
       await answerCallbackQuery({
         callbackQueryId: callback.id,
-        text: 'Ставка більше недоступна. Повтори /record.',
+        text: 'Ставка більше недоступна. Повтори через кнопку "Новий запис".',
         showAlert: true,
       })
       return
@@ -2994,6 +3098,7 @@ async function handleCallbackQuery(callback: TelegramCallbackQuery) {
       productionId: production.id,
       targetChatId: chatId,
     })
+    await deleteCallbackMessage(callback)
     return
   }
 
