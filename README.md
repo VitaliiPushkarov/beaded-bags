@@ -8,11 +8,12 @@
 
 - Реєстрація майстра в боті через код (`/register CODE`)
 - Фіксація виробітку майстром (`/record` -> `/qty N` -> підтвердження)
-- Автопідтягування ставки за 1 шт (ставка прив'язана до `майстер + виріб`)
+- Автопідтягування ставки за 1 шт (ставка прив'язана до `майстер + варіант товару`)
 - Підтвердження/відхилення запису власником через inline-кнопки
 - Фіксація виплати власником з автозаписом у `Expense` (`PAYROLL`)
 - Базові звіти для майстра (`/my`) і власника (`/report`)
 - Підтримка роботи в одній Telegram-групі для майстрів і власників
+- Вбудоване кнопкове меню (reply keyboard) для швидкого доступу без ручного вводу команд
 
 ## Database Changes
 
@@ -26,6 +27,7 @@
 Міграція:
 
 - `prisma/migrations/20260424104727_add_telegram_artisan_production_bot/migration.sql`
+- `prisma/migrations/20260424142000_artisan_rates_by_variant/migration.sql`
 
 ## Environment Variables
 
@@ -73,17 +75,20 @@ GET /api/telegram/production/webhook
 
 - `/new_master Ім'я Прізвище` - створити майстра та отримати CODE
 - `/masters` - список майстрів
-- `/set_rate CODE PRODUCT_SLUG RATE` - встановити ставку
-- `/disable_rate CODE PRODUCT_SLUG` - вимкнути ставку
+- `/set_rate CODE VARIANT_ID RATE` - встановити ставку на конкретний варіант
+- `/set_rate_bulk CODE RATE id1,id2,...` - масово встановити ставку на список VARIANT_ID
+- `/disable_rate CODE VARIANT_ID` - вимкнути ставку для варіанту
 - `/rates CODE` - показати ставки майстра
+- `/rates_menu` - керування ставками через кнопки (вибір майстра/варіанту без ручного вводу довгих команд)
 - `/products [query]` - список товарів і slug
+- `/variants [query]` - список варіантів з `VARIANT_ID` для команд ставок
 - `/pending` - записи у статусі `SUBMITTED`
 - `/report` - зведення за поточний місяць
 
 ## Artisan Commands
 
 - `/register CODE` - прив'язати Telegram до майстра
-- `/record` - вибір виробу
+- `/record` - вибір варіанту
 - `/qty N` - ввести кількість (наприклад, `/qty 6`)
 - `/my` - мій звіт за поточний місяць
 - `/help` - підказка
