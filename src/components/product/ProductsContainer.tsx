@@ -7,11 +7,7 @@ import AppliedChips from './AppliedChips'
 import ProductsGrid from './ProductsGrid'
 import Breadcrumbs from '../ui/BreadCrumbs'
 import type { ProductType } from '@prisma/client'
-import {
-  ACTIVE_PRODUCT_TYPES,
-  getColorLabel,
-  getTypeLabel,
-} from '@/lib/labels'
+import { ACTIVE_PRODUCT_TYPES, getColorLabel, getTypeLabel } from '@/lib/labels'
 import type { ProductWithVariants as CardProductWithVariants } from '@/app/products/ProductCardLarge'
 import { resolveDiscountPercent } from '@/lib/pricing'
 import { matchAccessorySubcategory } from '@/lib/shop-taxonomy'
@@ -295,7 +291,11 @@ export default function ProductsContainer({
         next.group = g
         changed = true
       }
-      if (!next.accessorySubcategory && s && (isLockedAccessoryType || t === 'ACCESSORY')) {
+      if (
+        !next.accessorySubcategory &&
+        s &&
+        (isLockedAccessoryType || t === 'ACCESSORY')
+      ) {
         next.accessorySubcategory = s
         changed = true
       }
@@ -351,8 +351,7 @@ export default function ProductsContainer({
       arr = arr.filter((p) => matchesSelectedType(p, toApply.bagTypes))
     }
 
-    const hasAccessoryContext =
-      isAccessoryType(lockedType ?? toApply.bagTypes)
+    const hasAccessoryContext = isAccessoryType(lockedType ?? toApply.bagTypes)
     if (
       hasAccessoryContext &&
       toApply.accessorySubcategory &&
@@ -501,9 +500,7 @@ export default function ProductsContainer({
     }
 
     if (previewFilters.color) {
-      arr = arr.filter((p) =>
-        matchesColor(p, previewFilters.color, locale),
-      )
+      arr = arr.filter((p) => matchesColor(p, previewFilters.color, locale))
     }
 
     const minNum = previewFilters.min
@@ -552,7 +549,10 @@ export default function ProductsContainer({
         key: 'bagTypes',
         label: `${t('Тип', 'Type')}: ${getTypeLabel(applied.bagTypes, locale) || applied.bagTypes}`,
       })
-    if (isAccessoryType(lockedType ?? applied.bagTypes) && applied.accessorySubcategory) {
+    if (
+      isAccessoryType(lockedType ?? applied.bagTypes) &&
+      applied.accessorySubcategory
+    ) {
       const subcategoryLabel = subcategoryOptions.find(
         (item) => item.value === applied.accessorySubcategory,
       )?.label
@@ -652,7 +652,11 @@ export default function ProductsContainer({
       arr = arr.filter((p) => matchesSelectedType(p, next.bagTypes))
     }
     const hasAccessoryContext = isAccessoryType(lockedType ?? next.bagTypes)
-    if (hasAccessoryContext && next.accessorySubcategory && subcategoryOptions.length > 0) {
+    if (
+      hasAccessoryContext &&
+      next.accessorySubcategory &&
+      subcategoryOptions.length > 0
+    ) {
       arr = arr.filter((p) =>
         matchAccessorySubcategory(p, next.accessorySubcategory),
       )
@@ -698,10 +702,12 @@ export default function ProductsContainer({
     : EMPTY_SUBCATEGORY_OPTIONS
 
   return (
-    <div className="max-w-[1440px] mx-auto py-6 px-5 md:px-[50px]">
+    <div className="max-w-[1440px] mx-auto py-6 px-5 md:px-[50px] 2xl:max-w-full">
       <Breadcrumbs />
       <div className="flex items-center justify-between py-4 lg:mb-6 lg:items-end">
-        <h1 className="text-2xl lg:text-3xl">{locale === 'en' && title === 'Каталог' ? 'Catalog' : title}</h1>
+        <h1 className="text-2xl lg:text-3xl">
+          {locale === 'en' && title === 'Каталог' ? 'Catalog' : title}
+        </h1>
         <button
           onClick={() => setMobileOpen(true)}
           className="uppercase flex items-center gap-2 lg:hidden"

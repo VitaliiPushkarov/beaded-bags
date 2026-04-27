@@ -3,6 +3,7 @@ import { z } from 'zod'
 import { prisma } from '@/lib/prisma'
 import { buildOrderFinancialSnapshot } from '@/lib/finance'
 import { buildManagedUnitCostUAH } from '@/lib/management-accounting'
+import { buildOrderCustomerSchema } from '@/lib/orders/customer'
 
 const SupportedPaymentMethodSchema = z.enum([
   'LIQPAY',
@@ -32,13 +33,7 @@ const BodySchema = z.object({
   deliveryUAH: z.number().min(0).optional().default(0),
   discountUAH: z.number().min(0).optional().default(0),
   totalUAH: z.number().min(0),
-  customer: z.object({
-    name: z.string().min(1),
-    surname: z.string().min(1),
-    patronymic: z.string().optional().nullable(),
-    phone: z.string().min(5),
-    email: z.string().email().optional().nullable(),
-  }),
+  customer: buildOrderCustomerSchema(1),
   shipping: z.object({
     npCityRef: z.string().min(1),
     npCityName: z.string().min(1),

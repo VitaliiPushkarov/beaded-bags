@@ -1,10 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { z } from 'zod'
 
 import { prisma } from '@/lib/prisma'
 import { buildOrderFinancialSnapshot } from '@/lib/finance'
 import { buildManagedUnitCostUAH } from '@/lib/management-accounting'
 import { calcDiscountUAH, resolvePromoCode } from '@/lib/promo'
+import { formatCustomerFullName } from '@/lib/orders/customer'
+import { OrderCreateCheckoutBodySchema } from '@/lib/orders/create-order-schema'
 
 async function sendTelegram(text: string) {
   const token = process.env.TELEGRAM_BOT_TOKEN
@@ -74,59 +75,10 @@ function escHtml(s: string) {
     .replaceAll('>', '&gt;')
 }
 
-// те, що приходить з фронта
-const OrderItemAddon = z.object({
-  addonVariantId: z.string().min(1),
-  name: z.string().min(1),
-  priceUAH: z.number().min(0),
-  qty: z.number().int().min(1),
-})
-
-const OrderItem = z.object({
-  productId: z.string().optional().nullable(),
-  variantId: z.string().optional().nullable(),
-  name: z.string().min(1),
-  qty: z.number().int().min(1),
-  priceUAH: z.number().min(0),
-  modelSize: z.string().optional().nullable(),
-  pouchColor: z.string().optional().nullable(),
-  strapName: z.string().optional().nullable(),
-  image: z.string().optional().nullable(),
-  slug: z.string().optional().nullable(),
-  color: z.string().optional().nullable(),
-  addons: z.array(OrderItemAddon).optional().nullable(),
-})
-
-const BodySchema = z.object({
-  items: z.array(OrderItem).min(1),
-  amountUAH: z.number().min(0),
-  promoCode: z.string().optional().nullable(),
-  customer: z.object({
-    name: z.string().min(2),
-    surname: z.string().min(2),
-    patronymic: z.string().optional().nullable(),
-    phone: z.string().min(10),
-    email: z.string().email().optional().nullable(),
-  }),
-  shipping: z.object({
-    method: z.literal('nova_poshta'),
-    np: z.object({
-      cityRef: z.string().min(1),
-      cityName: z.string().min(1),
-      warehouseRef: z.string().min(1),
-      warehouseName: z.string().min(1),
-    }),
-  }),
-  // frontend може передати варіант оплати, але ми його зафіксуємо нижче
-  paymentMethod: z
-    .enum(['LIQPAY', 'BANK_TRANSFER'])
-    .optional(),
-})
-
 export async function POST(req: NextRequest) {
   try {
     const json = await req.json()
-    const parsed = BodySchema.safeParse(json)
+    const parsed = OrderCreateCheckoutBodySchema.safeParse(json)
 
     if (!parsed.success) {
       return NextResponse.json(
@@ -381,9 +333,13 @@ export async function POST(req: NextRequest) {
         `\n<b>Доставка:</b> Нова пошта` +
         `\n<b>Місто:</b> ${escHtml(created.npCityName)}` +
         `\n<b>Відділення:</b> ${escHtml(created.npWarehouseName)}` +
-        `\n<b>Клієнт:</b> ${escHtml(created.customerName)} ${escHtml(
-          created.customerSurname,
-        )} ${escHtml(created.customerPatronymic ?? '')}` +
+        `\n<b>Клієнт:</b> ${escHtml(
+          formatCustomerFullName({
+            name: created.customerName,
+            surname: created.customerSurname,
+            patronymic: created.customerPatronymic,
+          }),
+        )}` +
         `\n<b>Телефон:</b> ${escHtml(created.customerPhone)}` +
         (created.customerEmail
           ? `\n<b>Email:</b> ${escHtml(created.customerEmail)}`

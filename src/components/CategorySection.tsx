@@ -53,14 +53,14 @@ export default async function CategorySection() {
   })
 
   return (
-    <section className="max-w-[1440px] px-5 md:px-6 py-12">
+    <section className=" px-5 md:px-6 py-12">
       <div className="flex items-end justify-between gap-4 mb-4">
         <h2 className="text-2xl uppercase font-semibold">
           {locale === 'en' ? 'PRODUCT CATEGORIES' : 'КАТЕГОРІЇ ТОВАРІВ'}
         </h2>
         <Link
           href="/shop"
-          className="text-sm underline underline-offset-2 hover:no-underline"
+          className="inline-flex items-center justify-center mt-4 underline hover:no-underline"
         >
           {locale === 'en' ? 'All products' : 'Всі товари'}
         </Link>
@@ -78,7 +78,7 @@ export default async function CategorySection() {
           <Link
             key={card.href}
             href={card.href}
-            className="group relative overflow-hidden border border-gray-300 min-h-[320px] lg:min-h-[360px] shadow-[0_10px_24px_rgba(0,0,0,0.14)] transition-shadow duration-300 hover:shadow-[0_16px_30px_rgba(0,0,0,0.2)]"
+            className="group relative overflow-hidden border border-gray-300 min-h-[320px] lg:min-h-[360px] 2xl:min-h-[560px] shadow-[0_10px_24px_rgba(0,0,0,0.14)] transition-shadow duration-300 hover:shadow-[0_16px_30px_rgba(0,0,0,0.2)]"
           >
             <Image
               src={card.image}

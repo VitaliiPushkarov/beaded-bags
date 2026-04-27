@@ -59,7 +59,7 @@ export default async function Bestsellers() {
         </h2>
 
         <div className="relative flex flex-col gap-2">
-          <div className="flex gap-5 overflow-x-auto scrollbar-always snap-x pb-2">
+          <div className="flex items-stretch gap-5 overflow-x-auto scrollbar-always snap-x pb-2">
             {products.length === 0 ? (
               <div className="text-gray-500 text-sm">
                 {locale === 'en' ? 'No products yet.' : 'Поки що немає товарів.'}
@@ -137,22 +137,25 @@ export default async function Bestsellers() {
                 return (
                   <div
                     key={p.id}
-                    className="min-w-[260px] snap-start 2xl:w-[560px] 2xl:min-h-[680px]"
+                    className="w-[260px] shrink-0 snap-start 2xl:w-[560px] 2xl:min-h-[680px]"
                   >
-                    <Link href={`/products/${p.slug}`}>
-                      <div className="group relative aspect-3/4 bg-gray-100 overflow-hidden border">
+                    <Link
+                      href={`/products/${p.slug}`}
+                      className="flex h-full w-full flex-col"
+                    >
+                      <div className="group relative aspect-3/4 bg-gray-100 overflow-hidden border 2xl:aspect-auto 2xl:flex-1">
                         <Image
                           src={primaryImage}
                           alt={productName}
                           fill
-                          sizes="(max-width: 768px) 60vw, 260px"
+                          sizes="(min-width: 1536px) 560px, (max-width: 768px) 60vw, 260px"
                           className="object-cover transition-opacity duration-300 group-hover:opacity-0 group-hover:scale-[1.02]"
                         />
                         <Image
                           src={hoverImage}
                           alt={`${productName} hover`}
                           fill
-                          sizes="(max-width: 768px) 60vw, 260px"
+                          sizes="(min-width: 1536px) 560px, (max-width: 768px) 60vw, 260px"
                           className="object-cover transition-opacity duration-300 opacity-0 group-hover:opacity-100 group-hover:scale-[1.02]"
                         />
                       </div>

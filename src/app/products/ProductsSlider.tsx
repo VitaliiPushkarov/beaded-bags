@@ -100,7 +100,7 @@ export default function ProductsSlider() {
             <h2 className="text-2xl uppercase font-semibold">Каталог GERDAN</h2>
             <Link
               href="/shop"
-              className="text-sm underline underline-offset-2 hover:no-underline"
+              className="inline-flex items-center justify-center mt-4 underline hover:no-underline"
             >
               Всі товари
             </Link>
@@ -131,6 +131,7 @@ export default function ProductsSlider() {
                 0: { slidesPerView: 1, spaceBetween: 16 }, // mobile
                 768: { slidesPerView: 2, spaceBetween: 18 }, // tablet
                 1024: { slidesPerView: 3, spaceBetween: 20 }, // laptop/desktop
+                1444: { slidesPerView: 4, spaceBetween: 22 }, // large desktop
               }}
               navigation={false}
               className="pr-20"

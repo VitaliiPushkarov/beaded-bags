@@ -50,9 +50,9 @@ export default function SearchDialog() {
   const [matchesCount, setMatchesCount] = useState(0)
   const [loading, setLoading] = useState(false)
   const [showAll, setShowAll] = useState(false)
-  const cacheRef = useRef<Map<string, { items: SearchProduct[]; total: number }>>(
-    new Map(),
-  )
+  const cacheRef = useRef<
+    Map<string, { items: SearchProduct[]; total: number }>
+  >(new Map())
   const inputRef = useRef<HTMLInputElement>(null)
 
   // Search by query only when dialog is open
@@ -91,7 +91,7 @@ export default function SearchDialog() {
         if (!res.ok) throw new Error('Failed to search')
 
         const data = await res.json()
-        const items = Array.isArray(data) ? data : data?.items ?? []
+        const items = Array.isArray(data) ? data : (data?.items ?? [])
         const total =
           typeof data?.total === 'number' ? data.total : items.length
 
@@ -205,7 +205,7 @@ export default function SearchDialog() {
                 lg:rounded-xl lg:shadow-xl
               "
             >
-              <div className="flex items-center gap-2 border-b px-4">
+              <div className="flex items-center gap-2 px-4">
                 <SearchIcon />
                 <input
                   ref={inputRef}
@@ -247,13 +247,9 @@ export default function SearchDialog() {
                       const money = pickLocalizedMoney({
                         locale,
                         priceUAH:
-                          p.variants?.[0]?.priceUAH ??
-                          p.basePriceUAH ??
-                          null,
+                          p.variants?.[0]?.priceUAH ?? p.basePriceUAH ?? null,
                         priceUSD:
-                          p.variants?.[0]?.priceUSD ??
-                          p.basePriceUSD ??
-                          null,
+                          p.variants?.[0]?.priceUSD ?? p.basePriceUSD ?? null,
                       })
                       const hasAnyPrice =
                         typeof p.variants?.[0]?.priceUAH === 'number' ||
@@ -262,35 +258,35 @@ export default function SearchDialog() {
                         typeof p.basePriceUSD === 'number'
 
                       return (
-                    <Link
-                      href={`/products/${p.slug}`}
-                      onClick={() => {
-                        setOpen(false)
-                        setShowAll(false)
-                      }}
-                      className="flex items-center gap-3 p-3"
-                    >
-                      <div
-                        className="w-12 h-12 rounded bg-gray-100 overflow-hidden shrink-0"
-                        style={{
-                          backgroundImage: `url(${getProductImage(p)})`,
-                          backgroundSize: 'cover',
-                          backgroundPosition: 'center',
-                        }}
-                      />
-                      <div className="flex-1">
-                        <div className="text-sm">{title}</div>
-                        {hasAnyPrice ? (
-                          <div className="text-xs text-gray-500">
-                            {formatLocalizedMoney(
-                              money.amount,
-                              money.currency,
-                              numberLocale,
-                            )}
+                        <Link
+                          href={`/products/${p.slug}`}
+                          onClick={() => {
+                            setOpen(false)
+                            setShowAll(false)
+                          }}
+                          className="flex items-center gap-3 p-3"
+                        >
+                          <div
+                            className="w-12 h-12 rounded bg-gray-100 overflow-hidden shrink-0"
+                            style={{
+                              backgroundImage: `url(${getProductImage(p)})`,
+                              backgroundSize: 'cover',
+                              backgroundPosition: 'center',
+                            }}
+                          />
+                          <div className="flex-1">
+                            <div className="text-sm">{title}</div>
+                            {hasAnyPrice ? (
+                              <div className="text-xs text-gray-500">
+                                {formatLocalizedMoney(
+                                  money.amount,
+                                  money.currency,
+                                  numberLocale,
+                                )}
+                              </div>
+                            ) : null}
                           </div>
-                        ) : null}
-                      </div>
-                    </Link>
+                        </Link>
                       )
                     })()}
                   </li>
@@ -309,7 +305,7 @@ export default function SearchDialog() {
               </ul>
             </div>
           </div>,
-          document.body
+          document.body,
         )}
     </>
   )

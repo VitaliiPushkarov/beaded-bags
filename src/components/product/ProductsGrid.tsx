@@ -17,7 +17,7 @@ export default function ProductsGrid({
   const t = useT()
   if (loading) {
     return (
-      <div className="grid grid-cols-2 lg:grid-cols-3 gap-5 mt-6">
+      <div className="grid grid-cols-2 lg:grid-cols-3 2xl:grid-cols-4 2xl:gap-7 gap-5 mt-6">
         {Array.from({ length: 9 }).map((_, i) => (
           <div
             key={i}
@@ -36,7 +36,7 @@ export default function ProductsGrid({
     )
   }
   return (
-    <div className="grid grid-cols-2 lg:grid-cols-3 gap-5 mt-6">
+    <div className="grid grid-cols-2 lg:grid-cols-3 2xl:grid-cols-4 gap-5 gap-7 mt-6">
       {products.map((p) => (
         <ProductCardLarge
           key={p.id || p.slug}

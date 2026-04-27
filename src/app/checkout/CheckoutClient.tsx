@@ -15,7 +15,6 @@ import { useT } from '@/lib/i18n'
 type CheckoutFormState = {
   name: string
   surname: string
-  patronymic: string
   phone: string
   email: string
 }
@@ -26,7 +25,6 @@ function emptyCheckoutForm(): CheckoutFormState {
   return {
     name: '',
     surname: '',
-    patronymic: '',
     phone: '',
     email: '',
   }
@@ -41,7 +39,6 @@ function loadCheckoutFormDraft(): CheckoutFormState {
     return {
       name: String(parsed.name ?? ''),
       surname: String(parsed.surname ?? ''),
-      patronymic: String(parsed.patronymic ?? ''),
       phone: String(parsed.phone ?? ''),
       email: String(parsed.email ?? ''),
     }
@@ -78,7 +75,6 @@ export default function CheckoutClient() {
   const [touched, setTouched] = useState({
     name: false,
     surname: false,
-    patronymic: false,
     phone: false,
     email: false,
   })
@@ -184,8 +180,7 @@ export default function CheckoutClient() {
     setError(null)
     const fioValid =
       isNameValid(form.name) &&
-      isNameValid(form.surname) &&
-      isNameValid(form.patronymic)
+      isNameValid(form.surname)
     const phoneNorm = normalizeUaPhone(form.phone)
     const phoneValid = isUaPhoneValid(phoneNorm)
     const emailValid = isEmailValid(form.email)
@@ -194,7 +189,6 @@ export default function CheckoutClient() {
       setTouched({
         name: true,
         surname: true,
-        patronymic: true,
         phone: true,
         email: true,
       })
@@ -241,15 +235,11 @@ export default function CheckoutClient() {
       const customer: {
         name: string
         surname: string
-        patronymic?: string
         phone: string
         email?: string
       } = {
         name: lettersOnly(form.name).trim(),
         surname: lettersOnly(form.surname).trim(),
-        patronymic: form.patronymic
-          ? lettersOnly(form.patronymic).trim()
-          : undefined,
         phone: normalizeUaPhone(form.phone),
         email: form.email?.trim() || undefined,
       }
@@ -393,28 +383,6 @@ export default function CheckoutClient() {
             )}
           </div>
 
-          <div>
-            <input
-              className={inputClass(
-                isNameValid(form.patronymic),
-                touched.patronymic,
-              )}
-              value={form.patronymic}
-              onChange={(e) =>
-                setForm({ ...form, patronymic: lettersOnly(e.target.value) })
-              }
-              onBlur={() => setTouched({ ...touched, patronymic: true })}
-              placeholder={t('ПО БАТЬКОВІ*', 'MIDDLE NAME*')}
-            />
-            {touched.patronymic && !isNameValid(form.patronymic) && (
-              <p className="text-xs text-rose-600 mt-1">
-                {t(
-                  'Введіть лише літери, мінімум 2 символи',
-                  'Use letters only, at least 2 characters',
-                )}
-              </p>
-            )}
-          </div>
           <div>
             <input
               className={inputClass(isNameValid(form.surname), touched.surname)}
