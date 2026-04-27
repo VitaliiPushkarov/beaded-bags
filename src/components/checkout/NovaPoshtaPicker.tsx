@@ -92,7 +92,7 @@ export default function NovaPoshtaPicker() {
         params.set('warehouses', '1')
         const res = await fetch(
           `/api/nova-poshta/cities?${params.toString()}`,
-          { signal: ctrl.signal }
+          { signal: ctrl.signal },
         )
         if (!res.ok) {
           console.error('NP cities failed:', await res.text())
@@ -263,7 +263,7 @@ export default function NovaPoshtaPicker() {
           })
           const res = await fetch(
             `/api/nova-poshta/warehouses?${params.toString()}`,
-            { signal: controller.signal }
+            { signal: controller.signal },
           )
           if (!res.ok) {
             console.error('NP warehouses search failed:', await res.text())
@@ -353,21 +353,22 @@ export default function NovaPoshtaPicker() {
               setQCity(np.cityName || '')
               setActiveCityIdx(-1)
             }}
-            className="mt-1 flex w-full items-center justify-between  border-b pr-3 py-2 text-left text-[12px]"
+            aria-expanded={cityOpen}
+            className="cursor-pointer mt-1 flex w-full items-center justify-between border-b py-2 pr-3 text-left text-[14px]"
           >
             <span className={np.cityName ? 'text-black' : 'text-gray-400'}>
               {np.cityName || t('ОБЕРІТЬ МІСТО*', 'SELECT CITY*')}
             </span>
 
-            {/* стрілка ▼ / ▲ */}
-            <span
-              className={
-                'ml-2 inline-block w-0 h-0 border-l-[6px] border-r-[6px] border-l-transparent border-r-transparent ' +
-                (cityOpen
-                  ? 'border-t-0 border-t-8px border-t-black' // ▲
-                  : 'border-b-0 border-b-8px border-b-black') // ▼
-              }
-            />
+            <svg
+              aria-hidden="true"
+              viewBox="0 0 14 8"
+              className={`ml-3 h-[8px] w-[14px] shrink-0 text-black transition-transform duration-200 ${
+                cityOpen ? 'rotate-180' : ''
+              }`}
+            >
+              <path d="M7 8L0 0H14L7 8Z" fill="currentColor" />
+            </svg>
           </button>
 
           {/* DROPDOWN поверх, щільно прилягає */}
@@ -461,22 +462,23 @@ export default function NovaPoshtaPicker() {
               setCityOpen(false)
               setWhOpen((prev) => !prev)
             }}
-            className="flex w-full items-center justify-between border-b pr-3 py-2 text-[12px]"
+            aria-expanded={whOpen}
+            className="cursor-pointer flex w-full items-center justify-between border-b py-2 pr-3 text-[14px]"
           >
             <span className={np.warehouseText ? 'text-black' : 'text-gray-400'}>
               {np.warehouseText ||
                 t('ОБЕРІТЬ ВІДДІЛЕННЯ*', 'SELECT BRANCH / LOCKER*')}
             </span>
 
-            {/* стрілочка ▼ / ▲ */}
-            <span
-              className={
-                'ml-2 inline-block w-0 h-0 border-l-[6px] border-r-[6px] border-l-transparent border-r-transparent ' +
-                (whOpen
-                  ? 'border-t-0 border-t-8px border-t-black' // ▲
-                  : 'border-b-0 border-b-8px border-b-black') // ▼
-              }
-            />
+            <svg
+              aria-hidden="true"
+              viewBox="0 0 14 8"
+              className={`ml-3 h-[8px] w-[14px] shrink-0 transition-transform duration-200 ${
+                hasCity ? 'text-black' : 'text-gray-300'
+              } ${whOpen ? 'rotate-180' : ''}`}
+            >
+              <path d="M7 8L0 0H14L7 8Z" fill="currentColor" />
+            </svg>
           </button>
 
           {/* Dropdown */}
@@ -492,7 +494,10 @@ export default function NovaPoshtaPicker() {
                     setActiveWhIdx(-1)
                   }}
                   onKeyDown={onWhKeyDown}
-                  placeholder={t('Введіть значення для пошуку', 'Enter search value')}
+                  placeholder={t(
+                    'Введіть значення для пошуку',
+                    'Enter search value',
+                  )}
                   className="w-full text-sm outline-none placeholder:tracking-[0.12em] placeholder:uppercase placeholder:text-gray-400"
                 />
               </div>

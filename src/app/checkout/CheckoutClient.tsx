@@ -99,7 +99,7 @@ export default function CheckoutClient() {
     /^\d{12}$/.test(d) && d.startsWith('380')
 
   const inputClass = (ok: boolean, wasTouched: boolean) =>
-    'mt-3 w-full border-b pr-3 py-2 outline-none text-[12px] ' +
+    'mt-3 w-full border-b pr-3 py-2 outline-none text-[14px] ' +
     (wasTouched
       ? ok
         ? 'border-emerald-500'
@@ -170,7 +170,9 @@ export default function CheckoutClient() {
           numItems: checkoutItems.reduce((s, i) => s + i.qty, 0),
           contentIds: checkoutItems
             .map((i) => i.variantId || i.productId)
-            .filter((id): id is string => typeof id === 'string' && id.length > 0),
+            .filter(
+              (id): id is string => typeof id === 'string' && id.length > 0,
+            ),
         }),
       )
     } catch {}
@@ -178,9 +180,7 @@ export default function CheckoutClient() {
 
   const submitOrder = async () => {
     setError(null)
-    const fioValid =
-      isNameValid(form.name) &&
-      isNameValid(form.surname)
+    const fioValid = isNameValid(form.name) && isNameValid(form.surname)
     const phoneNorm = normalizeUaPhone(form.phone)
     const phoneValid = isUaPhoneValid(phoneNorm)
     const emailValid = isEmailValid(form.email)
@@ -192,7 +192,9 @@ export default function CheckoutClient() {
         phone: true,
         email: true,
       })
-      setError(t('Перевірте правильність полів форми', 'Please check form fields'))
+      setError(
+        t('Перевірте правильність полів форми', 'Please check form fields'),
+      )
       return
     }
     if (!co.np.cityRef || !co.np.warehouseRef) {
@@ -355,9 +357,9 @@ export default function CheckoutClient() {
   }
 
   return (
-    <section className="max-w-[1000px] mx-auto grid lg:grid-cols-[1fr_360px] gap-10 px-4 py-10">
+    <section className="max-w-[1280px] mx-auto grid lg:grid-cols-[1fr_360px] gap-20 px-4 py-10 2xl:max-w-[1440px] 2xl:grid-cols-2">
       <div className="space-y-8">
-        <h1 className="text-2xl mb-1 md:text-3xl font-fixel-display font-bold">
+        <h1 className="text-xl mb-1 md:text-3xl font-fixel-display font-semibold">
           {t('Оформлення замовлення', 'Checkout')}
         </h1>
 
@@ -371,7 +373,7 @@ export default function CheckoutClient() {
                 setForm({ ...form, name: lettersOnly(e.target.value) })
               }
               onBlur={() => setTouched({ ...touched, name: true })}
-              placeholder={t("ІМʼЯ*", 'FIRST NAME*')}
+              placeholder={t('ІМʼЯ*', 'FIRST NAME*')}
             />
             {touched.name && !isNameValid(form.name) && (
               <p className="text-xs text-rose-600 mt-1">
@@ -499,7 +501,6 @@ export default function CheckoutClient() {
                 </p>
               </div>
             </label>
-
           </div>
         </div>
 
