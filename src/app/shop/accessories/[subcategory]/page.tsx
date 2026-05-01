@@ -34,6 +34,10 @@ function accessorySubcategoryTitle(slug: string, fallback: string, locale: 'uk' 
   return map[slug] || fallback
 }
 
+function isTruthyQueryParam(value?: string | null): boolean {
+  return value === '1' || value === 'true'
+}
+
 type AccessorySubcategoryPageProps = {
   params: Promise<{ subcategory: string }>
   searchParams: Promise<
@@ -142,6 +146,7 @@ export default async function AccessorySubcategoryPage({
     search: pickFirstQueryValue(sp.q),
     color: pickFirstQueryValue(sp.color),
     types: ['ACCESSORY'],
+    onSale: isTruthyQueryParam(pickFirstQueryValue(sp.onSale)),
   })
   const products = rawProducts.filter((item) =>
     matchAccessorySubcategory(item, subcategory),
@@ -163,6 +168,7 @@ export default async function AccessorySubcategoryPage({
         initialFilters={{
           q: pickFirstQueryValue(sp.q) ?? '',
           color: pickFirstQueryValue(sp.color) ?? '',
+          onSale: isTruthyQueryParam(pickFirstQueryValue(sp.onSale)),
         }}
         hideTypeFilter
         title={accessorySubcategoryTitle(subcategory, config.label, locale)}

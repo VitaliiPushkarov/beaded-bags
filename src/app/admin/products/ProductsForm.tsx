@@ -124,6 +124,7 @@ type ProductFormValues = {
   status: ProductStatus
   group: ProductGroup | ''
   sortCatalog: string
+  showInNewArrivals: boolean
   basePriceUAH: string
   basePriceUSD: string
   description: string
@@ -207,6 +208,7 @@ export default function ProductForm({
           dimensionsEn: initial.dimensionsEn ?? '',
           offerNoteEn: initial.offerNoteEn ?? '',
           status: initial.status ?? 'DRAFT',
+          showInNewArrivals: initial.showInNewArrivals ?? true,
           variants: (initial.variants || []).map((v) => {
             const images = normalizeImages(v.images)
             const seededImages =
@@ -258,6 +260,7 @@ export default function ProductForm({
           status: 'DRAFT',
           group: '',
           sortCatalog: '',
+          showInNewArrivals: true,
           basePriceUAH: '',
           basePriceUSD: '',
           description: '',
@@ -500,6 +503,7 @@ export default function ProductForm({
         group: values.group || null,
         status: values.status,
         sortCatalog: values.sortCatalog ? Number(values.sortCatalog) : 0,
+        showInNewArrivals: values.showInNewArrivals,
         basePriceUAH: values.basePriceUAH ? Number(values.basePriceUAH) : null,
         basePriceUSD: values.basePriceUSD ? Number(values.basePriceUSD) : null,
         offerNote: values.offerNote?.trim() || null,
@@ -807,6 +811,21 @@ export default function ProductForm({
               />
             </label>
           </div>
+
+          <label className="inline-flex items-center gap-2 text-sm font-medium">
+            <input
+              type="checkbox"
+              className="h-4 w-4"
+              checked={values.showInNewArrivals}
+              onChange={(e) =>
+                setValues((v) => ({
+                  ...v,
+                  showInNewArrivals: e.target.checked,
+                }))
+              }
+            />
+            Показувати в блоці «Новинки»
+          </label>
 
           <div className="grid gap-4 sm:grid-cols-2">
             <label className="block text-sm font-medium">

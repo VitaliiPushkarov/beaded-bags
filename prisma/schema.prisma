@@ -27,6 +27,7 @@ model Product {
   group               ProductGroup?
   sortCatalog         Int                 @default(0)
   sortSlider          Int?
+  showInNewArrivals   Boolean             @default(true)
   isAddon             Boolean             @default(false)
   offerNote           String?
   offerNoteEn         String?

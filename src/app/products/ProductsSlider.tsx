@@ -98,12 +98,12 @@ export default function ProductsSlider() {
         <div className="mx-auto max-w-[1440px] 2xl:max-w-full px-6">
           <div className="flex items-end justify-between gap-4 mb-4">
             <h2 className="text-2xl uppercase font-semibold">Каталог GERDAN</h2>
-            <Link
+            {/*  <Link
               href="/shop"
               className="inline-flex items-center justify-center mt-4 underline hover:no-underline"
             >
               Всі товари
-            </Link>
+            </Link> */}
           </div>
           <div className="mx-auto relative w-full overflow-visible">
             <button

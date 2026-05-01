@@ -66,6 +66,7 @@ export function revalidateProductCache({ reason, before, after }: RevalidateInpu
   // moved between type/group buckets.
   if (reason !== 'update' || typeChanged || groupChanged || statusChanged) {
     paths.add('/shop')
+    paths.add('/sale')
   }
 
   // Product sitemap should refresh only when URL structure may change:

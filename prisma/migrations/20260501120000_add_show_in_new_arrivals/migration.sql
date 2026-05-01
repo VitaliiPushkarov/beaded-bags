@@ -1,0 +1,2 @@
+ALTER TABLE "Product"
+ADD COLUMN "showInNewArrivals" BOOLEAN NOT NULL DEFAULT true;

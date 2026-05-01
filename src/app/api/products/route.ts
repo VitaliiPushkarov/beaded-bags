@@ -96,6 +96,8 @@ export async function GET(req: NextRequest) {
   const lite = searchParams.get('lite') === '1'
   if (lite) {
     const limit = clamp(Number(searchParams.get('limit') ?? 20) || 20, 1, 60)
+    const discounted = searchParams.get('discounted') === '1'
+    const newArrivals = searchParams.get('newArrivals') === '1'
 
     const excludeSlug = searchParams.get('excludeSlug')?.trim()
     const excludeId = searchParams.get('excludeId')?.trim()
@@ -122,6 +124,24 @@ export async function GET(req: NextRequest) {
       ]
     }
 
+    if (newArrivals) {
+      where.showInNewArrivals = true
+    }
+
+    if (discounted) {
+      where.variants = {
+        some: {
+          OR: [{ discountPercent: { gt: 0 } }, { discountUAH: { gt: 0 } }],
+        },
+      }
+    }
+
+    const discountedVariantWhere = discounted
+      ? {
+          OR: [{ discountPercent: { gt: 0 } }, { discountUAH: { gt: 0 } }],
+        }
+      : undefined
+
     const items = await prisma.product.findMany({
       where,
       take: limit,
@@ -139,6 +159,7 @@ export async function GET(req: NextRequest) {
         offerNoteEn: true,
         createdAt: true,
         variants: {
+          where: discountedVariantWhere,
           take: 6,
           orderBy: { sortCatalog: 'asc' },
           select: {

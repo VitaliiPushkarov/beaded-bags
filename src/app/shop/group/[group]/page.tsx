@@ -51,6 +51,10 @@ function groupCanonicalSlug(g: DbGroup): string {
   return ''
 }
 
+function isTruthyQueryParam(value?: string | null): boolean {
+  return value === '1' || value === 'true'
+}
+
 type ShopGroupPageProps = {
   params: Promise<{ group: string }>
   searchParams: Promise<
@@ -135,6 +139,7 @@ export default async function ShopGroupPage({
     search: pickFirstQueryValue(sp.q),
     color: pickFirstQueryValue(sp.color),
     group: dbGroup,
+    onSale: isTruthyQueryParam(pickFirstQueryValue(sp.onSale)),
   })
   const listLd = {
     '@context': 'https://schema.org',
@@ -150,6 +155,11 @@ export default async function ShopGroupPage({
     <>
       <ProductsContainer
         initialProducts={products}
+        initialFilters={{
+          q: pickFirstQueryValue(sp.q) ?? '',
+          color: pickFirstQueryValue(sp.color) ?? '',
+          onSale: isTruthyQueryParam(pickFirstQueryValue(sp.onSale)),
+        }}
         lockedGroup={dbGroup}
         title={titleForGroup(dbGroup, locale)}
       />

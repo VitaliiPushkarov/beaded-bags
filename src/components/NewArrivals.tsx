@@ -16,12 +16,12 @@ type ProductWithVariants = Product & {
 }
 
 const BASE_URL = process.env.NEXT_PUBLIC_SITE_URL ?? 'https://gerdan.online'
-const BESTSELLERS_VISIBLE_COUNT = 12
-const BESTSELLERS_SOURCE_RANGE = 60
+const NEW_ARRIVALS_VISIBLE_COUNT = 12
+const NEW_ARRIVALS_SOURCE_RANGE = 60
 
-async function getBestsellers(): Promise<ProductWithVariants[]> {
+async function getNewArrivals(): Promise<ProductWithVariants[]> {
   const res = await fetch(
-    `${BASE_URL}/api/products?lite=1&limit=${BESTSELLERS_SOURCE_RANGE}`,
+    `${BASE_URL}/api/products?lite=1&newArrivals=1&limit=${NEW_ARRIVALS_SOURCE_RANGE}`,
     {
       cache: 'no-store',
     },
@@ -41,13 +41,13 @@ async function getBestsellers(): Promise<ProductWithVariants[]> {
 
       return !matchAccessorySubcategory(item, 'breloky')
     })
-    .slice(0, BESTSELLERS_VISIBLE_COUNT)
+    .slice(0, NEW_ARRIVALS_VISIBLE_COUNT)
 }
 
-export default async function Bestsellers() {
+export default async function NewArrivals() {
   const locale = await getRequestLocale()
   const numberLocale = locale === 'en' ? 'en-US' : 'uk-UA'
-  const products = await getBestsellers()
+  const products = await getNewArrivals()
 
   const placeholder = '/img/placeholder.png'
 

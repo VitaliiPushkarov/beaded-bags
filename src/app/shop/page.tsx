@@ -59,6 +59,10 @@ function normalizeType(raw?: string | null): ProductType | null {
   return ALLOWED_TYPES.includes(t) ? t : null
 }
 
+function isTruthyQueryParam(value?: string | null): boolean {
+  return value === '1' || value === 'true'
+}
+
 function canonicalForShopFilters(sp: ShopSearchParams): string {
   const safeType = normalizeType(pickFirstQueryValue(sp.type))
   const safeGroup = normalizeGroup(pickFirstQueryValue(sp.group))
@@ -164,6 +168,7 @@ export default async function ShopPage({
     color: pickFirstQueryValue(sp.color),
     type: safeType ?? undefined,
     group: safeGroup || undefined,
+    onSale: isTruthyQueryParam(pickFirstQueryValue(sp.onSale)),
   })
 
   const jsonLd = {
@@ -188,6 +193,7 @@ export default async function ShopPage({
           initialFilters={{
             q: pickFirstQueryValue(sp.q) ?? '',
             color: pickFirstQueryValue(sp.color) ?? '',
+            onSale: isTruthyQueryParam(pickFirstQueryValue(sp.onSale)),
             bagTypes: safeType ?? '',
             group: safeGroup,
           }}

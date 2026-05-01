@@ -31,6 +31,10 @@ function categoryTitleByLocale(category: string, locale: 'uk' | 'en'): string {
   return map[category] || category
 }
 
+function isTruthyQueryParam(value?: string | null): boolean {
+  return value === '1' || value === 'true'
+}
+
 type ShopCategoryPageProps = {
   params: Promise<{ category: string }>
   searchParams: Promise<
@@ -185,6 +189,7 @@ export default async function ShopCategoryPage({
     type: config.type,
     types: config.types,
     group: config.group,
+    onSale: isTruthyQueryParam(pickFirstQueryValue(sp.onSale)),
   })
 
   const itemListLd = buildItemListJsonLd(
@@ -209,6 +214,7 @@ export default async function ShopCategoryPage({
         initialFilters={{
           q: pickFirstQueryValue(sp.q) ?? '',
           color: pickFirstQueryValue(sp.color) ?? '',
+          onSale: isTruthyQueryParam(pickFirstQueryValue(sp.onSale)),
           accessorySubcategory: subcategoryFromQuery ?? '',
           bagTypes: lockedTypeForPage ?? '',
           group: config.group ?? '',

@@ -11,6 +11,7 @@ type GetProductsParams = {
   group?: '' | 'BEADS' | 'WEAVING'
   forSlider?: boolean
   forBestsellers?: boolean
+  onSale?: boolean
   take?: number
 }
 
@@ -122,7 +123,7 @@ function withAccessoryCompatTypes(types: ProductType[]): ProductType[] {
 }
 
 function buildWhere(params: GetProductsParams): Prisma.ProductWhereInput {
-  const { search, color, type, types, group, forBestsellers } = params
+  const { search, color, type, types, group, forBestsellers, onSale } = params
 
   const where: Prisma.ProductWhereInput = {
     status: 'PUBLISHED',
@@ -209,6 +210,17 @@ function buildWhere(params: GetProductsParams): Prisma.ProductWhereInput {
       variants: {
         some: {
           sortBestsellers: { gt: 0 },
+        },
+      },
+    })
+  }
+
+  // Sale filter → any variant has a discount
+  if (onSale) {
+    andFilters.push({
+      variants: {
+        some: {
+          OR: [{ discountPercent: { gt: 0 } }, { discountUAH: { gt: 0 } }],
         },
       },
     })

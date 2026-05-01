@@ -164,6 +164,12 @@ export default function Header() {
               {t('КОНТАКТИ', 'CONTACTS')}
             </Link>
             <Link
+              href="/sale"
+              className="hidden lg:inline-block hover:opacity-70 text-[12px] font-medium tracking-wide"
+            >
+              {t('SALE', 'SALE')}
+            </Link>
+            <Link
               href="/blog"
               className="hidden lg:inline-block hover:opacity-70 text-[12px] font-medium tracking-wide"
             >
@@ -249,6 +255,11 @@ export default function Header() {
               <li className="font-medium border-b py-4 border-gray-300">
                 <Link href="/shop" onClick={closeMobileMenu}>
                   {t('Всі товари', 'All products')}
+                </Link>
+              </li>
+              <li className="font-medium border-b py-4 border-gray-300">
+                <Link href="/sale" onClick={closeMobileMenu}>
+                  {t('Sale', 'Sale')}
                 </Link>
               </li>
 

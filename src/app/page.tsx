@@ -1,9 +1,10 @@
 import dynamic from 'next/dynamic'
-import Bestsellers from '@/components/Bestsellers'
+import NewArrivals from '@/components/NewArrivals'
 import HeroBlock from '@/components/HeroBlock'
 import type { Metadata } from 'next'
 import CategorySection from '@/components/CategorySection'
 import { getRequestLocale } from '@/lib/server-locale'
+import SpecialOffers from '@/components/SpecialOffers'
 
 const HeroImages = dynamic(() => import('@/components/HeroImages'), {
   loading: () => <section className="h-[520px] md:h-[620px]" />,
@@ -82,10 +83,9 @@ export default async function Home() {
       ? 'GERDAN - handmade bags and accessories'
       : 'GERDAN — сумки ручної роботи та аксесуари',
     url: SITE_URL,
-    description:
-      isEn
-        ? 'Handmade bags, beaded bags, woven bags, cases and accessories by GERDAN.'
-        : 'Сумки ручної роботи, сумки з бісеру, плетені сумки, чохли та аксесуари українського бренду GERDAN.',
+    description: isEn
+      ? 'Handmade bags, beaded bags, woven bags, cases and accessories by GERDAN.'
+      : 'Сумки ручної роботи, сумки з бісеру, плетені сумки, чохли та аксесуари українського бренду GERDAN.',
     inLanguage: isEn ? 'en' : 'uk',
     isPartOf: {
       '@type': 'WebSite',
@@ -111,7 +111,7 @@ export default async function Home() {
           : 'Сумки ручної роботи, сумки з бісеру та аксесуари GERDAN'}
       </h1>
       <HeroBlock />
-      <Bestsellers />
+      <NewArrivals />
 
       <>
         <HeroImages
@@ -123,6 +123,7 @@ export default async function Home() {
           altRight="Model with beaded bag"
         />
       </>
+      <SpecialOffers />
 
       <ProductsSlider />
       <InstagramSlider />
