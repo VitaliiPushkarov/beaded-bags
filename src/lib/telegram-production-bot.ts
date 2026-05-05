@@ -122,7 +122,6 @@ const SUBMISSION_DUPLICATE_WINDOW_MS = 10_000
 const recentSubmissionBySession = new Map<string, { fingerprint: string; at: number }>()
 
 const MENU_BUTTONS = {
-  register: '🔐 Реєстрація',
   record: '🧵 Новий запис',
   help: '❓ Допомога',
 } as const
@@ -237,7 +236,6 @@ function normalizeCommand(command: string): string {
 }
 
 function mapMenuButtonToCommand(text: string): string | null {
-  if (text === MENU_BUTTONS.register) return 'reyestraciya'
   if (text === MENU_BUTTONS.record) return 'zapys'
   if (text === MENU_BUTTONS.help) return 'dopomoha'
   return null
@@ -245,7 +243,7 @@ function mapMenuButtonToCommand(text: string): string | null {
 
 function buildMainMenuKeyboard(): TelegramReplyKeyboardButton[][] {
   return [
-    [{ text: MENU_BUTTONS.register }, { text: MENU_BUTTONS.record }],
+    [{ text: MENU_BUTTONS.record }],
     [{ text: MENU_BUTTONS.help }],
   ]
 }
@@ -253,8 +251,6 @@ function buildMainMenuKeyboard(): TelegramReplyKeyboardButton[][] {
 function buildMasterHelpText() {
   return [
     '<b>Команди майстра (UA)</b>',
-    '/start CODE - швидка прив\'язка з приватного лінка',
-    '/reyestraciya CODE - прив\'язати акаунт майстра',
     '/zapys - зафіксувати виробіток (товар → варіант → кількість)',
     '/dopomoha - підказка',
     '',
