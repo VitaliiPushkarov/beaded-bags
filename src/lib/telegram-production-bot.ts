@@ -119,7 +119,10 @@ const TELEGRAM_API_TIMEOUT_MS = 4500
 const CALLBACK_PREFIX = 'prod'
 const MASTER_MAX_ITEMS = 20
 const SUBMISSION_DUPLICATE_WINDOW_MS = 10_000
-const recentSubmissionBySession = new Map<string, { fingerprint: string; at: number }>()
+const recentSubmissionBySession = new Map<
+  string,
+  { fingerprint: string; at: number }
+>()
 
 const MENU_BUTTONS = {
   record: '🧵 Новий запис',
@@ -127,7 +130,10 @@ const MENU_BUTTONS = {
 } as const
 
 function escapeHtml(input: string): string {
-  return input.replaceAll('&', '&amp;').replaceAll('<', '&lt;').replaceAll('>', '&gt;')
+  return input
+    .replaceAll('&', '&amp;')
+    .replaceAll('<', '&lt;')
+    .replaceAll('>', '&gt;')
 }
 
 function formatUAH(amount: number): string {
@@ -159,7 +165,9 @@ function parseStartRegistrationCode(args: string): string | null {
   return token
 }
 
-function getVariantAttributes(variant: Pick<VariantLike, 'color' | 'modelSize' | 'pouchColor'>): string[] {
+function getVariantAttributes(
+  variant: Pick<VariantLike, 'color' | 'modelSize' | 'pouchColor'>,
+): string[] {
   const attributes: string[] = []
   const color = normalizeText(variant.color)
   const modelSize = normalizeText(variant.modelSize)
@@ -171,7 +179,10 @@ function getVariantAttributes(variant: Pick<VariantLike, 'color' | 'modelSize' |
 }
 
 function getVariantShortDescriptor(
-  variant: Pick<VariantLike, 'color' | 'modelSize' | 'pouchColor' | 'sku' | 'id'>,
+  variant: Pick<
+    VariantLike,
+    'color' | 'modelSize' | 'pouchColor' | 'sku' | 'id'
+  >,
 ): string {
   return (
     normalizeText(variant.color) ??
@@ -187,7 +198,7 @@ function formatVariantLabel(variant: VariantLike): string {
   const sku = normalizeText(variant.sku)
   const fallback = sku ? `sku: ${sku}` : `id: ${variant.id.slice(0, 8)}`
   const details = attributes.length > 0 ? attributes.join(', ') : fallback
-  return `${variant.product.name} (${variant.product.slug}) • ${details}`
+  return `${variant.product.name} • ${details}`
 }
 
 function formatVariantButtonLabel(variant: VariantLike): string {
@@ -215,21 +226,21 @@ function normalizeCommand(command: string): string {
     start: 'start',
     dopomoha: 'help',
     help: 'help',
-    'допомога': 'help',
+    допомога: 'help',
 
     reyestraciya: 'register',
     reyestratsiya: 'register',
     registraciya: 'register',
     register: 'register',
-    'реєстрація': 'register',
+    реєстрація: 'register',
 
     zapys: 'record',
     record: 'record',
-    'запис': 'record',
+    запис: 'record',
 
     kilkist: 'qty',
     qty: 'qty',
-    'кількість': 'qty',
+    кількість: 'qty',
   }
 
   return aliases[normalized] ?? normalized
@@ -242,10 +253,7 @@ function mapMenuButtonToCommand(text: string): string | null {
 }
 
 function buildMainMenuKeyboard(): TelegramReplyKeyboardButton[][] {
-  return [
-    [{ text: MENU_BUTTONS.record }],
-    [{ text: MENU_BUTTONS.help }],
-  ]
+  return [[{ text: MENU_BUTTONS.record }], [{ text: MENU_BUTTONS.help }]]
 }
 
 function buildMasterHelpText() {
@@ -276,8 +284,14 @@ function buildSessionKey(input: {
   return `g:${input.chatId}:u:${input.userId}`
 }
 
-function parseSessionDraft(draftPayload: Prisma.JsonValue | null): SessionDraft {
-  if (!draftPayload || typeof draftPayload !== 'object' || Array.isArray(draftPayload)) {
+function parseSessionDraft(
+  draftPayload: Prisma.JsonValue | null,
+): SessionDraft {
+  if (
+    !draftPayload ||
+    typeof draftPayload !== 'object' ||
+    Array.isArray(draftPayload)
+  ) {
     return {}
   }
 
@@ -294,15 +308,24 @@ function parseSessionDraft(draftPayload: Prisma.JsonValue | null): SessionDraft 
     next.masterFlow = raw.masterFlow
   }
 
-  if (typeof raw.selectedProductId === 'string' && raw.selectedProductId.trim().length > 0) {
+  if (
+    typeof raw.selectedProductId === 'string' &&
+    raw.selectedProductId.trim().length > 0
+  ) {
     next.selectedProductId = raw.selectedProductId.trim()
   }
 
-  if (typeof raw.selectedVariantId === 'string' && raw.selectedVariantId.trim().length > 0) {
+  if (
+    typeof raw.selectedVariantId === 'string' &&
+    raw.selectedVariantId.trim().length > 0
+  ) {
     next.selectedVariantId = raw.selectedVariantId.trim()
   }
 
-  if (typeof raw.selectedRateId === 'string' && raw.selectedRateId.trim().length > 0) {
+  if (
+    typeof raw.selectedRateId === 'string' &&
+    raw.selectedRateId.trim().length > 0
+  ) {
     next.selectedRateId = raw.selectedRateId.trim()
   }
 
@@ -327,8 +350,13 @@ function parseSessionDraft(draftPayload: Prisma.JsonValue | null): SessionDraft 
     for (const item of raw.items) {
       if (!item || typeof item !== 'object' || Array.isArray(item)) continue
       const candidate = item as Record<string, unknown>
-      if (typeof candidate.rateId !== 'string' || !candidate.rateId.trim()) continue
-      if (typeof candidate.variantId !== 'string' || !candidate.variantId.trim()) continue
+      if (typeof candidate.rateId !== 'string' || !candidate.rateId.trim())
+        continue
+      if (
+        typeof candidate.variantId !== 'string' ||
+        !candidate.variantId.trim()
+      )
+        continue
       if (
         typeof candidate.qty !== 'number' ||
         !Number.isInteger(candidate.qty) ||
@@ -354,10 +382,13 @@ function parseSessionDraft(draftPayload: Prisma.JsonValue | null): SessionDraft 
 function buildSessionDraftJson(draft: SessionDraft): Prisma.JsonObject {
   const payload: Prisma.JsonObject = {}
   if (draft.masterFlow) payload.masterFlow = draft.masterFlow
-  if (draft.selectedProductId) payload.selectedProductId = draft.selectedProductId
-  if (draft.selectedVariantId) payload.selectedVariantId = draft.selectedVariantId
+  if (draft.selectedProductId)
+    payload.selectedProductId = draft.selectedProductId
+  if (draft.selectedVariantId)
+    payload.selectedVariantId = draft.selectedVariantId
   if (draft.selectedRateId) payload.selectedRateId = draft.selectedRateId
-  if (typeof draft.editItemIndex === 'number') payload.editItemIndex = draft.editItemIndex
+  if (typeof draft.editItemIndex === 'number')
+    payload.editItemIndex = draft.editItemIndex
   if (draft.rateId) payload.rateId = draft.rateId
   if (typeof draft.qty === 'number') payload.qty = draft.qty
 
@@ -372,10 +403,15 @@ function buildSessionDraftJson(draft: SessionDraft): Prisma.JsonObject {
   return payload
 }
 
-async function callTelegramApi<T = unknown>(method: string, payload: object): Promise<T | null> {
+async function callTelegramApi<T = unknown>(
+  method: string,
+  payload: object,
+): Promise<T | null> {
   const token = getBotToken()
   if (!token) {
-    console.warn('[telegram-production] TELEGRAM_PRODUCTION_BOT_TOKEN is not configured')
+    console.warn(
+      '[telegram-production] TELEGRAM_PRODUCTION_BOT_TOKEN is not configured',
+    )
     return null
   }
 
@@ -383,18 +419,23 @@ async function callTelegramApi<T = unknown>(method: string, payload: object): Pr
   const timeout = setTimeout(() => controller.abort(), TELEGRAM_API_TIMEOUT_MS)
 
   try {
-    const response = await fetch(`https://api.telegram.org/bot${token}/${method}`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
+    const response = await fetch(
+      `https://api.telegram.org/bot${token}/${method}`,
+      {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(payload),
+        signal: controller.signal,
       },
-      body: JSON.stringify(payload),
-      signal: controller.signal,
-    })
+    )
 
-    const json = (await response.json().catch(() => null)) as
-      | { ok?: boolean; result?: T; description?: string }
-      | null
+    const json = (await response.json().catch(() => null)) as {
+      ok?: boolean
+      result?: T
+      description?: string
+    } | null
 
     if (!response.ok || !json?.ok) {
       console.error(
@@ -415,7 +456,9 @@ async function callTelegramApi<T = unknown>(method: string, payload: object): Pr
   }
 }
 
-async function sendTelegramMessage(input: TelegramSendMessageInput): Promise<void> {
+async function sendTelegramMessage(
+  input: TelegramSendMessageInput,
+): Promise<void> {
   const payload: Record<string, unknown> = {
     chat_id: input.chatId,
     text: input.text,
@@ -450,14 +493,19 @@ async function answerCallbackQuery(input: {
   })
 }
 
-async function deleteTelegramMessage(input: { chatId: string; messageId: number }): Promise<void> {
+async function deleteTelegramMessage(input: {
+  chatId: string
+  messageId: number
+}): Promise<void> {
   await callTelegramApi('deleteMessage', {
     chat_id: input.chatId,
     message_id: input.messageId,
   })
 }
 
-async function deleteCallbackMessage(callback: TelegramCallbackQuery): Promise<void> {
+async function deleteCallbackMessage(
+  callback: TelegramCallbackQuery,
+): Promise<void> {
   const chatId = callback.message?.chat?.id
   const messageId = callback.message?.message_id
   if (!chatId || !messageId) return
@@ -493,7 +541,8 @@ async function findLinkedArtisanByTelegram(input: {
   if (!artisan) return null
 
   const shouldUpdateUserId = artisan.telegramUserId !== input.userId
-  const shouldUpdateUsername = artisan.telegramUsername !== (input.username ?? null)
+  const shouldUpdateUsername =
+    artisan.telegramUsername !== (input.username ?? null)
   const shouldUpdateChatId =
     input.chatType === 'private' && artisan.telegramChatId !== input.chatId
 
@@ -511,7 +560,9 @@ async function findLinkedArtisanByTelegram(input: {
   })
 }
 
-async function getActiveArtisanRates(artisanId: string): Promise<ArtisanRateWithVariant[]> {
+async function getActiveArtisanRates(
+  artisanId: string,
+): Promise<ArtisanRateWithVariant[]> {
   return prisma.artisanRate.findMany({
     where: {
       artisanId,
@@ -558,7 +609,9 @@ async function resolveDraftItems(input: {
 }): Promise<DraftResolvedItem[]> {
   if (input.items.length === 0) return []
 
-  const uniqueRateIds = Array.from(new Set(input.items.map((item) => item.rateId)))
+  const uniqueRateIds = Array.from(
+    new Set(input.items.map((item) => item.rateId)),
+  )
   const rates = await prisma.artisanRate.findMany({
     where: {
       artisanId: input.artisanId,
@@ -628,7 +681,10 @@ function buildResolvedItemsSummary(resolved: DraftResolvedItem[]): {
   return { lines, totalQty, totalAmount }
 }
 
-function buildDraftFingerprint(input: { artisanId: string; items: SessionDraftItem[] }): string {
+function buildDraftFingerprint(input: {
+  artisanId: string
+  items: SessionDraftItem[]
+}): string {
   const rows = input.items
     .slice()
     .sort((left, right) => {
@@ -639,7 +695,10 @@ function buildDraftFingerprint(input: { artisanId: string; items: SessionDraftIt
   return `${input.artisanId}|${rows.join('|')}`
 }
 
-function isRecentDuplicateSubmission(input: { sessionKey: string; fingerprint: string }): boolean {
+function isRecentDuplicateSubmission(input: {
+  sessionKey: string
+  fingerprint: string
+}): boolean {
   const now = Date.now()
   const recent = recentSubmissionBySession.get(input.sessionKey)
   if (!recent) return false
@@ -650,14 +709,20 @@ function isRecentDuplicateSubmission(input: { sessionKey: string; fingerprint: s
   return recent.fingerprint === input.fingerprint
 }
 
-function markRecentSubmission(input: { sessionKey: string; fingerprint: string }) {
+function markRecentSubmission(input: {
+  sessionKey: string
+  fingerprint: string
+}) {
   const now = Date.now()
   for (const [key, value] of recentSubmissionBySession) {
     if (now - value.at > SUBMISSION_DUPLICATE_WINDOW_MS) {
       recentSubmissionBySession.delete(key)
     }
   }
-  recentSubmissionBySession.set(input.sessionKey, { fingerprint: input.fingerprint, at: now })
+  recentSubmissionBySession.set(input.sessionKey, {
+    fingerprint: input.fingerprint,
+    at: now,
+  })
 }
 
 async function setSession(input: {
@@ -716,7 +781,9 @@ async function sendMasterProductPicker(input: {
   }
 
   const products = Array.from(
-    new Map(rates.map((rate) => [rate.variant.product.id, rate.variant.product])).values(),
+    new Map(
+      rates.map((rate) => [rate.variant.product.id, rate.variant.product]),
+    ).values(),
   )
 
   const draftItems = (input.draft?.items ?? []).slice(0, MASTER_MAX_ITEMS)
@@ -747,10 +814,17 @@ async function sendMasterProductPicker(input: {
   ])
 
   if (draftItems.length > 0) {
-    rows.push([{ text: '✅ Завершити і відправити', callback_data: `${CALLBACK_PREFIX}:mfinish` }])
+    rows.push([
+      {
+        text: '✅ Завершити і відправити',
+        callback_data: `${CALLBACK_PREFIX}:mfinish`,
+      },
+    ])
   }
 
-  rows.push([{ text: '↩️ Скасувати', callback_data: `${CALLBACK_PREFIX}:cancel` }])
+  rows.push([
+    { text: '↩️ Скасувати', callback_data: `${CALLBACK_PREFIX}:cancel` },
+  ])
 
   const textLines = ['<b>Крок 1/3</b> Обери товар:']
   if (input.notice) textLines.unshift(input.notice)
@@ -770,7 +844,9 @@ async function sendMasterProductPicker(input: {
     if (preview.lines.length > 5) {
       textLines.push(`… та ще ${preview.lines.length - 5} позицій`)
     }
-    textLines.push(`<b>Разом:</b> ${preview.totalQty} шт • ${formatUAH(preview.totalAmount)}`)
+    textLines.push(
+      `<b>Разом:</b> ${preview.totalQty} шт • ${formatUAH(preview.totalAmount)}`,
+    )
   }
 
   await sendTelegramMessage({
@@ -789,7 +865,9 @@ async function sendMasterVariantPicker(input: {
   draft?: SessionDraft
 }) {
   const rates = await getActiveArtisanRates(input.artisanId)
-  const productRates = rates.filter((rate) => rate.variant.productId === input.productId)
+  const productRates = rates.filter(
+    (rate) => rate.variant.productId === input.productId,
+  )
 
   if (productRates.length === 0) {
     await sendMasterProductPicker({
@@ -798,7 +876,8 @@ async function sendMasterVariantPicker(input: {
       artisanId: input.artisanId,
       sessionKey: input.sessionKey,
       draft: input.draft,
-      notice: 'Для цього товару зараз немає активних ставок. Обери інший товар.',
+      notice:
+        'Для цього товару зараз немає активних ставок. Обери інший товар.',
     })
     return
   }
@@ -830,7 +909,9 @@ async function sendMasterVariantPicker(input: {
   ])
 
   rows.push([{ text: '⬅️ Назад', callback_data: `${CALLBACK_PREFIX}:mbp` }])
-  rows.push([{ text: '↩️ Скасувати', callback_data: `${CALLBACK_PREFIX}:cancel` }])
+  rows.push([
+    { text: '↩️ Скасувати', callback_data: `${CALLBACK_PREFIX}:cancel` },
+  ])
 
   await sendTelegramMessage({
     chatId: input.chatId,
@@ -872,7 +953,12 @@ async function sendMasterQtyPrompt(input: {
       'Надішли кількість одним числом (наприклад: <code>7</code>).',
     ].join('\n'),
     inlineKeyboard: [
-      [{ text: '⬅️ Назад', callback_data: `${CALLBACK_PREFIX}:mbv:${input.rate.variant.productId}` }],
+      [
+        {
+          text: '⬅️ Назад',
+          callback_data: `${CALLBACK_PREFIX}:mbv:${input.rate.variant.productId}`,
+        },
+      ],
       [{ text: '↩️ Скасувати', callback_data: `${CALLBACK_PREFIX}:cancel` }],
     ],
   })
@@ -933,16 +1019,26 @@ async function sendMasterDraftSummary(input: {
     ])
   })
   rows.push([
-    { text: '➕ Зберегти і продовжити', callback_data: `${CALLBACK_PREFIX}:mbp` },
-    { text: '✅ Завершити і відправити', callback_data: `${CALLBACK_PREFIX}:mfinish` },
+    {
+      text: '➕ Зберегти і продовжити',
+      callback_data: `${CALLBACK_PREFIX}:mbp`,
+    },
+    {
+      text: '✅ Завершити і відправити',
+      callback_data: `${CALLBACK_PREFIX}:mfinish`,
+    },
   ])
-  rows.push([{ text: '↩️ Скасувати', callback_data: `${CALLBACK_PREFIX}:cancel` }])
+  rows.push([
+    { text: '↩️ Скасувати', callback_data: `${CALLBACK_PREFIX}:cancel` },
+  ])
 
   const textLines = ['<b>Підсумок перед відправленням</b>']
   if (input.notice) textLines.push(input.notice)
   textLines.push(...summary.lines)
   textLines.push('')
-  textLines.push(`<b>Разом:</b> ${summary.totalQty} шт • ${formatUAH(summary.totalAmount)}`)
+  textLines.push(
+    `<b>Разом:</b> ${summary.totalQty} шт • ${formatUAH(summary.totalAmount)}`,
+  )
 
   await sendTelegramMessage({
     chatId: input.chatId,
@@ -987,7 +1083,7 @@ async function handleRegisterCommand(input: {
   if (artisan.telegramUserId && artisan.telegramUserId !== input.userId) {
     await sendTelegramMessage({
       chatId: input.chatId,
-      text: 'Цей код вже прив\'язаний до іншого Telegram акаунта. Звернись до власника.',
+      text: "Цей код вже прив'язаний до іншого Telegram акаунта. Звернись до власника.",
     })
     return
   }
@@ -1036,7 +1132,7 @@ async function handleRecordCommand(input: {
     await sendTelegramMessage({
       chatId: input.chatId,
       text: [
-        'Цей Telegram не прив\'язаний до майстра.',
+        "Цей Telegram не прив'язаний до майстра.",
         'Надішли <code>/reyestraciya CODE</code>, де CODE дає власник.',
       ].join('\n'),
     })
@@ -1229,10 +1325,27 @@ async function processQtyInput(input: {
     ].join('\n'),
     inlineKeyboard: [
       ...(canAddMore
-        ? [[{ text: '💾 Зберегти і продовжити', callback_data: `${CALLBACK_PREFIX}:madd` }]]
+        ? [
+            [
+              {
+                text: '💾 Зберегти і продовжити',
+                callback_data: `${CALLBACK_PREFIX}:madd`,
+              },
+            ],
+          ]
         : []),
-      [{ text: '✅ Завершити і відправити', callback_data: `${CALLBACK_PREFIX}:mfinish` }],
-      [{ text: '⬅️ Назад', callback_data: `${CALLBACK_PREFIX}:mbv:${rate.variant.productId}` }],
+      [
+        {
+          text: '✅ Завершити і відправити',
+          callback_data: `${CALLBACK_PREFIX}:mfinish`,
+        },
+      ],
+      [
+        {
+          text: '⬅️ Назад',
+          callback_data: `${CALLBACK_PREFIX}:mbv:${rate.variant.productId}`,
+        },
+      ],
       [{ text: '↩️ Скасувати', callback_data: `${CALLBACK_PREFIX}:cancel` }],
     ],
   })
@@ -1304,7 +1417,9 @@ async function finalizeMasterDraft(input: {
     items: aggregatedItems,
   })
 
-  if (isRecentDuplicateSubmission({ sessionKey: input.sessionKey, fingerprint })) {
+  if (
+    isRecentDuplicateSubmission({ sessionKey: input.sessionKey, fingerprint })
+  ) {
     await answerCallbackQuery({
       callbackQueryId: input.callbackQueryId,
       text: 'Ця відправка вже оброблена. Зачекай кілька секунд.',
@@ -1349,7 +1464,9 @@ async function finalizeMasterDraft(input: {
   })
 
   const ratesById = new Map(rates.map((rate) => [rate.id, rate]))
-  const missingRates = aggregatedItems.filter((item) => !ratesById.has(item.rateId))
+  const missingRates = aggregatedItems.filter(
+    (item) => !ratesById.has(item.rateId),
+  )
 
   if (missingRates.length > 0) {
     await answerCallbackQuery({
@@ -1477,7 +1594,10 @@ async function finalizeMasterDraft(input: {
   })
 
   const totalQty = result.created.reduce((sum, row) => sum + row.qty, 0)
-  const totalAmount = result.created.reduce((sum, row) => sum + row.totalLaborUAH, 0)
+  const totalAmount = result.created.reduce(
+    (sum, row) => sum + row.totalLaborUAH,
+    0,
+  )
 
   await sendTelegramMessage({
     chatId: input.chatId,
@@ -1546,7 +1666,10 @@ async function handleCommand(input: {
 }) {
   const command = normalizeCommand(input.command)
 
-  if (input.chatType !== 'private' && ['start', 'register', 'record', 'qty'].includes(command)) {
+  if (
+    input.chatType !== 'private' &&
+    ['start', 'register', 'record', 'qty'].includes(command)
+  ) {
     await sendTelegramMessage({
       chatId: input.chatId,
       text: 'Для майстра цей бот працює лише в приватному чаті. Відкрий бота за персональним лінком і продовж.',
@@ -1651,7 +1774,9 @@ async function handleCallbackQuery(callback: TelegramCallbackQuery) {
   const chatId = message?.chat?.id ? toTelegramId(message.chat.id) : null
   const chatType = message?.chat?.type
   const sessionKey =
-    chatId && chatType ? buildSessionKey({ chatId, userId: fromUserId, chatType }) : null
+    chatId && chatType
+      ? buildSessionKey({ chatId, userId: fromUserId, chatType })
+      : null
 
   if (!message?.chat?.id || !chatId || !chatType || !sessionKey) {
     await answerCallbackQuery({
@@ -1705,7 +1830,10 @@ async function handleCallbackQuery(callback: TelegramCallbackQuery) {
       return
     }
 
-    await answerCallbackQuery({ callbackQueryId: callback.id, text: 'Товар обрано' })
+    await answerCallbackQuery({
+      callbackQueryId: callback.id,
+      text: 'Товар обрано',
+    })
     await sendMasterVariantPicker({
       chatId,
       userId: fromUserId,
@@ -1768,7 +1896,10 @@ async function handleCallbackQuery(callback: TelegramCallbackQuery) {
       return
     }
 
-    await answerCallbackQuery({ callbackQueryId: callback.id, text: 'Варіант обрано' })
+    await answerCallbackQuery({
+      callbackQueryId: callback.id,
+      text: 'Варіант обрано',
+    })
     await sendMasterQtyPrompt({
       chatId,
       userId: fromUserId,
@@ -1781,7 +1912,10 @@ async function handleCallbackQuery(callback: TelegramCallbackQuery) {
   }
 
   if (action === 'mbp') {
-    await answerCallbackQuery({ callbackQueryId: callback.id, text: 'До товарів' })
+    await answerCallbackQuery({
+      callbackQueryId: callback.id,
+      text: 'До товарів',
+    })
     await sendMasterProductPicker({
       chatId,
       userId: fromUserId,
@@ -1816,7 +1950,10 @@ async function handleCallbackQuery(callback: TelegramCallbackQuery) {
       return
     }
 
-    await answerCallbackQuery({ callbackQueryId: callback.id, text: 'До варіантів' })
+    await answerCallbackQuery({
+      callbackQueryId: callback.id,
+      text: 'До варіантів',
+    })
     await sendMasterVariantPicker({
       chatId,
       userId: fromUserId,
@@ -1858,7 +1995,10 @@ async function handleCallbackQuery(callback: TelegramCallbackQuery) {
       qty: draft.qty,
     })
 
-    await answerCallbackQuery({ callbackQueryId: callback.id, text: 'Позицію додано' })
+    await answerCallbackQuery({
+      callbackQueryId: callback.id,
+      text: 'Позицію додано',
+    })
     await sendMasterProductPicker({
       chatId,
       userId: fromUserId,
@@ -1908,7 +2048,10 @@ async function handleCallbackQuery(callback: TelegramCallbackQuery) {
       },
     })
 
-    await answerCallbackQuery({ callbackQueryId: callback.id, text: 'Редагування кількості' })
+    await answerCallbackQuery({
+      callbackQueryId: callback.id,
+      text: 'Редагування кількості',
+    })
     await sendTelegramMessage({
       chatId,
       text: `Введи нову кількість для позиції #${index + 1}:`,
@@ -1921,7 +2064,10 @@ async function handleCallbackQuery(callback: TelegramCallbackQuery) {
   }
 
   if (action === 'mreview') {
-    await answerCallbackQuery({ callbackQueryId: callback.id, text: 'Показую підсумок' })
+    await answerCallbackQuery({
+      callbackQueryId: callback.id,
+      text: 'Показую підсумок',
+    })
     await sendMasterDraftSummary({
       chatId,
       userId: fromUserId,
@@ -1989,7 +2135,9 @@ async function handleMessage(message: TelegramMessage) {
   })
 }
 
-export async function handleTelegramProductionUpdate(update: TelegramUpdate): Promise<void> {
+export async function handleTelegramProductionUpdate(
+  update: TelegramUpdate,
+): Promise<void> {
   if (update.callback_query) {
     await handleCallbackQuery(update.callback_query)
     return
