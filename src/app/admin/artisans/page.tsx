@@ -1,6 +1,7 @@
 import { revalidatePath } from 'next/cache'
 import Link from 'next/link'
 import { redirect } from 'next/navigation'
+import { ExpenseCategory } from '@prisma/client'
 import { z } from 'zod'
 
 import ConfirmSubmitButton from '@/components/admin/ConfirmSubmitButton'
@@ -24,6 +25,8 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table'
+import { parseArtisanProductionSettlementFromFormData } from '@/lib/admin-artisans'
+import { formatDate, formatUAH } from '@/lib/admin-finance'
 import { prisma } from '@/lib/prisma'
 
 export const dynamic = 'force-dynamic'
@@ -36,6 +39,8 @@ type PageProps = {
     createdName?: string
     ratesUpdated?: string
     ratesCount?: string
+    productionUpdated?: string
+    productionId?: string
   }>
 }
 
@@ -59,6 +64,36 @@ function normalizeAccessCode(raw?: string): string | null {
   const value = raw?.trim()
   if (!value) return null
   return value
+}
+
+type ProductionUiStatus = 'DEBT' | 'PAID'
+
+function toProductionUiStatus(status: string): ProductionUiStatus {
+  return status === 'PAID' ? 'PAID' : 'DEBT'
+}
+
+function toProductionDbStatus(status: ProductionUiStatus): 'SUBMITTED' | 'PAID' {
+  return status === 'PAID' ? 'PAID' : 'SUBMITTED'
+}
+
+function getProductionStatusLabel(status: ProductionUiStatus): string {
+  return status === 'PAID' ? 'Оплачено' : 'Борг'
+}
+
+function getVariantShortDescriptor(variant: {
+  id: string
+  sku: string | null
+  color: string | null
+  modelSize: string | null
+  pouchColor: string | null
+}): string {
+  return (
+    variant.color?.trim() ||
+    variant.modelSize?.trim() ||
+    variant.pouchColor?.trim() ||
+    variant.sku?.trim() ||
+    variant.id.slice(0, 8)
+  )
 }
 
 function buildVariantLabel(variant: {
@@ -111,6 +146,8 @@ export default async function AdminArtisansPage({ searchParams }: PageProps) {
   const ratesCountRaw = params.ratesCount?.trim() || ''
   const ratesCount = Number.parseInt(ratesCountRaw, 10)
   const hasRatesCount = Number.isFinite(ratesCount) && ratesCount > 0
+  const productionUpdated = params.productionUpdated?.trim() === '1'
+  const updatedProductionId = params.productionId?.trim() || ''
   const createdLink = createdCode
     ? `https://t.me/ProductionGerdan_bot?start=${encodeURIComponent(createdCode)}`
     : ''
@@ -274,6 +311,108 @@ export default async function AdminArtisansPage({ searchParams }: PageProps) {
     )
   }
 
+  async function updateProductionSettlement(formData: FormData) {
+    'use server'
+
+    const parsed = parseArtisanProductionSettlementFromFormData(formData)
+    const dbStatus = toProductionDbStatus(parsed.status)
+    const productionId = parsed.productionId
+    const artisanId = parsed.artisanId
+    let settledAmountUAH = parsed.settledAmountUAH
+
+    await prisma.$transaction(async (tx) => {
+      const production = await tx.artisanProduction.findUnique({
+        where: { id: productionId },
+        include: {
+          artisan: {
+            select: {
+              name: true,
+            },
+          },
+          variant: {
+            select: {
+              id: true,
+              sku: true,
+              color: true,
+              modelSize: true,
+              pouchColor: true,
+              product: {
+                select: {
+                  name: true,
+                  slug: true,
+                },
+              },
+            },
+          },
+        },
+      })
+
+      if (!production || production.artisanId !== artisanId) {
+        throw new Error('Запис виробітку не знайдено')
+      }
+
+      if (production.status === 'PAID' && dbStatus !== 'PAID') {
+        throw new Error('Оплачений запис не можна повернути в борг')
+      }
+
+      if (dbStatus === 'PAID' && settledAmountUAH === 0) {
+        settledAmountUAH = production.totalLaborUAH
+      }
+
+      if (settledAmountUAH > production.totalLaborUAH) {
+        throw new Error('Сума погашення не може бути більшою за суму роботи')
+      }
+
+      let paidExpenseId = production.paidExpenseId
+      let paidAt = production.paidAt
+      const isTransitionToPaid =
+        production.status !== 'PAID' && dbStatus === 'PAID'
+
+      if (isTransitionToPaid) {
+        const detail = getVariantShortDescriptor(production.variant)
+        const title = `${production.artisan.name}: ${production.variant.product.name} (${detail}), ${production.qty} шт, ${production.ratePerUnitSnapshotUAH}₴/шт`
+
+        const expense = await tx.expense.create({
+          data: {
+            title,
+            category: ExpenseCategory.PAYROLL,
+            amountUAH: settledAmountUAH,
+            expenseDate: new Date(),
+            notes: [
+              'Оплата роботи майстра',
+              `productionId=${production.id}`,
+              `variantId=${production.variantId}`,
+              `qty=${production.qty}`,
+              `rate=${production.ratePerUnitSnapshotUAH}`,
+              `total=${production.totalLaborUAH}`,
+              `settled=${settledAmountUAH}`,
+            ].join('\n'),
+          },
+        })
+
+        paidExpenseId = expense.id
+        paidAt = new Date()
+      }
+
+      await tx.artisanProduction.update({
+        where: { id: production.id },
+        data: {
+          status: dbStatus,
+          settledAmountUAH,
+          paidAt,
+          paidExpenseId,
+        },
+      })
+    })
+
+    revalidatePath('/admin/artisans')
+    revalidatePath('/admin/expenses')
+    revalidatePath('/admin/finance')
+    redirect(
+      `/admin/artisans?artisan=${encodeURIComponent(artisanId)}&productionUpdated=1&productionId=${encodeURIComponent(productionId)}#artisan-productions`,
+    )
+  }
+
   const artisans = await prisma.artisan.findMany({
     include: {
       _count: {
@@ -376,6 +515,35 @@ export default async function AdminArtisansPage({ searchParams }: PageProps) {
     }))
     .sort((left, right) => left.label.localeCompare(right.label, 'uk'))
 
+  const productions = await prisma.artisanProduction.findMany({
+    where: selectedArtisanId ? { artisanId: selectedArtisanId } : undefined,
+    include: {
+      artisan: {
+        select: {
+          id: true,
+          name: true,
+        },
+      },
+      variant: {
+        select: {
+          id: true,
+          sku: true,
+          color: true,
+          modelSize: true,
+          pouchColor: true,
+          product: {
+            select: {
+              name: true,
+              slug: true,
+            },
+          },
+        },
+      },
+    },
+    orderBy: [{ producedAt: 'desc' }, { createdAt: 'desc' }],
+    take: 400,
+  })
+
   return (
     <div className="space-y-6">
       <div>
@@ -425,6 +593,23 @@ export default async function AdminArtisansPage({ searchParams }: PageProps) {
                     ratesCount === 1 ? 'ставку' : 'ставок'
                   }.`
                 : `Для майстра ${selectedArtisan.name} ставки додано/оновлено.`}
+            </CardDescription>
+          </CardHeader>
+        </Card>
+      ) : null}
+
+      {productionUpdated ? (
+        <Card className="border-emerald-300 bg-emerald-50">
+          <CardHeader className="pb-3">
+            <CardTitle className="text-emerald-900">Запис оновлено</CardTitle>
+            <CardDescription className="text-emerald-900/80">
+              Статус і сума погашення збережені.
+              {updatedProductionId ? (
+                <>
+                  {' '}
+                  ID: <code>{updatedProductionId}</code>
+                </>
+              ) : null}
             </CardDescription>
           </CardHeader>
         </Card>
@@ -543,6 +728,143 @@ export default async function AdminArtisansPage({ searchParams }: PageProps) {
                     </TableCell>
                   </TableRow>
                 ))}
+              </TableBody>
+            </Table>
+          )}
+        </CardContent>
+      </Card>
+
+      <Card id="artisan-productions" className="overflow-hidden">
+        <CardHeader className="border-b border-slate-200">
+          <CardTitle>Отримані записи від майстрів</CardTitle>
+          <CardDescription>
+            {selectedArtisan
+              ? `Показані записи для: ${selectedArtisan.name}`
+              : 'Показані записи для всіх майстрів'}
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="p-0">
+          {productions.length === 0 ? (
+            <div className="p-6 text-sm text-slate-600">
+              Записів виробітку поки немає.
+            </div>
+          ) : (
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Дата</TableHead>
+                  <TableHead>Майстер</TableHead>
+                  <TableHead>Товар / Варіант</TableHead>
+                  <TableHead className="text-right">К-сть</TableHead>
+                  <TableHead className="text-right">Ставка</TableHead>
+                  <TableHead className="text-right">Сума</TableHead>
+                  <TableHead className="text-right">Погашено</TableHead>
+                  <TableHead>Статус</TableHead>
+                  <TableHead>Expense</TableHead>
+                  <TableHead className="w-[280px] text-right">Дія</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {productions.map((production) => {
+                  const uiStatus = toProductionUiStatus(production.status)
+                  const isPaid = uiStatus === 'PAID'
+                  const variantDetail = getVariantShortDescriptor(
+                    production.variant,
+                  )
+                  const settledAmount =
+                    production.settledAmountUAH > 0
+                      ? production.settledAmountUAH
+                      : isPaid
+                        ? production.totalLaborUAH
+                        : 0
+
+                  return (
+                    <TableRow
+                      key={production.id}
+                      className={
+                        production.id === updatedProductionId
+                          ? 'bg-emerald-50'
+                          : undefined
+                      }
+                    >
+                      <TableCell>{formatDate(production.producedAt)}</TableCell>
+                      <TableCell className="font-medium">
+                        {production.artisan.name}
+                      </TableCell>
+                      <TableCell>
+                        <div className="font-medium">
+                          {production.variant.product.name}
+                        </div>
+                        <div className="text-xs text-slate-500">
+                          {variantDetail}
+                        </div>
+                      </TableCell>
+                      <TableCell className="text-right">
+                        {production.qty}
+                      </TableCell>
+                      <TableCell className="text-right">
+                        {formatUAH(production.ratePerUnitSnapshotUAH)}
+                      </TableCell>
+                      <TableCell className="text-right font-medium">
+                        {formatUAH(production.totalLaborUAH)}
+                      </TableCell>
+                      <TableCell className="text-right">
+                        {formatUAH(settledAmount)}
+                      </TableCell>
+                      <TableCell>{getProductionStatusLabel(uiStatus)}</TableCell>
+                      <TableCell className="text-xs">
+                        {production.paidExpenseId ? (
+                          <code>{production.paidExpenseId}</code>
+                        ) : (
+                          '—'
+                        )}
+                      </TableCell>
+                      <TableCell>
+                        {isPaid ? (
+                          <div className="text-right text-xs text-slate-500">
+                            Оплачено {production.paidAt ? formatDate(production.paidAt) : ''}
+                          </div>
+                        ) : (
+                          <form
+                            action={updateProductionSettlement}
+                            className="flex items-center justify-end gap-2"
+                          >
+                            <input
+                              type="hidden"
+                              name="productionId"
+                              value={production.id}
+                            />
+                            <input
+                              type="hidden"
+                              name="artisanId"
+                              value={production.artisanId}
+                            />
+                            <Input
+                              name="settledAmountUAH"
+                              type="text"
+                              inputMode="numeric"
+                              pattern="[0-9]*"
+                              defaultValue={String(settledAmount)}
+                              className="h-9 w-24"
+                              placeholder="0"
+                            />
+                            <Select
+                              name="status"
+                              defaultValue={uiStatus}
+                              className="h-9 w-[130px]"
+                            >
+                              <option value="DEBT">Борг</option>
+                              <option value="PAID">Оплачено</option>
+                            </Select>
+                            <Button type="submit" variant="outline" size="sm">
+                              Зберегти
+                            </Button>
+                          </form>
+                        )}
+                      </TableCell>
+                    </TableRow>
+                  )
+                })}
               </TableBody>
             </Table>
           )}

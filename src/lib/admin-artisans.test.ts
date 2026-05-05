@@ -4,6 +4,7 @@ import test from 'node:test'
 import {
   buildArtisanRateTableRows,
   buildArtisanVariantLabel,
+  parseArtisanProductionSettlementFromFormData,
   parseArtisanRateUpdatesFromFormData,
   type ArtisanVariantOption,
 } from '@/lib/admin-artisans'
@@ -87,5 +88,35 @@ test('parseArtisanRateUpdatesFromFormData throws on invalid rate', () => {
   assert.throws(
     () => parseArtisanRateUpdatesFromFormData(formData),
     /Некоректна ставка для варіанта variant_1/,
+  )
+})
+
+test('parseArtisanProductionSettlementFromFormData parses debt/paid state', () => {
+  const formData = new FormData()
+  formData.set('productionId', 'prod_1')
+  formData.set('artisanId', 'artisan_1')
+  formData.set('status', 'PAID')
+  formData.set('settledAmountUAH', '900')
+
+  const parsed = parseArtisanProductionSettlementFromFormData(formData)
+
+  assert.deepEqual(parsed, {
+    productionId: 'prod_1',
+    artisanId: 'artisan_1',
+    status: 'PAID',
+    settledAmountUAH: 900,
+  })
+})
+
+test('parseArtisanProductionSettlementFromFormData throws on negative amount', () => {
+  const formData = new FormData()
+  formData.set('productionId', 'prod_1')
+  formData.set('artisanId', 'artisan_1')
+  formData.set('status', 'DEBT')
+  formData.set('settledAmountUAH', '-1')
+
+  assert.throws(
+    () => parseArtisanProductionSettlementFromFormData(formData),
+    /Некоректна сума погашення/,
   )
 })

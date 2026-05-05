@@ -81,3 +81,37 @@ export function parseArtisanRateUpdatesFromFormData(formData: FormData): {
     updates,
   }
 }
+
+export type ArtisanProductionSettlementInput = {
+  productionId: string
+  artisanId: string
+  status: 'DEBT' | 'PAID'
+  settledAmountUAH: number
+}
+
+export function parseArtisanProductionSettlementFromFormData(
+  formData: FormData,
+): ArtisanProductionSettlementInput {
+  const productionId = String(formData.get('productionId') || '').trim()
+  const artisanId = String(formData.get('artisanId') || '').trim()
+
+  if (!productionId || !artisanId) {
+    throw new Error('Некоректний запис виробітку')
+  }
+
+  const statusRaw = String(formData.get('status') || '').trim()
+  const status: 'DEBT' | 'PAID' = statusRaw === 'PAID' ? 'PAID' : 'DEBT'
+
+  const settledRaw = String(formData.get('settledAmountUAH') || '').trim()
+  const settledAmountUAH = Number.parseInt(settledRaw || '0', 10)
+  if (!Number.isInteger(settledAmountUAH) || settledAmountUAH < 0) {
+    throw new Error('Некоректна сума погашення')
+  }
+
+  return {
+    productionId,
+    artisanId,
+    status,
+    settledAmountUAH,
+  }
+}

@@ -463,6 +463,7 @@ model ArtisanProduction {
   qty                      Int
   ratePerUnitSnapshotUAH   Int
   totalLaborUAH            Int
+  settledAmountUAH         Int                     @default(0)
   producedAt               DateTime                @default(now())
   status                   ArtisanProductionStatus @default(SUBMITTED)
   source                   ArtisanProductionSource @default(TELEGRAM_BOT)

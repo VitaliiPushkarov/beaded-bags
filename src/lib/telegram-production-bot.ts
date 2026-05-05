@@ -1,4 +1,4 @@
-import { ExpenseCategory, Prisma, TelegramBotSessionStep } from '@prisma/client'
+import { Prisma, TelegramBotSessionStep } from '@prisma/client'
 
 import { prisma } from '@/lib/prisma'
 
@@ -1362,7 +1362,7 @@ async function finalizeMasterDraft(input: {
 }) {
   const artisan = await prisma.artisan.findUnique({
     where: { id: input.artisanId },
-    select: { id: true, name: true },
+    select: { id: true },
   })
 
   if (!artisan) {
@@ -1493,8 +1493,8 @@ async function finalizeMasterDraft(input: {
 
   markRecentSubmission({ sessionKey: input.sessionKey, fingerprint })
 
-  const result = await prisma.$transaction(async (tx) => {
-    const created: Array<{
+  const created = await prisma.$transaction(async (tx) => {
+    const rows: Array<{
       id: string
       qty: number
       ratePerUnitUAH: number
@@ -1514,12 +1514,10 @@ async function finalizeMasterDraft(input: {
           qty: item.qty,
           ratePerUnitSnapshotUAH: rate.ratePerUnitUAH,
           totalLaborUAH: item.qty * rate.ratePerUnitUAH,
-          status: 'PAID',
           source: 'TELEGRAM_BOT',
           telegramUpdateId: input.callback.message?.message_id,
           approvedAt: new Date(),
           approvedByTelegramUserId: input.userId,
-          paidAt: new Date(),
         },
         include: {
           variant: {
@@ -1540,7 +1538,7 @@ async function finalizeMasterDraft(input: {
         },
       })
 
-      created.push({
+      rows.push({
         id: production.id,
         qty: production.qty,
         ratePerUnitUAH: production.ratePerUnitSnapshotUAH,
@@ -1550,40 +1548,7 @@ async function finalizeMasterDraft(input: {
       })
     }
 
-    const totalAmount = created.reduce((sum, row) => sum + row.totalLaborUAH, 0)
-    const summaryBits = created.map(
-      (row) =>
-        `${artisan.name}: ${row.variant.product.name} (${getVariantShortDescriptor(row.variant)}), ${row.qty} шт, ${row.ratePerUnitUAH}₴/шт`,
-    )
-
-    const expense = await tx.expense.create({
-      data: {
-        title: summaryBits.join('; '),
-        category: ExpenseCategory.PAYROLL,
-        amountUAH: totalAmount,
-        expenseDate: new Date(),
-        notes: [
-          'Створено Telegram production bot (майстерський flow)',
-          ...created.map(
-            (row, index) =>
-              `${index + 1}. productionId=${row.id}; variantId=${row.variantId}; qty=${row.qty}; rate=${row.ratePerUnitUAH}; total=${row.totalLaborUAH}`,
-          ),
-        ].join('\n'),
-      },
-    })
-
-    await tx.artisanProduction.updateMany({
-      where: {
-        id: {
-          in: created.map((row) => row.id),
-        },
-      },
-      data: {
-        paidExpenseId: expense.id,
-      },
-    })
-
-    return { created, expense }
+    return rows
   })
 
   await clearSession(input.sessionKey)
@@ -1593,8 +1558,8 @@ async function finalizeMasterDraft(input: {
     text: 'Відправлено',
   })
 
-  const totalQty = result.created.reduce((sum, row) => sum + row.qty, 0)
-  const totalAmount = result.created.reduce(
+  const totalQty = created.reduce((sum, row) => sum + row.qty, 0)
+  const totalAmount = created.reduce(
     (sum, row) => sum + row.totalLaborUAH,
     0,
   )
@@ -1603,13 +1568,13 @@ async function finalizeMasterDraft(input: {
     chatId: input.chatId,
     text: [
       '✅ Записи збережено.',
-      ...result.created.map(
+      ...created.map(
         (row, index) =>
           `${index + 1}. ${escapeHtml(formatVariantLabel(row.variant))} — ${row.qty} шт, ${formatUAH(row.totalLaborUAH)} (<code>${escapeHtml(row.id)}</code>)`,
       ),
       '',
       `<b>Разом:</b> ${totalQty} шт • ${formatUAH(totalAmount)}`,
-      `<b>Expense ID:</b> <code>${escapeHtml(result.expense.id)}</code>`,
+      'Статус: <b>Борг</b>. Оплату зафіксує адміністратор.',
     ].join('\n'),
   })
 }
