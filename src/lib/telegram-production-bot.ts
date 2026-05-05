@@ -1,9 +1,4 @@
-import {
-  ArtisanProductionStatus,
-  ExpenseCategory,
-  Prisma,
-  TelegramBotSessionStep,
-} from '@prisma/client'
+import { ExpenseCategory, Prisma, TelegramBotSessionStep } from '@prisma/client'
 
 import { prisma } from '@/lib/prisma'
 
@@ -56,59 +51,88 @@ type TelegramSendMessageInput = {
   replyKeyboard?: TelegramReplyKeyboardButton[][]
 }
 
+type MasterDraftFlow =
+  | 'CHOOSE_PRODUCT'
+  | 'CHOOSE_VARIANT'
+  | 'AWAIT_QTY'
+  | 'REVIEW'
+  | 'EDIT_ITEM_QTY'
+
+type SessionDraftItem = {
+  rateId: string
+  variantId: string
+  qty: number
+}
+
 type SessionDraft = {
+  masterFlow?: MasterDraftFlow
+  selectedProductId?: string
+  selectedVariantId?: string
+  selectedRateId?: string
+  items?: SessionDraftItem[]
+  editItemIndex?: number
   rateId?: string
   qty?: number
-  ownerFlow?: 'SET_RATE_AWAIT_RATE'
-  ownerArtisanId?: string
-  ownerVariantId?: string
+}
+
+type VariantLike = {
+  id: string
+  sku?: string | null
+  color?: string | null
+  modelSize?: string | null
+  pouchColor?: string | null
+  product: {
+    id?: string
+    name: string
+    slug: string
+    sortCatalog?: number
+  }
+}
+
+type ArtisanRateWithVariant = {
+  id: string
+  artisanId: string
+  variantId: string
+  ratePerUnitUAH: number
+  variant: {
+    id: string
+    productId: string
+    sku: string | null
+    color: string | null
+    modelSize: string | null
+    pouchColor: string | null
+    product: {
+      id: string
+      name: string
+      slug: string
+      sortCatalog: number
+    }
+  }
+}
+
+type DraftResolvedItem = {
+  item: SessionDraftItem
+  rate: ArtisanRateWithVariant | null
 }
 
 const TELEGRAM_API_TIMEOUT_MS = 4500
 const CALLBACK_PREFIX = 'prod'
-const OWNER_VARIANTS_PAGE_SIZE = 8
+const MASTER_MAX_ITEMS = 20
+const SUBMISSION_DUPLICATE_WINDOW_MS = 10_000
+const recentSubmissionBySession = new Map<string, { fingerprint: string; at: number }>()
+
 const MENU_BUTTONS = {
   register: '🔐 Реєстрація',
   record: '🧵 Новий запис',
-  my: '📊 Мій звіт',
   help: '❓ Допомога',
-  masters: '👥 Майстри',
-  pending: '⏳ Очікують',
-  report: '📈 Звіт',
-  products: '📦 Товари',
-  variants: '🧩 Варіанти',
-  ratesMenu: '💵 Ставки',
 } as const
 
-function parseCsvIds(raw: string | undefined): string[] {
-  if (!raw) return []
-  return Array.from(
-    new Set(
-      raw
-        .split(',')
-        .map((value) => value.trim())
-        .filter(Boolean),
-    ),
-  )
-}
-
 function escapeHtml(input: string): string {
-  return input
-    .replaceAll('&', '&amp;')
-    .replaceAll('<', '&lt;')
-    .replaceAll('>', '&gt;')
+  return input.replaceAll('&', '&amp;').replaceAll('<', '&lt;').replaceAll('>', '&gt;')
 }
 
 function formatUAH(amount: number): string {
   return `${Math.round(amount).toLocaleString('uk-UA')} ₴`
-}
-
-function formatDateTime(date: Date): string {
-  return new Intl.DateTimeFormat('uk-UA', {
-    dateStyle: 'short',
-    timeStyle: 'short',
-    timeZone: 'Europe/Kyiv',
-  }).format(date)
 }
 
 function toTelegramId(value: number | string): string {
@@ -123,35 +147,17 @@ function parseInteger(input: string): number | null {
   return parsed
 }
 
-function parseIdList(input: string): string[] {
-  if (!input.trim()) return []
-
-  return Array.from(
-    new Set(
-      input
-        .split(',')
-        .flatMap((part) => part.split(/\s+/))
-        .map((value) => value.trim())
-        .filter(Boolean),
-    ),
-  )
-}
-
 function normalizeText(value?: string | null): string | null {
   const normalized = value?.trim()
   return normalized ? normalized : null
 }
 
-type VariantLike = {
-  id: string
-  sku?: string | null
-  color?: string | null
-  modelSize?: string | null
-  pouchColor?: string | null
-  product: {
-    name: string
-    slug: string
-  }
+function parseStartRegistrationCode(args: string): string | null {
+  const token = args.trim().split(/\s+/)[0]?.trim()
+  if (!token) return null
+  if (token.startsWith('reg_')) return token.slice(4).trim() || null
+  if (token.startsWith('register_')) return token.slice(9).trim() || null
+  return token
 }
 
 function getVariantAttributes(variant: Pick<VariantLike, 'color' | 'modelSize' | 'pouchColor'>): string[] {
@@ -165,6 +171,18 @@ function getVariantAttributes(variant: Pick<VariantLike, 'color' | 'modelSize' |
   return attributes
 }
 
+function getVariantShortDescriptor(
+  variant: Pick<VariantLike, 'color' | 'modelSize' | 'pouchColor' | 'sku' | 'id'>,
+): string {
+  return (
+    normalizeText(variant.color) ??
+    normalizeText(variant.modelSize) ??
+    normalizeText(variant.pouchColor) ??
+    normalizeText(variant.sku) ??
+    variant.id.slice(0, 8)
+  )
+}
+
 function formatVariantLabel(variant: VariantLike): string {
   const attributes = getVariantAttributes(variant)
   const sku = normalizeText(variant.sku)
@@ -174,10 +192,7 @@ function formatVariantLabel(variant: VariantLike): string {
 }
 
 function formatVariantButtonLabel(variant: VariantLike): string {
-  const color = normalizeText(variant.color)
-  const modelSize = normalizeText(variant.modelSize)
-  const pouchColor = normalizeText(variant.pouchColor)
-  const shortDetail = color ?? modelSize ?? pouchColor ?? normalizeText(variant.sku) ?? variant.id.slice(0, 8)
+  const shortDetail = getVariantShortDescriptor(variant)
   return `${variant.product.name} • ${shortDetail}`
 }
 
@@ -202,9 +217,6 @@ function normalizeCommand(command: string): string {
     dopomoha: 'help',
     help: 'help',
     'допомога': 'help',
-    hto_ya: 'whoami',
-    whoami: 'whoami',
-    'хто_я': 'whoami',
 
     reyestraciya: 'register',
     reyestratsiya: 'register',
@@ -219,70 +231,36 @@ function normalizeCommand(command: string): string {
     kilkist: 'qty',
     qty: 'qty',
     'кількість': 'qty',
-
-    miy_zvit: 'my',
-    my: 'my',
-    'мій_звіт': 'my',
-
-    novyy_maister: 'new_master',
-    novyy_master: 'new_master',
-    new_master: 'new_master',
-
-    maistry: 'masters',
-    masters: 'masters',
-    'майстри': 'masters',
-
-    vstanovyty_stavku: 'set_rate',
-    set_rate: 'set_rate',
-
-    masovo_stavky: 'set_rate_bulk',
-    set_rate_bulk: 'set_rate_bulk',
-    set_rates: 'set_rate_bulk',
-
-    vymknuty_stavku: 'disable_rate',
-    disable_rate: 'disable_rate',
-
-    stavky: 'rates',
-    rates: 'rates',
-    'ставки': 'rates',
-
-    menu_stavok: 'rates_menu',
-    rates_menu: 'rates_menu',
-
-    tovary: 'products',
-    products: 'products',
-    'товари': 'products',
-
-    varianty: 'variants',
-    variants: 'variants',
-    'варіанти': 'variants',
-
-    ochikuyut: 'pending',
-    pending: 'pending',
-    'очікують': 'pending',
-
-    zvit: 'report',
-    report: 'report',
-    'звіт': 'report',
   }
 
   return aliases[normalized] ?? normalized
 }
 
-function chunkButtons<T>(items: T[], chunkSize: number): T[][] {
-  const rows: T[][] = []
-  for (let index = 0; index < items.length; index += chunkSize) {
-    rows.push(items.slice(index, index + chunkSize))
-  }
-  return rows
+function mapMenuButtonToCommand(text: string): string | null {
+  if (text === MENU_BUTTONS.register) return 'reyestraciya'
+  if (text === MENU_BUTTONS.record) return 'zapys'
+  if (text === MENU_BUTTONS.help) return 'dopomoha'
+  return null
 }
 
-function getOwnerUserIds(): string[] {
-  return parseCsvIds(process.env.TELEGRAM_OWNER_USER_IDS)
+function buildMainMenuKeyboard(): TelegramReplyKeyboardButton[][] {
+  return [
+    [{ text: MENU_BUTTONS.register }, { text: MENU_BUTTONS.record }],
+    [{ text: MENU_BUTTONS.help }],
+  ]
 }
 
-function isOwner(userId: string): boolean {
-  return getOwnerUserIds().includes(userId)
+function buildMasterHelpText() {
+  return [
+    '<b>Команди майстра (UA)</b>',
+    '/start CODE - швидка прив\'язка з приватного лінка',
+    '/reyestraciya CODE - прив\'язати акаунт майстра',
+    '/zapys - зафіксувати виробіток (товар → варіант → кількість)',
+    '/dopomoha - підказка',
+    '',
+    'Після кількості: зберегти і продовжити або завершити і відправити.',
+    'У підсумку можна змінити кількість перед відправкою.',
+  ].join('\n')
 }
 
 function getBotToken(): string | null {
@@ -310,6 +288,36 @@ function parseSessionDraft(draftPayload: Prisma.JsonValue | null): SessionDraft 
   const raw = draftPayload as Record<string, unknown>
   const next: SessionDraft = {}
 
+  if (
+    raw.masterFlow === 'CHOOSE_PRODUCT' ||
+    raw.masterFlow === 'CHOOSE_VARIANT' ||
+    raw.masterFlow === 'AWAIT_QTY' ||
+    raw.masterFlow === 'REVIEW' ||
+    raw.masterFlow === 'EDIT_ITEM_QTY'
+  ) {
+    next.masterFlow = raw.masterFlow
+  }
+
+  if (typeof raw.selectedProductId === 'string' && raw.selectedProductId.trim().length > 0) {
+    next.selectedProductId = raw.selectedProductId.trim()
+  }
+
+  if (typeof raw.selectedVariantId === 'string' && raw.selectedVariantId.trim().length > 0) {
+    next.selectedVariantId = raw.selectedVariantId.trim()
+  }
+
+  if (typeof raw.selectedRateId === 'string' && raw.selectedRateId.trim().length > 0) {
+    next.selectedRateId = raw.selectedRateId.trim()
+  }
+
+  if (
+    typeof raw.editItemIndex === 'number' &&
+    Number.isInteger(raw.editItemIndex) &&
+    raw.editItemIndex >= 0
+  ) {
+    next.editItemIndex = raw.editItemIndex
+  }
+
   if (typeof raw.rateId === 'string' && raw.rateId.trim().length > 0) {
     next.rateId = raw.rateId.trim()
   }
@@ -318,16 +326,30 @@ function parseSessionDraft(draftPayload: Prisma.JsonValue | null): SessionDraft 
     next.qty = raw.qty
   }
 
-  if (raw.ownerFlow === 'SET_RATE_AWAIT_RATE') {
-    next.ownerFlow = 'SET_RATE_AWAIT_RATE'
-  }
+  if (Array.isArray(raw.items)) {
+    const items: SessionDraftItem[] = []
+    for (const item of raw.items) {
+      if (!item || typeof item !== 'object' || Array.isArray(item)) continue
+      const candidate = item as Record<string, unknown>
+      if (typeof candidate.rateId !== 'string' || !candidate.rateId.trim()) continue
+      if (typeof candidate.variantId !== 'string' || !candidate.variantId.trim()) continue
+      if (
+        typeof candidate.qty !== 'number' ||
+        !Number.isInteger(candidate.qty) ||
+        candidate.qty <= 0
+      ) {
+        continue
+      }
+      items.push({
+        rateId: candidate.rateId.trim(),
+        variantId: candidate.variantId.trim(),
+        qty: candidate.qty,
+      })
+    }
 
-  if (typeof raw.ownerArtisanId === 'string' && raw.ownerArtisanId.trim().length > 0) {
-    next.ownerArtisanId = raw.ownerArtisanId.trim()
-  }
-
-  if (typeof raw.ownerVariantId === 'string' && raw.ownerVariantId.trim().length > 0) {
-    next.ownerVariantId = raw.ownerVariantId.trim()
+    if (items.length > 0) {
+      next.items = items.slice(0, MASTER_MAX_ITEMS)
+    }
   }
 
   return next
@@ -335,11 +357,22 @@ function parseSessionDraft(draftPayload: Prisma.JsonValue | null): SessionDraft 
 
 function buildSessionDraftJson(draft: SessionDraft): Prisma.JsonObject {
   const payload: Prisma.JsonObject = {}
+  if (draft.masterFlow) payload.masterFlow = draft.masterFlow
+  if (draft.selectedProductId) payload.selectedProductId = draft.selectedProductId
+  if (draft.selectedVariantId) payload.selectedVariantId = draft.selectedVariantId
+  if (draft.selectedRateId) payload.selectedRateId = draft.selectedRateId
+  if (typeof draft.editItemIndex === 'number') payload.editItemIndex = draft.editItemIndex
   if (draft.rateId) payload.rateId = draft.rateId
   if (typeof draft.qty === 'number') payload.qty = draft.qty
-  if (draft.ownerFlow) payload.ownerFlow = draft.ownerFlow
-  if (draft.ownerArtisanId) payload.ownerArtisanId = draft.ownerArtisanId
-  if (draft.ownerVariantId) payload.ownerVariantId = draft.ownerVariantId
+
+  if (draft.items && draft.items.length > 0) {
+    payload.items = draft.items.map((item) => ({
+      rateId: item.rateId,
+      variantId: item.variantId,
+      qty: item.qty,
+    }))
+  }
+
   return payload
 }
 
@@ -482,6 +515,155 @@ async function findLinkedArtisanByTelegram(input: {
   })
 }
 
+async function getActiveArtisanRates(artisanId: string): Promise<ArtisanRateWithVariant[]> {
+  return prisma.artisanRate.findMany({
+    where: {
+      artisanId,
+      isActive: true,
+    },
+    select: {
+      id: true,
+      artisanId: true,
+      variantId: true,
+      ratePerUnitUAH: true,
+      variant: {
+        select: {
+          id: true,
+          productId: true,
+          sku: true,
+          color: true,
+          modelSize: true,
+          pouchColor: true,
+          product: {
+            select: {
+              id: true,
+              name: true,
+              slug: true,
+              sortCatalog: true,
+            },
+          },
+        },
+      },
+    },
+    orderBy: [
+      { variant: { product: { sortCatalog: 'asc' } } },
+      { variant: { product: { name: 'asc' } } },
+      { variant: { color: 'asc' } },
+      { variant: { modelSize: 'asc' } },
+      { id: 'asc' },
+    ],
+    take: 200,
+  })
+}
+
+async function resolveDraftItems(input: {
+  artisanId: string
+  items: SessionDraftItem[]
+}): Promise<DraftResolvedItem[]> {
+  if (input.items.length === 0) return []
+
+  const uniqueRateIds = Array.from(new Set(input.items.map((item) => item.rateId)))
+  const rates = await prisma.artisanRate.findMany({
+    where: {
+      artisanId: input.artisanId,
+      id: {
+        in: uniqueRateIds,
+      },
+    },
+    select: {
+      id: true,
+      artisanId: true,
+      variantId: true,
+      ratePerUnitUAH: true,
+      variant: {
+        select: {
+          id: true,
+          productId: true,
+          sku: true,
+          color: true,
+          modelSize: true,
+          pouchColor: true,
+          product: {
+            select: {
+              id: true,
+              name: true,
+              slug: true,
+              sortCatalog: true,
+            },
+          },
+        },
+      },
+    },
+  })
+
+  const byRateId = new Map(rates.map((rate) => [rate.id, rate]))
+  return input.items.map((item) => ({
+    item,
+    rate: byRateId.get(item.rateId) ?? null,
+  }))
+}
+
+function buildResolvedItemsSummary(resolved: DraftResolvedItem[]): {
+  lines: string[]
+  totalQty: number
+  totalAmount: number
+} {
+  const lines: string[] = []
+  let totalQty = 0
+  let totalAmount = 0
+
+  resolved.forEach((entry, index) => {
+    if (!entry.rate) {
+      lines.push(
+        `${index + 1}. ⚠️ Недоступна позиція (rateId: <code>${escapeHtml(entry.item.rateId)}</code>)`,
+      )
+      return
+    }
+
+    const lineTotal = entry.item.qty * entry.rate.ratePerUnitUAH
+    totalQty += entry.item.qty
+    totalAmount += lineTotal
+
+    lines.push(
+      `${index + 1}. ${escapeHtml(entry.rate.variant.product.name)} • ${escapeHtml(getVariantShortDescriptor(entry.rate.variant))} — ${entry.item.qty} × ${formatUAH(entry.rate.ratePerUnitUAH)} = <b>${formatUAH(lineTotal)}</b>`,
+    )
+  })
+
+  return { lines, totalQty, totalAmount }
+}
+
+function buildDraftFingerprint(input: { artisanId: string; items: SessionDraftItem[] }): string {
+  const rows = input.items
+    .slice()
+    .sort((left, right) => {
+      if (left.rateId === right.rateId) return left.qty - right.qty
+      return left.rateId.localeCompare(right.rateId)
+    })
+    .map((item) => `${item.rateId}:${item.qty}`)
+  return `${input.artisanId}|${rows.join('|')}`
+}
+
+function isRecentDuplicateSubmission(input: { sessionKey: string; fingerprint: string }): boolean {
+  const now = Date.now()
+  const recent = recentSubmissionBySession.get(input.sessionKey)
+  if (!recent) return false
+  if (now - recent.at > SUBMISSION_DUPLICATE_WINDOW_MS) {
+    recentSubmissionBySession.delete(input.sessionKey)
+    return false
+  }
+  return recent.fingerprint === input.fingerprint
+}
+
+function markRecentSubmission(input: { sessionKey: string; fingerprint: string }) {
+  const now = Date.now()
+  for (const [key, value] of recentSubmissionBySession) {
+    if (now - value.at > SUBMISSION_DUPLICATE_WINDOW_MS) {
+      recentSubmissionBySession.delete(key)
+    }
+  }
+  recentSubmissionBySession.set(input.sessionKey, { fingerprint: input.fingerprint, at: now })
+}
+
 async function setSession(input: {
   sessionKey: string
   userId?: string
@@ -519,358 +701,257 @@ async function getSession(sessionKey: string) {
   return prisma.telegramBotSession.findUnique({ where: { chatId: sessionKey } })
 }
 
-function buildMasterHelpText() {
-  return [
-    '<b>Команди майстра (UA)</b>',
-    '/reyestraciya CODE - прив\'язати акаунт майстра',
-    '/zapys - зафіксувати виробіток (обрати варіант)',
-    '/miy_zvit - мій звіт за поточний місяць',
-    '/dopomoha - підказка',
-    '',
-    'Після вибору варіанту надішли лише число (наприклад: <code>7</code>).',
-  ].join('\n')
-}
-
-function buildOwnerHelpText() {
-  return [
-    '<b>Команди власника (UA)</b>',
-    '/novyy_maister Ім\'я Прізвище',
-    '/maistry',
-    '/vstanovyty_stavku CODE VARIANT_ID RATE',
-    '/masovo_stavky CODE RATE id1,id2,...',
-    '/vymknuty_stavku CODE VARIANT_ID',
-    '/stavky CODE',
-    '/menu_stavok',
-    '/tovary [query]',
-    '/varianty [query]',
-    '/ochikuyut',
-    '/zvit',
-    '/hto_ya',
-  ].join('\n')
-}
-
-function buildWhoAmIText(input: {
-  userId: string
+async function sendMasterProductPicker(input: {
   chatId: string
-  chatType: TelegramChat['type']
-  username?: string
-}): string {
-  const ownerUserIds = getOwnerUserIds()
-  const isOwnerUser = ownerUserIds.includes(input.userId)
+  userId: string
+  artisanId: string
+  sessionKey: string
+  draft?: SessionDraft
+  notice?: string
+}) {
+  const rates = await getActiveArtisanRates(input.artisanId)
+  if (rates.length === 0) {
+    await clearSession(input.sessionKey)
+    await sendTelegramMessage({
+      chatId: input.chatId,
+      text: 'Для тебе ще не налаштовано ставок по виробах. Звернись до власника.',
+    })
+    return
+  }
 
-  return [
-    '<b>Who Am I</b>',
-    `<b>user_id:</b> <code>${escapeHtml(input.userId)}</code>`,
-    `<b>chat_id:</b> <code>${escapeHtml(input.chatId)}</code>`,
-    `<b>chat_type:</b> <code>${escapeHtml(input.chatType)}</code>`,
-    `<b>username:</b> ${escapeHtml(input.username ?? '(none)')}`,
-    `<b>is_owner:</b> ${isOwnerUser ? 'yes' : 'no'}`,
-    `<b>owners_env_count:</b> ${ownerUserIds.length}`,
-    isOwnerUser
-      ? 'Owner-доступ активний.'
-      : 'Додайте цей user_id в TELEGRAM_OWNER_USER_IDS та redeploy.',
-  ].join('\n')
-}
-
-function buildMainMenuKeyboard(isOwnerUser: boolean): TelegramReplyKeyboardButton[][] {
-  const rows: TelegramReplyKeyboardButton[][] = [
-    [{ text: MENU_BUTTONS.register }, { text: MENU_BUTTONS.record }],
-    [{ text: MENU_BUTTONS.my }],
-    [{ text: MENU_BUTTONS.help }],
-  ]
-
-  if (!isOwnerUser) return rows
-
-  rows.push(
-    [{ text: MENU_BUTTONS.pending }, { text: MENU_BUTTONS.report }],
-    [{ text: MENU_BUTTONS.products }, { text: MENU_BUTTONS.variants }],
-    [{ text: MENU_BUTTONS.masters }, { text: MENU_BUTTONS.ratesMenu }],
+  const products = Array.from(
+    new Map(rates.map((rate) => [rate.variant.product.id, rate.variant.product])).values(),
   )
 
-  return rows
-}
+  const draftItems = (input.draft?.items ?? []).slice(0, MASTER_MAX_ITEMS)
 
-function mapMenuButtonToCommand(text: string): string | null {
-  if (text === MENU_BUTTONS.register) return 'reyestraciya'
-  if (text === MENU_BUTTONS.record) return 'zapys'
-  if (text === MENU_BUTTONS.my) return 'miy_zvit'
-  if (text === MENU_BUTTONS.help) return 'dopomoha'
-  if (text === MENU_BUTTONS.pending) return 'ochikuyut'
-  if (text === MENU_BUTTONS.report) return 'zvit'
-  if (text === MENU_BUTTONS.products) return 'tovary'
-  if (text === MENU_BUTTONS.variants) return 'varianty'
-  if (text === MENU_BUTTONS.masters) return 'maistry'
-  if (text === MENU_BUTTONS.ratesMenu) return 'menu_stavok'
-  return null
-}
-
-async function sendOwnerRatesMenu(chatId: string) {
-  await sendTelegramMessage({
-    chatId,
-    text: [
-      '<b>Керування ставками</b>',
-      'Обери дію кнопкою нижче.',
-    ].join('\n'),
-    inlineKeyboard: [
-      [{ text: '➕ Встановити / оновити', callback_data: `${CALLBACK_PREFIX}:om:set` }],
-      [{ text: '⛔️ Вимкнути ставку', callback_data: `${CALLBACK_PREFIX}:om:disable` }],
-      [{ text: '📋 Ставки майстра', callback_data: `${CALLBACK_PREFIX}:om:list` }],
-    ],
-  })
-}
-
-async function sendOwnerArtisanPicker(input: {
-  chatId: string
-  mode: 'set' | 'disable' | 'list'
-}) {
-  const artisans = await prisma.artisan.findMany({
-    where: { isActive: true },
-    orderBy: [{ name: 'asc' }],
-    select: {
-      id: true,
-      name: true,
-      accessCode: true,
+  await setSession({
+    sessionKey: input.sessionKey,
+    userId: input.userId,
+    artisanId: input.artisanId,
+    step: TelegramBotSessionStep.AWAITING_CONFIRM,
+    draft: {
+      ...(input.draft ?? {}),
+      masterFlow: 'CHOOSE_PRODUCT',
+      selectedProductId: undefined,
+      selectedVariantId: undefined,
+      selectedRateId: undefined,
+      editItemIndex: undefined,
+      rateId: undefined,
+      qty: undefined,
+      items: draftItems.length > 0 ? draftItems : undefined,
     },
-    take: 30,
   })
 
-  if (artisans.length === 0) {
-    await sendTelegramMessage({
-      chatId: input.chatId,
-      text: 'Немає активних майстрів.',
-    })
-    return
-  }
-
-  const actionByMode: Record<typeof input.mode, string> = {
-    set: 'osa',
-    disable: 'oda',
-    list: 'ola',
-  }
-
-  const rows = artisans.map((artisan) => [
+  const rows: TelegramInlineKeyboardButton[][] = products.map((product) => [
     {
-      text: `${artisan.name} [${artisan.accessCode}]`,
-      callback_data: `${CALLBACK_PREFIX}:${actionByMode[input.mode]}:${artisan.id}`,
+      text: product.name,
+      callback_data: `${CALLBACK_PREFIX}:mp:${product.id}`,
     },
   ])
 
+  if (draftItems.length > 0) {
+    rows.push([{ text: '✅ Завершити і відправити', callback_data: `${CALLBACK_PREFIX}:mfinish` }])
+  }
+
   rows.push([{ text: '↩️ Скасувати', callback_data: `${CALLBACK_PREFIX}:cancel` }])
+
+  const textLines = ['<b>Крок 1/3</b> Обери товар:']
+  if (input.notice) textLines.unshift(input.notice)
+
+  if (draftItems.length > 0) {
+    const ratesById = new Map(rates.map((rate) => [rate.id, rate]))
+    const preview = buildResolvedItemsSummary(
+      draftItems.map((item) => ({
+        item,
+        rate: ratesById.get(item.rateId) ?? null,
+      })),
+    )
+
+    textLines.push('')
+    textLines.push('<b>Чернетка:</b>')
+    textLines.push(...preview.lines.slice(0, 5))
+    if (preview.lines.length > 5) {
+      textLines.push(`… та ще ${preview.lines.length - 5} позицій`)
+    }
+    textLines.push(`<b>Разом:</b> ${preview.totalQty} шт • ${formatUAH(preview.totalAmount)}`)
+  }
 
   await sendTelegramMessage({
     chatId: input.chatId,
-    text:
-      input.mode === 'list'
-        ? 'Оберіть майстра для перегляду ставок:'
-        : 'Оберіть майстра:',
+    text: textLines.join('\n'),
     inlineKeyboard: rows,
   })
 }
 
-async function sendOwnerVariantPicker(input: {
+async function sendMasterVariantPicker(input: {
   chatId: string
+  userId: string
   artisanId: string
-  mode: 'set' | 'disable'
-  page: number
+  sessionKey: string
+  productId: string
+  draft?: SessionDraft
 }) {
-  const artisan = await prisma.artisan.findUnique({
-    where: { id: input.artisanId },
-    select: { id: true, name: true },
-  })
+  const rates = await getActiveArtisanRates(input.artisanId)
+  const productRates = rates.filter((rate) => rate.variant.productId === input.productId)
 
-  if (!artisan) {
-    await sendTelegramMessage({
+  if (productRates.length === 0) {
+    await sendMasterProductPicker({
       chatId: input.chatId,
-      text: 'Майстра не знайдено.',
+      userId: input.userId,
+      artisanId: input.artisanId,
+      sessionKey: input.sessionKey,
+      draft: input.draft,
+      notice: 'Для цього товару зараз немає активних ставок. Обери інший товар.',
     })
     return
   }
 
-  const total = await prisma.productVariant.count()
-  if (total === 0) {
-    await sendTelegramMessage({
-      chatId: input.chatId,
-      text: 'Варіантів не знайдено.',
-    })
-    return
-  }
+  const product = productRates[0]!.variant.product
 
-  const maxPage = Math.max(0, Math.ceil(total / OWNER_VARIANTS_PAGE_SIZE) - 1)
-  const page = Math.min(Math.max(0, input.page), maxPage)
-
-  const variants = await prisma.productVariant.findMany({
-    select: {
-      id: true,
-      sku: true,
-      color: true,
-      modelSize: true,
-      pouchColor: true,
-      product: {
-        select: {
-          name: true,
-          slug: true,
-          sortCatalog: true,
-        },
-      },
+  await setSession({
+    sessionKey: input.sessionKey,
+    userId: input.userId,
+    artisanId: input.artisanId,
+    step: TelegramBotSessionStep.AWAITING_CONFIRM,
+    draft: {
+      ...(input.draft ?? {}),
+      masterFlow: 'CHOOSE_VARIANT',
+      selectedProductId: input.productId,
+      selectedVariantId: undefined,
+      selectedRateId: undefined,
+      editItemIndex: undefined,
+      rateId: undefined,
+      qty: undefined,
     },
-    orderBy: [
-      { product: { sortCatalog: 'asc' } },
-      { product: { name: 'asc' } },
-      { color: 'asc' },
-      { modelSize: 'asc' },
-      { id: 'asc' },
-    ],
-    skip: page * OWNER_VARIANTS_PAGE_SIZE,
-    take: OWNER_VARIANTS_PAGE_SIZE,
   })
 
-  const pickAction = input.mode === 'set' ? 'osv' : 'odv'
-  const pageAction = input.mode === 'set' ? 'osp' : 'odp'
-
-  const rows: TelegramInlineKeyboardButton[][] = variants.map((variant) => [
+  const rows: TelegramInlineKeyboardButton[][] = productRates.map((rate) => [
     {
-      text: formatVariantButtonLabel(variant),
-      callback_data: `${CALLBACK_PREFIX}:${pickAction}:${input.artisanId}:${variant.id}`,
+      text: `${formatVariantButtonLabel(rate.variant)} • ${formatUAH(rate.ratePerUnitUAH)}`,
+      callback_data: `${CALLBACK_PREFIX}:mv:${rate.id}`,
     },
   ])
 
-  const nav: TelegramInlineKeyboardButton[] = []
-  if (page > 0) {
-    nav.push({
-      text: '⬅️ Назад',
-      callback_data: `${CALLBACK_PREFIX}:${pageAction}:${input.artisanId}:${page - 1}`,
-    })
-  }
-  if (page < maxPage) {
-    nav.push({
-      text: 'Далі ➡️',
-      callback_data: `${CALLBACK_PREFIX}:${pageAction}:${input.artisanId}:${page + 1}`,
-    })
-  }
-  if (nav.length > 0) rows.push(nav)
-
+  rows.push([{ text: '⬅️ Назад', callback_data: `${CALLBACK_PREFIX}:mbp` }])
   rows.push([{ text: '↩️ Скасувати', callback_data: `${CALLBACK_PREFIX}:cancel` }])
 
   await sendTelegramMessage({
     chatId: input.chatId,
-    text: [
-      `<b>Майстер:</b> ${escapeHtml(artisan.name)}`,
-      input.mode === 'set'
-        ? 'Оберіть варіант для встановлення ставки:'
-        : 'Оберіть варіант для вимкнення ставки:',
-      `Сторінка ${page + 1} з ${maxPage + 1}`,
-    ].join('\n'),
+    text: `<b>Крок 2/3</b> ${escapeHtml(product.name)}\nОбери варіант:`,
     inlineKeyboard: rows,
   })
 }
 
-async function notifyOwnersAboutSubmission(input: {
-  productionId: string
-  targetChatId: string
-}): Promise<void> {
-  const production = await prisma.artisanProduction.findUnique({
-    where: { id: input.productionId },
-    include: {
-      artisan: true,
-      variant: {
-        select: {
-          id: true,
-          sku: true,
-          color: true,
-          modelSize: true,
-          pouchColor: true,
-          product: {
-            select: {
-              name: true,
-              slug: true,
-            },
-          },
-        },
-      },
+async function sendMasterQtyPrompt(input: {
+  chatId: string
+  userId: string
+  artisanId: string
+  sessionKey: string
+  rate: ArtisanRateWithVariant
+  draft?: SessionDraft
+}) {
+  await setSession({
+    sessionKey: input.sessionKey,
+    userId: input.userId,
+    artisanId: input.artisanId,
+    step: TelegramBotSessionStep.AWAITING_QTY,
+    draft: {
+      ...(input.draft ?? {}),
+      masterFlow: 'AWAIT_QTY',
+      selectedProductId: input.rate.variant.productId,
+      selectedVariantId: input.rate.variantId,
+      selectedRateId: input.rate.id,
+      editItemIndex: undefined,
+      rateId: undefined,
+      qty: undefined,
     },
   })
 
-  if (!production) return
-
-  const text = [
-    '🧵 <b>Новий виробіток</b>',
-    `<b>Майстер:</b> ${escapeHtml(production.artisan.name)}`,
-    `<b>Варіант:</b> ${escapeHtml(formatVariantLabel(production.variant))}`,
-    `<b>Variant ID:</b> <code>${escapeHtml(production.variantId)}</code>`,
-    `<b>К-сть:</b> ${production.qty}`,
-    `<b>Ставка:</b> ${formatUAH(production.ratePerUnitSnapshotUAH)}`,
-    `<b>Сума:</b> ${formatUAH(production.totalLaborUAH)}`,
-    `<b>Дата:</b> ${escapeHtml(formatDateTime(production.producedAt))}`,
-    `<b>ID:</b> <code>${production.id}</code>`,
-  ].join('\n')
-
   await sendTelegramMessage({
-    chatId: input.targetChatId,
-    text,
+    chatId: input.chatId,
+    text: [
+      `<b>Крок 3/3</b> ${escapeHtml(formatVariantLabel(input.rate.variant))}`,
+      `Ставка: <b>${formatUAH(input.rate.ratePerUnitUAH)}</b>`,
+      'Надішли кількість одним числом (наприклад: <code>7</code>).',
+    ].join('\n'),
     inlineKeyboard: [
-      [
-        {
-          text: '✅ Підтвердити',
-          callback_data: `${CALLBACK_PREFIX}:approve:${production.id}`,
-        },
-        {
-          text: '❌ Відхилити',
-          callback_data: `${CALLBACK_PREFIX}:reject:${production.id}`,
-        },
-      ],
+      [{ text: '⬅️ Назад', callback_data: `${CALLBACK_PREFIX}:mbv:${input.rate.variant.productId}` }],
+      [{ text: '↩️ Скасувати', callback_data: `${CALLBACK_PREFIX}:cancel` }],
     ],
   })
 }
 
-async function sendProductionStatusToArtisan(input: {
-  productionId: string
-  status: ArtisanProductionStatus
-  comment: string
+async function sendMasterDraftSummary(input: {
+  chatId: string
+  userId: string
+  artisanId: string
+  sessionKey: string
+  draft: SessionDraft
+  notice?: string
 }) {
-  const production = await prisma.artisanProduction.findUnique({
-    where: { id: input.productionId },
-    include: {
-      artisan: true,
-      variant: {
-        select: {
-          id: true,
-          sku: true,
-          color: true,
-          modelSize: true,
-          pouchColor: true,
-          product: {
-            select: {
-              name: true,
-              slug: true,
-            },
-          },
-        },
-      },
+  const items = (input.draft.items ?? []).slice(0, MASTER_MAX_ITEMS)
+  if (items.length === 0) {
+    await sendMasterProductPicker({
+      chatId: input.chatId,
+      userId: input.userId,
+      artisanId: input.artisanId,
+      sessionKey: input.sessionKey,
+      draft: input.draft,
+      notice: input.notice ?? 'Чернетка порожня, додай хоча б одну позицію.',
+    })
+    return
+  }
+
+  const resolved = await resolveDraftItems({
+    artisanId: input.artisanId,
+    items,
+  })
+  const summary = buildResolvedItemsSummary(resolved)
+
+  await setSession({
+    sessionKey: input.sessionKey,
+    userId: input.userId,
+    artisanId: input.artisanId,
+    step: TelegramBotSessionStep.AWAITING_CONFIRM,
+    draft: {
+      ...(input.draft ?? {}),
+      items,
+      masterFlow: 'REVIEW',
+      selectedProductId: undefined,
+      selectedVariantId: undefined,
+      selectedRateId: undefined,
+      editItemIndex: undefined,
+      rateId: undefined,
+      qty: undefined,
     },
   })
 
-  if (!production?.artisan.telegramChatId) return
+  const rows: TelegramInlineKeyboardButton[][] = []
+  resolved.forEach((_, index) => {
+    rows.push([
+      {
+        text: `✏️ Змінити кількість #${index + 1}`,
+        callback_data: `${CALLBACK_PREFIX}:medit:${index}`,
+      },
+    ])
+  })
+  rows.push([
+    { text: '➕ Зберегти і продовжити', callback_data: `${CALLBACK_PREFIX}:mbp` },
+    { text: '✅ Завершити і відправити', callback_data: `${CALLBACK_PREFIX}:mfinish` },
+  ])
+  rows.push([{ text: '↩️ Скасувати', callback_data: `${CALLBACK_PREFIX}:cancel` }])
 
-  const statusLabel: Record<ArtisanProductionStatus, string> = {
-    SUBMITTED: 'Надіслано',
-    APPROVED: 'Підтверджено',
-    PAID: 'Оплачено',
-    REJECTED: 'Відхилено',
-  }
-
-  const text = [
-    `📌 <b>Оновлення запису ${escapeHtml(production.id)}</b>`,
-    `<b>Статус:</b> ${escapeHtml(statusLabel[input.status])}`,
-    `<b>Варіант:</b> ${escapeHtml(formatVariantLabel(production.variant))}`,
-    `<b>Variant ID:</b> <code>${escapeHtml(production.variantId)}</code>`,
-    `<b>К-сть:</b> ${production.qty}`,
-    `<b>Сума:</b> ${formatUAH(production.totalLaborUAH)}`,
-    `<b>Коментар:</b> ${escapeHtml(input.comment)}`,
-  ].join('\n')
+  const textLines = ['<b>Підсумок перед відправленням</b>']
+  if (input.notice) textLines.push(input.notice)
+  textLines.push(...summary.lines)
+  textLines.push('')
+  textLines.push(`<b>Разом:</b> ${summary.totalQty} шт • ${formatUAH(summary.totalAmount)}`)
 
   await sendTelegramMessage({
-    chatId: production.artisan.telegramChatId,
-    text,
+    chatId: input.chatId,
+    text: textLines.join('\n'),
+    inlineKeyboard: rows,
   })
 }
 
@@ -936,9 +1017,9 @@ async function handleRegisterCommand(input: {
     chatId: input.chatId,
     text: [
       `✅ Майстра <b>${escapeHtml(updated.name)}</b> успішно прив\'язано.`,
-      'Використовуй кнопку <b>🧵 Новий запис</b> і надішли кількість числом.',
+      'Використовуй кнопку <b>🧵 Новий запис</b>: товар → варіант → кількість.',
     ].join('\n'),
-    replyKeyboard: buildMainMenuKeyboard(isOwner(input.userId)),
+    replyKeyboard: buildMainMenuKeyboard(),
   })
 }
 
@@ -966,138 +1047,20 @@ async function handleRecordCommand(input: {
     return
   }
 
-  const rates = await prisma.artisanRate.findMany({
-    where: {
-      artisanId: artisan.id,
-      isActive: true,
-    },
-    include: {
-      variant: {
-        select: {
-          id: true,
-          sku: true,
-          color: true,
-          modelSize: true,
-          pouchColor: true,
-          product: {
-            select: {
-              name: true,
-              slug: true,
-            },
-          },
-        },
-      },
-    },
-    orderBy: {
-      createdAt: 'desc',
-    },
-    take: 40,
-  })
-
-  if (rates.length === 0) {
-    await sendTelegramMessage({
-      chatId: input.chatId,
-      text: 'Для тебе ще не налаштовано ставок по виробах. Звернись до власника.',
-    })
-    return
-  }
-
   const sessionKey = buildSessionKey({
     chatId: input.chatId,
     userId: input.userId,
     chatType: input.chatType,
   })
 
-  await clearSession(sessionKey)
-
-  const rows = chunkButtons(
-    rates.map((rate) => ({
-      text: `${formatVariantButtonLabel(rate.variant)} • ${formatUAH(rate.ratePerUnitUAH)}`,
-      callback_data: `${CALLBACK_PREFIX}:rate:${rate.id}`,
-    })),
-    1,
-  )
-
-  rows.push([
-    {
-      text: 'Скасувати',
-      callback_data: `${CALLBACK_PREFIX}:cancel`,
-    },
-  ])
-
-  await sendTelegramMessage({
+  await sendMasterProductPicker({
     chatId: input.chatId,
-    text: 'Оберіть варіант, який виготовлено:',
-    inlineKeyboard: rows,
-  })
-}
-
-async function handleMyCommand(input: {
-  chatId: string
-  chatType: TelegramChat['type']
-  userId: string
-  username?: string
-}) {
-  const artisan = await findLinkedArtisanByTelegram({
     userId: input.userId,
-    chatId: input.chatId,
-    chatType: input.chatType,
-    username: input.username,
-  })
-
-  if (!artisan) {
-    await sendTelegramMessage({
-      chatId: input.chatId,
-      text: 'Спочатку виконай <code>/reyestraciya CODE</code>.',
-    })
-    return
-  }
-
-  const now = new Date()
-  const periodFrom = new Date(now.getFullYear(), now.getMonth(), 1)
-  const periodTo = new Date(now.getFullYear(), now.getMonth() + 1, 1)
-
-  const records = await prisma.artisanProduction.findMany({
-    where: {
-      artisanId: artisan.id,
-      producedAt: {
-        gte: periodFrom,
-        lt: periodTo,
-      },
+    artisanId: artisan.id,
+    sessionKey,
+    draft: {
+      items: [],
     },
-  })
-
-  const aggregates = records.reduce(
-    (acc, record) => {
-      const bucket = acc[record.status]
-      bucket.count += 1
-      bucket.qty += record.qty
-      bucket.amount += record.totalLaborUAH
-      return acc
-    },
-    {
-      SUBMITTED: { count: 0, qty: 0, amount: 0 },
-      APPROVED: { count: 0, qty: 0, amount: 0 },
-      PAID: { count: 0, qty: 0, amount: 0 },
-      REJECTED: { count: 0, qty: 0, amount: 0 },
-    } as Record<ArtisanProductionStatus, { count: number; qty: number; amount: number }>,
-  )
-
-  const monthLabel = periodFrom.toLocaleDateString('uk-UA', {
-    month: 'long',
-    year: 'numeric',
-    timeZone: 'Europe/Kyiv',
-  })
-
-  await sendTelegramMessage({
-    chatId: input.chatId,
-    text: [
-      `📊 <b>Мій звіт за ${escapeHtml(monthLabel)}</b>`,
-      `Надіслано: ${aggregates.SUBMITTED.count} запис(ів), ${aggregates.SUBMITTED.qty} шт, ${formatUAH(aggregates.SUBMITTED.amount)}`,
-      `Підтверджено: ${aggregates.APPROVED.count} запис(ів), ${aggregates.APPROVED.qty} шт, ${formatUAH(aggregates.APPROVED.amount)}`,
-      `Оплачено: ${aggregates.PAID.count} запис(ів), ${aggregates.PAID.qty} шт, ${formatUAH(aggregates.PAID.amount)}`,
-      `Відхилено: ${aggregates.REJECTED.count} запис(ів), ${aggregates.REJECTED.qty} шт, ${formatUAH(aggregates.REJECTED.amount)}`,
-    ].join('\n'),
   })
 }
 
@@ -1133,12 +1096,14 @@ async function processQtyInput(input: {
   if (!session || session.step !== TelegramBotSessionStep.AWAITING_QTY) {
     await sendTelegramMessage({
       chatId: input.chatId,
-      text: 'Немає активного вибору варіанту. Використай кнопку <b>🧵 Новий запис</b>.',
+      text: 'Немає активного кроку кількості. Використай кнопку <b>🧵 Новий запис</b>.',
     })
     return
   }
 
+  const draft = parseSessionDraft(session.draftPayload)
   const qty = parseInteger(input.qtyRaw)
+
   if (!qty || qty > 5000) {
     await sendTelegramMessage({
       chatId: input.chatId,
@@ -1147,8 +1112,44 @@ async function processQtyInput(input: {
     return
   }
 
-  const draft = parseSessionDraft(session.draftPayload)
-  if (!draft.rateId) {
+  if (draft.masterFlow === 'EDIT_ITEM_QTY') {
+    const items = [...(draft.items ?? [])]
+    const index = draft.editItemIndex
+
+    if (typeof index !== 'number' || index < 0 || index >= items.length) {
+      await sendMasterDraftSummary({
+        chatId: input.chatId,
+        userId: input.userId,
+        artisanId: artisan.id,
+        sessionKey,
+        draft,
+        notice: 'Не вдалося знайти позицію для редагування. Оновлюю підсумок.',
+      })
+      return
+    }
+
+    items[index] = {
+      ...items[index]!,
+      qty,
+    }
+
+    await sendMasterDraftSummary({
+      chatId: input.chatId,
+      userId: input.userId,
+      artisanId: artisan.id,
+      sessionKey,
+      draft: {
+        ...draft,
+        items,
+        editItemIndex: undefined,
+      },
+      notice: `Кількість для позиції #${index + 1} оновлено.`,
+    })
+    return
+  }
+
+  const selectedRateId = draft.selectedRateId ?? draft.rateId
+  if (!selectedRateId) {
     await clearSession(sessionKey)
     await sendTelegramMessage({
       chatId: input.chatId,
@@ -1159,22 +1160,29 @@ async function processQtyInput(input: {
 
   const rate = await prisma.artisanRate.findFirst({
     where: {
-      id: draft.rateId,
+      id: selectedRateId,
       artisanId: artisan.id,
       isActive: true,
     },
-    include: {
+    select: {
+      id: true,
+      artisanId: true,
+      variantId: true,
+      ratePerUnitUAH: true,
       variant: {
         select: {
           id: true,
+          productId: true,
           sku: true,
           color: true,
           modelSize: true,
           pouchColor: true,
           product: {
             select: {
+              id: true,
               name: true,
               slug: true,
+              sortCatalog: true,
             },
           },
         },
@@ -1199,27 +1207,294 @@ async function processQtyInput(input: {
     artisanId: artisan.id,
     step: TelegramBotSessionStep.AWAITING_CONFIRM,
     draft: {
+      ...draft,
+      masterFlow: 'REVIEW',
+      selectedProductId: rate.variant.productId,
+      selectedVariantId: rate.variantId,
+      selectedRateId: rate.id,
       rateId: rate.id,
       qty,
     },
   })
 
+  const canAddMore = (draft.items?.length ?? 0) < MASTER_MAX_ITEMS
+
   await sendTelegramMessage({
     chatId: input.chatId,
     text: [
-      'Підтверди запис:',
+      'Позицію підготовлено:',
       `<b>Варіант:</b> ${escapeHtml(formatVariantLabel(rate.variant))}`,
-      `<b>Variant ID:</b> <code>${escapeHtml(rate.variantId)}</code>`,
       `<b>К-сть:</b> ${qty}`,
       `<b>Ставка:</b> ${formatUAH(rate.ratePerUnitUAH)}`,
       `<b>Сума:</b> ${formatUAH(total)}`,
+      canAddMore
+        ? 'Обери: <b>зберегти і продовжити</b> або <b>завершити і відправити</b>.'
+        : 'Досягнуто ліміту позицій, заверши і відправ.',
     ].join('\n'),
     inlineKeyboard: [
-      [
-        { text: '✅ Підтвердити', callback_data: `${CALLBACK_PREFIX}:confirm` },
-        { text: '↩️ Скасувати', callback_data: `${CALLBACK_PREFIX}:cancel` },
-      ],
+      ...(canAddMore
+        ? [[{ text: '💾 Зберегти і продовжити', callback_data: `${CALLBACK_PREFIX}:madd` }]]
+        : []),
+      [{ text: '✅ Завершити і відправити', callback_data: `${CALLBACK_PREFIX}:mfinish` }],
+      [{ text: '⬅️ Назад', callback_data: `${CALLBACK_PREFIX}:mbv:${rate.variant.productId}` }],
+      [{ text: '↩️ Скасувати', callback_data: `${CALLBACK_PREFIX}:cancel` }],
     ],
+  })
+}
+
+async function finalizeMasterDraft(input: {
+  callback: TelegramCallbackQuery
+  callbackQueryId: string
+  sessionKey: string
+  chatId: string
+  artisanId: string
+  userId: string
+  draft: SessionDraft
+}) {
+  const artisan = await prisma.artisan.findUnique({
+    where: { id: input.artisanId },
+    select: { id: true, name: true },
+  })
+
+  if (!artisan) {
+    await answerCallbackQuery({
+      callbackQueryId: input.callbackQueryId,
+      text: 'Майстра не знайдено',
+      showAlert: true,
+    })
+    await clearSession(input.sessionKey)
+    return
+  }
+
+  const items = [...(input.draft.items ?? [])]
+  if (input.draft.rateId && input.draft.qty && input.draft.selectedVariantId) {
+    items.push({
+      rateId: input.draft.rateId,
+      variantId: input.draft.selectedVariantId,
+      qty: input.draft.qty,
+    })
+  }
+
+  if (items.length === 0) {
+    await answerCallbackQuery({
+      callbackQueryId: input.callbackQueryId,
+      text: 'Чернетка порожня',
+      showAlert: true,
+    })
+    await sendMasterProductPicker({
+      chatId: input.chatId,
+      userId: input.userId,
+      artisanId: input.artisanId,
+      sessionKey: input.sessionKey,
+      draft: input.draft,
+      notice: 'Додай хоча б одну позицію перед відправленням.',
+    })
+    return
+  }
+
+  const aggregatedByRate = new Map<string, SessionDraftItem>()
+  for (const item of items) {
+    const current = aggregatedByRate.get(item.rateId)
+    if (current) {
+      current.qty += item.qty
+      continue
+    }
+    aggregatedByRate.set(item.rateId, { ...item })
+  }
+  const aggregatedItems = Array.from(aggregatedByRate.values())
+
+  const fingerprint = buildDraftFingerprint({
+    artisanId: input.artisanId,
+    items: aggregatedItems,
+  })
+
+  if (isRecentDuplicateSubmission({ sessionKey: input.sessionKey, fingerprint })) {
+    await answerCallbackQuery({
+      callbackQueryId: input.callbackQueryId,
+      text: 'Ця відправка вже оброблена. Зачекай кілька секунд.',
+      showAlert: true,
+    })
+    return
+  }
+
+  const rateIds = aggregatedItems.map((item) => item.rateId)
+  const rates = await prisma.artisanRate.findMany({
+    where: {
+      artisanId: input.artisanId,
+      isActive: true,
+      id: {
+        in: rateIds,
+      },
+    },
+    select: {
+      id: true,
+      artisanId: true,
+      variantId: true,
+      ratePerUnitUAH: true,
+      variant: {
+        select: {
+          id: true,
+          productId: true,
+          sku: true,
+          color: true,
+          modelSize: true,
+          pouchColor: true,
+          product: {
+            select: {
+              id: true,
+              name: true,
+              slug: true,
+              sortCatalog: true,
+            },
+          },
+        },
+      },
+    },
+  })
+
+  const ratesById = new Map(rates.map((rate) => [rate.id, rate]))
+  const missingRates = aggregatedItems.filter((item) => !ratesById.has(item.rateId))
+
+  if (missingRates.length > 0) {
+    await answerCallbackQuery({
+      callbackQueryId: input.callbackQueryId,
+      text: 'Деякі ставки вже неактивні. Онови чернетку.',
+      showAlert: true,
+    })
+
+    await sendMasterDraftSummary({
+      chatId: input.chatId,
+      userId: input.userId,
+      artisanId: input.artisanId,
+      sessionKey: input.sessionKey,
+      draft: {
+        ...input.draft,
+        items: aggregatedItems.filter((item) => ratesById.has(item.rateId)),
+        rateId: undefined,
+        qty: undefined,
+      },
+      notice: 'Частина ставок стала неактивною. Перевір позиції ще раз.',
+    })
+    return
+  }
+
+  markRecentSubmission({ sessionKey: input.sessionKey, fingerprint })
+
+  const result = await prisma.$transaction(async (tx) => {
+    const created: Array<{
+      id: string
+      qty: number
+      ratePerUnitUAH: number
+      totalLaborUAH: number
+      variantId: string
+      variant: VariantLike
+    }> = []
+
+    for (const item of aggregatedItems) {
+      const rate = ratesById.get(item.rateId)!
+      const production = await tx.artisanProduction.create({
+        data: {
+          artisanId: input.artisanId,
+          productId: rate.variant.productId,
+          variantId: rate.variantId,
+          rateId: rate.id,
+          qty: item.qty,
+          ratePerUnitSnapshotUAH: rate.ratePerUnitUAH,
+          totalLaborUAH: item.qty * rate.ratePerUnitUAH,
+          status: 'PAID',
+          source: 'TELEGRAM_BOT',
+          telegramUpdateId: input.callback.message?.message_id,
+          approvedAt: new Date(),
+          approvedByTelegramUserId: input.userId,
+          paidAt: new Date(),
+        },
+        include: {
+          variant: {
+            select: {
+              id: true,
+              sku: true,
+              color: true,
+              modelSize: true,
+              pouchColor: true,
+              product: {
+                select: {
+                  name: true,
+                  slug: true,
+                },
+              },
+            },
+          },
+        },
+      })
+
+      created.push({
+        id: production.id,
+        qty: production.qty,
+        ratePerUnitUAH: production.ratePerUnitSnapshotUAH,
+        totalLaborUAH: production.totalLaborUAH,
+        variantId: production.variantId,
+        variant: production.variant,
+      })
+    }
+
+    const totalAmount = created.reduce((sum, row) => sum + row.totalLaborUAH, 0)
+    const summaryBits = created.map(
+      (row) =>
+        `${artisan.name}: ${row.variant.product.name} (${getVariantShortDescriptor(row.variant)}), ${row.qty} шт, ${row.ratePerUnitUAH}₴/шт`,
+    )
+
+    const expense = await tx.expense.create({
+      data: {
+        title: summaryBits.join('; '),
+        category: ExpenseCategory.PAYROLL,
+        amountUAH: totalAmount,
+        expenseDate: new Date(),
+        notes: [
+          'Створено Telegram production bot (майстерський flow)',
+          ...created.map(
+            (row, index) =>
+              `${index + 1}. productionId=${row.id}; variantId=${row.variantId}; qty=${row.qty}; rate=${row.ratePerUnitUAH}; total=${row.totalLaborUAH}`,
+          ),
+        ].join('\n'),
+      },
+    })
+
+    await tx.artisanProduction.updateMany({
+      where: {
+        id: {
+          in: created.map((row) => row.id),
+        },
+      },
+      data: {
+        paidExpenseId: expense.id,
+      },
+    })
+
+    return { created, expense }
+  })
+
+  await clearSession(input.sessionKey)
+
+  await answerCallbackQuery({
+    callbackQueryId: input.callbackQueryId,
+    text: 'Відправлено',
+  })
+
+  const totalQty = result.created.reduce((sum, row) => sum + row.qty, 0)
+  const totalAmount = result.created.reduce((sum, row) => sum + row.totalLaborUAH, 0)
+
+  await sendTelegramMessage({
+    chatId: input.chatId,
+    text: [
+      '✅ Записи збережено.',
+      ...result.created.map(
+        (row, index) =>
+          `${index + 1}. ${escapeHtml(formatVariantLabel(row.variant))} — ${row.qty} шт, ${formatUAH(row.totalLaborUAH)} (<code>${escapeHtml(row.id)}</code>)`,
+      ),
+      '',
+      `<b>Разом:</b> ${totalQty} шт • ${formatUAH(totalAmount)}`,
+      `<b>Expense ID:</b> <code>${escapeHtml(result.expense.id)}</code>`,
+    ].join('\n'),
   })
 }
 
@@ -1238,18 +1513,8 @@ async function handleMasterFreeText(input: {
 
   const session = await getSession(sessionKey)
   if (!session || session.step === TelegramBotSessionStep.IDLE) return
-  const draft = parseSessionDraft(session.draftPayload)
 
-  if (session.step === TelegramBotSessionStep.AWAITING_QTY && draft.ownerFlow === 'SET_RATE_AWAIT_RATE') {
-    await processOwnerRateInput({
-      chatId: input.chatId,
-      userId: input.userId,
-      qtyRaw: input.text,
-      sessionKey,
-      draft,
-    })
-    return
-  }
+  const draft = parseSessionDraft(session.draftPayload)
 
   if (session.step === TelegramBotSessionStep.AWAITING_QTY) {
     await processQtyInput({
@@ -1263,859 +1528,16 @@ async function handleMasterFreeText(input: {
   }
 
   if (session.step === TelegramBotSessionStep.AWAITING_CONFIRM) {
+    const message =
+      draft.masterFlow === 'REVIEW'
+        ? 'Користуйся кнопками нижче: зміни кількість, додай ще позицію або заверши відправку.'
+        : 'Натисни потрібну кнопку нижче.'
+
     await sendTelegramMessage({
       chatId: input.chatId,
-      text: 'Натисни кнопку підтвердження або скасування нижче.',
+      text: message,
     })
   }
-}
-
-async function sendArtisanRatesById(input: {
-  chatId: string
-  artisanId: string
-}) {
-  const artisan = await prisma.artisan.findUnique({
-    where: {
-      id: input.artisanId,
-    },
-    include: {
-      rates: {
-        orderBy: [{ isActive: 'desc' }, { createdAt: 'desc' }],
-        include: {
-          variant: {
-            select: {
-              id: true,
-              sku: true,
-              color: true,
-              modelSize: true,
-              pouchColor: true,
-              product: {
-                select: {
-                  slug: true,
-                  name: true,
-                },
-              },
-            },
-          },
-        },
-      },
-    },
-  })
-
-  if (!artisan) {
-    await sendTelegramMessage({
-      chatId: input.chatId,
-      text: 'Майстра не знайдено.',
-    })
-    return
-  }
-
-  if (artisan.rates.length === 0) {
-    await sendTelegramMessage({
-      chatId: input.chatId,
-      text: `Для ${escapeHtml(artisan.name)} ще немає ставок.`,
-    })
-    return
-  }
-
-  const lines = artisan.rates.map(
-    (rate) =>
-      `• ${rate.isActive ? '✅' : '⛔️'} <code>${escapeHtml(rate.variant.id)}</code> — ${escapeHtml(formatVariantLabel(rate.variant))} - ${formatUAH(rate.ratePerUnitUAH)}`,
-  )
-
-  await sendTelegramMessage({
-    chatId: input.chatId,
-    text: [`<b>Ставки майстра ${escapeHtml(artisan.name)}</b>`, ...lines].join('\n'),
-  })
-}
-
-async function processOwnerRateInput(input: {
-  chatId: string
-  userId: string
-  qtyRaw: string
-  sessionKey: string
-  draft: SessionDraft
-}) {
-  if (!isOwner(input.userId)) return
-  const rate = parseInteger(input.qtyRaw)
-  if (!rate || rate > 100000) {
-    await sendTelegramMessage({
-      chatId: input.chatId,
-      text: 'Введи коректну ставку числом (від 1 до 100000).',
-    })
-    return
-  }
-
-  if (!input.draft.ownerArtisanId || !input.draft.ownerVariantId) {
-    await clearSession(input.sessionKey)
-    await sendTelegramMessage({
-      chatId: input.chatId,
-      text: 'Сесію ставки втрачено. Повтори через кнопку "💵 Ставки".',
-    })
-    return
-  }
-
-  const [artisan, variant] = await Promise.all([
-    prisma.artisan.findUnique({
-      where: { id: input.draft.ownerArtisanId },
-      select: {
-        id: true,
-        name: true,
-        accessCode: true,
-      },
-    }),
-    prisma.productVariant.findUnique({
-      where: { id: input.draft.ownerVariantId },
-      select: {
-        id: true,
-        sku: true,
-        color: true,
-        modelSize: true,
-        pouchColor: true,
-        product: {
-          select: {
-            name: true,
-            slug: true,
-          },
-        },
-      },
-    }),
-  ])
-
-  if (!artisan || !variant) {
-    await clearSession(input.sessionKey)
-    await sendTelegramMessage({
-      chatId: input.chatId,
-      text: 'Майстра або варіант не знайдено. Повтори через кнопку "💵 Ставки".',
-    })
-    return
-  }
-
-  await prisma.artisanRate.upsert({
-    where: {
-      artisanId_variantId: {
-        artisanId: artisan.id,
-        variantId: variant.id,
-      },
-    },
-    create: {
-      artisanId: artisan.id,
-      variantId: variant.id,
-      ratePerUnitUAH: rate,
-      isActive: true,
-    },
-    update: {
-      ratePerUnitUAH: rate,
-      isActive: true,
-    },
-  })
-
-  await clearSession(input.sessionKey)
-
-  await sendTelegramMessage({
-    chatId: input.chatId,
-    text: [
-      '✅ Ставка встановлена',
-      `<b>Майстер:</b> ${escapeHtml(artisan.name)} (${escapeHtml(artisan.accessCode)})`,
-      `<b>Варіант:</b> ${escapeHtml(formatVariantLabel(variant))}`,
-      `<b>Variant ID:</b> <code>${escapeHtml(variant.id)}</code>`,
-      `<b>Ставка:</b> ${formatUAH(rate)}`,
-    ].join('\n'),
-  })
-}
-
-async function handleOwnerCommand(input: {
-  command: string
-  args: string
-  chatId: string
-}) {
-  const { command, args, chatId } = input
-
-  if (command === 'new_master') {
-    const name = args.trim()
-    if (name.length < 2) {
-      await sendTelegramMessage({
-        chatId,
-        text: 'Формат: <code>/novyy_maister Ім\'я Прізвище</code>',
-      })
-      return
-    }
-
-    let created: Awaited<ReturnType<typeof prisma.artisan.create>> | null = null
-    for (let attempt = 0; attempt < 5 && !created; attempt += 1) {
-      const accessCode = String(Math.floor(100000 + Math.random() * 900000))
-      try {
-        created = await prisma.artisan.create({
-          data: {
-            name,
-            accessCode,
-            isActive: true,
-          },
-        })
-      } catch {
-        created = null
-      }
-    }
-
-    if (!created) {
-      await sendTelegramMessage({
-        chatId,
-        text: 'Не вдалося створити майстра. Спробуй ще раз.',
-      })
-      return
-    }
-
-    await sendTelegramMessage({
-      chatId,
-      text: [
-        `✅ Створено майстра: <b>${escapeHtml(created.name)}</b>`,
-        `Код реєстрації: <code>${escapeHtml(created.accessCode)}</code>`,
-        'Передай код майстру для команди <code>/reyestraciya CODE</code>.',
-      ].join('\n'),
-    })
-    return
-  }
-
-  if (command === 'set_rate') {
-    const [codeRaw, variantIdRaw, rateRaw] = args.split(/\s+/)
-    const code = codeRaw?.trim()
-    const variantId = variantIdRaw?.trim()
-    const rate = rateRaw ? parseInteger(rateRaw) : null
-
-    if (!code || !variantId || !rate) {
-      await sendTelegramMessage({
-        chatId,
-        text: 'Формат: <code>/vstanovyty_stavku CODE VARIANT_ID RATE</code>',
-      })
-      return
-    }
-
-    const artisan = await prisma.artisan.findFirst({
-      where: {
-        accessCode: {
-          equals: code,
-          mode: 'insensitive',
-        },
-      },
-    })
-
-    if (!artisan) {
-      await sendTelegramMessage({
-        chatId,
-        text: 'Майстра з таким кодом не знайдено.',
-      })
-      return
-    }
-
-    const variant = await prisma.productVariant.findUnique({
-      where: {
-        id: variantId,
-      },
-      select: {
-        id: true,
-        sku: true,
-        color: true,
-        modelSize: true,
-        pouchColor: true,
-        product: {
-          select: {
-            id: true,
-            name: true,
-            slug: true,
-          },
-        },
-      },
-    })
-
-    if (!variant) {
-      await sendTelegramMessage({
-        chatId,
-        text: 'Варіант не знайдено. Перевір VARIANT_ID або використай <code>/varianty</code>.',
-      })
-      return
-    }
-
-    await prisma.artisanRate.upsert({
-      where: {
-        artisanId_variantId: {
-          artisanId: artisan.id,
-          variantId: variant.id,
-        },
-      },
-      create: {
-        artisanId: artisan.id,
-        variantId: variant.id,
-        ratePerUnitUAH: rate,
-        isActive: true,
-      },
-      update: {
-        ratePerUnitUAH: rate,
-        isActive: true,
-      },
-    })
-
-    await sendTelegramMessage({
-      chatId,
-      text: [
-        '✅ Ставка встановлена',
-        `<b>Майстер:</b> ${escapeHtml(artisan.name)} (${escapeHtml(artisan.accessCode)})`,
-        `<b>Варіант:</b> ${escapeHtml(formatVariantLabel(variant))}`,
-        `<b>Variant ID:</b> <code>${escapeHtml(variant.id)}</code>`,
-        `<b>Ставка:</b> ${formatUAH(rate)}`,
-      ].join('\n'),
-    })
-    return
-  }
-
-  if (command === 'set_rate_bulk' || command === 'set_rates') {
-    const [codeRaw, rateRaw, ...variantRawParts] = args.split(/\s+/)
-    const code = codeRaw?.trim()
-    const rate = rateRaw ? parseInteger(rateRaw) : null
-    const variantIds = parseIdList(variantRawParts.join(' '))
-
-    if (!code || !rate || variantIds.length === 0) {
-      await sendTelegramMessage({
-        chatId,
-        text: [
-          'Формат: <code>/masovo_stavky CODE RATE id1,id2,id3</code>',
-          'Приклад: <code>/masovo_stavky 123456 450 cm7abc...,cm7def...,cm7ghi...</code>',
-        ].join('\n'),
-      })
-      return
-    }
-
-    const artisan = await prisma.artisan.findFirst({
-      where: {
-        accessCode: {
-          equals: code,
-          mode: 'insensitive',
-        },
-      },
-      select: {
-        id: true,
-        name: true,
-        accessCode: true,
-      },
-    })
-
-    if (!artisan) {
-      await sendTelegramMessage({
-        chatId,
-        text: 'Майстра з таким кодом не знайдено.',
-      })
-      return
-    }
-
-    const variants = await prisma.productVariant.findMany({
-      where: {
-        id: {
-          in: variantIds,
-        },
-      },
-      select: {
-        id: true,
-        sku: true,
-        color: true,
-        modelSize: true,
-        pouchColor: true,
-        product: {
-          select: {
-            name: true,
-            slug: true,
-          },
-        },
-      },
-    })
-
-    if (variants.length === 0) {
-      await sendTelegramMessage({
-        chatId,
-        text: 'Жодного варіанта за переданими VARIANT_ID не знайдено.',
-      })
-      return
-    }
-
-    await prisma.$transaction(
-      variants.map((variant) =>
-        prisma.artisanRate.upsert({
-          where: {
-            artisanId_variantId: {
-              artisanId: artisan.id,
-              variantId: variant.id,
-            },
-          },
-          create: {
-            artisanId: artisan.id,
-            variantId: variant.id,
-            ratePerUnitUAH: rate,
-            isActive: true,
-          },
-          update: {
-            ratePerUnitUAH: rate,
-            isActive: true,
-          },
-        }),
-      ),
-    )
-
-    const foundVariantSet = new Set(variants.map((variant) => variant.id))
-    const missingVariantIds = variantIds.filter((variantId) => !foundVariantSet.has(variantId))
-
-    const appliedLines = variants
-      .slice(0, 15)
-      .map(
-        (variant) =>
-          `• <code>${escapeHtml(variant.id)}</code> — ${escapeHtml(formatVariantLabel(variant))}`,
-      )
-    const appliedMoreCount = Math.max(0, variants.length - appliedLines.length)
-
-    await sendTelegramMessage({
-      chatId,
-      text: [
-        '✅ Масове оновлення ставок виконано',
-        `<b>Майстер:</b> ${escapeHtml(artisan.name)} (${escapeHtml(artisan.accessCode)})`,
-        `<b>Ставка:</b> ${formatUAH(rate)}`,
-        `<b>Оновлено варіантів:</b> ${variants.length}`,
-        ...appliedLines,
-        ...(appliedMoreCount > 0
-          ? [`… та ще ${appliedMoreCount} варіант(ів)`]
-          : []),
-        ...(missingVariantIds.length > 0
-          ? [
-              '',
-              `<b>Не знайдено VARIANT_ID:</b> ${missingVariantIds
-                .slice(0, 15)
-                .map((variantId) => `<code>${escapeHtml(variantId)}</code>`)
-                .join(', ')}`,
-            ]
-          : []),
-      ].join('\n'),
-    })
-    return
-  }
-
-  if (command === 'disable_rate') {
-    const [codeRaw, variantIdRaw] = args.split(/\s+/)
-    const code = codeRaw?.trim()
-    const variantId = variantIdRaw?.trim()
-
-    if (!code || !variantId) {
-      await sendTelegramMessage({
-        chatId,
-        text: 'Формат: <code>/vymknuty_stavku CODE VARIANT_ID</code>',
-      })
-      return
-    }
-
-    const artisan = await prisma.artisan.findFirst({
-      where: {
-        accessCode: {
-          equals: code,
-          mode: 'insensitive',
-        },
-      },
-      select: {
-        id: true,
-        name: true,
-      },
-    })
-
-    if (!artisan) {
-      await sendTelegramMessage({
-        chatId,
-        text: 'Майстра з таким кодом не знайдено.',
-      })
-      return
-    }
-
-    const variant = await prisma.productVariant.findUnique({
-      where: {
-        id: variantId,
-      },
-      select: {
-        id: true,
-        sku: true,
-        color: true,
-        modelSize: true,
-        pouchColor: true,
-        product: {
-          select: {
-            name: true,
-            slug: true,
-          },
-        },
-      },
-    })
-
-    if (!variant) {
-      await sendTelegramMessage({
-        chatId,
-        text: 'Варіант не знайдено.',
-      })
-      return
-    }
-
-    await prisma.artisanRate.updateMany({
-      where: {
-        artisanId: artisan.id,
-        variantId: variant.id,
-      },
-      data: {
-        isActive: false,
-      },
-    })
-
-    await sendTelegramMessage({
-      chatId,
-      text: [
-        `⛔️ Ставку вимкнено для ${escapeHtml(artisan.name)}.`,
-        `<b>Варіант:</b> ${escapeHtml(formatVariantLabel(variant))}`,
-        `<b>Variant ID:</b> <code>${escapeHtml(variant.id)}</code>`,
-      ].join('\n'),
-    })
-    return
-  }
-
-  if (command === 'rates') {
-    const code = args.trim()
-    if (!code) {
-      await sendTelegramMessage({
-        chatId,
-        text: 'Формат: <code>/stavky CODE</code>',
-      })
-      return
-    }
-
-    const artisan = await prisma.artisan.findFirst({
-      where: {
-        accessCode: {
-          equals: code,
-          mode: 'insensitive',
-        },
-      },
-      select: { id: true },
-    })
-
-    if (!artisan) {
-      await sendTelegramMessage({
-        chatId,
-        text: 'Майстра не знайдено.',
-      })
-      return
-    }
-
-    await sendArtisanRatesById({
-      chatId,
-      artisanId: artisan.id,
-    })
-    return
-  }
-
-  if (command === 'masters') {
-    const artisans = await prisma.artisan.findMany({
-      orderBy: [{ isActive: 'desc' }, { name: 'asc' }],
-      include: {
-        _count: {
-          select: {
-            rates: true,
-            productions: true,
-          },
-        },
-      },
-      take: 50,
-    })
-
-    if (artisans.length === 0) {
-      await sendTelegramMessage({
-        chatId,
-        text: 'Майстрів ще немає. Створи через <code>/novyy_maister</code>.',
-      })
-      return
-    }
-
-    const lines = artisans.map((artisan) => {
-      const linked = artisan.telegramUserId ? 'прив\'язано' : 'не прив\'язано'
-      return `• ${artisan.isActive ? '✅' : '⛔️'} ${escapeHtml(artisan.name)} [${escapeHtml(artisan.accessCode)}] — ${linked}; ставок: ${artisan._count.rates}; записів: ${artisan._count.productions}`
-    })
-
-    await sendTelegramMessage({
-      chatId,
-      text: ['<b>Майстри</b>', ...lines].join('\n'),
-    })
-    return
-  }
-
-  if (command === 'products') {
-    const query = args.trim()
-    const products = await prisma.product.findMany({
-      where: query
-        ? {
-            OR: [
-              { slug: { contains: query, mode: 'insensitive' } },
-              { name: { contains: query, mode: 'insensitive' } },
-            ],
-          }
-        : undefined,
-      orderBy: [{ sortCatalog: 'asc' }, { name: 'asc' }],
-      select: {
-        slug: true,
-        name: true,
-        _count: {
-          select: {
-            variants: true,
-          },
-        },
-      },
-      take: 30,
-    })
-
-    if (products.length === 0) {
-      await sendTelegramMessage({
-        chatId,
-        text: 'Товарів не знайдено.',
-      })
-      return
-    }
-
-    await sendTelegramMessage({
-      chatId,
-      text: [
-        '<b>Доступні товари (slug)</b>',
-        ...products.map(
-          (product) =>
-            `• <code>${escapeHtml(product.slug)}</code> — ${escapeHtml(product.name)} (варіантів: ${product._count.variants})`,
-        ),
-        '',
-        'Для ставок поштучно використовуй <code>/varianty [query]</code> і передавай VARIANT_ID у <code>/vstanovyty_stavku</code>.',
-      ].join('\n'),
-    })
-    return
-  }
-
-  if (command === 'variants') {
-    const query = args.trim()
-    const variants = await prisma.productVariant.findMany({
-      where: query
-        ? {
-            OR: [
-              { id: { contains: query, mode: 'insensitive' } },
-              { sku: { contains: query, mode: 'insensitive' } },
-              { color: { contains: query, mode: 'insensitive' } },
-              { modelSize: { contains: query, mode: 'insensitive' } },
-              { pouchColor: { contains: query, mode: 'insensitive' } },
-              {
-                product: {
-                  is: {
-                    slug: { contains: query, mode: 'insensitive' },
-                  },
-                },
-              },
-              {
-                product: {
-                  is: {
-                    name: { contains: query, mode: 'insensitive' },
-                  },
-                },
-              },
-            ],
-          }
-        : undefined,
-      select: {
-        id: true,
-        sku: true,
-        color: true,
-        modelSize: true,
-        pouchColor: true,
-        product: {
-          select: {
-            name: true,
-            slug: true,
-          },
-        },
-      },
-      orderBy: [{ sortCatalog: 'asc' }, { id: 'asc' }],
-      take: 40,
-    })
-
-    if (variants.length === 0) {
-      await sendTelegramMessage({
-        chatId,
-        text: 'Варіантів не знайдено.',
-      })
-      return
-    }
-
-    await sendTelegramMessage({
-      chatId,
-      text: [
-        '<b>Варіанти (VARIANT_ID)</b>',
-        ...variants.map(
-          (variant) =>
-            `• <code>${escapeHtml(variant.id)}</code> — ${escapeHtml(formatVariantLabel(variant))}`,
-        ),
-      ].join('\n'),
-    })
-    return
-  }
-
-  if (command === 'pending') {
-    const pending = await prisma.artisanProduction.findMany({
-      where: {
-        status: ArtisanProductionStatus.SUBMITTED,
-      },
-      include: {
-        artisan: true,
-        variant: {
-          select: {
-            id: true,
-            sku: true,
-            color: true,
-            modelSize: true,
-            pouchColor: true,
-            product: {
-              select: {
-                name: true,
-                slug: true,
-              },
-            },
-          },
-        },
-      },
-      orderBy: {
-        createdAt: 'desc',
-      },
-      take: 10,
-    })
-
-    if (pending.length === 0) {
-      await sendTelegramMessage({
-        chatId,
-        text: 'Немає записів у статусі SUBMITTED.',
-      })
-      return
-    }
-
-    for (const production of pending) {
-      await sendTelegramMessage({
-        chatId,
-        text: [
-          '🧾 <b>Очікує підтвердження</b>',
-          `<b>Майстер:</b> ${escapeHtml(production.artisan.name)}`,
-          `<b>Варіант:</b> ${escapeHtml(formatVariantLabel(production.variant))}`,
-          `<b>Variant ID:</b> <code>${escapeHtml(production.variantId)}</code>`,
-          `<b>К-сть:</b> ${production.qty}`,
-          `<b>Сума:</b> ${formatUAH(production.totalLaborUAH)}`,
-          `<b>ID:</b> <code>${production.id}</code>`,
-        ].join('\n'),
-        inlineKeyboard: [
-          [
-            {
-              text: '✅ Підтвердити',
-              callback_data: `${CALLBACK_PREFIX}:approve:${production.id}`,
-            },
-            {
-              text: '❌ Відхилити',
-              callback_data: `${CALLBACK_PREFIX}:reject:${production.id}`,
-            },
-          ],
-        ],
-      })
-    }
-
-    return
-  }
-
-  if (command === 'report') {
-    const now = new Date()
-    const periodFrom = new Date(now.getFullYear(), now.getMonth(), 1)
-    const periodTo = new Date(now.getFullYear(), now.getMonth() + 1, 1)
-
-    const rows = await prisma.artisanProduction.findMany({
-      where: {
-        producedAt: {
-          gte: periodFrom,
-          lt: periodTo,
-        },
-      },
-      include: {
-        artisan: {
-          select: {
-            name: true,
-          },
-        },
-      },
-    })
-
-    const totalsByStatus = rows.reduce(
-      (acc, row) => {
-        acc[row.status] += row.totalLaborUAH
-        return acc
-      },
-      {
-        SUBMITTED: 0,
-        APPROVED: 0,
-        PAID: 0,
-        REJECTED: 0,
-      } as Record<ArtisanProductionStatus, number>,
-    )
-
-    const byArtisan = rows.reduce((acc, row) => {
-      const key = row.artisan.name
-      const current = acc.get(key) ?? 0
-      acc.set(key, current + row.totalLaborUAH)
-      return acc
-    }, new Map<string, number>())
-
-    const topArtisans = Array.from(byArtisan.entries())
-      .sort((left, right) => right[1] - left[1])
-      .slice(0, 10)
-
-    const monthLabel = periodFrom.toLocaleDateString('uk-UA', {
-      month: 'long',
-      year: 'numeric',
-      timeZone: 'Europe/Kyiv',
-    })
-
-    const artisanLines =
-      topArtisans.length > 0
-        ? topArtisans.map(([name, amount]) => `• ${escapeHtml(name)} — ${formatUAH(amount)}`)
-        : ['• Даних немає']
-
-    await sendTelegramMessage({
-      chatId,
-      text: [
-        `📈 <b>Звіт за ${escapeHtml(monthLabel)}</b>`,
-        `SUBMITTED: ${formatUAH(totalsByStatus.SUBMITTED)}`,
-        `APPROVED: ${formatUAH(totalsByStatus.APPROVED)}`,
-        `PAID: ${formatUAH(totalsByStatus.PAID)}`,
-        `REJECTED: ${formatUAH(totalsByStatus.REJECTED)}`,
-        '',
-        '<b>Топ майстрів за сумою:</b>',
-        ...artisanLines,
-      ].join('\n'),
-    })
-    return
-  }
-
-  if (command === 'rates_menu') {
-    await sendOwnerRatesMenu(chatId)
-    return
-  }
-
-  if (command === 'help' || command === 'start') {
-    await sendTelegramMessage({
-      chatId,
-      text: buildOwnerHelpText(),
-      replyKeyboard: buildMainMenuKeyboard(true),
-    })
-    return
-  }
-
-  await sendTelegramMessage({
-    chatId,
-    text: 'Невідома команда власника. Використай <code>/dopomoha</code> або кнопки нижче.',
-    replyKeyboard: buildMainMenuKeyboard(true),
-  })
 }
 
 async function handleCommand(input: {
@@ -2127,71 +1549,43 @@ async function handleCommand(input: {
   username?: string
 }) {
   const command = normalizeCommand(input.command)
-  const isOwnerUser = isOwner(input.userId)
-  const ownerOnly = new Set([
-    'new_master',
-    'masters',
-    'set_rate',
-    'set_rate_bulk',
-    'set_rates',
-    'disable_rate',
-    'rates',
-    'rates_menu',
-    'products',
-    'variants',
-    'pending',
-    'report',
-  ])
 
-  if (command === 'help' || command === 'start') {
-    const parts = [buildMasterHelpText()]
-    if (isOwnerUser) {
-      parts.push('')
-      parts.push(buildOwnerHelpText())
-    }
-
+  if (input.chatType !== 'private' && ['start', 'register', 'record', 'qty'].includes(command)) {
     await sendTelegramMessage({
       chatId: input.chatId,
-      text: parts.join('\n'),
-      replyKeyboard: buildMainMenuKeyboard(isOwnerUser),
+      text: 'Для майстра цей бот працює лише в приватному чаті. Відкрий бота за персональним лінком і продовж.',
     })
     return
   }
 
-  if (command === 'whoami') {
-    await sendTelegramMessage({
-      chatId: input.chatId,
-      text: buildWhoAmIText({
-        userId: input.userId,
+  if (command === 'start') {
+    const codeFromStart = parseStartRegistrationCode(input.args)
+    if (codeFromStart) {
+      await handleRegisterCommand({
         chatId: input.chatId,
         chatType: input.chatType,
+        userId: input.userId,
         username: input.username,
-      }),
-    })
-    return
-  }
-
-  if (ownerOnly.has(command) && !isOwnerUser) {
-    await sendTelegramMessage({
-      chatId: input.chatId,
-      text: [
-        'Недостатньо прав для цієї команди.',
-        `Ваш user_id: <code>${escapeHtml(input.userId)}</code>`,
-        'Додайте його в TELEGRAM_OWNER_USER_IDS і зробіть redeploy.',
-      ].join('\n'),
-    })
-    return
-  }
-
-  if (isOwnerUser) {
-    if (ownerOnly.has(command)) {
-      await handleOwnerCommand({
-        command,
-        args: input.args,
-        chatId: input.chatId,
+        args: codeFromStart,
       })
       return
     }
+
+    await sendTelegramMessage({
+      chatId: input.chatId,
+      text: buildMasterHelpText(),
+      replyKeyboard: buildMainMenuKeyboard(),
+    })
+    return
+  }
+
+  if (command === 'help') {
+    await sendTelegramMessage({
+      chatId: input.chatId,
+      text: buildMasterHelpText(),
+      replyKeyboard: buildMainMenuKeyboard(),
+    })
+    return
   }
 
   if (command === 'register') {
@@ -2234,352 +1628,10 @@ async function handleCommand(input: {
     return
   }
 
-  if (command === 'my') {
-    await handleMyCommand({
-      chatId: input.chatId,
-      chatType: input.chatType,
-      userId: input.userId,
-      username: input.username,
-    })
-    return
-  }
-
   await sendTelegramMessage({
     chatId: input.chatId,
     text: 'Невідома команда. Використай <code>/dopomoha</code> або кнопки нижче.',
-    replyKeyboard: buildMainMenuKeyboard(isOwnerUser),
-  })
-}
-
-async function approveProduction(input: {
-  productionId: string
-  ownerUserId: string
-  ownerChatId: string
-  callbackQueryId: string
-}) {
-  const existing = await prisma.artisanProduction.findUnique({
-    where: { id: input.productionId },
-    include: {
-      artisan: true,
-      variant: {
-        select: {
-          id: true,
-          sku: true,
-          color: true,
-          modelSize: true,
-          pouchColor: true,
-          product: {
-            select: {
-              name: true,
-              slug: true,
-            },
-          },
-        },
-      },
-    },
-  })
-
-  if (!existing) {
-    await answerCallbackQuery({
-      callbackQueryId: input.callbackQueryId,
-      text: 'Запис не знайдено',
-      showAlert: true,
-    })
-    return
-  }
-
-  if (existing.status === ArtisanProductionStatus.APPROVED) {
-    await answerCallbackQuery({
-      callbackQueryId: input.callbackQueryId,
-      text: 'Вже підтверджено',
-    })
-    return
-  }
-
-  if (existing.status === ArtisanProductionStatus.PAID) {
-    await answerCallbackQuery({
-      callbackQueryId: input.callbackQueryId,
-      text: 'Вже оплачено',
-    })
-    return
-  }
-
-  if (existing.status === ArtisanProductionStatus.REJECTED) {
-    await answerCallbackQuery({
-      callbackQueryId: input.callbackQueryId,
-      text: 'Запис вже відхилено',
-      showAlert: true,
-    })
-    return
-  }
-
-  const updated = await prisma.artisanProduction.update({
-    where: { id: existing.id },
-    data: {
-      status: ArtisanProductionStatus.APPROVED,
-      approvedAt: new Date(),
-      approvedByTelegramUserId: input.ownerUserId,
-    },
-  })
-
-  await answerCallbackQuery({
-    callbackQueryId: input.callbackQueryId,
-    text: 'Підтверджено',
-  })
-
-  await sendTelegramMessage({
-    chatId: input.ownerChatId,
-    text: [
-      `✅ Підтверджено запис <code>${escapeHtml(updated.id)}</code>`,
-      `<b>Майстер:</b> ${escapeHtml(existing.artisan.name)}`,
-      `<b>Варіант:</b> ${escapeHtml(formatVariantLabel(existing.variant))}`,
-      `<b>Variant ID:</b> <code>${escapeHtml(existing.variantId)}</code>`,
-      `<b>Сума:</b> ${formatUAH(existing.totalLaborUAH)}`,
-    ].join('\n'),
-    inlineKeyboard: [
-      [
-        {
-          text: '💸 Позначити виплату',
-          callback_data: `${CALLBACK_PREFIX}:pay:${existing.id}`,
-        },
-      ],
-    ],
-  })
-
-  await sendProductionStatusToArtisan({
-    productionId: existing.id,
-    status: ArtisanProductionStatus.APPROVED,
-    comment: 'Підтверджено власником',
-  })
-}
-
-async function rejectProduction(input: {
-  productionId: string
-  ownerChatId: string
-  callbackQueryId: string
-}) {
-  const existing = await prisma.artisanProduction.findUnique({
-    where: { id: input.productionId },
-    include: {
-      artisan: true,
-      variant: {
-        select: {
-          id: true,
-          sku: true,
-          color: true,
-          modelSize: true,
-          pouchColor: true,
-          product: {
-            select: {
-              name: true,
-              slug: true,
-            },
-          },
-        },
-      },
-    },
-  })
-
-  if (!existing) {
-    await answerCallbackQuery({
-      callbackQueryId: input.callbackQueryId,
-      text: 'Запис не знайдено',
-      showAlert: true,
-    })
-    return
-  }
-
-  if (existing.status === ArtisanProductionStatus.REJECTED) {
-    await answerCallbackQuery({
-      callbackQueryId: input.callbackQueryId,
-      text: 'Вже відхилено',
-    })
-    return
-  }
-
-  if (existing.status === ArtisanProductionStatus.PAID) {
-    await answerCallbackQuery({
-      callbackQueryId: input.callbackQueryId,
-      text: 'Запис уже оплачено, відхилення неможливе',
-      showAlert: true,
-    })
-    return
-  }
-
-  await prisma.artisanProduction.update({
-    where: { id: existing.id },
-    data: {
-      status: ArtisanProductionStatus.REJECTED,
-    },
-  })
-
-  await answerCallbackQuery({
-    callbackQueryId: input.callbackQueryId,
-    text: 'Відхилено',
-  })
-
-  await sendTelegramMessage({
-    chatId: input.ownerChatId,
-    text: [
-      `❌ Запис <code>${escapeHtml(existing.id)}</code> відхилено.`,
-      `<b>Варіант:</b> ${escapeHtml(formatVariantLabel(existing.variant))}`,
-      `<b>Variant ID:</b> <code>${escapeHtml(existing.variantId)}</code>`,
-    ].join('\n'),
-  })
-
-  await sendProductionStatusToArtisan({
-    productionId: existing.id,
-    status: ArtisanProductionStatus.REJECTED,
-    comment: 'Відхилено власником',
-  })
-}
-
-async function payProduction(input: {
-  productionId: string
-  ownerChatId: string
-  callbackQueryId: string
-}) {
-  const result = await prisma.$transaction(async (tx) => {
-    const production = await tx.artisanProduction.findUnique({
-      where: { id: input.productionId },
-      include: {
-        artisan: true,
-        variant: {
-          select: {
-            id: true,
-            sku: true,
-            color: true,
-            modelSize: true,
-            pouchColor: true,
-            product: {
-              select: {
-                name: true,
-                slug: true,
-              },
-            },
-          },
-        },
-      },
-    })
-
-    if (!production) {
-      return { kind: 'not_found' as const }
-    }
-
-    if (production.status === ArtisanProductionStatus.PAID) {
-      return {
-        kind: 'already_paid' as const,
-        production,
-      }
-    }
-
-    if (production.status !== ArtisanProductionStatus.APPROVED) {
-      return {
-        kind: 'invalid_status' as const,
-        production,
-      }
-    }
-
-    const expense = await tx.expense.create({
-      data: {
-        title: `Оплата роботи: ${production.artisan.name} (${production.variant.product.name})`,
-        category: ExpenseCategory.PAYROLL,
-        amountUAH: production.totalLaborUAH,
-        expenseDate: new Date(),
-        notes: [
-          'Створено Telegram production bot',
-          `productionId=${production.id}`,
-          `variantId=${production.variantId}`,
-          `variant=${formatVariantLabel(production.variant)}`,
-          `qty=${production.qty}`,
-          `rate=${production.ratePerUnitSnapshotUAH}`,
-        ].join('\n'),
-      },
-    })
-
-    const updated = await tx.artisanProduction.update({
-      where: { id: production.id },
-      data: {
-        status: ArtisanProductionStatus.PAID,
-        paidAt: new Date(),
-        paidExpenseId: expense.id,
-      },
-      include: {
-        artisan: true,
-        variant: {
-          select: {
-            id: true,
-            sku: true,
-            color: true,
-            modelSize: true,
-            pouchColor: true,
-            product: {
-              select: {
-                name: true,
-                slug: true,
-              },
-            },
-          },
-        },
-      },
-    })
-
-    return {
-      kind: 'paid' as const,
-      production: updated,
-      expense,
-    }
-  })
-
-  if (result.kind === 'not_found') {
-    await answerCallbackQuery({
-      callbackQueryId: input.callbackQueryId,
-      text: 'Запис не знайдено',
-      showAlert: true,
-    })
-    return
-  }
-
-  if (result.kind === 'already_paid') {
-    await answerCallbackQuery({
-      callbackQueryId: input.callbackQueryId,
-      text: 'Вже оплачено',
-      showAlert: true,
-    })
-    return
-  }
-
-  if (result.kind === 'invalid_status') {
-    await answerCallbackQuery({
-      callbackQueryId: input.callbackQueryId,
-      text: 'Оплата можлива тільки для APPROVED записів',
-      showAlert: true,
-    })
-    return
-  }
-
-  await answerCallbackQuery({
-    callbackQueryId: input.callbackQueryId,
-    text: 'Оплату зафіксовано',
-  })
-
-  await sendTelegramMessage({
-    chatId: input.ownerChatId,
-    text: [
-      '💸 <b>Виплату зафіксовано</b>',
-      `<b>Запис:</b> <code>${escapeHtml(result.production.id)}</code>`,
-      `<b>Майстер:</b> ${escapeHtml(result.production.artisan.name)}`,
-      `<b>Варіант:</b> ${escapeHtml(formatVariantLabel(result.production.variant))}`,
-      `<b>Variant ID:</b> <code>${escapeHtml(result.production.variantId)}</code>`,
-      `<b>Сума:</b> ${formatUAH(result.production.totalLaborUAH)}`,
-      `<b>Expense ID:</b> <code>${escapeHtml(result.expense.id)}</code>`,
-    ].join('\n'),
-  })
-
-  await sendProductionStatusToArtisan({
-    productionId: result.production.id,
-    status: ArtisanProductionStatus.PAID,
-    comment: 'Виплату позначено як проведену',
+    replyKeyboard: buildMainMenuKeyboard(),
   })
 }
 
@@ -2599,287 +1651,11 @@ async function handleCallbackQuery(callback: TelegramCallbackQuery) {
   const parts = callbackData.split(':')
   const action = parts[1] ?? ''
   const arg1 = parts[2] ?? ''
-  const arg2 = parts[3] ?? ''
   const message = callback.message
   const chatId = message?.chat?.id ? toTelegramId(message.chat.id) : null
   const chatType = message?.chat?.type
   const sessionKey =
-    chatId && chatType
-      ? buildSessionKey({ chatId, userId: fromUserId, chatType })
-      : null
-
-  if (action === 'approve' || action === 'reject' || action === 'pay') {
-    if (!isOwner(fromUserId)) {
-      await answerCallbackQuery({
-        callbackQueryId: callback.id,
-        text: 'Недостатньо прав для цієї дії',
-        showAlert: true,
-      })
-      return
-    }
-
-    const ownerChatId = callback.message?.chat?.id
-    if (!ownerChatId || !arg1) {
-      await answerCallbackQuery({
-        callbackQueryId: callback.id,
-        text: 'Некоректний callback payload',
-        showAlert: true,
-      })
-      return
-    }
-
-    if (action === 'approve') {
-      await approveProduction({
-        productionId: arg1,
-        ownerUserId: fromUserId,
-        ownerChatId: toTelegramId(ownerChatId),
-        callbackQueryId: callback.id,
-      })
-      await deleteCallbackMessage(callback)
-      return
-    }
-
-    if (action === 'reject') {
-      await rejectProduction({
-        productionId: arg1,
-        ownerChatId: toTelegramId(ownerChatId),
-        callbackQueryId: callback.id,
-      })
-      await deleteCallbackMessage(callback)
-      return
-    }
-
-    await payProduction({
-      productionId: arg1,
-      ownerChatId: toTelegramId(ownerChatId),
-      callbackQueryId: callback.id,
-    })
-    await deleteCallbackMessage(callback)
-    return
-  }
-
-  if (
-    action === 'om' ||
-    action === 'osa' ||
-    action === 'oda' ||
-    action === 'ola' ||
-    action === 'osp' ||
-    action === 'odp' ||
-    action === 'osv' ||
-    action === 'odv'
-  ) {
-    if (!isOwner(fromUserId)) {
-      await answerCallbackQuery({
-        callbackQueryId: callback.id,
-        text: 'Недостатньо прав',
-        showAlert: true,
-      })
-      return
-    }
-
-    if (!chatId || !chatType || !sessionKey) {
-      await answerCallbackQuery({
-        callbackQueryId: callback.id,
-        text: 'Сесію не знайдено',
-        showAlert: true,
-      })
-      return
-    }
-
-    if (action === 'om') {
-      if (arg1 === 'set') {
-        await answerCallbackQuery({ callbackQueryId: callback.id, text: 'Оберіть майстра' })
-        await sendOwnerArtisanPicker({ chatId, mode: 'set' })
-        return
-      }
-      if (arg1 === 'disable') {
-        await answerCallbackQuery({ callbackQueryId: callback.id, text: 'Оберіть майстра' })
-        await sendOwnerArtisanPicker({ chatId, mode: 'disable' })
-        return
-      }
-      if (arg1 === 'list') {
-        await answerCallbackQuery({ callbackQueryId: callback.id, text: 'Оберіть майстра' })
-        await sendOwnerArtisanPicker({ chatId, mode: 'list' })
-        return
-      }
-
-      await answerCallbackQuery({
-        callbackQueryId: callback.id,
-        text: 'Невідома дія',
-        showAlert: true,
-      })
-      return
-    }
-
-    if (action === 'osa' && arg1) {
-      await answerCallbackQuery({ callbackQueryId: callback.id, text: 'Оберіть варіант' })
-      await sendOwnerVariantPicker({
-        chatId,
-        artisanId: arg1,
-        mode: 'set',
-        page: 0,
-      })
-      return
-    }
-
-    if (action === 'oda' && arg1) {
-      await answerCallbackQuery({ callbackQueryId: callback.id, text: 'Оберіть варіант' })
-      await sendOwnerVariantPicker({
-        chatId,
-        artisanId: arg1,
-        mode: 'disable',
-        page: 0,
-      })
-      return
-    }
-
-    if (action === 'ola' && arg1) {
-      await answerCallbackQuery({ callbackQueryId: callback.id, text: 'Показую ставки' })
-      await sendArtisanRatesById({
-        chatId,
-        artisanId: arg1,
-      })
-      return
-    }
-
-    if ((action === 'osp' || action === 'odp') && arg1) {
-      const page = Number.parseInt(arg2 || '0', 10)
-      await answerCallbackQuery({ callbackQueryId: callback.id, text: 'Сторінка' })
-      await sendOwnerVariantPicker({
-        chatId,
-        artisanId: arg1,
-        mode: action === 'osp' ? 'set' : 'disable',
-        page: Number.isFinite(page) ? page : 0,
-      })
-      return
-    }
-
-    if (action === 'osv' && arg1 && arg2) {
-      const [artisan, variant] = await Promise.all([
-        prisma.artisan.findUnique({
-          where: { id: arg1 },
-          select: {
-            id: true,
-            name: true,
-            accessCode: true,
-          },
-        }),
-        prisma.productVariant.findUnique({
-          where: { id: arg2 },
-          select: {
-            id: true,
-            sku: true,
-            color: true,
-            modelSize: true,
-            pouchColor: true,
-            product: {
-              select: {
-                name: true,
-                slug: true,
-              },
-            },
-          },
-        }),
-      ])
-
-      if (!artisan || !variant) {
-        await answerCallbackQuery({
-          callbackQueryId: callback.id,
-          text: 'Майстра або варіант не знайдено',
-          showAlert: true,
-        })
-        return
-      }
-
-      await setSession({
-        sessionKey,
-        userId: fromUserId,
-        step: TelegramBotSessionStep.AWAITING_QTY,
-        draft: {
-          ownerFlow: 'SET_RATE_AWAIT_RATE',
-          ownerArtisanId: artisan.id,
-          ownerVariantId: variant.id,
-        },
-      })
-
-      await answerCallbackQuery({ callbackQueryId: callback.id, text: 'Варіант обрано' })
-      await sendTelegramMessage({
-        chatId,
-        text: [
-          '<b>Встановлення ставки</b>',
-          `<b>Майстер:</b> ${escapeHtml(artisan.name)} (${escapeHtml(artisan.accessCode)})`,
-          `<b>Варіант:</b> ${escapeHtml(formatVariantLabel(variant))}`,
-          `<b>Variant ID:</b> <code>${escapeHtml(variant.id)}</code>`,
-          'Надішліть суму за 1 шт одним числом (наприклад: <code>450</code>).',
-        ].join('\n'),
-      })
-      return
-    }
-
-    if (action === 'odv' && arg1 && arg2) {
-      const [artisan, variant, result] = await Promise.all([
-        prisma.artisan.findUnique({
-          where: { id: arg1 },
-          select: { name: true },
-        }),
-        prisma.productVariant.findUnique({
-          where: { id: arg2 },
-          select: {
-            id: true,
-            sku: true,
-            color: true,
-            modelSize: true,
-            pouchColor: true,
-            product: {
-              select: { name: true, slug: true },
-            },
-          },
-        }),
-        prisma.artisanRate.updateMany({
-          where: {
-            artisanId: arg1,
-            variantId: arg2,
-            isActive: true,
-          },
-          data: {
-            isActive: false,
-          },
-        }),
-      ])
-
-      if (!artisan || !variant) {
-        await answerCallbackQuery({
-          callbackQueryId: callback.id,
-          text: 'Майстра або варіант не знайдено',
-          showAlert: true,
-        })
-        return
-      }
-
-      await answerCallbackQuery({
-        callbackQueryId: callback.id,
-        text: result.count > 0 ? 'Ставку вимкнено' : 'Активної ставки не було',
-      })
-
-      await sendTelegramMessage({
-        chatId,
-        text: [
-          result.count > 0 ? '⛔️ Ставку вимкнено' : 'ℹ️ Активної ставки не було',
-          `<b>Майстер:</b> ${escapeHtml(artisan.name)}`,
-          `<b>Варіант:</b> ${escapeHtml(formatVariantLabel(variant))}`,
-          `<b>Variant ID:</b> <code>${escapeHtml(variant.id)}</code>`,
-        ].join('\n'),
-      })
-      return
-    }
-
-    await answerCallbackQuery({
-      callbackQueryId: callback.id,
-      text: 'Некоректна owner-дія',
-      showAlert: true,
-    })
-    return
-  }
+    chatId && chatType ? buildSessionKey({ chatId, userId: fromUserId, chatType }) : null
 
   if (!message?.chat?.id || !chatId || !chatType || !sessionKey) {
     await answerCallbackQuery({
@@ -2889,8 +1665,6 @@ async function handleCallbackQuery(callback: TelegramCallbackQuery) {
     })
     return
   }
-
-  const userId = fromUserId
 
   if (action === 'cancel') {
     await clearSession(sessionKey)
@@ -2906,42 +1680,82 @@ async function handleCallbackQuery(callback: TelegramCallbackQuery) {
     return
   }
 
-  if (action === 'rate') {
-    const artisan = await findLinkedArtisanByTelegram({
-      userId,
-      chatId,
-      chatType,
-      username: callback.from.username,
-    })
+  const artisan = await findLinkedArtisanByTelegram({
+    userId: fromUserId,
+    chatId,
+    chatType,
+    username: callback.from.username,
+  })
 
-    if (!artisan) {
+  if (!artisan) {
+    await answerCallbackQuery({
+      callbackQueryId: callback.id,
+      text: 'Спочатку виконай /reyestraciya CODE',
+      showAlert: true,
+    })
+    return
+  }
+
+  const session = await getSession(sessionKey)
+  const draft = parseSessionDraft(session?.draftPayload ?? null)
+
+  if (action === 'mp') {
+    if (!arg1) {
       await answerCallbackQuery({
         callbackQueryId: callback.id,
-        text: 'Спочатку виконай /reyestraciya CODE',
+        text: 'Некоректний товар',
         showAlert: true,
       })
       return
     }
 
-    const rateId = arg1 || ''
+    await answerCallbackQuery({ callbackQueryId: callback.id, text: 'Товар обрано' })
+    await sendMasterVariantPicker({
+      chatId,
+      userId: fromUserId,
+      artisanId: artisan.id,
+      sessionKey,
+      productId: arg1,
+      draft,
+    })
+    return
+  }
+
+  if (action === 'mv' || action === 'rate') {
+    if (!arg1) {
+      await answerCallbackQuery({
+        callbackQueryId: callback.id,
+        text: 'Некоректний варіант',
+        showAlert: true,
+      })
+      return
+    }
+
     const rate = await prisma.artisanRate.findFirst({
       where: {
-        id: rateId,
+        id: arg1,
         artisanId: artisan.id,
         isActive: true,
       },
-      include: {
+      select: {
+        id: true,
+        artisanId: true,
+        variantId: true,
+        ratePerUnitUAH: true,
         variant: {
           select: {
             id: true,
+            productId: true,
             sku: true,
             color: true,
             modelSize: true,
             pouchColor: true,
             product: {
               select: {
+                id: true,
                 name: true,
                 slug: true,
+                sortCatalog: true,
               },
             },
           },
@@ -2958,145 +1772,179 @@ async function handleCallbackQuery(callback: TelegramCallbackQuery) {
       return
     }
 
-    await setSession({
-      sessionKey,
-      userId,
-      artisanId: artisan.id,
-      step: TelegramBotSessionStep.AWAITING_QTY,
-      draft: {
-        rateId: rate.id,
-      },
-    })
-
-    await answerCallbackQuery({
-      callbackQueryId: callback.id,
-      text: 'Вибрано',
-    })
-
-    await sendTelegramMessage({
+    await answerCallbackQuery({ callbackQueryId: callback.id, text: 'Варіант обрано' })
+    await sendMasterQtyPrompt({
       chatId,
-      text: [
-        `Обрано: <b>${escapeHtml(formatVariantLabel(rate.variant))}</b>`,
-        `<b>Variant ID:</b> <code>${escapeHtml(rate.variantId)}</code>`,
-        `Ставка: <b>${formatUAH(rate.ratePerUnitUAH)}</b>`,
-        'Тепер надішли кількість одним числом (наприклад, <code>7</code>).',
-      ].join('\n'),
+      userId: fromUserId,
+      artisanId: artisan.id,
+      sessionKey,
+      rate,
+      draft,
     })
     return
   }
 
-  if (action === 'confirm') {
-    const artisan = await findLinkedArtisanByTelegram({
-      userId,
+  if (action === 'mbp') {
+    await answerCallbackQuery({ callbackQueryId: callback.id, text: 'До товарів' })
+    await sendMasterProductPicker({
       chatId,
-      chatType,
-      username: callback.from.username,
+      userId: fromUserId,
+      artisanId: artisan.id,
+      sessionKey,
+      draft: {
+        ...draft,
+        rateId: undefined,
+        qty: undefined,
+        selectedRateId: undefined,
+        selectedVariantId: undefined,
+      },
     })
+    return
+  }
 
-    if (!artisan) {
+  if (action === 'mbv') {
+    const productId = arg1 || draft.selectedProductId
+    if (!productId) {
       await answerCallbackQuery({
         callbackQueryId: callback.id,
-        text: 'Спочатку виконай /reyestraciya CODE',
+        text: 'Не вдалося повернутись до варіантів',
         showAlert: true,
       })
-      return
-    }
-
-    const session = await getSession(sessionKey)
-    if (!session || session.step !== TelegramBotSessionStep.AWAITING_CONFIRM) {
-      await clearSession(sessionKey)
-      await answerCallbackQuery({
-        callbackQueryId: callback.id,
-        text: 'Сесія застаріла. Повтори через кнопку "Новий запис".',
-        showAlert: true,
-      })
-      return
-    }
-
-    const draft = parseSessionDraft(session.draftPayload)
-    if (!draft.rateId || !draft.qty) {
-      await clearSession(sessionKey)
-      await answerCallbackQuery({
-        callbackQueryId: callback.id,
-        text: 'Сесія неповна. Повтори через кнопку "Новий запис".',
-        showAlert: true,
-      })
-      return
-    }
-
-    const rate = await prisma.artisanRate.findFirst({
-      where: {
-        id: draft.rateId,
+      await sendMasterProductPicker({
+        chatId,
+        userId: fromUserId,
         artisanId: artisan.id,
-        isActive: true,
-      },
-      include: {
-        variant: {
-          select: {
-            id: true,
-            productId: true,
-            sku: true,
-            color: true,
-            modelSize: true,
-            pouchColor: true,
-            product: {
-              select: {
-                name: true,
-                slug: true,
-              },
-            },
-          },
-        },
+        sessionKey,
+        draft,
+      })
+      return
+    }
+
+    await answerCallbackQuery({ callbackQueryId: callback.id, text: 'До варіантів' })
+    await sendMasterVariantPicker({
+      chatId,
+      userId: fromUserId,
+      artisanId: artisan.id,
+      sessionKey,
+      productId,
+      draft: {
+        ...draft,
+        rateId: undefined,
+        qty: undefined,
       },
     })
+    return
+  }
 
-    if (!rate) {
-      await clearSession(sessionKey)
+  if (action === 'madd') {
+    if (!draft.rateId || !draft.qty || !draft.selectedVariantId) {
       await answerCallbackQuery({
         callbackQueryId: callback.id,
-        text: 'Ставка більше недоступна. Повтори через кнопку "Новий запис".',
+        text: 'Позиція не підготовлена',
         showAlert: true,
       })
       return
     }
 
-    const production = await prisma.artisanProduction.create({
-      data: {
-        artisanId: artisan.id,
-        productId: rate.variant.productId,
-        variantId: rate.variantId,
-        rateId: rate.id,
-        qty: draft.qty,
-        ratePerUnitSnapshotUAH: rate.ratePerUnitUAH,
-        totalLaborUAH: draft.qty * rate.ratePerUnitUAH,
-        status: ArtisanProductionStatus.SUBMITTED,
-        source: 'TELEGRAM_BOT',
-        telegramUpdateId: callback.message?.message_id,
+    const items = [...(draft.items ?? [])]
+    if (items.length >= MASTER_MAX_ITEMS) {
+      await answerCallbackQuery({
+        callbackQueryId: callback.id,
+        text: 'Досягнуто ліміт позицій. Заверши відправку.',
+        showAlert: true,
+      })
+      return
+    }
+
+    items.push({
+      rateId: draft.rateId,
+      variantId: draft.selectedVariantId,
+      qty: draft.qty,
+    })
+
+    await answerCallbackQuery({ callbackQueryId: callback.id, text: 'Позицію додано' })
+    await sendMasterProductPicker({
+      chatId,
+      userId: fromUserId,
+      artisanId: artisan.id,
+      sessionKey,
+      draft: {
+        ...draft,
+        items,
+        rateId: undefined,
+        qty: undefined,
+        selectedRateId: undefined,
+        selectedVariantId: undefined,
+      },
+      notice: 'Позицію додано. Обери наступний товар.',
+    })
+    await deleteCallbackMessage(callback)
+    return
+  }
+
+  if (action === 'medit') {
+    const index = Number.parseInt(arg1 || '', 10)
+    const items = draft.items ?? []
+
+    if (!Number.isInteger(index) || index < 0 || index >= items.length) {
+      await answerCallbackQuery({
+        callbackQueryId: callback.id,
+        text: 'Позицію не знайдено',
+        showAlert: true,
+      })
+      return
+    }
+
+    const item = items[index]!
+    await setSession({
+      sessionKey,
+      userId: fromUserId,
+      artisanId: artisan.id,
+      step: TelegramBotSessionStep.AWAITING_QTY,
+      draft: {
+        ...draft,
+        masterFlow: 'EDIT_ITEM_QTY',
+        editItemIndex: index,
+        selectedRateId: item.rateId,
+        selectedVariantId: item.variantId,
+        rateId: undefined,
+        qty: undefined,
       },
     })
 
-    await clearSession(sessionKey)
-
-    await answerCallbackQuery({
-      callbackQueryId: callback.id,
-      text: 'Запис збережено',
-    })
-
+    await answerCallbackQuery({ callbackQueryId: callback.id, text: 'Редагування кількості' })
     await sendTelegramMessage({
       chatId,
-      text: [
-        '✅ Запис збережено та надіслано на підтвердження.',
-        `<b>Варіант:</b> ${escapeHtml(formatVariantLabel(rate.variant))}`,
-        `<b>Variant ID:</b> <code>${escapeHtml(rate.variantId)}</code>`,
-        `<b>К-сть:</b> ${production.qty}`,
-        `<b>Сума:</b> ${formatUAH(production.totalLaborUAH)}`,
-        `<b>ID:</b> <code>${production.id}</code>`,
-      ].join('\n'),
+      text: `Введи нову кількість для позиції #${index + 1}:`,
+      inlineKeyboard: [
+        [{ text: '⬅️ Назад', callback_data: `${CALLBACK_PREFIX}:mreview` }],
+        [{ text: '↩️ Скасувати', callback_data: `${CALLBACK_PREFIX}:cancel` }],
+      ],
     })
+    return
+  }
 
-    await notifyOwnersAboutSubmission({
-      productionId: production.id,
-      targetChatId: chatId,
+  if (action === 'mreview') {
+    await answerCallbackQuery({ callbackQueryId: callback.id, text: 'Показую підсумок' })
+    await sendMasterDraftSummary({
+      chatId,
+      userId: fromUserId,
+      artisanId: artisan.id,
+      sessionKey,
+      draft,
+    })
+    return
+  }
+
+  if (action === 'mfinish') {
+    await finalizeMasterDraft({
+      callback,
+      callbackQueryId: callback.id,
+      sessionKey,
+      chatId,
+      artisanId: artisan.id,
+      userId: fromUserId,
+      draft,
     })
     await deleteCallbackMessage(callback)
     return

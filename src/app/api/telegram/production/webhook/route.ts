@@ -38,7 +38,6 @@ export async function GET() {
     feature: 'telegram-production-bot-webhook',
     hasBotToken: hasProductionBotToken,
     hasWebhookSecret: Boolean(process.env.TELEGRAM_WEBHOOK_SECRET),
-    hasOwnerUsers: Boolean(process.env.TELEGRAM_OWNER_USER_IDS),
   })
 }
 
