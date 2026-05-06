@@ -134,13 +134,17 @@ export default async function NewArrivals() {
                   numberLocale,
                 )
 
+                const productHref = firstVariant?.id
+                  ? `/products/${p.slug}#variant=${firstVariant.id}`
+                  : `/products/${p.slug}`
+
                 return (
                   <div
                     key={p.id}
                     className="w-[260px] shrink-0 snap-start 2xl:w-[560px] 2xl:min-h-[680px]"
                   >
                     <Link
-                      href={`/products/${p.slug}`}
+                      href={productHref}
                       className="flex h-full w-full flex-col"
                     >
                       <div className="group relative aspect-3/4 bg-gray-100 overflow-hidden border 2xl:aspect-auto 2xl:flex-1">

@@ -1,16 +1,19 @@
 import Image from 'next/image'
 import Link from 'next/link'
+import { getHomeHeroBannerSettings } from '@/lib/home-hero-banner'
 
-export default function HeroBlock() {
+export default async function HeroBlock() {
+  const hero = await getHomeHeroBannerSettings()
+
   return (
     <Link
-      href="/shop"
+      href={hero.linkHref}
       className="relative block w-full md:h-[90vh] h-[600px] overflow-hidden group cursor-pointer"
     >
       {/* Mobile */}
       <Image
-        src="/img/hero-block-m.jpg"
-        alt="Gerdan Hero Mobile"
+        src={hero.mobileImage}
+        alt={hero.mobileAlt}
         fill
         loading="eager"
         sizes="100vw"
@@ -19,8 +22,8 @@ export default function HeroBlock() {
       />
       {/* Головне фото */}
       <Image
-        src="/img/hero-block-01.jpg"
-        alt="Gerdan Hero"
+        src={hero.desktopImage}
+        alt={hero.desktopAlt}
         fill
         priority
         className="object-cover object-center hidden md:block"

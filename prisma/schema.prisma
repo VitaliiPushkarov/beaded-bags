@@ -542,6 +542,17 @@ model BlogPost {
   @@index([status, publishedAt])
 }
 
+model HomeHeroBannerSettings {
+  id            Int      @id @default(1)
+  desktopImage  String
+  mobileImage   String
+  linkHref      String   @default("/shop")
+  desktopAlt    String   @default("Gerdan Hero")
+  mobileAlt     String   @default("Gerdan Hero Mobile")
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+}
+
 model Collection {
   id                String              @id
   slug              String              @unique
