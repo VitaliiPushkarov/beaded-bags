@@ -6,48 +6,63 @@ import {
   formatLocalizedMoney,
   pickLocalizedText,
 } from '@/lib/localized-product'
-import { matchAccessorySubcategory } from '@/lib/shop-taxonomy'
 import { getRequestLocale } from '@/lib/server-locale'
+import { prisma } from '@/lib/prisma'
 
-type ProductWithVariants = Product & {
-  variants: (ProductVariant & {
-    images?: { url: string; hover?: boolean; sort?: number }[]
-  })[]
+type NewArrivalsVariant = ProductVariant & {
+  images: { url: string; hover: boolean; sort: number }[]
+  product: Pick<
+    Product,
+    | 'id'
+    | 'slug'
+    | 'name'
+    | 'nameEn'
+    | 'type'
+    | 'basePriceUAH'
+    | 'basePriceUSD'
+    | 'offerNote'
+    | 'offerNoteEn'
+  >
 }
 
-const BASE_URL = process.env.NEXT_PUBLIC_SITE_URL ?? 'https://gerdan.online'
 const NEW_ARRIVALS_VISIBLE_COUNT = 12
-const NEW_ARRIVALS_SOURCE_RANGE = 60
 
-async function getNewArrivals(): Promise<ProductWithVariants[]> {
-  const res = await fetch(
-    `${BASE_URL}/api/products?lite=1&newArrivals=1&limit=${NEW_ARRIVALS_SOURCE_RANGE}`,
-    {
-      cache: 'no-store',
+async function getNewArrivals(): Promise<NewArrivalsVariant[]> {
+  return prisma.productVariant.findMany({
+    where: {
+      showInNewArrivals: true,
+      product: {
+        status: 'PUBLISHED',
+      },
     },
-  )
-  if (!res.ok) return []
-  const json = (await res.json()) as
-    | ProductWithVariants[]
-    | { items?: ProductWithVariants[] }
-  const items = Array.isArray(json) ? json : (json.items ?? [])
-
-  return items
-    .filter((item) => {
-      const isAccessoryType =
-        item.type === 'ACCESSORY' || item.type === 'ORNAMENTS'
-
-      if (!isAccessoryType) return true
-
-      return !matchAccessorySubcategory(item, 'breloky')
-    })
-    .slice(0, NEW_ARRIVALS_VISIBLE_COUNT)
+    orderBy: [{ sortNewArrivals: 'asc' }, { product: { createdAt: 'desc' } }],
+    take: NEW_ARRIVALS_VISIBLE_COUNT,
+    include: {
+      images: {
+        orderBy: { sort: 'asc' },
+        select: { url: true, hover: true, sort: true },
+      },
+      product: {
+        select: {
+          id: true,
+          slug: true,
+          name: true,
+          nameEn: true,
+          type: true,
+          basePriceUAH: true,
+          basePriceUSD: true,
+          offerNote: true,
+          offerNoteEn: true,
+        },
+      },
+    },
+  })
 }
 
 export default async function NewArrivals() {
   const locale = await getRequestLocale()
   const numberLocale = locale === 'en' ? 'en-US' : 'uk-UA'
-  const products = await getNewArrivals()
+  const variants = await getNewArrivals()
 
   const placeholder = '/img/placeholder.png'
 
@@ -60,36 +75,24 @@ export default async function NewArrivals() {
 
         <div className="relative flex flex-col gap-2">
           <div className="flex items-stretch gap-5 overflow-x-auto scrollbar-always snap-x pb-2">
-            {products.length === 0 ? (
+            {variants.length === 0 ? (
               <div className="text-gray-500 text-sm">
                 {locale === 'en' ? 'No products yet.' : 'Поки що немає товарів.'}
               </div>
             ) : (
-              products.map((p) => {
+              variants.map((variant) => {
+                const p = variant.product
                 const productName = pickLocalizedText(
                   p.name,
                   (p as any).nameEn,
                   locale,
                 )
-                const firstVariant =
-                  p.variants
-                    .filter(
-                      (v) =>
-                        typeof v.sortBestsellers === 'number' &&
-                        v.sortBestsellers > 0,
-                    )
-                    .sort(
-                      (a, b) =>
-                        (a.sortBestsellers ?? 9999) -
-                        (b.sortBestsellers ?? 9999),
-                    )[0] || p.variants[0]
-
-                const variantImages = (firstVariant?.images || [])
+                const variantImages = (variant.images || [])
                   .slice()
-                  .sort((a, b) => (a.sort ?? 0) - (b.sort ?? 0))
+                  .sort((a, b) => (a.sort || 0) - (b.sort || 0))
 
                 const primaryImage =
-                  variantImages[0]?.url || firstVariant?.image || placeholder
+                  variantImages[0]?.url || variant.image || placeholder
 
                 const hoverImage =
                   variantImages.find((img) => img.hover)?.url ||
@@ -105,23 +108,23 @@ export default async function NewArrivals() {
                 } = calcLocalizedDiscountedPrice({
                   locale,
                   priceUAH:
-                    (typeof firstVariant?.priceUAH === 'number'
-                      ? firstVariant.priceUAH
+                    (typeof variant.priceUAH === 'number'
+                      ? variant.priceUAH
                       : null) ??
                     (typeof p.basePriceUAH === 'number'
                       ? p.basePriceUAH
                       : null) ??
                     0,
                   priceUSD:
-                    (typeof (firstVariant as any)?.priceUSD === 'number'
-                      ? (firstVariant as any).priceUSD
+                    (typeof (variant as any)?.priceUSD === 'number'
+                      ? (variant as any).priceUSD
                       : null) ??
                     (typeof (p as any).basePriceUSD === 'number'
                       ? (p as any).basePriceUSD
                       : null) ??
                     null,
-                  discountPercent: firstVariant?.discountPercent,
-                  discountUAH: firstVariant?.discountUAH ?? 0,
+                  discountPercent: variant.discountPercent,
+                  discountUAH: variant.discountUAH ?? 0,
                 })
                 const finalPriceLabel = formatLocalizedMoney(
                   finalPrice,
@@ -134,13 +137,11 @@ export default async function NewArrivals() {
                   numberLocale,
                 )
 
-                const productHref = firstVariant?.id
-                  ? `/products/${p.slug}#variant=${firstVariant.id}`
-                  : `/products/${p.slug}`
+                const productHref = `/products/${p.slug}#variant=${variant.id}`
 
                 return (
                   <div
-                    key={p.id}
+                    key={variant.id}
                     className="w-[260px] shrink-0 snap-start 2xl:w-[560px] 2xl:min-h-[680px]"
                   >
                     <Link

@@ -12,8 +12,8 @@ import {
   ChevronDown,
   FileText,
   Home,
-  ImageIcon,
   Package,
+  Settings2,
   ShoppingCart,
   UserRound,
   Wallet,
@@ -71,9 +71,9 @@ const NAV_ITEMS: AdminNavItem[] = [
   { kind: 'link', href: '/admin/finance', label: 'Фінанси', icon: BarChart3 },
   {
     kind: 'link',
-    href: '/admin/home-hero',
-    label: 'Головний банер',
-    icon: ImageIcon,
+    href: '/admin/configuration',
+    label: 'Конфігурація',
+    icon: Settings2,
   },
   { kind: 'link', href: '/admin/blog', label: 'Блог', icon: FileText },
 ]

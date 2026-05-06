@@ -64,7 +64,6 @@ const ProductCreateSchema = z.object({
   // allow missing or null (DB can store null)
   group: z.enum(ProductGroup).nullable().optional(),
   sortCatalog: z.coerce.number().int().optional().nullable(),
-  showInNewArrivals: z.coerce.boolean().optional().default(true),
 
   basePriceUAH: NullablePriceSchema.optional(),
   basePriceUSD: NullablePriceSchema.optional(),
@@ -132,7 +131,6 @@ export async function GET() {
         status: true,
         group: true,
         sortCatalog: true,
-        showInNewArrivals: true,
         inStock: true,
         basePriceUAH: true,
         basePriceUSD: true,
@@ -200,7 +198,6 @@ export async function POST(req: NextRequest) {
         status: data.status,
         group: data.group ?? null,
         sortCatalog: sanitizeSortCatalog(data.sortCatalog),
-        showInNewArrivals: data.showInNewArrivals,
         basePriceUAH: data.basePriceUAH ?? null,
         basePriceUSD: data.basePriceUSD ?? null,
         description: data.description ?? null,

@@ -317,7 +317,6 @@ export default async function AdminProductEditPage({ params }: PageProps) {
     status: product.status,
     group: product.group as ProductGroup,
     sortCatalog: String(product.sortCatalog ?? 0),
-    showInNewArrivals: product.showInNewArrivals,
     basePriceUAH: product.basePriceUAH?.toString() ?? '',
     basePriceUSD: (product as any).basePriceUSD?.toString() ?? '',
     description: product.description ?? '',

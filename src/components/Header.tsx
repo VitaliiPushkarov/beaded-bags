@@ -163,12 +163,12 @@ export default function Header() {
             >
               {t('КОНТАКТИ', 'CONTACTS')}
             </Link>
-            <Link
+            {/* <Link
               href="/sale"
               className="hidden lg:inline-block hover:opacity-70 text-[12px] font-medium tracking-wide"
             >
               {t('SALE', 'SALE')}
-            </Link>
+            </Link> */}
             <Link
               href="/blog"
               className="hidden lg:inline-block hover:opacity-70 text-[12px] font-medium tracking-wide"

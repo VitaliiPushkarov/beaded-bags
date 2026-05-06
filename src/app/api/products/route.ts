@@ -97,7 +97,6 @@ export async function GET(req: NextRequest) {
   if (lite) {
     const limit = clamp(Number(searchParams.get('limit') ?? 20) || 20, 1, 60)
     const discounted = searchParams.get('discounted') === '1'
-    const newArrivals = searchParams.get('newArrivals') === '1'
 
     const excludeSlug = searchParams.get('excludeSlug')?.trim()
     const excludeId = searchParams.get('excludeId')?.trim()
@@ -122,10 +121,6 @@ export async function GET(req: NextRequest) {
         ...(excludeId ? [{ id: excludeId }] : []),
         ...(excludeSlug ? [{ slug: excludeSlug }] : []),
       ]
-    }
-
-    if (newArrivals) {
-      where.showInNewArrivals = true
     }
 
     if (discounted) {

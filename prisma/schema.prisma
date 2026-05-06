@@ -27,7 +27,6 @@ model Product {
   group               ProductGroup?
   sortCatalog         Int                 @default(0)
   sortSlider          Int?
-  showInNewArrivals   Boolean             @default(true)
   isAddon             Boolean             @default(false)
   offerNote           String?
   offerNoteEn         String?
@@ -178,6 +177,8 @@ model ProductVariant {
   discountUAH           Int?                     @default(0)
   shippingNote          String?
   discountPercent       Int?                     @default(0)
+  showInNewArrivals     Boolean                  @default(false)
+  sortNewArrivals       Int                      @default(0)
   availabilityStatus    AvailabilityStatus       @default(IN_STOCK)
   product               Product                  @relation(fields: [productId], references: [id])
   usedAsAddonOnVariants ProductVariantAddon[]    @relation("AddonVariantOnBag")
@@ -191,6 +192,7 @@ model ProductVariant {
   artisanProductions    ArtisanProduction[]
 
   @@index([productId, color, modelSize, pouchColor])
+  @@index([showInNewArrivals, sortNewArrivals])
 }
 
 model ProductVariantInventory {
