@@ -32,7 +32,7 @@ export default async function HeroBlock() {
       />
 
       {/* Лого поверх фото */}
-      <div className="absolute bottom-1/2 md:bottom-16 left-1/2 -translate-x-1/2 md:left-auto md:translate-x-0  md:right-16 w-[180px] md:w-[260px] lg:w-[320px]">
+      {/* <div className="absolute bottom-1/2 md:bottom-16 left-1/2 -translate-x-1/2 md:left-auto md:translate-x-0  md:right-16 w-[180px] md:w-[260px] lg:w-[320px]">
         <Image
           src="/img/hero-logo-gerdan-w.png"
           alt="GERDAN Logo"
@@ -40,7 +40,7 @@ export default async function HeroBlock() {
           height={120}
           className="w-full h-auto object-contain"
         />
-      </div>
+      </div> */}
     </Link>
   )
 }
