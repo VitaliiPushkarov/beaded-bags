@@ -38,10 +38,10 @@ export default function CatalogMegaMenu({
   const t = useT()
 
   const DISCOVER_LINKS: Array<{ label: string; href: string }> = [
-    { label: t('Всі', 'All'), href: '/shop' },
+    { label: t('Всі товари', 'All products'), href: '/shop' },
     { label: t('Sale', 'Sale'), href: '/sale' },
-    { label: t('Бісер', 'Beads'), href: '/shop/group/beads' },
-    { label: t('Плетіння', 'Weaving'), href: '/shop/group/weaving' },
+    /* { label: t('Бісер', 'Beads'), href: '/shop/group/beads' },
+    { label: t('Плетіння', 'Weaving'), href: '/shop/group/weaving' }, */
   ]
 
   const CATEGORY_LINKS: MegaMenuLink[] = [

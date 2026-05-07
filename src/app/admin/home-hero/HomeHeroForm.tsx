@@ -16,9 +16,9 @@ export default function HomeHeroForm({ initial }: Props) {
   const [values, setValues] = useState<Values>(initial)
   const [savedValues, setSavedValues] = useState<Values>(initial)
   const [saving, setSaving] = useState(false)
-  const [uploadingTarget, setUploadingTarget] = useState<'desktop' | 'mobile' | null>(
-    null,
-  )
+  const [uploadingTarget, setUploadingTarget] = useState<
+    'desktop' | 'mobile' | null
+  >(null)
   const [success, setSuccess] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
 
@@ -148,17 +148,17 @@ export default function HomeHeroForm({ initial }: Props) {
   }
 
   return (
-    <form onSubmit={onSubmit} className="space-y-5 rounded-xl border border-slate-200 bg-white p-5">
+    <form
+      onSubmit={onSubmit}
+      className="space-y-5 rounded-xl border border-slate-200 bg-white p-5"
+    >
       <div>
         <h1 className="text-2xl font-semibold">HeroBlock на головній</h1>
-        <p className="mt-1 text-sm text-slate-600">
-          Швидке оновлення банера без змін у коді.
-        </p>
       </div>
 
       <div className="grid gap-5 lg:grid-cols-2">
-        <label className="block text-sm font-medium text-slate-800">
-          Desktop банер (URL)
+        <div className="block text-sm font-medium text-slate-800">
+          <span>Desktop банер (URL)</span>
           <input
             className="mt-2 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm"
             value={values.desktopImage}
@@ -168,10 +168,17 @@ export default function HomeHeroForm({ initial }: Props) {
             placeholder="/img/hero-block-01.jpg або https://..."
             required
           />
+          <label
+            htmlFor="home-hero-desktop-upload"
+            className="mt-2 w-full sm:w-auto shrink-0 inline-flex items-center justify-center px-3 py-2 rounded-lg border text-sm font-medium hover:bg-gray-50 bg-blue-700 text-white hover:text-black cursor-pointer"
+          >
+            Вибрати файл
+          </label>
           <input
+            id="home-hero-desktop-upload"
             type="file"
             accept="image/*"
-            className="mt-2 block w-full text-sm"
+            className="sr-only"
             onChange={(e) => onPickFile(e, 'desktop')}
           />
           {uploadingTarget === 'desktop' ? (
@@ -179,10 +186,10 @@ export default function HomeHeroForm({ initial }: Props) {
               Завантажую...
             </span>
           ) : null}
-        </label>
+        </div>
 
-        <label className="block text-sm font-medium text-slate-800">
-          Mobile банер (URL)
+        <div className="block text-sm font-medium text-slate-800">
+          <span>Mobile банер (URL)</span>
           <input
             className="mt-2 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm"
             value={values.mobileImage}
@@ -192,10 +199,17 @@ export default function HomeHeroForm({ initial }: Props) {
             placeholder="/img/hero-block-m.jpg або https://..."
             required
           />
+          <label
+            htmlFor="home-hero-mobile-upload"
+            className="mt-2 w-full sm:w-auto shrink-0 inline-flex items-center justify-center px-3 py-2 rounded-lg border text-sm font-medium hover:bg-gray-50 bg-blue-700 text-white hover:text-black cursor-pointer"
+          >
+            Вибрати файл
+          </label>
           <input
+            id="home-hero-mobile-upload"
             type="file"
             accept="image/*"
-            className="mt-2 block w-full text-sm"
+            className="sr-only"
             onChange={(e) => onPickFile(e, 'mobile')}
           />
           {uploadingTarget === 'mobile' ? (
@@ -203,7 +217,7 @@ export default function HomeHeroForm({ initial }: Props) {
               Завантажую...
             </span>
           ) : null}
-        </label>
+        </div>
       </div>
 
       <div className="grid gap-5 lg:grid-cols-3">
@@ -289,7 +303,7 @@ export default function HomeHeroForm({ initial }: Props) {
         <button
           type="submit"
           disabled={saving || uploadingTarget !== null}
-          className="rounded-md bg-slate-900 px-4 py-2 text-sm font-medium text-white disabled:cursor-not-allowed disabled:opacity-60"
+          className="cursor-pointer rounded-md border-black border-1 bg-slate-900 px-4 py-2 text-sm font-medium text-white disabled:cursor-not-allowed disabled:opacity-60 hover:bg-white hover:text-black"
         >
           {saving ? 'Зберігаю...' : 'Зберегти'}
         </button>

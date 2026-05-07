@@ -284,24 +284,24 @@ export default function Header() {
                 </Link>
               </li>
 
-              <li className="border-b py-4 border-gray-300">
+              {/*  <li className="border-b py-4 border-gray-300">
                 <Link href="/shop/group/beads" onClick={closeMobileMenu}>
                   {t('Бісер', 'Beads')}
                 </Link>
-              </li>
-              <li className="border-b py-4 border-gray-300">
+              </li> */}
+              {/*  <li className="border-b py-4 border-gray-300">
                 <Link
                   href="/shop/accessories/breloky"
                   onClick={closeMobileMenu}
                 >
                   {t('Брелоки', 'Keychains')}
                 </Link>
-              </li>
-              <li className="border-b py-4 border-gray-300">
+              </li> */}
+              {/*  <li className="border-b py-4 border-gray-300">
                 <Link href="/shop/group/weaving" onClick={closeMobileMenu}>
                   {t('Плетіння', 'Weaving')}
                 </Link>
-              </li>
+              </li> */}
               <li className="border-b py-4 border-gray-300">
                 <Link href="/shop/accessories" onClick={closeMobileMenu}>
                   {t('Аксесуари', 'Accessories')}

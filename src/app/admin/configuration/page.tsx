@@ -23,7 +23,9 @@ function sanitizeSortPosition(input: unknown): number {
   return Math.max(0, Math.round(raw))
 }
 
-export default async function AdminConfigurationPage({ searchParams }: PageProps) {
+export default async function AdminConfigurationPage({
+  searchParams,
+}: PageProps) {
   const params = await searchParams
   const query = (params.q || '').trim()
   const selectedOnly = params.selected === '1'
@@ -162,14 +164,15 @@ export default async function AdminConfigurationPage({ searchParams }: PageProps
     <div className="space-y-4">
       <div>
         <h1 className="text-2xl font-semibold">Конфігурація</h1>
-        <p className="text-sm text-slate-600">
-          Керуйте головним банером і блоком «Новинки» на головній сторінці.
-        </p>
       </div>
 
       <HomeHeroForm initial={heroInitial} />
 
-      <form action="/admin/configuration" method="get" className="rounded-lg border border-slate-200 bg-white p-4">
+      <form
+        action="/admin/configuration"
+        method="get"
+        className="rounded-lg border border-slate-200 bg-white p-4"
+      >
         <div className="grid gap-3 md:grid-cols-[1fr_auto_auto] md:items-end">
           <label className="block text-sm font-medium text-slate-800">
             Пошук по товару / варіанту / SKU
@@ -211,8 +214,10 @@ export default async function AdminConfigurationPage({ searchParams }: PageProps
         <input type="hidden" name="returnTo" value={buildConfigurationHref()} />
 
         <div className="rounded-lg border border-slate-200 bg-white p-4 text-sm text-slate-600">
-          Поточно вибрано: <span className="font-semibold text-slate-900">{selectedCount}</span>
-          {' '}варіант(ів). У вітрині показуються перші 12 позицій з найменшим значенням поля «Позиція».
+          Поточно вибрано:{' '}
+          <span className="font-semibold text-slate-900">{selectedCount}</span>{' '}
+          варіант(ів). У вітрині показуються перші 12 позицій з найменшим
+          значенням поля «Позиція».
         </div>
 
         <div className="overflow-x-auto rounded-lg border border-slate-200 bg-white">
@@ -230,22 +235,37 @@ export default async function AdminConfigurationPage({ searchParams }: PageProps
             <tbody>
               {variants.length === 0 ? (
                 <tr>
-                  <td colSpan={6} className="px-4 py-6 text-center text-sm text-slate-500">
+                  <td
+                    colSpan={6}
+                    className="px-4 py-6 text-center text-sm text-slate-500"
+                  >
                     Нічого не знайдено за поточними фільтрами.
                   </td>
                 </tr>
               ) : (
                 variants.map((variant) => {
-                  const imageUrl = variant.images[0]?.url || variant.image || '/img/placeholder.png'
+                  const imageUrl =
+                    variant.images[0]?.url ||
+                    variant.image ||
+                    '/img/placeholder.png'
                   const variantLabel =
                     variant.color?.trim() ||
                     variant.colorEn?.trim() ||
-                    (variant.sku?.trim() ? `SKU: ${variant.sku.trim()}` : `ID: ${variant.id.slice(-8)}`)
+                    (variant.sku?.trim()
+                      ? `SKU: ${variant.sku.trim()}`
+                      : `ID: ${variant.id.slice(-8)}`)
 
                   return (
-                    <tr key={variant.id} className="border-t border-slate-200 align-top">
+                    <tr
+                      key={variant.id}
+                      className="border-t border-slate-200 align-top"
+                    >
                       <td className="px-4 py-3">
-                        <input type="hidden" name="variantIds" value={variant.id} />
+                        <input
+                          type="hidden"
+                          name="variantIds"
+                          value={variant.id}
+                        />
                         <input
                           type="checkbox"
                           name={`enabled_${variant.id}`}
@@ -264,11 +284,19 @@ export default async function AdminConfigurationPage({ searchParams }: PageProps
                         />
                       </td>
                       <td className="px-4 py-3">
-                        <div className="font-medium text-slate-900">{variant.product.name}</div>
-                        <div className="text-xs text-slate-500">{variant.product.slug}</div>
-                        <div className="mt-1 text-xs text-slate-600">{variantLabel}</div>
+                        <div className="font-medium text-slate-900">
+                          {variant.product.name}
+                        </div>
+                        <div className="text-xs text-slate-500">
+                          {variant.product.slug}
+                        </div>
+                        <div className="mt-1 text-xs text-slate-600">
+                          {variantLabel}
+                        </div>
                         {variant.sku?.trim() ? (
-                          <div className="mt-1 text-xs text-slate-500">SKU: {variant.sku.trim()}</div>
+                          <div className="mt-1 text-xs text-slate-500">
+                            SKU: {variant.sku.trim()}
+                          </div>
                         ) : null}
                       </td>
                       <td className="px-4 py-3">
@@ -292,7 +320,9 @@ export default async function AdminConfigurationPage({ searchParams }: PageProps
                         >
                           {variant.product.status}
                         </div>
-                        <div className="mt-2 text-slate-500">{variant.availabilityStatus}</div>
+                        <div className="mt-2 text-slate-500">
+                          {variant.availabilityStatus}
+                        </div>
                       </td>
                       <td className="px-4 py-3">
                         <Link
