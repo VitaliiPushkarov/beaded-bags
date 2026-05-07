@@ -3,6 +3,7 @@ import { Suspense } from 'react'
 import Breadcrumbs from '@/components/ui/BreadCrumbs'
 import type { Metadata } from 'next'
 import { getRequestLocale } from '@/lib/server-locale'
+import { getLocaleAlternates } from '@/lib/site-url'
 
 export async function generateMetadata(): Promise<Metadata> {
   const locale = await getRequestLocale()
@@ -12,9 +13,7 @@ export async function generateMetadata(): Promise<Metadata> {
       locale === 'en'
         ? 'GERDAN contacts: business hours, phone, email and address.'
         : 'Контакти GERDAN: графік роботи, телефон, email та адреса магазину.',
-    alternates: {
-      canonical: '/contacts',
-    },
+    alternates: getLocaleAlternates('/contacts'),
   }
 }
 

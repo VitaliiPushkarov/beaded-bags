@@ -5,6 +5,7 @@ import type { Metadata } from 'next'
 import CategorySection from '@/components/CategorySection'
 import { getRequestLocale } from '@/lib/server-locale'
 import SpecialOffers from '@/components/SpecialOffers'
+import { getLocaleAlternates, getSiteUrl } from '@/lib/site-url'
 
 const HeroImages = dynamic(() => import('@/components/HeroImages'), {
   loading: () => <section className="h-[520px] md:h-[620px]" />,
@@ -17,8 +18,6 @@ const ProductsSlider = dynamic(() => import('./products/ProductsSlider'), {
 const InstagramSlider = dynamic(() => import('@/components/InstagramSlider'), {
   loading: () => <section className="h-[380px] md:h-[460px]" />,
 })
-
-const SITE_URL = 'https://gerdan.online'
 
 export async function generateMetadata(): Promise<Metadata> {
   const locale = await getRequestLocale()
@@ -49,21 +48,20 @@ export async function generateMetadata(): Promise<Metadata> {
             'брелоки',
             'аксесуари',
           ],
-    alternates: {
-      canonical: '/',
-    },
+    alternates: getLocaleAlternates('/'),
   }
 }
 
 export default async function Home() {
   const locale = await getRequestLocale()
+  const siteUrl = getSiteUrl(locale)
   const isEn = locale === 'en'
   const organizationJsonLd = {
     '@context': 'https://schema.org',
     '@type': 'Organization',
     name: 'GERDAN',
-    url: SITE_URL,
-    logo: `${SITE_URL}/gerdan.svg`,
+    url: siteUrl,
+    logo: `${siteUrl}/gerdan.svg`,
     sameAs: ['https://www.instagram.com/gerdan.studio/'],
     contactPoint: [
       {
@@ -82,7 +80,7 @@ export default async function Home() {
     name: isEn
       ? 'GERDAN - handmade bags and accessories'
       : 'GERDAN — сумки ручної роботи та аксесуари',
-    url: SITE_URL,
+    url: siteUrl,
     description: isEn
       ? 'Handmade bags, beaded bags, woven bags, cases and accessories by GERDAN.'
       : 'Сумки ручної роботи, сумки з бісеру, плетені сумки, чохли та аксесуари українського бренду GERDAN.',
@@ -90,7 +88,7 @@ export default async function Home() {
     isPartOf: {
       '@type': 'WebSite',
       name: 'GERDAN',
-      url: SITE_URL,
+      url: siteUrl,
     },
   }
 

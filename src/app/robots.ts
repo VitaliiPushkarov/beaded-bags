@@ -1,12 +1,9 @@
 import type { MetadataRoute } from 'next'
-
-function normalizeBaseUrl(url?: string): string {
-  if (!url) return 'https://gerdan.online'
-  return url.replace(/\/+$/, '')
-}
+import { getSiteUrl } from '@/lib/site-url'
 
 export default function robots(): MetadataRoute.Robots {
-  const siteUrl = normalizeBaseUrl(process.env.NEXT_PUBLIC_SITE_URL)
+  const ukSiteUrl = getSiteUrl('uk')
+  const enSiteUrl = getSiteUrl('en')
 
   return {
     rules: [
@@ -26,7 +23,13 @@ export default function robots(): MetadataRoute.Robots {
         ],
       },
     ],
-    host: siteUrl,
-    sitemap: [`${siteUrl}/sitemap.xml`, `${siteUrl}/sitemap-products.xml`],
+    sitemap: [
+      `${ukSiteUrl}/sitemap_index.xml`,
+      `${ukSiteUrl}/sitemap.xml`,
+      `${ukSiteUrl}/sitemap-products.xml`,
+      `${enSiteUrl}/sitemap_index.xml`,
+      `${enSiteUrl}/sitemap.xml`,
+      `${enSiteUrl}/sitemap-products.xml`,
+    ],
   }
 }

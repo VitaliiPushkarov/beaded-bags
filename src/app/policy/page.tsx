@@ -1,14 +1,13 @@
 import { Suspense } from 'react'
 import Breadcrumbs from '@/components/ui/BreadCrumbs'
 import type { Metadata } from 'next'
+import { getLocaleAlternates } from '@/lib/site-url'
 
 export const metadata: Metadata = {
   title: 'Політика конфіденційності',
   description:
     'Політика конфіденційності інтернет-магазину GERDAN щодо збору та обробки персональних даних.',
-  alternates: {
-    canonical: '/policy',
-  },
+  alternates: getLocaleAlternates('/policy'),
 }
 
 export default function Policy() {

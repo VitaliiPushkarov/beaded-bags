@@ -13,6 +13,7 @@ import {
   type QueryParamValue,
 } from '@/lib/seo/faceted'
 import { getRequestLocale } from '@/lib/server-locale'
+import { getLocaleAlternates, getSiteUrl } from '@/lib/site-url'
 
 export const revalidate = 300
 
@@ -83,6 +84,7 @@ export async function generateMetadata({
   const locale = await getRequestLocale()
   const sp = await searchParams
   const shouldNoindex = hasFacetedQueryParams(sp)
+  const canonicalPath = canonicalForShopFilters(sp)
   return {
     title:
       locale === 'en'
@@ -92,9 +94,7 @@ export async function generateMetadata({
       locale === 'en'
         ? 'GERDAN catalog: handmade bags, beaded bags, woven bags, cases and accessories.'
         : 'Каталог GERDAN: сумки ручної роботи, сумки з бісеру, плетені сумки, чохли та аксесуари.',
-    alternates: {
-      canonical: canonicalForShopFilters(sp),
-    },
+    alternates: getLocaleAlternates(canonicalPath),
     robots: shouldNoindex
       ? {
           index: false,
@@ -110,6 +110,7 @@ export default async function ShopPage({
   searchParams: Promise<ShopSearchParams>
 }) {
   const locale = await getRequestLocale()
+  const siteUrl = getSiteUrl(locale)
   const sp = await searchParams
   const rawType = pickFirstQueryValue(sp.type)
   const rawGroup = pickFirstQueryValue(sp.group)
@@ -177,7 +178,7 @@ export default async function ShopPage({
     itemListElement: products.slice(0, 24).map((p, i) => ({
       '@type': 'ListItem',
       position: i + 1,
-      url: `https://gerdan.online/products/${p.slug}`,
+      url: `${siteUrl}/products/${p.slug}`,
     })),
   }
 

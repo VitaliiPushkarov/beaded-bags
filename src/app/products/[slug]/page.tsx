@@ -18,8 +18,7 @@ import {
 } from '@/lib/availability'
 import { getProductBySlug, getProductMetaBySlug } from '@/lib/db/products'
 import { getRequestLocale } from '@/lib/server-locale'
-
-const SITE_URL = 'https://gerdan.online'
+import { getLocaleAlternates, getSiteUrl } from '@/lib/site-url'
 
 function getTypeToRoute(locale: 'uk' | 'en') {
   return {
@@ -48,16 +47,17 @@ function getTypeToRoute(locale: 'uk' | 'en') {
   } satisfies Record<ProductType, { label: string; href: string }>
 }
 
-function toAbsoluteAssetUrl(url: string): string {
+function toAbsoluteAssetUrl(url: string, siteUrl: string): string {
   if (/^https?:\/\//i.test(url)) return url
-  if (url.startsWith('/')) return `${SITE_URL}${url}`
-  return `${SITE_URL}/${url}`
+  if (url.startsWith('/')) return `${siteUrl}${url}`
+  return `${siteUrl}/${url}`
 }
 
 export async function generateMetadata(props: {
   params: Promise<{ slug: string }>
 }): Promise<Metadata> {
   const locale = await getRequestLocale()
+  const siteUrl = getSiteUrl(locale)
   const { slug } = await props.params
 
   const product = await getProductMetaBySlug(slug)
@@ -80,21 +80,19 @@ export async function generateMetadata(props: {
       locale,
     ) ||
     (locale === 'en'
-      ? 'Handmade bag from the GERDAN collection.'
-      : 'Сумка ручної роботи з колекції GERDAN. Український бренд аксесуарів.')
+      ? 'Handmade product from the GERDAN collection.'
+      : 'Товар ручної роботи з колекції GERDAN. Український бренд аксесуарів.')
 
   return {
     title,
     description,
-    alternates: {
-      canonical: `/products/${product.slug}`,
-    },
+    alternates: getLocaleAlternates(`/products/${product.slug}`),
     openGraph: {
       title,
       description,
-      url: `${SITE_URL}/products/${product.slug}`,
+      url: `${siteUrl}/products/${product.slug}`,
       type: 'website',
-      images: [{ url: toAbsoluteAssetUrl(mainImage) }],
+      images: [{ url: toAbsoluteAssetUrl(mainImage, siteUrl) }],
     },
     other: {
       'og:type': 'product',
@@ -108,6 +106,7 @@ export default async function ProductPage({
   params: Promise<{ slug: string }>
 }) {
   const locale = await getRequestLocale()
+  const siteUrl = getSiteUrl(locale)
   const { slug } = await params
 
   const p = await getProductBySlug(slug)
@@ -169,9 +168,9 @@ export default async function ProductPage({
     .toISOString()
     .split('T')[0]
 
-  const productUrl = `${SITE_URL}/products/${product.slug}`
+  const productUrl = `${siteUrl}/products/${product.slug}`
   const imageUrls = (allImages.length ? allImages : [mainImage]).map((img) =>
-    toAbsoluteAssetUrl(img),
+    toAbsoluteAssetUrl(img, siteUrl),
   )
   const colors = Array.from(
     new Set(
@@ -262,7 +261,7 @@ export default async function ProductPage({
       seller: {
         '@type': 'Organization',
         name: 'GERDAN',
-        url: SITE_URL,
+        url: siteUrl,
       },
       shippingDetails,
       hasMerchantReturnPolicy: returnPolicy,

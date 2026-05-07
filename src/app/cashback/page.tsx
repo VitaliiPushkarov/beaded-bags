@@ -1,14 +1,13 @@
 import { Suspense } from 'react'
 import Breadcrumbs from '@/components/ui/BreadCrumbs'
 import type { Metadata } from 'next'
+import { getLocaleAlternates } from '@/lib/site-url'
 
 export const metadata: Metadata = {
   title: 'Обмін та повернення',
   description:
     'Умови обміну і повернення товарів GERDAN відповідно до законодавства України.',
-  alternates: {
-    canonical: '/cashback',
-  },
+  alternates: getLocaleAlternates('/cashback'),
 }
 
 export default function CashbackPage() {

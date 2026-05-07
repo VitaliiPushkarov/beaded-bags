@@ -1,14 +1,13 @@
 import { Suspense } from 'react'
 import Breadcrumbs from '@/components/ui/BreadCrumbs'
 import type { Metadata } from 'next'
+import { getLocaleAlternates } from '@/lib/site-url'
 
 export const metadata: Metadata = {
   title: 'Публічна оферта',
   description:
     'Договір публічної оферти про замовлення, продаж та доставку товарів GERDAN.',
-  alternates: {
-    canonical: '/oferta',
-  },
+  alternates: getLocaleAlternates('/oferta'),
 }
 
 export default function Oferta() {

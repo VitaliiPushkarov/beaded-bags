@@ -4,24 +4,32 @@ import { Suspense } from 'react'
 import Breadcrumbs from '@/components/ui/BreadCrumbs'
 import { getBlogPosts } from '@/lib/blog'
 import Image from 'next/image'
+import { getRequestLocale } from '@/lib/server-locale'
+import { getLocaleAlternates, getSiteUrl } from '@/lib/site-url'
 
 export const dynamic = 'force-dynamic'
 
-export const metadata: Metadata = {
-  title: 'Блог',
-  description:
-    'Блог GERDAN про стиль, тренди аксесуарів і поради щодо вибору сумок ручної роботи.',
-  alternates: {
-    canonical: '/blog',
-  },
-  openGraph: {
-    title: 'Блог GERDAN',
-    description:
-      'Стиль, ідеї подарунків і тренди сумок ручної роботи в блозі GERDAN.',
-    url: 'https://gerdan.online/blog',
-    type: 'website',
-    images: ['/icon1.png'],
-  },
+export async function generateMetadata(): Promise<Metadata> {
+  const locale = await getRequestLocale()
+  const siteUrl = getSiteUrl(locale)
+  const isEn = locale === 'en'
+
+  return {
+    title: isEn ? 'Blog' : 'Блог',
+    description: isEn
+      ? 'GERDAN blog about style, accessory trends and practical bag selection tips.'
+      : 'Блог GERDAN про стиль, тренди аксесуарів і поради щодо вибору сумок ручної роботи.',
+    alternates: getLocaleAlternates('/blog'),
+    openGraph: {
+      title: isEn ? 'GERDAN Blog' : 'Блог GERDAN',
+      description: isEn
+        ? 'Style, gift ideas and handmade bag trends in the GERDAN blog.'
+        : 'Стиль, ідеї подарунків і тренди сумок ручної роботи в блозі GERDAN.',
+      url: `${siteUrl}/blog`,
+      type: 'website',
+      images: ['/icon1.png'],
+    },
+  }
 }
 
 function formatDate(isoDate: string) {

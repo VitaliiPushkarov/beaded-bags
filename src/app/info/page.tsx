@@ -4,6 +4,7 @@ import Breadcrumbs from '@/components/ui/BreadCrumbs'
 import Link from 'next/link'
 import type { Metadata } from 'next'
 import { getRequestLocale } from '@/lib/server-locale'
+import { getLocaleAlternates } from '@/lib/site-url'
 
 export async function generateMetadata(): Promise<Metadata> {
   const locale = await getRequestLocale()
@@ -13,9 +14,7 @@ export async function generateMetadata(): Promise<Metadata> {
       locale === 'en'
         ? 'Payment, shipping in Ukraine and useful recommendations.'
         : 'Оплата, доставка по Україні та корисні рекомендації.',
-    alternates: {
-      canonical: '/info',
-    },
+    alternates: getLocaleAlternates('/info'),
   }
 }
 

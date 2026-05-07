@@ -15,6 +15,7 @@ import {
   type QueryParamValue,
 } from '@/lib/seo/faceted'
 import { getRequestLocale } from '@/lib/server-locale'
+import { getLocaleAlternates, getSiteUrl } from '@/lib/site-url'
 
 export const revalidate = 300
 
@@ -61,7 +62,11 @@ export function generateStaticParams() {
   return getAccessorySubcategorySlugs().map((subcategory) => ({ subcategory }))
 }
 
-function buildItemListJsonLd(productSlugs: string[], title: string) {
+function buildItemListJsonLd(
+  productSlugs: string[],
+  title: string,
+  siteUrl: string,
+) {
   return {
     '@context': 'https://schema.org',
     '@type': 'ItemList',
@@ -69,7 +74,7 @@ function buildItemListJsonLd(productSlugs: string[], title: string) {
     itemListElement: productSlugs.slice(0, 24).map((slug, index) => ({
       '@type': 'ListItem',
       position: index + 1,
-      url: `https://gerdan.online/products/${slug}`,
+      url: `${siteUrl}/products/${slug}`,
     })),
   }
 }
@@ -117,9 +122,7 @@ export async function generateMetadata({
       locale === 'en'
         ? `Browse ${accessorySubcategoryTitle(subcategory, config.label, locale)} by GERDAN.`
         : config.metaDescription,
-    alternates: {
-      canonical: `/shop/accessories/${subcategory}`,
-    },
+    alternates: getLocaleAlternates(`/shop/accessories/${subcategory}`),
     robots: shouldNoindex
       ? {
           index: false,
@@ -134,6 +137,7 @@ export default async function AccessorySubcategoryPage({
   searchParams,
 }: AccessorySubcategoryPageProps) {
   const locale = await getRequestLocale()
+  const siteUrl = getSiteUrl(locale)
   const { subcategory } = await params
   const sp = await searchParams
   const config = getAccessorySubcategoryConfig(subcategory)
@@ -155,6 +159,7 @@ export default async function AccessorySubcategoryPage({
   const itemListLd = buildItemListJsonLd(
     products.map((item) => item.slug),
     accessorySubcategoryTitle(subcategory, config.label, locale),
+    siteUrl,
   )
   const faqLd = buildFaqJsonLd(config.faqs)
   const siblingSubcategories = ACCESSORY_SUBCATEGORIES.filter(

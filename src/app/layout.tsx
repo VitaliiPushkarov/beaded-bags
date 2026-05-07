@@ -9,10 +9,10 @@ import type { Metadata } from 'next'
 import { LocaleProvider } from '@/lib/i18n'
 import { getRequestLocale } from '@/lib/server-locale'
 import type { Locale } from '@/lib/locale'
-
-const SITE_URL = 'https://gerdan.online'
+import { getSiteUrl, toAbsoluteUrl } from '@/lib/site-url'
 
 function metadataByLocale(locale: Locale): Metadata {
+  const siteUrl = getSiteUrl(locale)
   const isEn = locale === 'en'
   const title = isEn
     ? 'GERDAN - Handmade Beaded Bags, Shoppers and Accessories'
@@ -30,7 +30,7 @@ function metadataByLocale(locale: Locale): Metadata {
       template: '%s | GERDAN',
     },
     description,
-    metadataBase: new URL('https://gerdan.online'),
+    metadataBase: new URL(siteUrl),
     robots: {
       index: true,
       follow: true,
@@ -38,17 +38,17 @@ function metadataByLocale(locale: Locale): Metadata {
     openGraph: {
       title,
       description: ogDescription,
-      url: 'https://gerdan.online',
+      url: siteUrl,
       siteName: 'GERDAN',
       locale: isEn ? 'en_US' : 'uk_UA',
       type: 'website',
-      images: ['https://gerdan.online/icon1.png'],
+      images: [toAbsoluteUrl('/icon1.png', locale)],
     },
     twitter: {
       card: 'summary_large_image',
       title,
       description: ogDescription,
-      images: ['https://gerdan.online/icon1.png'],
+      images: [toAbsoluteUrl('/icon1.png', locale)],
     },
   }
 }
@@ -58,24 +58,24 @@ export async function generateMetadata(): Promise<Metadata> {
   return metadataByLocale(locale)
 }
 
-const WEBSITE_JSONLD = {
-  '@context': 'https://schema.org',
-  '@type': 'WebSite',
-  name: 'GERDAN',
-  url: SITE_URL,
-  potentialAction: {
-    '@type': 'SearchAction',
-    target: `${SITE_URL}/shop?q={search_term_string}`,
-    'query-input': 'required name=search_term_string',
-  },
-}
-
 export default async function RootLayout({
   children,
 }: {
   children: React.ReactNode
 }) {
   const locale = await getRequestLocale()
+  const siteUrl = getSiteUrl(locale)
+  const websiteJsonLd = {
+    '@context': 'https://schema.org',
+    '@type': 'WebSite',
+    name: 'GERDAN',
+    url: siteUrl,
+    potentialAction: {
+      '@type': 'SearchAction',
+      target: `${siteUrl}/shop?q={search_term_string}`,
+      'query-input': 'required name=search_term_string',
+    },
+  }
 
   return (
     <html lang={locale}>
@@ -85,7 +85,7 @@ export default async function RootLayout({
         <script
           type="application/ld+json"
           suppressHydrationWarning
-          dangerouslySetInnerHTML={{ __html: JSON.stringify(WEBSITE_JSONLD) }}
+          dangerouslySetInnerHTML={{ __html: JSON.stringify(websiteJsonLd) }}
         />
         {/* Google Tag Manager */}
         <Script id="gtm" strategy="afterInteractive">

@@ -15,6 +15,7 @@ import {
   type QueryParamValue,
 } from '@/lib/seo/faceted'
 import { getRequestLocale } from '@/lib/server-locale'
+import { getLocaleAlternates, getSiteUrl } from '@/lib/site-url'
 
 export const revalidate = 300
 
@@ -56,7 +57,11 @@ export function generateStaticParams() {
   return getMainShopCategorySlugs().map((category) => ({ category }))
 }
 
-function buildItemListJsonLd(productSlugs: string[], title: string) {
+function buildItemListJsonLd(
+  productSlugs: string[],
+  title: string,
+  siteUrl: string,
+) {
   return {
     '@context': 'https://schema.org',
     '@type': 'ItemList',
@@ -64,7 +69,7 @@ function buildItemListJsonLd(productSlugs: string[], title: string) {
     itemListElement: productSlugs.slice(0, 24).map((slug, index) => ({
       '@type': 'ListItem',
       position: index + 1,
-      url: `https://gerdan.online/products/${slug}`,
+      url: `${siteUrl}/products/${slug}`,
     })),
   }
 }
@@ -113,9 +118,7 @@ export async function generateMetadata({
         locale === 'en'
           ? `Browse ${categoryTitleByLocale(config.redirectTo, locale)} by GERDAN.`
           : target?.metaDescription ?? config.metaDescription,
-      alternates: {
-        canonical: targetPath,
-      },
+      alternates: getLocaleAlternates(targetPath),
       robots: {
         index: false,
         follow: true,
@@ -134,9 +137,7 @@ export async function generateMetadata({
       locale === 'en'
         ? `Browse ${categoryTitleByLocale(category, locale)} by GERDAN.`
         : config.metaDescription,
-    alternates: {
-      canonical: `/shop/${category.toLowerCase()}`,
-    },
+    alternates: getLocaleAlternates(`/shop/${category.toLowerCase()}`),
     robots: shouldNoindex
       ? {
           index: false,
@@ -151,6 +152,7 @@ export default async function ShopCategoryPage({
   searchParams,
 }: ShopCategoryPageProps) {
   const locale = await getRequestLocale()
+  const siteUrl = getSiteUrl(locale)
   const { category } = await params
   const sp = await searchParams
   const config = getShopCategoryConfig(category)
@@ -195,6 +197,7 @@ export default async function ShopCategoryPage({
   const itemListLd = buildItemListJsonLd(
     products.map((item) => item.slug),
     config.title,
+    siteUrl,
   )
   const faqLd = buildFaqJsonLd(config.faqs)
   const showAccessoriesSubcategories = category === 'accessories'

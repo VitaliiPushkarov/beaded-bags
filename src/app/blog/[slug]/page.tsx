@@ -4,6 +4,8 @@ import { Suspense } from 'react'
 import Breadcrumbs from '@/components/ui/BreadCrumbs'
 import { getBlogPostBySlug } from '@/lib/blog'
 import Image from 'next/image'
+import { getRequestLocale } from '@/lib/server-locale'
+import { getLocaleAlternates, getSiteUrl, toAbsoluteUrl } from '@/lib/site-url'
 
 export const dynamic = 'force-dynamic'
 
@@ -22,12 +24,14 @@ function formatDate(isoDate: string) {
 export async function generateMetadata({
   params,
 }: BlogPostPageProps): Promise<Metadata> {
+  const locale = await getRequestLocale()
   const { slug } = await params
   const post = await getBlogPostBySlug(slug)
+  const siteUrl = getSiteUrl(locale)
 
   if (!post) {
     return {
-      title: 'Статтю не знайдено',
+      title: locale === 'en' ? 'Article not found' : 'Статтю не знайдено',
       robots: {
         index: false,
         follow: false,
@@ -35,18 +39,14 @@ export async function generateMetadata({
     }
   }
 
-  const canonicalUrl = `https://gerdan.online/blog/${post.slug}`
-  const ogImageUrl = post.coverImage.startsWith('http')
-    ? post.coverImage
-    : `https://gerdan.online${post.coverImage}`
+  const canonicalUrl = `${siteUrl}/blog/${post.slug}`
+  const ogImageUrl = toAbsoluteUrl(post.coverImage, locale)
 
   return {
     title: post.title,
     description: post.description,
     keywords: post.keywords,
-    alternates: {
-      canonical: `/blog/${post.slug}`,
-    },
+    alternates: getLocaleAlternates(`/blog/${post.slug}`),
     openGraph: {
       title: post.title,
       description: post.description,
@@ -60,14 +60,14 @@ export async function generateMetadata({
 }
 
 export default async function BlogPostPage({ params }: BlogPostPageProps) {
+  const locale = await getRequestLocale()
   const { slug } = await params
   const post = await getBlogPostBySlug(slug)
+  const siteUrl = getSiteUrl(locale)
 
   if (!post) notFound()
 
-  const articleImage = post.coverImage.startsWith('http')
-    ? post.coverImage
-    : `https://gerdan.online${post.coverImage}`
+  const articleImage = toAbsoluteUrl(post.coverImage, locale)
 
   const articleJsonLd = {
     '@context': 'https://schema.org',
@@ -77,7 +77,7 @@ export default async function BlogPostPage({ params }: BlogPostPageProps) {
     datePublished: post.publishedAt,
     dateModified: post.updatedAt,
     image: [articleImage],
-    mainEntityOfPage: `https://gerdan.online/blog/${post.slug}`,
+    mainEntityOfPage: `${siteUrl}/blog/${post.slug}`,
     author: {
       '@type': 'Organization',
       name: 'GERDAN',
@@ -87,7 +87,7 @@ export default async function BlogPostPage({ params }: BlogPostPageProps) {
       name: 'GERDAN',
       logo: {
         '@type': 'ImageObject',
-        url: 'https://gerdan.online/gerdan.svg',
+        url: `${siteUrl}/gerdan.svg`,
       },
     },
   }

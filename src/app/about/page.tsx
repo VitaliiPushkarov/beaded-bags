@@ -2,6 +2,7 @@ import Image from 'next/image'
 import type { Metadata } from 'next'
 import { Skeleton } from '@/components/ui/Skeleton'
 import { getRequestLocale } from '@/lib/server-locale'
+import { getLocaleAlternates } from '@/lib/site-url'
 
 export async function generateMetadata(): Promise<Metadata> {
   const locale = await getRequestLocale()
@@ -11,9 +12,7 @@ export async function generateMetadata(): Promise<Metadata> {
       locale === 'en'
         ? 'GERDAN is a Ukrainian accessories brand that preserves craft spirit in contemporary forms.'
         : 'GERDAN — бренд українських аксесуарів, що зберігає дух ремесла у формі сьогодення.',
-    alternates: {
-      canonical: '/about',
-    },
+    alternates: getLocaleAlternates('/about'),
   }
 }
 
