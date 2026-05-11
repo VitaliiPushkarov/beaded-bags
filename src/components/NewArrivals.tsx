@@ -8,6 +8,10 @@ import {
 } from '@/lib/localized-product'
 import { getRequestLocale } from '@/lib/server-locale'
 import { prisma } from '@/lib/prisma'
+import {
+  isPrismaAvailabilityError,
+  withPrismaRetry,
+} from '@/lib/prisma-resilience'
 
 type NewArrivalsVariant = ProductVariant & {
   images: { url: string; hover: boolean; sort: number }[]
@@ -28,35 +32,47 @@ type NewArrivalsVariant = ProductVariant & {
 const NEW_ARRIVALS_VISIBLE_COUNT = 12
 
 async function getNewArrivals(): Promise<NewArrivalsVariant[]> {
-  return prisma.productVariant.findMany({
-    where: {
-      showInNewArrivals: true,
-      product: {
-        status: 'PUBLISHED',
-      },
-    },
-    orderBy: [{ sortNewArrivals: 'asc' }, { product: { createdAt: 'desc' } }],
-    take: NEW_ARRIVALS_VISIBLE_COUNT,
-    include: {
-      images: {
-        orderBy: { sort: 'asc' },
-        select: { url: true, hover: true, sort: true },
-      },
-      product: {
-        select: {
-          id: true,
-          slug: true,
-          name: true,
-          nameEn: true,
-          type: true,
-          basePriceUAH: true,
-          basePriceUSD: true,
-          offerNote: true,
-          offerNoteEn: true,
-        },
-      },
-    },
-  })
+  try {
+    return await withPrismaRetry(
+      () =>
+        prisma.productVariant.findMany({
+          where: {
+            showInNewArrivals: true,
+            product: {
+              status: 'PUBLISHED',
+            },
+          },
+          orderBy: [{ sortNewArrivals: 'asc' }, { product: { createdAt: 'desc' } }],
+          take: NEW_ARRIVALS_VISIBLE_COUNT,
+          include: {
+            images: {
+              orderBy: { sort: 'asc' },
+              select: { url: true, hover: true, sort: true },
+            },
+            product: {
+              select: {
+                id: true,
+                slug: true,
+                name: true,
+                nameEn: true,
+                type: true,
+                basePriceUAH: true,
+                basePriceUSD: true,
+                offerNote: true,
+                offerNoteEn: true,
+              },
+            },
+          },
+        }),
+      { scope: 'newArrivals.productVariant.findMany' },
+    )
+  } catch (error) {
+    if (isPrismaAvailabilityError(error)) {
+      console.error('[db] Failed to load new arrivals, using empty list.', error)
+      return []
+    }
+    throw error
+  }
 }
 
 export default async function NewArrivals() {

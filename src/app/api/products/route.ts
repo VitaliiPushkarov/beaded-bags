@@ -1,6 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import type { Prisma } from '@prisma/client'
+import {
+  isPrismaAvailabilityError,
+  withPrismaRetry,
+} from '@/lib/prisma-resilience'
 
 function clamp(value: number, min: number, max: number) {
   return Math.min(Math.max(value, min), max)
@@ -9,291 +13,319 @@ function clamp(value: number, min: number, max: number) {
 export async function GET(req: NextRequest) {
   const { searchParams } = new URL(req.url)
   const search = searchParams.get('search')?.trim()
+  const lite = searchParams.get('lite') === '1'
 
-  // Search mode for header dialog
-  if (search) {
-    const limit = clamp(Number(searchParams.get('limit') ?? 20) || 20, 1, 50)
+  try {
+    // Search mode for header dialog
+    if (search) {
+      const limit = clamp(Number(searchParams.get('limit') ?? 20) || 20, 1, 50)
 
-    const where: Prisma.ProductWhereInput = {
-      status: 'PUBLISHED',
-      OR: [
-        {
-          name: {
-            contains: search,
-            mode: 'insensitive',
-          },
-        },
-        {
-          nameEn: {
-            contains: search,
-            mode: 'insensitive',
-          },
-        },
-        {
-          slug: {
-            contains: search,
-            mode: 'insensitive',
-          },
-        },
-        {
-          variants: {
-            some: {
-              OR: [
-                {
-                  color: {
-                    contains: search,
-                    mode: 'insensitive',
-                  },
-                },
-                {
-                  colorEn: {
-                    contains: search,
-                    mode: 'insensitive',
-                  },
-                },
-              ],
+      const where: Prisma.ProductWhereInput = {
+        status: 'PUBLISHED',
+        OR: [
+          {
+            name: {
+              contains: search,
+              mode: 'insensitive',
             },
           },
-        },
-      ],
-    }
-
-    const [items, total] = await prisma.$transaction([
-      prisma.product.findMany({
-        where,
-        take: limit,
-        orderBy: [{ sortCatalog: 'asc' }, { createdAt: 'desc' }],
-        select: {
-          id: true,
-          slug: true,
-          name: true,
-          nameEn: true,
-          basePriceUAH: true,
-          basePriceUSD: true,
-          variants: {
-            take: 1,
-            orderBy: { sortCatalog: 'asc' },
-            select: {
-              image: true,
-              priceUAH: true,
-              priceUSD: true,
-              images: {
-                take: 1,
-                orderBy: { sort: 'asc' },
-                select: { url: true },
+          {
+            nameEn: {
+              contains: search,
+              mode: 'insensitive',
+            },
+          },
+          {
+            slug: {
+              contains: search,
+              mode: 'insensitive',
+            },
+          },
+          {
+            variants: {
+              some: {
+                OR: [
+                  {
+                    color: {
+                      contains: search,
+                      mode: 'insensitive',
+                    },
+                  },
+                  {
+                    colorEn: {
+                      contains: search,
+                      mode: 'insensitive',
+                    },
+                  },
+                ],
               },
             },
           },
-        },
-      }),
-      prisma.product.count({ where }),
-    ])
+        ],
+      }
 
-    return NextResponse.json({ items, total })
-  }
+      const [items, total] = await withPrismaRetry(
+        () =>
+          prisma.$transaction([
+            prisma.product.findMany({
+              where,
+              take: limit,
+              orderBy: [{ sortCatalog: 'asc' }, { createdAt: 'desc' }],
+              select: {
+                id: true,
+                slug: true,
+                name: true,
+                nameEn: true,
+                basePriceUAH: true,
+                basePriceUSD: true,
+                variants: {
+                  take: 1,
+                  orderBy: { sortCatalog: 'asc' },
+                  select: {
+                    image: true,
+                    priceUAH: true,
+                    priceUSD: true,
+                    images: {
+                      take: 1,
+                      orderBy: { sort: 'asc' },
+                      select: { url: true },
+                    },
+                  },
+                },
+              },
+            }),
+            prisma.product.count({ where }),
+          ]),
+        { scope: 'api.products.search.transaction' },
+      )
 
-  // Lightweight mode for recommendations / YouMayAlsoLike
-  const lite = searchParams.get('lite') === '1'
-  if (lite) {
-    const limit = clamp(Number(searchParams.get('limit') ?? 20) || 20, 1, 60)
-    const discounted = searchParams.get('discounted') === '1'
+      return NextResponse.json({ items, total })
+    }
 
-    const excludeSlug = searchParams.get('excludeSlug')?.trim()
-    const excludeId = searchParams.get('excludeId')?.trim()
-    const type = searchParams.get('type')?.trim() || undefined
-    const group = searchParams.get('group')?.trim() || undefined
+    // Lightweight mode for recommendations / YouMayAlsoLike
+    if (lite) {
+      const limit = clamp(Number(searchParams.get('limit') ?? 20) || 20, 1, 60)
+      const discounted = searchParams.get('discounted') === '1'
+
+      const excludeSlug = searchParams.get('excludeSlug')?.trim()
+      const excludeId = searchParams.get('excludeId')?.trim()
+      const type = searchParams.get('type')?.trim() || undefined
+      const group = searchParams.get('group')?.trim() || undefined
+
+      const where: Prisma.ProductWhereInput = {
+        status: 'PUBLISHED',
+      }
+
+      // Soft relevance: if type/group are provided, prefer matching either of them,
+      // but don't require both simultaneously.
+      if (type || group) {
+        where.OR = [
+          ...(type ? [{ type: type as any }] : []),
+          ...(group ? [{ group: group as any }] : []),
+        ]
+      }
+
+      if (excludeId || excludeSlug) {
+        where.NOT = [
+          ...(excludeId ? [{ id: excludeId }] : []),
+          ...(excludeSlug ? [{ slug: excludeSlug }] : []),
+        ]
+      }
+
+      if (discounted) {
+        where.variants = {
+          some: {
+            OR: [{ discountPercent: { gt: 0 } }, { discountUAH: { gt: 0 } }],
+          },
+        }
+      }
+
+      const discountedVariantWhere = discounted
+        ? {
+            OR: [{ discountPercent: { gt: 0 } }, { discountUAH: { gt: 0 } }],
+          }
+        : undefined
+
+      const items = await withPrismaRetry(
+        () =>
+          prisma.product.findMany({
+            where,
+            take: limit,
+            orderBy: [{ createdAt: 'desc' }],
+            select: {
+              id: true,
+              slug: true,
+              name: true,
+              nameEn: true,
+              type: true,
+              group: true,
+              basePriceUAH: true,
+              basePriceUSD: true,
+              offerNote: true,
+              offerNoteEn: true,
+              createdAt: true,
+              variants: {
+                where: discountedVariantWhere,
+                take: 6,
+                orderBy: { sortCatalog: 'asc' },
+                select: {
+                  id: true,
+                  color: true,
+                  colorEn: true,
+                  image: true,
+                  priceUAH: true,
+                  priceUSD: true,
+                  discountPercent: true,
+                  discountUAH: true,
+                  inStock: true,
+                  availabilityStatus: true,
+                  sortCatalog: true,
+                  images: {
+                    take: 1,
+                    orderBy: { sort: 'asc' },
+                    select: { url: true },
+                  },
+                },
+              },
+            },
+          }),
+        { scope: 'api.products.lite.findMany' },
+      )
+
+      return NextResponse.json({ items })
+    }
+    const limitParam = searchParams.get('limit')
+    const limit = limitParam ? Number(limitParam) : null
 
     const where: Prisma.ProductWhereInput = {
       status: 'PUBLISHED',
     }
+    let orderBy: Prisma.ProductOrderByWithRelationInput[] = []
 
-    // Soft relevance: if type/group are provided, prefer matching either of them,
-    // but don't require both simultaneously.
-    if (type || group) {
-      where.OR = [
-        ...(type ? [{ type: type as any }] : []),
-        ...(group ? [{ group: group as any }] : []),
-      ]
-    }
+    const isBestsellers = !!limit
 
-    if (excludeId || excludeSlug) {
-      where.NOT = [
-        ...(excludeId ? [{ id: excludeId }] : []),
-        ...(excludeSlug ? [{ slug: excludeSlug }] : []),
-      ]
-    }
-
-    if (discounted) {
+    if (isBestsellers) {
       where.variants = {
         some: {
-          OR: [{ discountPercent: { gt: 0 } }, { discountUAH: { gt: 0 } }],
+          sortBestsellers: { gt: 0 },
         },
       }
+
+      orderBy = [{ createdAt: 'desc' }]
+    } else {
+      where.sortSlider = { not: null, gt: 0 }
+      orderBy = [{ sortSlider: 'asc' }, { createdAt: 'desc' }]
     }
 
-    const discountedVariantWhere = discounted
-      ? {
-          OR: [{ discountPercent: { gt: 0 } }, { discountUAH: { gt: 0 } }],
-        }
-      : undefined
-
-    const items = await prisma.product.findMany({
-      where,
-      take: limit,
-      orderBy: [{ createdAt: 'desc' }],
-      select: {
-        id: true,
-        slug: true,
-        name: true,
-        nameEn: true,
-        type: true,
-        group: true,
-        basePriceUAH: true,
-        basePriceUSD: true,
-        offerNote: true,
-        offerNoteEn: true,
-        createdAt: true,
-        variants: {
-          where: discountedVariantWhere,
-          take: 6,
-          orderBy: { sortCatalog: 'asc' },
-          select: {
-            id: true,
-            color: true,
-            colorEn: true,
-            image: true,
-            priceUAH: true,
-            priceUSD: true,
-            discountPercent: true,
-            discountUAH: true,
-            inStock: true,
-            availabilityStatus: true,
-            sortCatalog: true,
-            images: {
-              take: 1,
-              orderBy: { sort: 'asc' },
-              select: { url: true },
-            },
-          },
-        },
-      },
-    })
-
-    return NextResponse.json({ items })
-  }
-  const limitParam = searchParams.get('limit')
-  const limit = limitParam ? Number(limitParam) : null
-
-  const where: Prisma.ProductWhereInput = {
-    status: 'PUBLISHED',
-  }
-  let orderBy: Prisma.ProductOrderByWithRelationInput[] = []
-
-  const isBestsellers = !!limit
-
-  if (isBestsellers) {
-    where.variants = {
-      some: {
-        sortBestsellers: { gt: 0 },
-      },
-    }
-
-    orderBy = [{ createdAt: 'desc' }]
-  } else {
-    where.sortSlider = { not: null, gt: 0 }
-    orderBy = [{ sortSlider: 'asc' }, { createdAt: 'desc' }]
-  }
-
-  const products = await prisma.product.findMany({
-    where,
-    include: {
-      variants: {
-        orderBy: { id: 'asc' },
-        include: {
-          images: true,
-          straps: {
-            orderBy: { sort: 'asc' },
-            include: {
-              images: {
-                orderBy: { sort: 'asc' },
-              },
-            },
-          },
-          pouches: {
-            orderBy: { sort: 'asc' },
-            include: {
-              images: {
-                orderBy: { sort: 'asc' },
-              },
-            },
-          },
-          sizes: {
-            orderBy: { sort: 'asc' },
-            include: {
-              images: {
-                orderBy: { sort: 'asc' },
-              },
-            },
-          },
-          addonsOnVariant: {
-            where: {
-              addonVariant: {
-                is: {
-                  inStock: true,
-                  availabilityStatus: 'IN_STOCK',
-                  product: {
-                    is: {
-                      status: 'PUBLISHED',
-                      inStock: true,
+    const products = await withPrismaRetry(
+      () =>
+        prisma.product.findMany({
+          where,
+          include: {
+            variants: {
+              orderBy: { id: 'asc' },
+              include: {
+                images: true,
+                straps: {
+                  orderBy: { sort: 'asc' },
+                  include: {
+                    images: {
+                      orderBy: { sort: 'asc' },
+                    },
+                  },
+                },
+                pouches: {
+                  orderBy: { sort: 'asc' },
+                  include: {
+                    images: {
+                      orderBy: { sort: 'asc' },
+                    },
+                  },
+                },
+                sizes: {
+                  orderBy: { sort: 'asc' },
+                  include: {
+                    images: {
+                      orderBy: { sort: 'asc' },
+                    },
+                  },
+                },
+                addonsOnVariant: {
+                  where: {
+                    addonVariant: {
+                      is: {
+                        inStock: true,
+                        availabilityStatus: 'IN_STOCK',
+                        product: {
+                          is: {
+                            status: 'PUBLISHED',
+                            inStock: true,
+                          },
+                        },
+                      },
+                    },
+                  },
+                  orderBy: { sort: 'asc' },
+                  include: {
+                    addonVariant: {
+                      include: {
+                        product: true,
+                        images: true,
+                      },
                     },
                   },
                 },
               },
             },
-            orderBy: { sort: 'asc' },
-            include: {
-              addonVariant: {
-                include: {
-                  product: true,
-                  images: true,
-                },
-              },
-            },
           },
-        },
-      },
-    },
-    orderBy,
-  })
+          orderBy,
+        }),
+      { scope: 'api.products.default.findMany' },
+    )
 
-  // Для бестселерів сортуємо продукти за мінімальним sortBestsellers серед їхніх варіантів
-  let result = products
+    // Для бестселерів сортуємо продукти за мінімальним sortBestsellers серед їхніх варіантів
+    let result = products
 
-  if (isBestsellers) {
-    result = [...products].sort((a: any, b: any) => {
-      const aMin =
-        a.variants?.reduce((min: number, v: any) => {
-          if (typeof v.sortBestsellers === 'number' && v.sortBestsellers > 0) {
-            return Math.min(min, v.sortBestsellers)
-          }
-          return min
-        }, Number.MAX_SAFE_INTEGER) ?? Number.MAX_SAFE_INTEGER
+    if (isBestsellers) {
+      result = [...products].sort((a: any, b: any) => {
+        const aMin =
+          a.variants?.reduce((min: number, v: any) => {
+            if (typeof v.sortBestsellers === 'number' && v.sortBestsellers > 0) {
+              return Math.min(min, v.sortBestsellers)
+            }
+            return min
+          }, Number.MAX_SAFE_INTEGER) ?? Number.MAX_SAFE_INTEGER
 
-      const bMin =
-        b.variants?.reduce((min: number, v: any) => {
-          if (typeof v.sortBestsellers === 'number' && v.sortBestsellers > 0) {
-            return Math.min(min, v.sortBestsellers)
-          }
-          return min
-        }, Number.MAX_SAFE_INTEGER) ?? Number.MAX_SAFE_INTEGER
+        const bMin =
+          b.variants?.reduce((min: number, v: any) => {
+            if (typeof v.sortBestsellers === 'number' && v.sortBestsellers > 0) {
+              return Math.min(min, v.sortBestsellers)
+            }
+            return min
+          }, Number.MAX_SAFE_INTEGER) ?? Number.MAX_SAFE_INTEGER
 
-      return aMin - bMin
-    })
+        return aMin - bMin
+      })
 
-    if (limit) {
-      result = result.slice(0, limit)
+      if (limit) {
+        result = result.slice(0, limit)
+      }
     }
-  }
 
-  return NextResponse.json(result)
+    return NextResponse.json(result)
+  } catch (error) {
+    if (isPrismaAvailabilityError(error)) {
+      console.error(
+        '[db] /api/products fallback due to Prisma availability issue.',
+        error,
+      )
+
+      if (search) return NextResponse.json({ items: [], total: 0 })
+      if (lite) return NextResponse.json({ items: [] })
+      return NextResponse.json([])
+    }
+
+    console.error('[api] Unexpected /api/products error.', error)
+    return NextResponse.json({ error: 'Internal Server Error' }, { status: 500 })
+  }
 }

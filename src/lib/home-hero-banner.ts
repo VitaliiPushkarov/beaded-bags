@@ -1,4 +1,8 @@
 import { prisma } from '@/lib/prisma'
+import {
+  isPrismaAvailabilityError,
+  withPrismaRetry,
+} from '@/lib/prisma-resilience'
 
 export type HomeHeroBannerSettingsDTO = {
   desktopImage: string
@@ -34,16 +38,31 @@ function mergeWithDefaults(
 }
 
 export async function getHomeHeroBannerSettings(): Promise<HomeHeroBannerSettingsDTO> {
-  const row = await prisma.homeHeroBannerSettings.findUnique({
-    where: { id: 1 },
-    select: {
-      desktopImage: true,
-      mobileImage: true,
-      linkHref: true,
-      desktopAlt: true,
-      mobileAlt: true,
-    },
-  })
+  try {
+    const row = await withPrismaRetry(
+      () =>
+        prisma.homeHeroBannerSettings.findUnique({
+          where: { id: 1 },
+          select: {
+            desktopImage: true,
+            mobileImage: true,
+            linkHref: true,
+            desktopAlt: true,
+            mobileAlt: true,
+          },
+        }),
+      { scope: 'homeHeroBannerSettings.findUnique' },
+    )
 
-  return mergeWithDefaults(row)
+    return mergeWithDefaults(row)
+  } catch (error) {
+    if (isPrismaAvailabilityError(error)) {
+      console.error(
+        '[db] Failed to load home hero banner settings from DB, using defaults.',
+        error,
+      )
+      return { ...HOME_HERO_BANNER_DEFAULTS }
+    }
+    throw error
+  }
 }
