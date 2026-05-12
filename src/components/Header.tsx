@@ -89,7 +89,7 @@ export default function Header() {
           transition: 'border-color 0.3s ease',
         }}
       >
-        <div className="px-4 sm:px-6 lg:px-[50px] py-3 flex items-center justify-between lg:gap-[130px] lg:h-[86px] relative">
+        <div className="px-4 sm:px-6 lg:px-6 xl:px-[50px] py-3 flex items-center justify-between lg:gap-6 xl:gap-[130px] lg:h-[86px] relative">
           {/* Mobile hamburger button */}
           <button
             aria-controls="mobile-menu"
@@ -139,27 +139,27 @@ export default function Header() {
               alt="website logo"
               width={214}
               height={20}
-              className="md:w-[214px] w-[140px]  object-contain"
+              className="w-[140px] lg:w-[170px] xl:w-[214px] object-contain"
             />
           </Link>
 
           {/* Right nav */}
-          <nav className="flex items-center md:gap-5 gap-1">
+          <nav className="flex items-center gap-1 lg:gap-3 xl:gap-5">
             <Link
               href="/info"
-              className="hidden lg:inline-block hover:opacity-70 text-[12px] font-medium tracking-wide"
+              className="hidden lg:inline-block hover:opacity-70 lg:text-[11px] xl:text-[12px] font-medium tracking-wide"
             >
               {t('ІНФО', 'INFO')}
             </Link>
             <Link
               href="/about"
-              className="hidden lg:inline-block hover:opacity-70 text-[12px] font-medium tracking-wide"
+              className="hidden xl:inline-block hover:opacity-70 text-[12px] font-medium tracking-wide"
             >
               {t('ПРО НАС', 'ABOUT')}
             </Link>
             <Link
               href="/contacts"
-              className="hidden lg:inline-block hover:opacity-70 text-[12px] font-medium tracking-wide"
+              className="hidden lg:inline-block hover:opacity-70 lg:text-[11px] xl:text-[12px] font-medium tracking-wide"
             >
               {t('КОНТАКТИ', 'CONTACTS')}
             </Link>
@@ -171,12 +171,12 @@ export default function Header() {
             </Link> */}
             <Link
               href="/blog"
-              className="hidden lg:inline-block hover:opacity-70 text-[12px] font-medium tracking-wide"
+              className="hidden xl:inline-block hover:opacity-70 text-[12px] font-medium tracking-wide"
             >
               {t('БЛОГ', 'BLOG')}
             </Link>
             <details className="relative hidden lg:block">
-              <summary className="list-none [&::-webkit-details-marker]:hidden flex items-center gap-1 cursor-pointer text-[12px] font-medium tracking-wide hover:opacity-70">
+              <summary className="list-none [&::-webkit-details-marker]:hidden flex items-center gap-1 cursor-pointer lg:text-[11px] xl:text-[12px] font-medium tracking-wide hover:opacity-70">
                 {localeOptions[0]?.label}
                 <span aria-hidden>▾</span>
               </summary>

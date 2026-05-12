@@ -4,8 +4,8 @@ import type { Metadata } from 'next'
 import Link from 'next/link'
 import { notFound } from 'next/navigation'
 import {
-  ACCESSORY_SUBCATEGORIES,
-  getAccessorySubcategoryConfig,
+  getLocalizedAccessorySubcategories,
+  getLocalizedAccessorySubcategoryConfig,
   getAccessorySubcategorySlugs,
   matchAccessorySubcategory,
 } from '@/lib/shop-taxonomy'
@@ -18,22 +18,6 @@ import { getRequestLocale } from '@/lib/server-locale'
 import { getLocaleAlternates, getSiteUrl } from '@/lib/site-url'
 
 export const revalidate = 300
-
-function accessorySubcategoryTitle(slug: string, fallback: string, locale: 'uk' | 'en') {
-  if (locale !== 'en') return fallback
-  const map: Record<string, string> = {
-    breloky: 'Keychains',
-    gerdany: 'Gerdans',
-    sylyanky: 'Sylyanky',
-    mitenky: 'Mittens',
-    shapky: 'Beanies',
-    sharfy: 'Scarves',
-    rezynky: 'Hair Ties',
-    chepchyky: 'Bonnets',
-    'navushnyky-viazani': 'Knitted Headphones',
-  }
-  return map[slug] || fallback
-}
 
 function isTruthyQueryParam(value?: string | null): boolean {
   return value === '1' || value === 'true'
@@ -105,7 +89,7 @@ export async function generateMetadata({
   const locale = await getRequestLocale()
   const { subcategory } = await params
   const sp = await searchParams
-  const config = getAccessorySubcategoryConfig(subcategory)
+  const config = getLocalizedAccessorySubcategoryConfig(subcategory, locale)
 
   if (!config) {
     notFound()
@@ -114,14 +98,8 @@ export async function generateMetadata({
   const shouldNoindex = hasFacetedQueryParams(sp)
 
   return {
-    title:
-      locale === 'en'
-        ? `${accessorySubcategoryTitle(subcategory, config.label, locale)} | GERDAN`
-        : config.metaTitle,
-    description:
-      locale === 'en'
-        ? `Browse ${accessorySubcategoryTitle(subcategory, config.label, locale)} by GERDAN.`
-        : config.metaDescription,
+    title: `${config.metaTitle} | GERDAN`,
+    description: config.metaDescription,
     alternates: getLocaleAlternates(`/shop/accessories/${subcategory}`),
     robots: shouldNoindex
       ? {
@@ -140,7 +118,7 @@ export default async function AccessorySubcategoryPage({
   const siteUrl = getSiteUrl(locale)
   const { subcategory } = await params
   const sp = await searchParams
-  const config = getAccessorySubcategoryConfig(subcategory)
+  const config = getLocalizedAccessorySubcategoryConfig(subcategory, locale)
 
   if (!config) {
     notFound()
@@ -158,11 +136,11 @@ export default async function AccessorySubcategoryPage({
 
   const itemListLd = buildItemListJsonLd(
     products.map((item) => item.slug),
-    accessorySubcategoryTitle(subcategory, config.label, locale),
+    config.label,
     siteUrl,
   )
   const faqLd = buildFaqJsonLd(config.faqs)
-  const siblingSubcategories = ACCESSORY_SUBCATEGORIES.filter(
+  const siblingSubcategories = getLocalizedAccessorySubcategories(locale).filter(
     (item) => item.slug !== subcategory,
   )
 
@@ -176,21 +154,21 @@ export default async function AccessorySubcategoryPage({
           onSale: isTruthyQueryParam(pickFirstQueryValue(sp.onSale)),
         }}
         hideTypeFilter
-        title={accessorySubcategoryTitle(subcategory, config.label, locale)}
+        title={config.label}
       />
 
       <section className="max-w-[1440px] mx-auto px-5 md:px-[50px] pb-12 md:pb-16 md:pt-16 mt-12 md:mt-22">
         <div className="  mb-6">
           <h2 className="text-xl md:text-2xl mb-3">
             {locale === 'en'
-              ? `${accessorySubcategoryTitle(subcategory, config.label, locale)} by GERDAN`
+              ? `${config.metaTitle} by GERDAN`
               : `${config.metaTitle} від GERDAN`}
           </h2>
-          <p className="text-gray-700 leading-relaxed">
+          {/*  <p className="text-gray-700 leading-relaxed">
             {locale === 'en'
               ? 'Detailed category description in English is being prepared.'
               : config.intro}
-          </p>
+          </p> */}
         </div>
 
         {/* <div className="border rounded-md p-5 md:p-7 mb-6">
@@ -221,7 +199,7 @@ export default async function AccessorySubcategoryPage({
             {locale === 'en' ? 'FAQ' : 'Поширені питання'}
           </h2>
           <div className="space-y-3">
-            {(locale === 'en' ? [] : config.faqs).map((item) => (
+            {config.faqs.map((item) => (
               <details key={item.question} className="border rounded-sm p-3">
                 <summary className="font-medium cursor-pointer">
                   {item.question}

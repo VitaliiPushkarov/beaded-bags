@@ -6,7 +6,7 @@ import Link from 'next/link'
 import type { Metadata } from 'next'
 import { permanentRedirect } from 'next/navigation'
 import { ACTIVE_PRODUCT_TYPES } from '@/lib/labels'
-import { ACCESSORY_SUBCATEGORIES } from '@/lib/shop-taxonomy'
+import { getLocalizedAccessorySubcategories } from '@/lib/shop-taxonomy'
 import {
   hasFacetedQueryParams,
   pickFirstQueryValue,
@@ -187,7 +187,9 @@ export default async function ShopPage({
       <Suspense fallback={<div className="max-w-6xl mx-auto px-4 py-8" />}>
         <ProductsContainer
           initialProducts={products}
-          accessorySubcategoryOptions={ACCESSORY_SUBCATEGORIES.map((item) => ({
+          accessorySubcategoryOptions={getLocalizedAccessorySubcategories(
+            locale,
+          ).map((item) => ({
             value: item.slug,
             label: item.label,
           }))}

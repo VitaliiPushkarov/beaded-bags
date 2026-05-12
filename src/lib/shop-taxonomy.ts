@@ -1,4 +1,5 @@
 import type { ProductType } from '@prisma/client'
+import type { Locale } from '@/lib/locale'
 
 type ProductGroup = '' | 'BEADS' | 'WEAVING'
 
@@ -514,6 +515,474 @@ export const ACCESSORY_SUBCATEGORIES: AccessorySubcategoryConfig[] = [
   },
 ]
 
+type LocalizedShopCategoryFields = Pick<
+  ShopCategoryConfig,
+  'title' | 'metaTitle' | 'metaDescription' | 'intro' | 'faqs'
+>
+
+type LocalizedAccessorySubcategoryFields = Pick<
+  AccessorySubcategoryConfig,
+  'label' | 'metaTitle' | 'metaDescription' | 'intro' | 'faqs'
+>
+
+const SHOP_CATEGORY_EN_CONTENT: Partial<
+  Record<string, LocalizedShopCategoryFields>
+> = {
+  sumky: {
+    title: 'Bags',
+    metaTitle: 'Handmade Bags',
+    metaDescription:
+      'GERDAN handmade bags: everyday essentials and statement pieces.',
+    intro:
+      'Bags in this category combine craftsmanship with modern styling for everyday and occasion looks.',
+    faqs: [
+      {
+        question: 'Which handmade bags work best for everyday use?',
+        answer:
+          'Medium-size bags in neutral colors are usually the most versatile for daily outfits.',
+      },
+      {
+        question: 'Can GERDAN bags fit minimalist outfits?',
+        answer:
+          'Yes, handmade bags can be a strong accent while the rest of the look stays clean and simple.',
+      },
+      {
+        question: 'How should I choose the right bag size?',
+        answer:
+          'Choose roomier formats for daily errands and compact formats for meetings or events.',
+      },
+      {
+        question: 'Are GERDAN bags a good gift choice?',
+        answer:
+          'Yes, handmade quality and distinctive design make them a personal and memorable gift.',
+      },
+    ],
+  },
+  bananky: {
+    title: 'Belt Bags',
+    metaTitle: 'Handmade Belt Bags',
+    metaDescription:
+      'GERDAN handmade belt bags: compact format for city life, travel, and active days.',
+    intro:
+      'Belt bags are a practical, lightweight accessory for everyday movement and quick city routes.',
+    faqs: [
+      {
+        question: 'When is a belt bag better than a classic bag?',
+        answer:
+          'It works best in dynamic scenarios where compactness and free hands matter most.',
+      },
+      {
+        question: 'How to style a belt bag in modern looks?',
+        answer:
+          'Most often worn crossbody or on the waist with a clean silhouette and minimal extra detail.',
+      },
+      {
+        question: 'Is a belt bag suitable for daily use?',
+        answer:
+          'Yes, it is a great option when you only need everyday essentials close at hand.',
+      },
+      {
+        question: 'What pairs best with GERDAN belt bags?',
+        answer:
+          'They pair easily with denim, trench coats, jackets, and neutral knitwear.',
+      },
+    ],
+  },
+  shopery: {
+    title: 'Shoppers',
+    metaTitle: 'Handmade Shoppers',
+    metaDescription:
+      'GERDAN handmade shoppers: roomy bags for everyday routines, office, and city errands.',
+    intro:
+      'Shoppers are roomy and practical bags designed for everyday tasks, work, and short trips.',
+    faqs: [
+      {
+        question: 'What is a shopper best used for?',
+        answer:
+          'A shopper is ideal for daily city life, work, study, and short day-to-day routes.',
+      },
+      {
+        question: 'How to choose a shopper for regular wear?',
+        answer:
+          'Focus on shape, size, and a versatile color that fits your core wardrobe.',
+      },
+      {
+        question: 'Can a shopper match a minimalist style?',
+        answer:
+          'Yes, especially clean silhouettes that add structure without visual overload.',
+      },
+      {
+        question: 'Why are handmade shoppers popular?',
+        answer:
+          'Their mix of capacity, individual design, and craft quality makes them a strong daily accessory.',
+      },
+    ],
+  },
+  chohly: {
+    title: 'Cases',
+    metaTitle: 'Handmade Cases',
+    metaDescription:
+      'GERDAN handmade cases: compact accessories for phones and essentials with a distinct look.',
+    intro:
+      'Cases help protect small personal items while adding a clear handmade accent to the overall look.',
+    faqs: [
+      {
+        question: 'How are handmade cases different from standard ones?',
+        answer:
+          'They offer stronger texture, a more individual look, and a stylistic role beyond basic function.',
+      },
+      {
+        question: 'Are GERDAN cases suitable as a gift?',
+        answer:
+          'Yes, they are compact and easy to personalize by color and style preferences.',
+      },
+      {
+        question: 'How to pair a case with a bag?',
+        answer:
+          'A contrast tone or a repeated key color from the bag works best for a cohesive look.',
+      },
+      {
+        question: 'Are cases practical for daily use?',
+        answer:
+          'Yes, with regular careful use they are convenient for daily routines and add a visible accent.',
+      },
+    ],
+  },
+  accessories: {
+    title: 'Accessories',
+    metaTitle: 'Handmade Accessories',
+    metaDescription:
+      'GERDAN handmade accessories: keychains, gerdans, sylyanky, mittens, scarves, beanies, and more.',
+    intro:
+      'Accessories in this category add personality and final balance to everyday and seasonal outfits.',
+    faqs: [
+      {
+        question: 'Which accessories are most popular for daily styling?',
+        answer:
+          'Keychains, gerdans, and compact accent pieces are the most common everyday picks.',
+      },
+      {
+        question: 'How to choose an accessory that matches most outfits?',
+        answer:
+          'Go for a neutral or already-present wardrobe color and a concise, versatile form.',
+      },
+      {
+        question: 'Can I combine multiple accessories at once?',
+        answer:
+          'Yes, but it is better to keep one leading accent and make the rest more restrained.',
+      },
+      {
+        question: 'Are GERDAN accessories good for gifting?',
+        answer:
+          'Yes, they are easy to personalize and create a strong visual and emotional effect.',
+      },
+    ],
+  },
+  prykrasy: {
+    title: 'Jewelry',
+    metaTitle: 'Handmade Accessories',
+    metaDescription:
+      'Jewelry has been moved to the Accessories category. Open that section to browse current items.',
+    intro: '',
+    faqs: [],
+  },
+}
+
+const ACCESSORY_SUBCATEGORY_EN_CONTENT: Partial<
+  Record<string, LocalizedAccessorySubcategoryFields>
+> = {
+  breloky: {
+    label: 'Keychains',
+    metaTitle: 'Handmade Keychains',
+    metaDescription:
+      'GERDAN handmade keychains for bags, keys, and small gift sets.',
+    intro:
+      'Keychains are a quick way to personalize a bag or build a compact gift set.',
+    faqs: [
+      {
+        question: 'How do I choose a keychain for my bag?',
+        answer:
+          'Use a contrast color or repeat a key bag shade to keep the look cohesive.',
+      },
+      {
+        question: 'Are keychains a good gift option?',
+        answer:
+          'Yes, they are versatile and easy to personalize by color and shape.',
+      },
+      {
+        question: 'Can I wear more than one keychain at once?',
+        answer:
+          'Yes, but keep one dominant accent and add the second in a calmer style.',
+      },
+      {
+        question: 'Where do keychains look most natural?',
+        answer:
+          'Most often on bag handles, backpacks, or as a decorative key detail.',
+      },
+    ],
+  },
+  gerdany: {
+    label: 'Gerdans',
+    metaTitle: 'Handmade Gerdans',
+    metaDescription:
+      'GERDAN handmade gerdans as an expressive accent for modern outfits.',
+    intro:
+      'Gerdans combine traditional craft techniques with modern styling for a clear focal point.',
+    faqs: [
+      {
+        question: 'What clothing works best with gerdans?',
+        answer:
+          'They pair well with plain tops, shirts, and minimalist silhouettes.',
+      },
+      {
+        question: 'Are gerdans suitable for daily wear?',
+        answer:
+          'Yes, especially in restrained colors and concise forms that fit basic wardrobes.',
+      },
+      {
+        question: 'Can I combine a gerdan with other jewelry?',
+        answer:
+          'Yes, but let the gerdan stay the main accent and keep other pieces minimal.',
+      },
+      {
+        question: 'Why are gerdans trending again?',
+        answer:
+          'The mix of handmade craft, local identity, and modern styling keeps them relevant.',
+      },
+    ],
+  },
+  sylyanky: {
+    label: 'Sylyanky',
+    metaTitle: 'Handmade Sylyanky',
+    metaDescription:
+      'GERDAN handmade sylyanky: a delicate accent for everyday and occasion looks.',
+    intro:
+      'Sylyanky are compact statement accessories that fit both minimalist and more decorative styling.',
+    faqs: [
+      {
+        question: 'How to wear sylyanky in a modern way?',
+        answer:
+          'Pair them with simple silhouettes and a plain top to keep the accent clear.',
+      },
+      {
+        question: 'Do sylyanky work in layered outfits?',
+        answer:
+          'Yes, they work well in layered looks when other jewelry remains minimal.',
+      },
+      {
+        question: 'Are sylyanky suitable for gifting?',
+        answer:
+          'Yes, they are a personal gift with strong craft aesthetics and symbolic value.',
+      },
+      {
+        question: 'Which sylyanky colors are the most universal?',
+        answer:
+          'High-contrast basic combinations are usually the easiest to mix with daily wardrobes.',
+      },
+    ],
+  },
+  mitenky: {
+    label: 'Mittens',
+    metaTitle: 'Handmade Mittens',
+    metaDescription:
+      'GERDAN handmade mittens as a warm and stylish accessory for cold weather.',
+    intro:
+      'Mittens add texture, improve comfort in cool weather, and highlight personal style.',
+    faqs: [
+      {
+        question: 'When are mittens more practical than gloves?',
+        answer:
+          'They are useful when finger freedom matters: smartphone use, commuting, and quick routines.',
+      },
+      {
+        question: 'What should I pair mittens with?',
+        answer:
+          'They work best with coats, knitwear, and outerwear in calm tones.',
+      },
+      {
+        question: 'Can I combine mittens with other accessories?',
+        answer:
+          'Yes, especially with scarves and beanies in a related color palette.',
+      },
+      {
+        question: 'Are mittens a good winter gift?',
+        answer:
+          'Yes, they are both practical and stylish for the cold season.',
+      },
+    ],
+  },
+  'navushnyky-viazani': {
+    label: 'Knitted Earmuffs',
+    metaTitle: 'Handmade Knitted Earmuffs',
+    metaDescription:
+      'GERDAN handmade knitted earmuffs for warmth and style in the cold season.',
+    intro:
+      'Knitted earmuffs are a comfortable accessory for transitional and winter weather in city styling.',
+    faqs: [
+      {
+        question: 'When are knitted earmuffs better than a beanie?',
+        answer:
+          'When you need local warmth while keeping your hairstyle or a lighter upper look.',
+      },
+      {
+        question: 'What outerwear matches knitted earmuffs?',
+        answer:
+          'They pair well with coats, short puffers, and trench coats in neutral tones.',
+      },
+      {
+        question: 'Can knitted earmuffs be worn every day?',
+        answer:
+          'Yes, they are comfortable for regular city routes in cool weather.',
+      },
+      {
+        question: 'Are knitted earmuffs a good gift?',
+        answer:
+          'Yes, they are a seasonal gift that combines practicality with style.',
+      },
+    ],
+  },
+  sharfy: {
+    label: 'Scarves',
+    metaTitle: 'Handmade Scarves',
+    metaDescription:
+      'GERDAN handmade scarves for warm seasonal looks and daily comfort.',
+    intro:
+      'Scarves in this subcategory add texture and visual completeness during colder months.',
+    faqs: [
+      {
+        question: 'How do I choose a scarf for outerwear?',
+        answer:
+          'A coat contrast or a repeated tone from bag, shoes, or gloves usually works best.',
+      },
+      {
+        question: 'Which scarves are most universal for daily wear?',
+        answer:
+          'Medium-volume scarves in a calm palette are typically the most versatile.',
+      },
+      {
+        question: 'Can I match scarf and mittens in one color?',
+        answer:
+          'Yes, this is one of the simplest ways to make a look cohesive.',
+      },
+      {
+        question: 'Is a scarf a good seasonal gift?',
+        answer:
+          'Yes, it is practical and often used every day during colder weather.',
+      },
+    ],
+  },
+  rezynky: {
+    label: 'Hair Ties',
+    metaTitle: 'Handmade Hair Ties',
+    metaDescription:
+      'GERDAN handmade hair ties as a decorative accent for daily hairstyles.',
+    intro:
+      'Hair ties are compact accessories that quickly add personality to a look.',
+    faqs: [
+      {
+        question: 'How do I choose a hair tie for everyday styling?',
+        answer:
+          'Pick shades that repeat details from your outfit or other accessories.',
+      },
+      {
+        question: 'Are hair ties suitable as a gift?',
+        answer:
+          'Yes, they are practical, affordable, and easy to personalize.',
+      },
+      {
+        question: 'Can I combine hair ties with other GERDAN accessories?',
+        answer:
+          'Yes, they pair especially well with bags and keychains in related tones.',
+      },
+      {
+        question: 'Are hair ties only for casual looks?',
+        answer:
+          'No, depending on the model they can also work in more polished outfits.',
+      },
+    ],
+  },
+  shapky: {
+    label: 'Beanies',
+    metaTitle: 'Handmade Beanies',
+    metaDescription:
+      'GERDAN handmade beanies for cold season comfort, texture, and style.',
+    intro:
+      'Beanies in this subcategory are designed for warmth and visual balance in autumn-winter outfits.',
+    faqs: [
+      {
+        question: 'How do I choose a beanie for my face shape?',
+        answer:
+          'Choose a form that balances facial proportions and matches outerwear lines.',
+      },
+      {
+        question: 'What clothing pairs best with GERDAN beanies?',
+        answer:
+          'They pair well with coats, puffers, and textured knitwear.',
+      },
+      {
+        question: 'Should I match a beanie and scarf in one color?',
+        answer:
+          'Yes, it is a classic way to build a cohesive seasonal outfit.',
+      },
+      {
+        question: 'Is a handmade beanie a good gift?',
+        answer:
+          'Yes, it is a practical seasonal gift used frequently in daily life.',
+      },
+    ],
+  },
+  chepchyky: {
+    label: 'Bonnets',
+    metaTitle: 'Handmade Bonnets',
+    metaDescription:
+      'GERDAN handmade bonnets as expressive seasonal accessories for styled looks.',
+    intro:
+      'Bonnets are an accent choice for people who want character and a modern interpretation of craft forms.',
+    faqs: [
+      {
+        question: 'When does a bonnet look best in an outfit?',
+        answer:
+          'It looks best in minimalist sets where the bonnet is the primary visual accent.',
+      },
+      {
+        question: 'What should I pair handmade bonnets with?',
+        answer:
+          'They are often styled with basic coats, trench coats, and plain knitwear.',
+      },
+      {
+        question: 'Is a bonnet suitable for everyday wear?',
+        answer:
+          'Yes, if you choose a restrained palette that is easy to combine with outerwear.',
+      },
+      {
+        question: 'Can bonnets be a gift option?',
+        answer:
+          'Yes, they are an original gift for people who value non-standard handmade accessories.',
+      },
+    ],
+  },
+}
+
+function localizeShopCategoryConfig(
+  config: ShopCategoryConfig,
+  locale: Locale,
+): ShopCategoryConfig {
+  if (locale !== 'en') return config
+  const localized = SHOP_CATEGORY_EN_CONTENT[config.slug]
+  if (!localized) return config
+  return { ...config, ...localized }
+}
+
+function localizeAccessorySubcategoryConfig(
+  config: AccessorySubcategoryConfig,
+  locale: Locale,
+): AccessorySubcategoryConfig {
+  if (locale !== 'en') return config
+  const localized = ACCESSORY_SUBCATEGORY_EN_CONTENT[config.slug]
+  if (!localized) return config
+  return { ...config, ...localized }
+}
+
 const ACCESSORY_SUBCATEGORY_BY_SLUG = Object.fromEntries(
   ACCESSORY_SUBCATEGORIES.map((item) => [item.slug, item]),
 ) as Record<string, AccessorySubcategoryConfig>
@@ -530,6 +999,15 @@ export function getShopCategoryConfig(slug: string): ShopCategoryConfig | null {
   return SHOP_CATEGORY_CONFIG[slug] ?? null
 }
 
+export function getLocalizedShopCategoryConfig(
+  slug: string,
+  locale: Locale,
+): ShopCategoryConfig | null {
+  const base = getShopCategoryConfig(slug)
+  if (!base) return null
+  return localizeShopCategoryConfig(base, locale)
+}
+
 export function getMainShopCategorySlugs(): string[] {
   return Object.values(SHOP_CATEGORY_CONFIG)
     .filter((item) => !item.redirectTo)
@@ -540,6 +1018,24 @@ export function getAccessorySubcategoryConfig(
   slug: string,
 ): AccessorySubcategoryConfig | null {
   return ACCESSORY_SUBCATEGORY_BY_SLUG[slug] ?? null
+}
+
+export function getLocalizedAccessorySubcategoryConfig(
+  slug: string,
+  locale: Locale,
+): AccessorySubcategoryConfig | null {
+  const base = getAccessorySubcategoryConfig(slug)
+  if (!base) return null
+  return localizeAccessorySubcategoryConfig(base, locale)
+}
+
+export function getLocalizedAccessorySubcategories(
+  locale: Locale,
+): AccessorySubcategoryConfig[] {
+  if (locale !== 'en') return ACCESSORY_SUBCATEGORIES
+  return ACCESSORY_SUBCATEGORIES.map((item) =>
+    localizeAccessorySubcategoryConfig(item, locale),
+  )
 }
 
 export function getAccessorySubcategorySlugs(): string[] {

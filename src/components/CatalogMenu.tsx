@@ -4,7 +4,7 @@ import Link from 'next/link'
 import { useState, useRef } from 'react'
 import { ChevronDown } from 'lucide-react'
 import clsx from 'clsx'
-import { ACCESSORY_SUBCATEGORIES } from '@/lib/shop-taxonomy'
+import { getLocalizedAccessorySubcategories } from '@/lib/shop-taxonomy'
 import { useT, useLocale } from '@/lib/i18n'
 
 type MegaMenuLink = {
@@ -12,21 +12,6 @@ type MegaMenuLink = {
   label: string
   href: string
   children?: Array<{ label: string; href: string }>
-}
-
-function accessorySubcategoryLabel(slug: string, ukLabel: string): string {
-  const map: Record<string, string> = {
-    breloky: 'Keychains',
-    gerdany: 'Gerdans',
-    sylyanky: 'Sylyanky',
-    mitenky: 'Mittens',
-    shapky: 'Beanies',
-    sharfy: 'Scarves',
-    rezynky: 'Hair Ties',
-    chepchyky: 'Bonnets',
-    'navushnyky-viazani': 'Knitted Headphones',
-  }
-  return map[slug] || ukLabel
 }
 
 export default function CatalogMegaMenu({
@@ -57,11 +42,8 @@ export default function CatalogMegaMenu({
       key: 'accessories',
       label: t('Аксесуари', 'Accessories'),
       href: '/shop/accessories',
-      children: ACCESSORY_SUBCATEGORIES.map((subcategory) => ({
-        label:
-          locale === 'en'
-            ? accessorySubcategoryLabel(subcategory.slug, subcategory.label)
-            : subcategory.label,
+      children: getLocalizedAccessorySubcategories(locale).map((subcategory) => ({
+        label: subcategory.label,
         href: `/shop/accessories/${subcategory.slug}`,
       })),
     },
@@ -106,7 +88,7 @@ export default function CatalogMegaMenu({
       onPointerEnter={openMenu}
       onPointerLeave={scheduleCloseMenu}
     >
-      <div className="flex items-center gap-1 text-[12px] font-medium tracking-wide">
+      <div className="flex items-center gap-1 lg:text-[11px] xl:text-[12px] font-medium tracking-wide">
         <Link href="/shop" onClick={handleLinkClick}>
           {t('КАТАЛОГ', 'CATALOG')}
         </Link>

@@ -57,7 +57,7 @@ const LABELS_EN: Record<string, string> = {
   gerdany: 'Gerdans',
   sylyanky: 'Sylyanky',
   mitenky: 'Mittens',
-  'navushnyky-viazani': 'Knitted Headphones',
+  'navushnyky-viazani': 'Knitted Earmuffs',
   sharfy: 'Scarves',
   rezynky: 'Hair Ties',
   shapky: 'Beanies',

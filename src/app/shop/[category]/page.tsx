@@ -4,10 +4,10 @@ import type { Metadata } from 'next'
 import Link from 'next/link'
 import { notFound, permanentRedirect } from 'next/navigation'
 import {
-  ACCESSORY_SUBCATEGORIES,
   getAccessorySubcategoryConfig,
+  getLocalizedAccessorySubcategories,
   getMainShopCategorySlugs,
-  getShopCategoryConfig,
+  getLocalizedShopCategoryConfig,
 } from '@/lib/shop-taxonomy'
 import {
   hasFacetedQueryParams,
@@ -18,19 +18,6 @@ import { getRequestLocale } from '@/lib/server-locale'
 import { getLocaleAlternates, getSiteUrl } from '@/lib/site-url'
 
 export const revalidate = 300
-
-function categoryTitleByLocale(category: string, locale: 'uk' | 'en'): string {
-  if (locale !== 'en') return getShopCategoryConfig(category)?.title || category
-  const map: Record<string, string> = {
-    sumky: 'Bags',
-    bananky: 'Belt Bags',
-    shopery: 'Shoppers',
-    chohly: 'Cases',
-    accessories: 'Accessories',
-    prykrasy: 'Accessories',
-  }
-  return map[category] || category
-}
 
 function isTruthyQueryParam(value?: string | null): boolean {
   return value === '1' || value === 'true'
@@ -100,24 +87,18 @@ export async function generateMetadata({
   const locale = await getRequestLocale()
   const { category } = await params
   const sp = await searchParams
-  const config = getShopCategoryConfig(category)
+  const config = getLocalizedShopCategoryConfig(category, locale)
 
   if (!config) {
     notFound()
   }
 
   if (config.redirectTo) {
-    const target = getShopCategoryConfig(config.redirectTo)
+    const target = getLocalizedShopCategoryConfig(config.redirectTo, locale)
     const targetPath = `/shop/${config.redirectTo}`
     return {
-      title:
-        locale === 'en'
-          ? `${categoryTitleByLocale(config.redirectTo, locale)} | GERDAN`
-          : target?.metaTitle ?? config.metaTitle,
-      description:
-        locale === 'en'
-          ? `Browse ${categoryTitleByLocale(config.redirectTo, locale)} by GERDAN.`
-          : target?.metaDescription ?? config.metaDescription,
+      title: `${target?.metaTitle ?? config.metaTitle} | GERDAN`,
+      description: target?.metaDescription ?? config.metaDescription,
       alternates: getLocaleAlternates(targetPath),
       robots: {
         index: false,
@@ -129,14 +110,8 @@ export async function generateMetadata({
   const shouldNoindex = hasFacetedQueryParams(sp)
 
   return {
-    title:
-      locale === 'en'
-        ? `${categoryTitleByLocale(category, locale)} | GERDAN`
-        : config.metaTitle,
-    description:
-      locale === 'en'
-        ? `Browse ${categoryTitleByLocale(category, locale)} by GERDAN.`
-        : config.metaDescription,
+    title: `${config.metaTitle} | GERDAN`,
+    description: config.metaDescription,
     alternates: getLocaleAlternates(`/shop/${category.toLowerCase()}`),
     robots: shouldNoindex
       ? {
@@ -155,7 +130,7 @@ export default async function ShopCategoryPage({
   const siteUrl = getSiteUrl(locale)
   const { category } = await params
   const sp = await searchParams
-  const config = getShopCategoryConfig(category)
+  const config = getLocalizedShopCategoryConfig(category, locale)
 
   if (!config) {
     notFound()
@@ -204,7 +179,7 @@ export default async function ShopCategoryPage({
   const lockedTypeForPage =
     category === 'accessories' ? 'ACCESSORY' : config.type
   const accessorySubcategoryOptions = showAccessoriesSubcategories
-    ? ACCESSORY_SUBCATEGORIES.map((item) => ({
+    ? getLocalizedAccessorySubcategories(locale).map((item) => ({
         value: item.slug,
         label: item.label,
       }))
@@ -224,21 +199,21 @@ export default async function ShopCategoryPage({
         }}
         lockedType={lockedTypeForPage}
         accessorySubcategoryOptions={accessorySubcategoryOptions}
-        title={categoryTitleByLocale(category, locale)}
+        title={config.title}
       />
 
       <section className="max-w-[1440px] mx-auto px-5 md:px-[50px] pb-12 md:pb-16 md:pt-16 mt-12 md:mt-22">
         <div className=" mb-6">
           <h2 className="text-xl md:text-2xl mb-3">
             {locale === 'en'
-              ? `${categoryTitleByLocale(category, locale)} by GERDAN`
+              ? `${config.metaTitle} by GERDAN`
               : `${config.metaTitle} від GERDAN`}
           </h2>
-          <p className="text-gray-700 leading-relaxed whitespace-pre-line">
+          {/*  <p className="text-gray-700 leading-relaxed whitespace-pre-line">
             {locale === 'en'
               ? 'Detailed category description in English is being prepared.'
               : config.intro}
-          </p>
+          </p> */}
         </div>
 
         {/* {showAccessoriesSubcategories && (
@@ -263,7 +238,7 @@ export default async function ShopCategoryPage({
             {locale === 'en' ? 'FAQ' : 'Поширені питання'}
           </h2>
           <div className="space-y-3">
-            {(locale === 'en' ? [] : config.faqs).map((item) => (
+            {config.faqs.map((item) => (
               <details key={item.question} className="border rounded-sm p-3">
                 <summary className="font-medium cursor-pointer">
                   {item.question}
