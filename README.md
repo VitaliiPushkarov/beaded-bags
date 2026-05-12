@@ -38,6 +38,7 @@
 Рекомендовані:
 
 - `TELEGRAM_WEBHOOK_SECRET` - секрет для перевірки webhook header `x-telegram-bot-api-secret-token`
+- `TELEGRAM_PRODUCTION_BOT_USERNAME` - username бота без `@` для генерації deep-link (приклад: `ProductionGerdan_bot`)
 
 Для скрипта установки webhook:
 

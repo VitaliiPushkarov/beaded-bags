@@ -1,7 +1,8 @@
 import { revalidatePath } from 'next/cache'
 import Link from 'next/link'
 import { redirect } from 'next/navigation'
-import { ExpenseCategory } from '@prisma/client'
+import { isRedirectError } from 'next/dist/client/components/redirect-error'
+import { ExpenseCategory, Prisma } from '@prisma/client'
 import { z } from 'zod'
 
 import ConfirmSubmitButton from '@/components/admin/ConfirmSubmitButton'
@@ -28,6 +29,7 @@ import {
 import { parseArtisanProductionSettlementFromFormData } from '@/lib/admin-artisans'
 import { formatDate, formatUAH } from '@/lib/admin-finance'
 import { prisma } from '@/lib/prisma'
+import { buildStartRegistrationPayload } from '@/lib/telegram-start-payload'
 
 export const dynamic = 'force-dynamic'
 
@@ -41,8 +43,83 @@ type PageProps = {
     ratesCount?: string
     productionUpdated?: string
     productionId?: string
+    error?: string
+    errorScope?: string
   }>
 }
+
+type ArtisanListItem = Prisma.ArtisanGetPayload<{
+  include: {
+    _count: {
+      select: {
+        rates: true
+        productions: true
+      }
+    }
+  }
+}>
+
+type ArtisanRateWithVariant = Prisma.ArtisanRateGetPayload<{
+  include: {
+    variant: {
+      select: {
+        id: true
+        sku: true
+        color: true
+        modelSize: true
+        pouchColor: true
+        product: {
+          select: {
+            name: true
+            slug: true
+          }
+        }
+      }
+    }
+  }
+}>
+
+type VariantOption = Prisma.ProductVariantGetPayload<{
+  select: {
+    id: true
+    sku: true
+    color: true
+    modelSize: true
+    pouchColor: true
+    product: {
+      select: {
+        name: true
+        slug: true
+      }
+    }
+  }
+}>
+
+type ProductionWithRelations = Prisma.ArtisanProductionGetPayload<{
+  include: {
+    artisan: {
+      select: {
+        id: true
+        name: true
+      }
+    }
+    variant: {
+      select: {
+        id: true
+        sku: true
+        color: true
+        modelSize: true
+        pouchColor: true
+        product: {
+          select: {
+            name: true
+            slug: true
+          }
+        }
+      }
+    }
+  }
+}>
 
 const CreateArtisanSchema = z.object({
   name: z.string().trim().min(2),
@@ -136,6 +213,13 @@ async function generateUniqueAccessCode(): Promise<string> {
   throw new Error('Не вдалося згенерувати унікальний код доступу')
 }
 
+function isPrismaUniqueError(error: unknown): boolean {
+  if (!(error instanceof Prisma.PrismaClientKnownRequestError)) {
+    return false
+  }
+  return error.code === 'P2002'
+}
+
 export default async function AdminArtisansPage({ searchParams }: PageProps) {
   const params = await searchParams
   const selectedArtisanIdFromQuery = params.artisan?.trim() || ''
@@ -148,9 +232,18 @@ export default async function AdminArtisansPage({ searchParams }: PageProps) {
   const hasRatesCount = Number.isFinite(ratesCount) && ratesCount > 0
   const productionUpdated = params.productionUpdated?.trim() === '1'
   const updatedProductionId = params.productionId?.trim() || ''
-  const createdLink = createdCode
-    ? `https://t.me/ProductionGerdan_bot?start=${encodeURIComponent(createdCode)}`
+  const errorMessage = params.error?.trim() || ''
+  const errorScope = params.errorScope?.trim() || ''
+  const productionBotUsername =
+    process.env.TELEGRAM_PRODUCTION_BOT_USERNAME?.trim() ||
+    'ProductionGerdan_bot'
+  const startPayload = createdCode
+    ? buildStartRegistrationPayload(createdCode)
     : ''
+  const createdLink =
+    createdCode && startPayload
+      ? `https://t.me/${productionBotUsername}?start=${encodeURIComponent(startPayload)}`
+      : ''
 
   async function createArtisan(formData: FormData) {
     'use server'
@@ -161,23 +254,38 @@ export default async function AdminArtisansPage({ searchParams }: PageProps) {
     })
 
     if (!parsed.success) {
-      throw new Error('Не вдалося створити майстра')
+      redirect(
+        `/admin/artisans?errorScope=create-artisan&error=${encodeURIComponent('Перевірте імʼя майстра (мінімум 2 символи).')}`,
+      )
     }
 
     const manualCode = normalizeAccessCode(parsed.data.accessCode)
     const accessCode = manualCode ?? (await generateUniqueAccessCode())
 
-    const created = await prisma.artisan.create({
-      data: {
-        name: parsed.data.name,
-        accessCode,
-        isActive: true,
-      },
-    })
+    try {
+      const created = await prisma.artisan.create({
+        data: {
+          name: parsed.data.name,
+          accessCode,
+          isActive: true,
+        },
+      })
 
-    redirect(
-      `/admin/artisans?createdCode=${encodeURIComponent(created.accessCode)}&createdName=${encodeURIComponent(created.name)}`,
-    )
+      redirect(
+        `/admin/artisans?createdCode=${encodeURIComponent(created.accessCode)}&createdName=${encodeURIComponent(created.name)}`,
+      )
+    } catch (error) {
+      if (isRedirectError(error)) throw error
+      console.error('[admin/artisans] createArtisan failed', error)
+      if (isPrismaUniqueError(error)) {
+        redirect(
+          `/admin/artisans?errorScope=create-artisan&error=${encodeURIComponent('Такий код доступу вже існує. Вкажіть інший код.')}`,
+        )
+      }
+      redirect(
+        `/admin/artisans?errorScope=create-artisan&error=${encodeURIComponent('Не вдалося створити майстра. Спробуйте ще раз.')}`,
+      )
+    }
   }
 
   async function updateArtisan(formData: FormData) {
@@ -191,17 +299,31 @@ export default async function AdminArtisansPage({ searchParams }: PageProps) {
     })
 
     if (!parsed.success) {
-      throw new Error('Не вдалося оновити майстра')
+      redirect(
+        `/admin/artisans?artisan=${encodeURIComponent(selectedArtisanIdFromQuery)}&errorScope=edit-artisan&error=${encodeURIComponent('Перевірте дані: імʼя від 2 символів, код від 3 символів.')}`,
+      )
     }
 
-    await prisma.artisan.update({
-      where: { id: parsed.data.id },
-      data: {
-        name: parsed.data.name,
-        accessCode: parsed.data.accessCode,
-        isActive: toBool(parsed.data.isActive),
-      },
-    })
+    try {
+      await prisma.artisan.update({
+        where: { id: parsed.data.id },
+        data: {
+          name: parsed.data.name,
+          accessCode: parsed.data.accessCode,
+          isActive: toBool(parsed.data.isActive),
+        },
+      })
+    } catch (error) {
+      console.error('[admin/artisans] updateArtisan failed', error)
+      if (isPrismaUniqueError(error)) {
+        redirect(
+          `/admin/artisans?artisan=${encodeURIComponent(parsed.data.id)}&errorScope=edit-artisan&error=${encodeURIComponent('Такий код доступу вже призначено іншому майстру.')}`,
+        )
+      }
+      redirect(
+        `/admin/artisans?artisan=${encodeURIComponent(parsed.data.id)}&errorScope=edit-artisan&error=${encodeURIComponent('Не вдалося оновити майстра. Спробуйте ще раз.')}`,
+      )
+    }
 
     revalidatePath('/admin/artisans')
   }
@@ -264,11 +386,15 @@ export default async function AdminArtisansPage({ searchParams }: PageProps) {
       .filter(Boolean)
 
     if (!artisanId) {
-      throw new Error('Некоректний майстер для додавання ставок')
+      redirect(
+        `/admin/artisans?errorScope=artisan-rates&error=${encodeURIComponent('Некоректний майстер для додавання ставок.')}`,
+      )
     }
 
     if (selectedVariantIds.length === 0) {
-      throw new Error('Оберіть хоча б один варіант')
+      redirect(
+        `/admin/artisans?artisan=${encodeURIComponent(artisanId)}&errorScope=artisan-rates&error=${encodeURIComponent('Оберіть хоча б один варіант.')}`,
+      )
     }
 
     const uniqueVariantIds = Array.from(new Set(selectedVariantIds))
@@ -276,34 +402,43 @@ export default async function AdminArtisansPage({ searchParams }: PageProps) {
       const rateRaw = String(formData.get(`rate_${variantId}`) || '').trim()
       const rate = Number(rateRaw)
       if (!Number.isInteger(rate) || rate < 1 || rate > 100000) {
-        throw new Error(`Некоректна ставка для варіанта ${variantId}`)
+        redirect(
+          `/admin/artisans?artisan=${encodeURIComponent(artisanId)}&errorScope=artisan-rates&error=${encodeURIComponent('Ставка має бути цілим числом від 1 до 100000.')}`,
+        )
       }
 
       return { variantId, ratePerUnitUAH: rate }
     })
 
-    await prisma.$transaction(
-      payload.map((entry) =>
-        prisma.artisanRate.upsert({
-          where: {
-            artisanId_variantId: {
+    try {
+      await prisma.$transaction(
+        payload.map((entry) =>
+          prisma.artisanRate.upsert({
+            where: {
+              artisanId_variantId: {
+                artisanId,
+                variantId: entry.variantId,
+              },
+            },
+            create: {
               artisanId,
               variantId: entry.variantId,
+              ratePerUnitUAH: entry.ratePerUnitUAH,
+              isActive: true,
             },
-          },
-          create: {
-            artisanId,
-            variantId: entry.variantId,
-            ratePerUnitUAH: entry.ratePerUnitUAH,
-            isActive: true,
-          },
-          update: {
-            ratePerUnitUAH: entry.ratePerUnitUAH,
-            isActive: true,
-          },
-        }),
-      ),
-    )
+            update: {
+              ratePerUnitUAH: entry.ratePerUnitUAH,
+              isActive: true,
+            },
+          }),
+        ),
+      )
+    } catch (error) {
+      console.error('[admin/artisans] upsertRatesFromTable failed', error)
+      redirect(
+        `/admin/artisans?artisan=${encodeURIComponent(artisanId)}&errorScope=artisan-rates&error=${encodeURIComponent('Не вдалося зберегти ставки. Перевірте дані і спробуйте ще раз.')}`,
+      )
+    }
 
     revalidatePath('/admin/artisans')
     redirect(
@@ -413,136 +548,184 @@ export default async function AdminArtisansPage({ searchParams }: PageProps) {
     )
   }
 
-  const artisans = await prisma.artisan.findMany({
-    include: {
-      _count: {
-        select: {
-          rates: true,
-          productions: true,
+  let artisans: ArtisanListItem[] = []
+  let selectedArtisan: ArtisanListItem | null = null
+  let selectedArtisanId = ''
+  let rates: ArtisanRateWithVariant[] = []
+  let variantOptions: VariantOption[] = []
+  let rateTableRows: Array<{
+    id: string
+    label: string
+    currentRate: number | null
+  }> = []
+  let productions: ProductionWithRelations[] = []
+
+  try {
+    artisans = await prisma.artisan.findMany({
+      include: {
+        _count: {
+          select: {
+            rates: true,
+            productions: true,
+          },
         },
       },
-    },
-    orderBy: [{ isActive: 'desc' }, { name: 'asc' }],
-    take: 200,
-  })
+      orderBy: [{ isActive: 'desc' }, { name: 'asc' }],
+      take: 200,
+    })
 
-  const selectedArtisan =
-    artisans.find((artisan) => artisan.id === selectedArtisanIdFromQuery) ??
-    null
+    selectedArtisan =
+      artisans.find((artisan) => artisan.id === selectedArtisanIdFromQuery) ??
+      null
+    selectedArtisanId = selectedArtisan?.id ?? ''
 
-  const selectedArtisanId = selectedArtisan?.id ?? ''
-
-  const rates = selectedArtisan
-    ? await prisma.artisanRate.findMany({
-        where: { artisanId: selectedArtisan.id },
-        include: {
-          variant: {
-            select: {
-              id: true,
-              sku: true,
-              color: true,
-              modelSize: true,
-              pouchColor: true,
-              product: {
-                select: {
-                  name: true,
-                  slug: true,
+    rates = selectedArtisan
+      ? await prisma.artisanRate.findMany({
+          where: { artisanId: selectedArtisan.id },
+          include: {
+            variant: {
+              select: {
+                id: true,
+                sku: true,
+                color: true,
+                modelSize: true,
+                pouchColor: true,
+                product: {
+                  select: {
+                    name: true,
+                    slug: true,
+                  },
                 },
               },
             },
           },
-        },
-        orderBy: [{ isActive: 'desc' }, { updatedAt: 'desc' }],
-        take: 300,
-      })
-    : []
-  const ratesByVariantId = new Map(rates.map((rate) => [rate.variantId, rate]))
+          orderBy: [{ isActive: 'desc' }, { updatedAt: 'desc' }],
+          take: 300,
+        })
+      : []
+    const ratesByVariantId = new Map(
+      rates.map((rate) => [rate.variantId, rate]),
+    )
 
-  const variantOptions = selectedArtisan
-    ? await prisma.productVariant.findMany({
-        where: variantQuery
-          ? {
-              OR: [
-                { id: { contains: variantQuery, mode: 'insensitive' } },
-                { sku: { contains: variantQuery, mode: 'insensitive' } },
-                { color: { contains: variantQuery, mode: 'insensitive' } },
-                { modelSize: { contains: variantQuery, mode: 'insensitive' } },
-                { pouchColor: { contains: variantQuery, mode: 'insensitive' } },
-                {
-                  product: {
-                    is: {
-                      name: { contains: variantQuery, mode: 'insensitive' },
+    variantOptions = selectedArtisan
+      ? await prisma.productVariant.findMany({
+          where: variantQuery
+            ? {
+                OR: [
+                  { id: { contains: variantQuery, mode: 'insensitive' } },
+                  { sku: { contains: variantQuery, mode: 'insensitive' } },
+                  { color: { contains: variantQuery, mode: 'insensitive' } },
+                  {
+                    modelSize: {
+                      contains: variantQuery,
+                      mode: 'insensitive',
                     },
                   },
-                },
-                {
-                  product: {
-                    is: {
-                      slug: { contains: variantQuery, mode: 'insensitive' },
+                  {
+                    pouchColor: {
+                      contains: variantQuery,
+                      mode: 'insensitive',
                     },
                   },
-                },
-              ],
-            }
-          : undefined,
-        select: {
-          id: true,
-          sku: true,
-          color: true,
-          modelSize: true,
-          pouchColor: true,
-          product: {
-            select: {
-              name: true,
-              slug: true,
+                  {
+                    product: {
+                      is: {
+                        name: { contains: variantQuery, mode: 'insensitive' },
+                      },
+                    },
+                  },
+                  {
+                    product: {
+                      is: {
+                        slug: { contains: variantQuery, mode: 'insensitive' },
+                      },
+                    },
+                  },
+                ],
+              }
+            : undefined,
+          select: {
+            id: true,
+            sku: true,
+            color: true,
+            modelSize: true,
+            pouchColor: true,
+            product: {
+              select: {
+                name: true,
+                slug: true,
+              },
+            },
+          },
+          orderBy: [
+            { product: { name: 'asc' } },
+            { color: 'asc' },
+            { modelSize: 'asc' },
+            { pouchColor: 'asc' },
+            { id: 'asc' },
+          ],
+        })
+      : []
+
+    rateTableRows = variantOptions
+      .map((variant) => ({
+        id: variant.id,
+        label: buildVariantLabel(variant),
+        currentRate: ratesByVariantId.get(variant.id)?.ratePerUnitUAH ?? null,
+      }))
+      .sort((left, right) => left.label.localeCompare(right.label, 'uk'))
+
+    productions = await prisma.artisanProduction.findMany({
+      where: selectedArtisanId ? { artisanId: selectedArtisanId } : undefined,
+      include: {
+        artisan: {
+          select: {
+            id: true,
+            name: true,
+          },
+        },
+        variant: {
+          select: {
+            id: true,
+            sku: true,
+            color: true,
+            modelSize: true,
+            pouchColor: true,
+            product: {
+              select: {
+                name: true,
+                slug: true,
+              },
             },
           },
         },
-        orderBy: [
-          { product: { name: 'asc' } },
-          { color: 'asc' },
-          { modelSize: 'asc' },
-          { pouchColor: 'asc' },
-          { id: 'asc' },
-        ],
-      })
-    : []
-  const rateTableRows = variantOptions
-    .map((variant) => ({
-      id: variant.id,
-      label: buildVariantLabel(variant),
-      currentRate: ratesByVariantId.get(variant.id)?.ratePerUnitUAH ?? null,
-    }))
-    .sort((left, right) => left.label.localeCompare(right.label, 'uk'))
-
-  const productions = await prisma.artisanProduction.findMany({
-    where: selectedArtisanId ? { artisanId: selectedArtisanId } : undefined,
-    include: {
-      artisan: {
-        select: {
-          id: true,
-          name: true,
-        },
       },
-      variant: {
-        select: {
-          id: true,
-          sku: true,
-          color: true,
-          modelSize: true,
-          pouchColor: true,
-          product: {
-            select: {
-              name: true,
-              slug: true,
-            },
-          },
-        },
-      },
-    },
-    orderBy: [{ producedAt: 'desc' }, { createdAt: 'desc' }],
-    take: 400,
-  })
+      orderBy: [{ producedAt: 'desc' }, { createdAt: 'desc' }],
+      take: 400,
+    })
+  } catch (error) {
+    console.error('[admin/artisans] page data load failed', error)
+    return (
+      <div className="space-y-6">
+        <div>
+          <h1 className="text-2xl font-semibold">Майстри (Artisan)</h1>
+          <p className="mt-1 text-sm text-gray-600">
+            Керування майстрами, Telegram-прив&apos;язками та ставками по
+            варіантах.
+          </p>
+        </div>
+        <Card className="border-red-300 bg-red-50">
+          <CardHeader className="pb-3">
+            <CardTitle className="text-red-900">Помилка</CardTitle>
+            <CardDescription className="text-red-900/80">
+              Не вдалося завантажити дані майстрів. Перевірте з&apos;єднання з
+              базою даних і спробуйте ще раз.
+            </CardDescription>
+          </CardHeader>
+        </Card>
+      </div>
+    )
+  }
 
   return (
     <div className="space-y-6">
@@ -559,25 +742,49 @@ export default async function AdminArtisansPage({ searchParams }: PageProps) {
           <CardHeader className="pb-3">
             <CardTitle className="text-emerald-900">Майстра створено</CardTitle>
             <CardDescription className="text-emerald-900/80">
-              {createdName ? `Майстер: ${createdName}. ` : ''}Передай майстру
-              цей лінк для прив&apos;язки.
+              {createdName ? `Майстер: ${createdName}. ` : ''}
+              Передай майстру цей лінк для прив&apos;язки або команду
+              <code> /reyestraciya CODE</code>.
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-2">
             <div className="text-sm text-emerald-950">
               <b>Код:</b> <code>{createdCode}</code>
             </div>
-            <div className="break-all rounded-md border border-emerald-300 bg-white p-3 text-sm">
-              <a
-                href={createdLink}
-                target="_blank"
-                rel="noreferrer"
-                className="underline"
-              >
-                {createdLink}
-              </a>
-            </div>
+            {createdLink ? (
+              <div className="break-all rounded-md border border-emerald-300 bg-white p-3 text-sm">
+                <a
+                  href={createdLink}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="underline"
+                >
+                  {createdLink}
+                </a>
+              </div>
+            ) : (
+              <div className="rounded-md border border-amber-300 bg-amber-50 p-3 text-sm text-amber-900">
+                Не вдалося побудувати deep-link для цього коду. Використай
+                ручну реєстрацію: <code>/reyestraciya {createdCode}</code>
+              </div>
+            )}
           </CardContent>
+        </Card>
+      ) : null}
+
+      {errorMessage ? (
+        <Card className="border-red-300 bg-red-50">
+          <CardHeader className="pb-3">
+            <CardTitle className="text-red-900">Помилка</CardTitle>
+            <CardDescription className="text-red-900/80">
+              {errorMessage}
+            </CardDescription>
+            {errorScope ? (
+              <div className="text-xs text-red-900/70">
+                Джерело: <code>{errorScope}</code>
+              </div>
+            ) : null}
+          </CardHeader>
         </Card>
       ) : null}
 

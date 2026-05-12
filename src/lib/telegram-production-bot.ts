@@ -1,6 +1,7 @@
 import { Prisma, TelegramBotSessionStep } from '@prisma/client'
 
 import { prisma } from '@/lib/prisma'
+import { parseStartRegistrationPayload } from '@/lib/telegram-start-payload'
 
 type TelegramUser = {
   id: number
@@ -155,14 +156,6 @@ function parseInteger(input: string): number | null {
 function normalizeText(value?: string | null): string | null {
   const normalized = value?.trim()
   return normalized ? normalized : null
-}
-
-function parseStartRegistrationCode(args: string): string | null {
-  const token = args.trim().split(/\s+/)[0]?.trim()
-  if (!token) return null
-  if (token.startsWith('reg_')) return token.slice(4).trim() || null
-  if (token.startsWith('register_')) return token.slice(9).trim() || null
-  return token
 }
 
 function getVariantAttributes(
@@ -1643,7 +1636,7 @@ async function handleCommand(input: {
   }
 
   if (command === 'start') {
-    const codeFromStart = parseStartRegistrationCode(input.args)
+    const codeFromStart = parseStartRegistrationPayload(input.args)
     if (codeFromStart) {
       await handleRegisterCommand({
         chatId: input.chatId,
