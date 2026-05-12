@@ -2,6 +2,10 @@ import { prisma } from '@/lib/prisma'
 import type { Prisma, ProductType } from '@prisma/client'
 import type { ProductCardDTO } from '@/lib/product-card-dto'
 import { resolveAvailabilityStatus } from '@/lib/availability'
+import {
+  isPrismaAvailabilityError,
+  withPrismaRetry,
+} from '@/lib/prisma-resilience'
 
 type GetProductsParams = {
   search?: string
@@ -279,42 +283,72 @@ function withPrioritizedCatalogVariants(
 }
 
 export async function getProductBySlug(slug: string) {
-  return prisma.product.findFirst({
-    where: {
-      slug,
-      status: 'PUBLISHED',
-    },
-    include: PRODUCT_PAGE_INCLUDE,
-  })
+  try {
+    return await withPrismaRetry(
+      () =>
+        prisma.product.findFirst({
+          where: {
+            slug,
+            status: 'PUBLISHED',
+          },
+          include: PRODUCT_PAGE_INCLUDE,
+        }),
+      { scope: 'db.products.getProductBySlug' },
+    )
+  } catch (error) {
+    if (isPrismaAvailabilityError(error)) {
+      console.error(
+        `[db] getProductBySlug fallback for slug="${slug}" due to DB availability issue.`,
+        error,
+      )
+      return null
+    }
+    throw error
+  }
 }
 
 export async function getProductMetaBySlug(slug: string) {
-  return prisma.product.findFirst({
-    where: {
-      slug,
-      status: 'PUBLISHED',
-    },
-    select: {
-      slug: true,
-      name: true,
-      nameEn: true,
-      description: true,
-      descriptionEn: true,
-      variants: {
-        orderBy: { sortCatalog: 'asc' },
-        select: {
-          image: true,
-          images: {
-            orderBy: { sort: 'asc' },
-            take: 1,
-            select: {
-              url: true,
+  try {
+    return await withPrismaRetry(
+      () =>
+        prisma.product.findFirst({
+          where: {
+            slug,
+            status: 'PUBLISHED',
+          },
+          select: {
+            slug: true,
+            name: true,
+            nameEn: true,
+            description: true,
+            descriptionEn: true,
+            variants: {
+              orderBy: { sortCatalog: 'asc' },
+              select: {
+                image: true,
+                images: {
+                  orderBy: { sort: 'asc' },
+                  take: 1,
+                  select: {
+                    url: true,
+                  },
+                },
+              },
             },
           },
-        },
-      },
-    },
-  })
+        }),
+      { scope: 'db.products.getProductMetaBySlug' },
+    )
+  } catch (error) {
+    if (isPrismaAvailabilityError(error)) {
+      console.error(
+        `[db] getProductMetaBySlug fallback for slug="${slug}" due to DB availability issue.`,
+        error,
+      )
+      return null
+    }
+    throw error
+  }
 }
 
 export async function getProducts(params: GetProductsParams = {}) {
@@ -322,12 +356,25 @@ export async function getProducts(params: GetProductsParams = {}) {
   const where = buildWhere(params)
   const orderBy = buildOrderBy(params)
 
-  const products = await prisma.product.findMany({
-    where,
-    orderBy,
-    take: params.take,
-    include: PRODUCT_PAGE_INCLUDE,
-  })
+  let products
+  try {
+    products = await withPrismaRetry(
+      () =>
+        prisma.product.findMany({
+          where,
+          orderBy,
+          take: params.take,
+          include: PRODUCT_PAGE_INCLUDE,
+        }),
+      { scope: 'db.products.getProducts.findMany' },
+    )
+  } catch (error) {
+    if (isPrismaAvailabilityError(error)) {
+      console.error('[db] getProducts fallback to empty list.', error)
+      return []
+    }
+    throw error
+  }
 
   // Extra sorting for BESTSELLERS:
   // sort products by the MINIMUM sortBestsellers value across their variants
@@ -368,12 +415,25 @@ export async function getProductsLite(
       ? Math.min(Math.max(params.take, 1), 60)
       : undefined
 
-  const items = await prisma.product.findMany({
-    where,
-    orderBy,
-    take,
-    select: PRODUCT_CARD_SELECT,
-  })
+  let items
+  try {
+    items = await withPrismaRetry(
+      () =>
+        prisma.product.findMany({
+          where,
+          orderBy,
+          take,
+          select: PRODUCT_CARD_SELECT,
+        }),
+      { scope: 'db.products.getProductsLite.findMany' },
+    )
+  } catch (error) {
+    if (isPrismaAvailabilityError(error)) {
+      console.error('[db] getProductsLite fallback to empty list.', error)
+      return []
+    }
+    throw error
+  }
 
   return withPrioritizedCatalogVariants(items as ProductCardDTO[])
 }
