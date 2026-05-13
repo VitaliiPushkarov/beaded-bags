@@ -34,6 +34,8 @@
 Обов'язкові:
 
 - `TELEGRAM_PRODUCTION_BOT_TOKEN` - токен Telegram-бота для виробництва
+- `TELEGRAM_BOT_TOKEN` - токен Telegram-бота для нотифікацій замовлень/передзамовлень
+- `TELEGRAM_CHAT_ID` - chat id для нотифікацій замовлень/передзамовлень
 
 Рекомендовані:
 
@@ -44,6 +46,7 @@
 
 - `TELEGRAM_WEBHOOK_BASE_URL` - публічна https адреса проєкту (приклад: `https://example.com`)
 - `TELEGRAM_WEBHOOK_PATH` (optional) - дефолт: `/api/telegram/production/webhook`
+- `TELEGRAM_PREORDER_CHAT_ID` (optional) - окремий chat id тільки для нотифікацій передзамовлень (fallback: `TELEGRAM_CHAT_ID`)
 
 ## Setup
 
