@@ -2,45 +2,44 @@
 
 ## Telegram Bot For Artisan Production
 
-Цей модуль додає облік виробітку майстрів через Telegram-бота без використання адмін-панелі.
+Цей модуль додає облік виробітку через Telegram-бота в режимі `admin-only`.
 
 ### Що реалізовано
 
-- Реєстрація майстра в боті через код (`/reyestraciya CODE`)
-- Швидка приватна реєстрація майстра через deep-link (`/start CODE`)
-- Фіксація виробітку майстром у flow: товар -> варіант -> кількість
-- Мультипозиційна чернетка: `Зберегти і продовжити` / `Завершити і відправити`
-- UX-контроль: `⬅️ Назад` на кроках, `✏️ Змінити кількість` у підсумку, антидубль відправки (10 секунд)
-- Автопідтягування ставки за 1 шт (ставка прив'язана до `майстер + варіант товару`)
-- Після фінальної відправки бот одразу створює `Expense` категорії `PAYROLL`
-- Вбудоване кнопкове меню (reply keyboard) для швидкого доступу без ручного вводу команд
+- Доступ до бота лише для user id з `TELEGRAM_PRODUCTION_ADMIN_USER_IDS`
+- Покрокове внесення запису: майстер -> тип товару -> назва -> к-сть -> ставка -> відшкодовано
+- Підтримка унікальних товарів, що не потрапляють у публічний каталог
+- Збереження нараховано / відшкодовано / борг по кожному запису
+- Часткове або повне відшкодування боргу через окрему команду
+- Автоматичне створення `Expense` категорії `PAYROLL`, якщо відшкодовано > 0
+- Кнопка/команда `Звіт` з агрегуванням по майстрах (відшкодовано, борг)
 
 ## Database Changes
 
 Додано нові моделі:
 
 - `Artisan`
-- `ArtisanRate`
-- `ArtisanProduction`
+- `AdminProduction`
+- `AdminProductionSettlement`
 - `TelegramBotSession`
 
 Міграція:
 
 - `prisma/migrations/20260424104727_add_telegram_artisan_production_bot/migration.sql`
-- `prisma/migrations/20260424142000_artisan_rates_by_variant/migration.sql`
+- `prisma/migrations/20260514110000_add_admin_production_bot_ledger/migration.sql`
 
 ## Environment Variables
 
 Обов'язкові:
 
 - `TELEGRAM_PRODUCTION_BOT_TOKEN` - токен Telegram-бота для виробництва
+- `TELEGRAM_PRODUCTION_ADMIN_USER_IDS` - список Telegram user id адмінів через кому (приклад: `12345678,98765432`)
 - `TELEGRAM_BOT_TOKEN` - токен Telegram-бота для нотифікацій замовлень/передзамовлень
 - `TELEGRAM_CHAT_ID` - chat id для нотифікацій замовлень/передзамовлень
 
 Рекомендовані:
 
 - `TELEGRAM_WEBHOOK_SECRET` - секрет для перевірки webhook header `x-telegram-bot-api-secret-token`
-- `TELEGRAM_PRODUCTION_BOT_USERNAME` - username бота без `@` для генерації deep-link (приклад: `ProductionGerdan_bot`)
 
 Для скрипта установки webhook:
 
@@ -74,14 +73,13 @@ npm run telegram:webhook:set
 GET /api/telegram/production/webhook
 ```
 
-## Artisan Commands
+## Admin Commands
 
-- `/reyestraciya CODE` - прив'язати Telegram до майстра
-- `/start CODE` - прив'язка з приватного лінка
-- `/zapys` - запуск flow товар -> варіант -> кількість
-- `/dopomoha` - підказка
-- У меню для майстра залишені тільки кнопки `Новий запис` і `Допомога`
-- Після введення кількості є вибір: `Зберегти і продовжити` або `Завершити і відправити`
+- `/start` або `/help` - підказка та меню
+- `/new` - новий запис виробітку
+- `/settle` - відшкодувати борг по конкретному запису
+- `/report` - звіт по майстрах (нараховано / відшкодовано / борг)
+- `/cancel` - скасувати поточний ввід
 
 ## Webhook Route
 
@@ -90,6 +88,7 @@ GET /api/telegram/production/webhook
 
 ## Important Notes
 
-- Фінальна відправка майстра автоматично створює `Expense` категорії `PAYROLL`.
+- Якщо у записі вказано відшкодовану суму > 0, бот автоматично створює `Expense` категорії `PAYROLL`.
+- Команда `/settle` створює окремий `Expense` і запис у `AdminProductionSettlement`.
 - Для безпечної роботи в production обов'язково використовуйте `TELEGRAM_WEBHOOK_SECRET`.
 - Бот по виробництву працює тільки на `TELEGRAM_PRODUCTION_BOT_TOKEN` (без fallback на інший токен).

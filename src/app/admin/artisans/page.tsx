@@ -29,7 +29,6 @@ import {
 import { parseArtisanProductionSettlementFromFormData } from '@/lib/admin-artisans'
 import { formatDate, formatUAH } from '@/lib/admin-finance'
 import { prisma } from '@/lib/prisma'
-import { buildStartRegistrationPayload } from '@/lib/telegram-start-payload'
 
 export const dynamic = 'force-dynamic'
 
@@ -234,16 +233,6 @@ export default async function AdminArtisansPage({ searchParams }: PageProps) {
   const updatedProductionId = params.productionId?.trim() || ''
   const errorMessage = params.error?.trim() || ''
   const errorScope = params.errorScope?.trim() || ''
-  const productionBotUsername =
-    process.env.TELEGRAM_PRODUCTION_BOT_USERNAME?.trim() ||
-    'ProductionGerdan_bot'
-  const startPayload = createdCode
-    ? buildStartRegistrationPayload(createdCode)
-    : ''
-  const createdLink =
-    createdCode && startPayload
-      ? `https://t.me/${productionBotUsername}?start=${encodeURIComponent(startPayload)}`
-      : ''
 
   async function createArtisan(formData: FormData) {
     'use server'
@@ -742,32 +731,14 @@ export default async function AdminArtisansPage({ searchParams }: PageProps) {
           <CardHeader className="pb-3">
             <CardTitle className="text-emerald-900">Майстра створено</CardTitle>
             <CardDescription className="text-emerald-900/80">
-              {createdName ? `Майстер: ${createdName}. ` : ''}
-              Передай майстру цей лінк для прив&apos;язки або команду
-              <code> /reyestraciya CODE</code>.
+              {createdName ? `Майстер: ${createdName}. ` : ''}Запис успішно
+              створено.
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-2">
             <div className="text-sm text-emerald-950">
               <b>Код:</b> <code>{createdCode}</code>
             </div>
-            {createdLink ? (
-              <div className="break-all rounded-md border border-emerald-300 bg-white p-3 text-sm">
-                <a
-                  href={createdLink}
-                  target="_blank"
-                  rel="noreferrer"
-                  className="underline"
-                >
-                  {createdLink}
-                </a>
-              </div>
-            ) : (
-              <div className="rounded-md border border-amber-300 bg-amber-50 p-3 text-sm text-amber-900">
-                Не вдалося побудувати deep-link для цього коду. Використай
-                ручну реєстрацію: <code>/reyestraciya {createdCode}</code>
-              </div>
-            )}
           </CardContent>
         </Card>
       ) : null}

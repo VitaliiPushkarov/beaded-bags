@@ -33,11 +33,15 @@ function isTelegramUpdatePayload(value: unknown): value is { update_id: number }
 
 export async function GET() {
   const hasProductionBotToken = Boolean(getProductionBotToken())
+  const hasAdminIds = Boolean(
+    process.env.TELEGRAM_PRODUCTION_ADMIN_USER_IDS?.trim(),
+  )
   return NextResponse.json({
     ok: true,
     feature: 'telegram-production-bot-webhook',
     hasBotToken: hasProductionBotToken,
     hasWebhookSecret: Boolean(process.env.TELEGRAM_WEBHOOK_SECRET),
+    hasAdminIds,
   })
 }
 
