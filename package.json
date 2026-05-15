@@ -15,7 +15,8 @@
     "import:materials:variants:db": "node --import tsx scripts/imports/variant-materials-import-db.ts",
     "test:imports": "node --import tsx --test src/lib/imports/*.test.ts",
     "test:orders": "node --import tsx --test src/lib/orders/*.test.ts",
-    "telegram:webhook:set": "node --import tsx scripts/telegram/set-webhook.ts"
+    "telegram:webhook:set": "node --import tsx scripts/telegram/set-webhook.ts",
+    "db:probe": "node --import tsx scripts/db/probe-connection.ts"
   },
   "dependencies": {
     "@neondatabase/serverless": "^1.0.2",
