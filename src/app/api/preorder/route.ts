@@ -27,9 +27,7 @@ function escHtml(s: string) {
 }
 
 async function sendTelegram(text: string) {
-  const token =
-    process.env.TELEGRAM_BOT_TOKEN?.trim() ||
-    process.env.TELEGRAM_PRODUCTION_BOT_TOKEN?.trim()
+  const token = process.env.TELEGRAM_BOT_TOKEN?.trim()
   const chatId =
     process.env.TELEGRAM_CHAT_ID?.trim() ||
     process.env.TELEGRAM_PREORDER_CHAT_ID?.trim()

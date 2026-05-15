@@ -414,8 +414,6 @@ model Expense {
   createdAt          DateTime            @default(now())
   updatedAt          DateTime            @updatedAt
   artisanProductions ArtisanProduction[] @relation("ArtisanProductionPaidExpense")
-  adminProductions   AdminProduction[]   @relation("AdminProductionPaidExpense")
-  adminSettlements   AdminProductionSettlement[]
 
   @@index([expenseDate, category])
 }
@@ -434,8 +432,6 @@ model Artisan {
   updatedAt        DateTime             @updatedAt
   rates            ArtisanRate[]
   productions      ArtisanProduction[]
-  adminProductions AdminProduction[]
-  sessions         TelegramBotSession[]
 
   @@index([name])
   @@index([isActive])
@@ -492,63 +488,6 @@ model ArtisanProduction {
   @@index([status, producedAt])
   @@index([rateId])
   @@index([paidExpenseId])
-}
-
-model TelegramBotSession {
-  id           String                 @id @default(cuid())
-  chatId       String                 @unique
-  userId       String?
-  artisanId    String?
-  step         TelegramBotSessionStep @default(IDLE)
-  draftPayload Json?
-  createdAt    DateTime               @default(now())
-  updatedAt    DateTime               @updatedAt
-  artisan      Artisan?               @relation(fields: [artisanId], references: [id], onDelete: SetNull)
-
-  @@index([userId])
-  @@index([artisanId])
-}
-
-model AdminProduction {
-  id                     String                   @id @default(cuid())
-  artisanId              String
-  itemType               AdminProductionItemType  @default(CUSTOM_ITEM)
-  itemLabel              String
-  qty                    Int
-  ratePerUnitUAH         Int
-  totalLaborUAH          Int
-  settledAmountUAH       Int                      @default(0)
-  producedAt             DateTime                 @default(now())
-  notes                  String?
-  createdByTelegramUserId String
-  createdByTelegramChatId String
-  paidExpenseId          String?
-  createdAt              DateTime                 @default(now())
-  updatedAt              DateTime                 @updatedAt
-  artisan                Artisan                  @relation(fields: [artisanId], references: [id], onDelete: Cascade)
-  paidExpense            Expense?                 @relation("AdminProductionPaidExpense", fields: [paidExpenseId], references: [id], onDelete: SetNull)
-  settlements            AdminProductionSettlement[]
-
-  @@index([artisanId, producedAt])
-  @@index([producedAt])
-  @@index([paidExpenseId])
-}
-
-model AdminProductionSettlement {
-  id                      String          @id @default(cuid())
-  adminProductionId       String
-  amountUAH               Int
-  notes                   String?
-  createdByTelegramUserId String
-  createdByTelegramChatId String
-  expenseId               String
-  createdAt               DateTime        @default(now())
-  updatedAt               DateTime        @updatedAt
-  adminProduction         AdminProduction @relation(fields: [adminProductionId], references: [id], onDelete: Cascade)
-  expense                 Expense         @relation(fields: [expenseId], references: [id], onDelete: Cascade)
-
-  @@index([adminProductionId, createdAt])
-  @@index([expenseId])
 }
 
 model PreorderLead {
@@ -723,15 +662,4 @@ enum ArtisanProductionSource {
   TELEGRAM_BOT
   IMPORT
   MANUAL
-}
-
-enum TelegramBotSessionStep {
-  IDLE
-  AWAITING_QTY
-  AWAITING_CONFIRM
-}
-
-enum AdminProductionItemType {
-  CATALOG_VARIANT
-  CUSTOM_ITEM
 }
