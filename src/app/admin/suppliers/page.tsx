@@ -174,18 +174,8 @@ export default async function AdminSuppliersPage() {
               Ще немає жодного постачальника.
             </div>
           ) : (
-            <Table>
-              <TableHeader>
-                <TableRow className="hover:bg-transparent">
-                  <TableHead>Назва</TableHead>
-                  <TableHead>Контакт</TableHead>
-                  <TableHead>Валюта</TableHead>
-                  <TableHead className="text-right">Закупівель</TableHead>
-                  <TableHead className="text-right">Сума закупівель</TableHead>
-                  <TableHead className="text-right">Дії</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
+            <>
+              <div className="divide-y md:hidden">
                 {suppliers.map((supplier) => {
                   const totalSpent = supplier.purchases.reduce(
                     (sum, purchase) => sum + purchase.totalUAH,
@@ -193,29 +183,35 @@ export default async function AdminSuppliersPage() {
                   )
 
                   return (
-                    <TableRow key={supplier.id}>
-                      <TableCell>
-                        <div className="font-medium">{supplier.name}</div>
-                        {supplier.notes ? (
-                          <div className="mt-1 text-xs text-gray-500">
-                            {supplier.notes}
-                          </div>
-                        ) : null}
-                      </TableCell>
-                      <TableCell className="text-gray-700">
-                        <div>{supplier.contactName || '—'}</div>
+                    <div key={supplier.id} className="space-y-2 p-4 text-sm">
+                      <div className="font-medium">{supplier.name}</div>
+                      <div className="text-xs text-gray-600">
+                        {supplier.contactName || '—'}
+                      </div>
+                      <div className="text-xs text-gray-500">
+                        {supplier.phone || supplier.email || '—'}
+                      </div>
+                      {supplier.notes ? (
                         <div className="text-xs text-gray-500">
-                          {supplier.phone || supplier.email || '—'}
+                          {supplier.notes}
                         </div>
-                      </TableCell>
-                      <TableCell>{supplier.currency}</TableCell>
-                      <TableCell className="text-right">
-                        {supplier._count.purchases}
-                      </TableCell>
-                      <TableCell className="text-right">
-                        {formatUAH(totalSpent)}
-                      </TableCell>
-                      <TableCell className="text-right">
+                      ) : null}
+                      <div className="grid grid-cols-2 gap-2 text-xs">
+                        <div className="rounded-md bg-slate-50 px-2 py-1.5">
+                          Валюта: <span className="font-medium">{supplier.currency}</span>
+                        </div>
+                        <div className="rounded-md bg-slate-50 px-2 py-1.5">
+                          Закупівель:{' '}
+                          <span className="font-medium">
+                            {supplier._count.purchases}
+                          </span>
+                        </div>
+                        <div className="col-span-2 rounded-md bg-slate-50 px-2 py-1.5">
+                          Сума закупівель:{' '}
+                          <span className="font-medium">{formatUAH(totalSpent)}</span>
+                        </div>
+                      </div>
+                      <div>
                         <form action={deleteSupplier}>
                           <input type="hidden" name="id" value={supplier.id} />
                           <ConfirmSubmitButton
@@ -225,12 +221,72 @@ export default async function AdminSuppliersPage() {
                             Видалити з закупівлями
                           </ConfirmSubmitButton>
                         </form>
-                      </TableCell>
-                    </TableRow>
+                      </div>
+                    </div>
                   )
                 })}
-              </TableBody>
-            </Table>
+              </div>
+
+              <div className="hidden md:block">
+                <Table>
+                  <TableHeader>
+                    <TableRow className="hover:bg-transparent">
+                      <TableHead>Назва</TableHead>
+                      <TableHead>Контакт</TableHead>
+                      <TableHead>Валюта</TableHead>
+                      <TableHead className="text-right">Закупівель</TableHead>
+                      <TableHead className="text-right">Сума закупівель</TableHead>
+                      <TableHead className="text-right">Дії</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {suppliers.map((supplier) => {
+                      const totalSpent = supplier.purchases.reduce(
+                        (sum, purchase) => sum + purchase.totalUAH,
+                        0,
+                      )
+
+                      return (
+                        <TableRow key={supplier.id}>
+                          <TableCell>
+                            <div className="font-medium">{supplier.name}</div>
+                            {supplier.notes ? (
+                              <div className="mt-1 text-xs text-gray-500">
+                                {supplier.notes}
+                              </div>
+                            ) : null}
+                          </TableCell>
+                          <TableCell className="text-gray-700">
+                            <div>{supplier.contactName || '—'}</div>
+                            <div className="text-xs text-gray-500">
+                              {supplier.phone || supplier.email || '—'}
+                            </div>
+                          </TableCell>
+                          <TableCell>{supplier.currency}</TableCell>
+                          <TableCell className="text-right">
+                            {supplier._count.purchases}
+                          </TableCell>
+                          <TableCell className="text-right">
+                            {formatUAH(totalSpent)}
+                          </TableCell>
+                          <TableCell className="text-right">
+                            <form action={deleteSupplier}>
+                              <input type="hidden" name="id" value={supplier.id} />
+                              <ConfirmSubmitButton
+                                confirmMessage={`Видалити постачальника "${supplier.name}" разом з усіма його закупівлями?`}
+                                className="text-xs text-red-600 hover:underline"
+                              >
+                                Видалити з закупівлями
+                              </ConfirmSubmitButton>
+                            </form>
+                          </TableCell>
+                        </TableRow>
+                      )
+                    })}
+                  </TableBody>
+                </Table>
+              </div>
+            </>
           )}
         </CardContent>
       </Card>

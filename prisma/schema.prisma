@@ -40,6 +40,7 @@ model Product {
   variants            ProductVariant[]
   productionBatches   ProductionBatch[]
   artisanProductions  ArtisanProduction[]
+  adminProductions    AdminProduction[]
 
   @@index([type])
   @@index([group])
@@ -190,6 +191,7 @@ model ProductVariant {
   sizes                 ProductVariantSize[]
   artisanRates          ArtisanRate[]
   artisanProductions    ArtisanProduction[]
+  adminProductions      AdminProduction[]
 
   @@index([productId, color, modelSize, pouchColor])
   @@index([showInNewArrivals, sortNewArrivals])
@@ -414,6 +416,8 @@ model Expense {
   createdAt          DateTime            @default(now())
   updatedAt          DateTime            @updatedAt
   artisanProductions ArtisanProduction[] @relation("ArtisanProductionPaidExpense")
+  adminProductions   AdminProduction[]   @relation("AdminProductionPaidExpense")
+  adminSettlements   AdminProductionSettlement[] @relation("AdminProductionSettlementExpense")
 
   @@index([expenseDate, category])
 }
@@ -422,16 +426,13 @@ model Artisan {
   id               String               @id @default(cuid())
   name             String
   phone            String?
-  telegramUserId   String?              @unique
-  telegramChatId   String?              @unique
-  telegramUsername String?
-  accessCode       String               @unique
   isActive         Boolean              @default(true)
   notes            String?
   createdAt        DateTime             @default(now())
   updatedAt        DateTime             @updatedAt
   rates            ArtisanRate[]
   productions      ArtisanProduction[]
+  adminProductions AdminProduction[]
 
   @@index([name])
   @@index([isActive])
@@ -467,11 +468,8 @@ model ArtisanProduction {
   settledAmountUAH         Int                     @default(0)
   producedAt               DateTime                @default(now())
   status                   ArtisanProductionStatus @default(SUBMITTED)
-  source                   ArtisanProductionSource @default(TELEGRAM_BOT)
   notes                    String?
-  telegramUpdateId         Int?
   approvedAt               DateTime?
-  approvedByTelegramUserId String?
   paidAt                   DateTime?
   paidExpenseId            String?
   createdAt                DateTime                @default(now())
@@ -488,6 +486,53 @@ model ArtisanProduction {
   @@index([status, producedAt])
   @@index([rateId])
   @@index([paidExpenseId])
+}
+
+model AdminProduction {
+  id                String                  @id @default(cuid())
+  artisanId         String
+  itemType          AdminProductionItemType @default(CATALOG_VARIANT)
+  productId         String?
+  variantId         String?
+  customItemName    String?
+  qty               Int
+  ratePerUnitUAH    Int
+  totalLaborUAH     Int
+  settledAmountUAH  Int                     @default(0)
+  producedAt        DateTime                @default(now())
+  status            ArtisanProductionStatus @default(SUBMITTED)
+  notes             String?
+  paidAt            DateTime?
+  paidExpenseId     String?
+  createdAt         DateTime                @default(now())
+  updatedAt         DateTime                @updatedAt
+  artisan           Artisan                 @relation(fields: [artisanId], references: [id], onDelete: Cascade)
+  product           Product?                @relation(fields: [productId], references: [id], onDelete: SetNull)
+  variant           ProductVariant?         @relation(fields: [variantId], references: [id], onDelete: SetNull)
+  paidExpense       Expense?                @relation("AdminProductionPaidExpense", fields: [paidExpenseId], references: [id], onDelete: SetNull)
+  settlements       AdminProductionSettlement[]
+
+  @@index([artisanId, producedAt])
+  @@index([itemType, producedAt])
+  @@index([productId, producedAt])
+  @@index([variantId, producedAt])
+  @@index([status, producedAt])
+  @@index([paidExpenseId])
+}
+
+model AdminProductionSettlement {
+  id                String          @id @default(cuid())
+  productionId      String
+  amountUAH         Int
+  settledAt         DateTime        @default(now())
+  note              String?
+  expenseId         String?
+  createdAt         DateTime        @default(now())
+  production        AdminProduction @relation(fields: [productionId], references: [id], onDelete: Cascade)
+  expense           Expense?        @relation("AdminProductionSettlementExpense", fields: [expenseId], references: [id], onDelete: SetNull)
+
+  @@index([productionId, settledAt])
+  @@index([expenseId])
 }
 
 model PreorderLead {
@@ -658,8 +703,7 @@ enum ArtisanProductionStatus {
   REJECTED
 }
 
-enum ArtisanProductionSource {
-  TELEGRAM_BOT
-  IMPORT
-  MANUAL
+enum AdminProductionItemType {
+  CATALOG_VARIANT
+  CUSTOM_ITEM
 }

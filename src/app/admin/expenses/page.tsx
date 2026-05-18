@@ -339,7 +339,7 @@ export default async function AdminExpensesPage({ searchParams }: PageProps) {
               </Select>
             </div>
 
-            <div className="flex items-end gap-3 sm:col-span-2 xl:col-span-6">
+            <div className="flex flex-wrap items-end gap-3 sm:col-span-2 xl:col-span-6">
               <Button type="submit">Застосувати</Button>
               <Link
                 href="/admin/expenses"
@@ -361,35 +361,26 @@ export default async function AdminExpensesPage({ searchParams }: PageProps) {
               За поточними фільтрами витрат не знайдено.
             </div>
           ) : (
-            <Table>
-              <TableHeader>
-                <TableRow className="hover:bg-transparent">
-                  <TableHead>Дата</TableHead>
-                  <TableHead>Категорія</TableHead>
-                  <TableHead>Назва</TableHead>
-                  <TableHead className="text-right">Сума</TableHead>
-                  <TableHead className="text-right">Дії</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
+            <>
+              <div className="divide-y rounded-lg border border-slate-200 bg-white md:hidden">
                 {sortedExpenses.map((expense) => (
-                  <TableRow key={expense.id}>
-                    <TableCell className="whitespace-nowrap">
-                      {formatDate(expense.expenseDate)}
-                    </TableCell>
-                    <TableCell>{CATEGORY_LABELS[expense.category]}</TableCell>
-                    <TableCell>
+                  <div key={expense.id} className="space-y-2 p-4 text-sm">
+                    <div className="flex items-start justify-between gap-3">
                       <div className="font-medium">{expense.title}</div>
-                      {expense.notes ? (
-                        <div className="mt-1 text-xs text-gray-500">
-                          {expense.notes}
-                        </div>
-                      ) : null}
-                    </TableCell>
-                    <TableCell className="text-right">
-                      {formatUAH(expense.amountUAH)}
-                    </TableCell>
-                    <TableCell className="text-right">
+                      <div className="text-right font-medium">
+                        {formatUAH(expense.amountUAH)}
+                      </div>
+                    </div>
+                    <div className="text-xs text-gray-500">
+                      {CATEGORY_LABELS[expense.category]}
+                    </div>
+                    <div className="text-xs text-gray-500">
+                      {formatDate(expense.expenseDate)}
+                    </div>
+                    {expense.notes ? (
+                      <div className="text-xs text-gray-600">{expense.notes}</div>
+                    ) : null}
+                    <div>
                       <form action={deleteExpense}>
                         <input type="hidden" name="id" value={expense.id} />
                         <ConfirmSubmitButton
@@ -399,11 +390,57 @@ export default async function AdminExpensesPage({ searchParams }: PageProps) {
                           Видалити
                         </ConfirmSubmitButton>
                       </form>
-                    </TableCell>
-                  </TableRow>
+                    </div>
+                  </div>
                 ))}
-              </TableBody>
-            </Table>
+              </div>
+
+              <div className="hidden md:block">
+                <Table>
+                  <TableHeader>
+                    <TableRow className="hover:bg-transparent">
+                      <TableHead>Дата</TableHead>
+                      <TableHead>Категорія</TableHead>
+                      <TableHead>Назва</TableHead>
+                      <TableHead className="text-right">Сума</TableHead>
+                      <TableHead className="text-right">Дії</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {sortedExpenses.map((expense) => (
+                      <TableRow key={expense.id}>
+                        <TableCell className="whitespace-nowrap">
+                          {formatDate(expense.expenseDate)}
+                        </TableCell>
+                        <TableCell>{CATEGORY_LABELS[expense.category]}</TableCell>
+                        <TableCell>
+                          <div className="font-medium">{expense.title}</div>
+                          {expense.notes ? (
+                            <div className="mt-1 text-xs text-gray-500">
+                              {expense.notes}
+                            </div>
+                          ) : null}
+                        </TableCell>
+                        <TableCell className="text-right">
+                          {formatUAH(expense.amountUAH)}
+                        </TableCell>
+                        <TableCell className="text-right">
+                          <form action={deleteExpense}>
+                            <input type="hidden" name="id" value={expense.id} />
+                            <ConfirmSubmitButton
+                              confirmMessage="Видалити цю витрату?"
+                              className="text-xs text-red-600 hover:underline"
+                            >
+                              Видалити
+                            </ConfirmSubmitButton>
+                          </form>
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </div>
+            </>
           )}
         </CardContent>
       </Card>

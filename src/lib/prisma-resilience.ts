@@ -40,8 +40,8 @@ export async function withPrismaRetry<T>(
   operation: () => Promise<T>,
   options: PrismaRetryOptions = {},
 ): Promise<T> {
-  const attempts = Math.max(1, options.attempts ?? 2)
-  const baseDelayMs = Math.max(0, options.baseDelayMs ?? 350)
+  const attempts = Math.max(1, options.attempts ?? 3)
+  const baseDelayMs = Math.max(0, options.baseDelayMs ?? 800)
 
   for (let attempt = 1; attempt <= attempts; attempt++) {
     try {

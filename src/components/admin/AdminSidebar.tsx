@@ -11,6 +11,7 @@ import {
   Calculator,
   ChevronDown,
   FileText,
+  Factory,
   Home,
   Package,
   Settings2,
@@ -68,6 +69,12 @@ const NAV_ITEMS: AdminNavItem[] = [
   },
   { kind: 'link', href: '/admin/expenses', label: 'Витрати', icon: Wallet },
   { kind: 'link', href: '/admin/artisans', label: 'Майстри', icon: UserRound },
+  {
+    kind: 'link',
+    href: '/admin/production',
+    label: 'Виробництво',
+    icon: Factory,
+  },
   { kind: 'link', href: '/admin/finance', label: 'Фінанси', icon: BarChart3 },
   {
     kind: 'link',
@@ -95,6 +102,7 @@ export default function AdminSidebar() {
   const pathname = usePathname()
   const inventoryRouteActive = isItemActive(pathname, '/admin/inventory')
   const [inventoryOpen, setInventoryOpen] = useState(inventoryRouteActive)
+  const [mobileOpen, setMobileOpen] = useState(false)
 
   useEffect(() => {
     if (inventoryRouteActive) {
@@ -102,18 +110,35 @@ export default function AdminSidebar() {
     }
   }, [inventoryRouteActive])
 
+  useEffect(() => {
+    setMobileOpen(false)
+  }, [pathname])
+
   return (
     <aside className="admin-sidebar">
-      <div className="flex h-16 items-center border-b border-slate-200/80 p-4">
+      <div className="flex h-16 items-center justify-between border-b border-slate-200/80 p-4">
         <Link href="/admin" className="inline-flex items-center gap-2">
           <span className="h-2.5 w-2.5 rounded-full bg-emerald-500" />
           <span className="text-sm font-semibold tracking-tight text-slate-900">
             GERDAN Admin
           </span>
         </Link>
+
+        <button
+          type="button"
+          onClick={() => setMobileOpen((current) => !current)}
+          className="rounded-md border border-slate-300 px-3 py-1.5 text-xs font-medium text-slate-700 md:hidden"
+          aria-expanded={mobileOpen}
+          aria-controls="admin-mobile-nav"
+        >
+          {mobileOpen ? 'Закрити' : 'Меню'}
+        </button>
       </div>
 
-      <nav className="p-2 space-y-1">
+      <nav
+        id="admin-mobile-nav"
+        className={clsx('space-y-1 p-2', mobileOpen ? 'block' : 'hidden md:block')}
+      >
         {NAV_ITEMS.map((item) => {
           const Icon = item.icon
 
@@ -186,7 +211,12 @@ export default function AdminSidebar() {
         })}
       </nav>
 
-      <div className="mt-auto p-3 border-t border-slate-200/80">
+      <div
+        className={clsx(
+          'mt-auto border-t border-slate-200/80 p-3',
+          mobileOpen ? 'block' : 'hidden md:block',
+        )}
+      >
         <Link href="/" className="admin-nav-item justify-center">
           На сайт
         </Link>
