@@ -32,8 +32,9 @@ export async function generateMetadata(): Promise<Metadata> {
   }
 }
 
-function formatDate(isoDate: string) {
-  return new Date(isoDate).toLocaleDateString('uk-UA', {
+function formatDate(isoDate: string, locale: 'uk' | 'en') {
+  const localeTag = locale === 'en' ? 'en-US' : 'uk-UA'
+  return new Date(isoDate).toLocaleDateString(localeTag, {
     year: 'numeric',
     month: 'long',
     day: 'numeric',
@@ -41,6 +42,8 @@ function formatDate(isoDate: string) {
 }
 
 export default async function BlogPage() {
+  const locale = await getRequestLocale()
+  const isEn = locale === 'en'
   const posts = await getBlogPosts()
 
   return (
@@ -50,16 +53,21 @@ export default async function BlogPage() {
       </Suspense>
 
       <header className="mb-8">
-        <h1 className="text-3xl md:text-4xl font-semibold mb-3">Блог GERDAN</h1>
+        <h1 className="text-3xl md:text-4xl font-semibold mb-3">
+          {isEn ? 'GERDAN Blog' : 'Блог GERDAN'}
+        </h1>
         <p className="text-gray-600 max-w-3xl">
-          Пишемо про стилізацію бісерних сумок, актуальні тренди та практичні
-          ідеї для подарунків.
+          {isEn
+            ? 'We share style ideas for beaded bags, current accessory trends, and practical gift inspirations.'
+            : 'Пишемо про стилізацію бісерних сумок, актуальні тренди та практичні ідеї для подарунків.'}
         </p>
       </header>
 
       {posts.length === 0 ? (
         <section className="rounded-md border border-dashed border-slate-300 p-6 text-slate-600">
-          Поки що в блозі немає опублікованих статей.
+          {isEn
+            ? 'No published blog articles yet.'
+            : 'Поки що в блозі немає опублікованих статей.'}
         </section>
       ) : (
         <section className="grid gap-4 md:grid-cols-2">
@@ -82,8 +90,8 @@ export default async function BlogPage() {
 
               <div className="p-5">
                 <div className="text-xs text-gray-500 mb-2">
-                  {formatDate(post.publishedAt)} · {post.readingMinutes} хв
-                  читання
+                  {formatDate(post.publishedAt, locale)} · {post.readingMinutes}{' '}
+                  {isEn ? 'min read' : 'хв читання'}
                 </div>
                 <h2 className="text-xl font-semibold leading-snug mb-2">
                   <Link href={`/blog/${post.slug}`} className="hover:underline">
@@ -95,7 +103,7 @@ export default async function BlogPage() {
                   href={`/blog/${post.slug}`}
                   className="inline-flex items-center text-sm underline underline-offset-2 hover:no-underline"
                 >
-                  Читати статтю
+                  {isEn ? 'Read article' : 'Читати статтю'}
                 </Link>
               </div>
             </article>

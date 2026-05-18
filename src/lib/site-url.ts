@@ -34,12 +34,15 @@ export function toAbsoluteUrl(path: string, locale: Locale = 'uk'): string {
 
 export function getLocaleAlternates(path: string) {
   const normalizedPath = path.startsWith('/') ? path : `/${path}`
+  const ukUrl = `${getSiteUrl('uk')}${normalizedPath}`
+  const enUrl = `${getSiteUrl('en')}${normalizedPath}`
 
   return {
     canonical: normalizedPath,
     languages: {
-      uk: `${getSiteUrl('uk')}${normalizedPath}`,
-      en: `${getSiteUrl('en')}${normalizedPath}`,
+      uk: ukUrl,
+      en: enUrl,
+      'x-default': ukUrl,
     },
   }
 }

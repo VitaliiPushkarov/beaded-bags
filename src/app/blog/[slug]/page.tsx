@@ -13,8 +13,9 @@ type BlogPostPageProps = {
   params: Promise<{ slug: string }>
 }
 
-function formatDate(isoDate: string) {
-  return new Date(isoDate).toLocaleDateString('uk-UA', {
+function formatDate(isoDate: string, locale: 'uk' | 'en') {
+  const localeTag = locale === 'en' ? 'en-US' : 'uk-UA'
+  return new Date(isoDate).toLocaleDateString(localeTag, {
     year: 'numeric',
     month: 'long',
     day: 'numeric',
@@ -102,8 +103,8 @@ export default async function BlogPostPage({ params }: BlogPostPageProps) {
       <Suspense fallback={null}>
         <Breadcrumbs
           override={[
-            { label: 'Головна', href: '/' },
-            { label: 'Блог', href: '/blog' },
+            { label: locale === 'en' ? 'Home' : 'Головна', href: '/' },
+            { label: locale === 'en' ? 'Blog' : 'Блог', href: '/blog' },
             { label: post.title },
           ]}
         />
@@ -126,7 +127,8 @@ export default async function BlogPostPage({ params }: BlogPostPageProps) {
           </div>
           <p className="text-gray-600">{post.excerpt}</p>
           <div className="text-sm text-gray-500 mt-4">
-            {formatDate(post.publishedAt)} · {post.readingMinutes} хв читання
+            {formatDate(post.publishedAt, locale)} · {post.readingMinutes}{' '}
+            {locale === 'en' ? 'min read' : 'хв читання'}
           </div>
         </header>
 

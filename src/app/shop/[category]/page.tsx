@@ -97,7 +97,7 @@ export async function generateMetadata({
     const target = getLocalizedShopCategoryConfig(config.redirectTo, locale)
     const targetPath = `/shop/${config.redirectTo}`
     return {
-      title: `${target?.metaTitle ?? config.metaTitle} | GERDAN`,
+      title: target?.metaTitle ?? config.metaTitle,
       description: target?.metaDescription ?? config.metaDescription,
       alternates: getLocaleAlternates(targetPath),
       robots: {
@@ -110,7 +110,7 @@ export async function generateMetadata({
   const shouldNoindex = hasFacetedQueryParams(sp)
 
   return {
-    title: `${config.metaTitle} | GERDAN`,
+    title: config.metaTitle,
     description: config.metaDescription,
     alternates: getLocaleAlternates(`/shop/${category.toLowerCase()}`),
     robots: shouldNoindex
@@ -209,21 +209,23 @@ export default async function ShopCategoryPage({
               ? `${config.metaTitle} by GERDAN`
               : `${config.metaTitle} від GERDAN`}
           </h2>
-          {/*  <p className="text-gray-700 leading-relaxed whitespace-pre-line">
-            {locale === 'en'
-              ? 'Detailed category description in English is being prepared.'
-              : config.intro}
-          </p> */}
+          <p className="text-gray-700 leading-relaxed whitespace-pre-line">
+            {config.intro}
+          </p>
         </div>
 
-        {/* {showAccessoriesSubcategories && (
+        {showAccessoriesSubcategories && (
           <div className="border rounded-md p-5 md:p-7 mb-6">
-            <h2 className="text-xl md:text-2xl mb-3">Підкатегорії аксесуарів</h2>
+            <h2 className="text-xl md:text-2xl mb-3">
+              {locale === 'en'
+                ? 'Accessory subcategories'
+                : 'Підкатегорії аксесуарів'}
+            </h2>
             <div className="flex flex-wrap gap-2">
-              {ACCESSORY_SUBCATEGORIES.map((item) => (
+              {accessorySubcategoryOptions.map((item) => (
                 <Link
-                  key={item.slug}
-                  href={`/shop/accessories/${item.slug}`}
+                  key={item.value}
+                  href={`/shop/accessories/${item.value}`}
                   className="inline-flex rounded-sm border px-3 py-2 text-sm hover:border-gray-900"
                 >
                   {item.label}
@@ -231,7 +233,7 @@ export default async function ShopCategoryPage({
               ))}
             </div>
           </div>
-        )} */}
+        )}
 
         <div className=" mt-6 md:mt-12">
           <h2 className="text-xl md:text-2xl mb-4">

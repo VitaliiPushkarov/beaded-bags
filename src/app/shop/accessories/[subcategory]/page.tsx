@@ -98,7 +98,7 @@ export async function generateMetadata({
   const shouldNoindex = hasFacetedQueryParams(sp)
 
   return {
-    title: `${config.metaTitle} | GERDAN`,
+    title: config.metaTitle,
     description: config.metaDescription,
     alternates: getLocaleAlternates(`/shop/accessories/${subcategory}`),
     robots: shouldNoindex
@@ -164,23 +164,21 @@ export default async function AccessorySubcategoryPage({
               ? `${config.metaTitle} by GERDAN`
               : `${config.metaTitle} від GERDAN`}
           </h2>
-          {/*  <p className="text-gray-700 leading-relaxed">
-            {locale === 'en'
-              ? 'Detailed category description in English is being prepared.'
-              : config.intro}
-          </p> */}
+          <p className="text-gray-700 leading-relaxed">{config.intro}</p>
         </div>
 
-        {/* <div className="border rounded-md p-5 md:p-7 mb-6">
+        <div className="border rounded-md p-5 md:p-7 mb-6">
           <h2 className="text-xl md:text-2xl mb-3">
-            Інші підкатегорії аксесуарів
+            {locale === 'en'
+              ? 'Other accessory subcategories'
+              : 'Інші підкатегорії аксесуарів'}
           </h2>
           <div className="flex flex-wrap gap-2">
             <Link
               href="/shop/accessories"
               className="inline-flex rounded-sm border px-3 py-2 text-sm hover:border-gray-900"
             >
-              Усі аксесуари
+              {locale === 'en' ? 'All accessories' : 'Усі аксесуари'}
             </Link>
             {siblingSubcategories.map((item) => (
               <Link
@@ -192,7 +190,7 @@ export default async function AccessorySubcategoryPage({
               </Link>
             ))}
           </div>
-        </div> */}
+        </div>
 
         <div className=" mt-6 md:mt-12 ">
           <h2 className="text-xl md:text-2xl mb-4">

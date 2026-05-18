@@ -2,13 +2,13 @@
 
 import Link from 'next/link'
 import { usePathname, useSearchParams } from 'next/navigation'
-import { useMemo } from 'react'
+import { Suspense, useMemo } from 'react'
 import { getTypeLabel } from '@/lib/labels'
 import type { ProductType } from '@prisma/client'
 import { useLocale } from '@/lib/i18n'
+import { getSiteUrl } from '@/lib/site-url'
 
 type Crumb = { label: string; href?: string }
-const SITE_URL = 'https://gerdan.online'
 
 const nice = (s: string) =>
   decodeURIComponent(s)
@@ -80,8 +80,6 @@ function typeLabel(t?: string | null, locale: 'uk' | 'en' = 'uk') {
   return getTypeLabel(asEnum, locale) || nice(t)
 }
 
-import { Suspense } from 'react'
-
 export default function Breadcrumbs(props: { override?: Crumb[] }) {
   return (
     <Suspense fallback={null}>
@@ -92,6 +90,7 @@ export default function Breadcrumbs(props: { override?: Crumb[] }) {
 
 function BreadcrumbsInner({ override }: { override?: Crumb[] }) {
   const locale = useLocale()
+  const siteUrl = getSiteUrl(locale)
   const labels = locale === 'en' ? LABELS_EN : LABELS_UK
   const pathname = usePathname()
   const sp = useSearchParams()
@@ -150,10 +149,10 @@ function BreadcrumbsInner({ override }: { override?: Crumb[] }) {
         '@type': 'ListItem',
         position: index + 1,
         name: crumb.label,
-        item: `${SITE_URL}${crumb.href ?? pathname ?? '/'}`,
+        item: `${siteUrl}${crumb.href ?? pathname ?? '/'}`,
       })),
     }
-  }, [crumbs, pathname])
+  }, [crumbs, pathname, siteUrl])
 
   if (crumbs.length <= 1) return null
 

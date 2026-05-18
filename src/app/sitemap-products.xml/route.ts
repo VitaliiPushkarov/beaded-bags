@@ -78,6 +78,7 @@ export async function GET() {
     <loc>${loc}</loc>
     <xhtml:link rel="alternate" hreflang="uk" href="${loc}" />
     <xhtml:link rel="alternate" hreflang="en" href="${enLoc}" />
+    <xhtml:link rel="alternate" hreflang="x-default" href="${loc}" />
     <lastmod>${lastmod}</lastmod>
     <changefreq>weekly</changefreq>
     <priority>0.8</priority>

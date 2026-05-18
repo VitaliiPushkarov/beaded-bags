@@ -39,6 +39,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
       languages: {
         uk: `${ukSiteUrl}${path}`,
         en: `${enSiteUrl}${path}`,
+        'x-default': `${ukSiteUrl}${path}`,
       },
     },
     changeFrequency: path === '/' ? 'daily' : 'weekly',
@@ -51,6 +52,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
       languages: {
         uk: `${ukSiteUrl}/blog/${post.slug}`,
         en: `${enSiteUrl}/blog/${post.slug}`,
+        'x-default': `${ukSiteUrl}/blog/${post.slug}`,
       },
     },
     lastModified: new Date(post.updatedAt),

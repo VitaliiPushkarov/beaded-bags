@@ -52,7 +52,7 @@ export default async function Contacts() {
             <PhoneIcon size={30} className="mx-auto mb-2" />
             <div className="flex gap-1">
               <p className="font-semibold">Phone:</p>
-              <a href="phone:+380955837060" className="hover:text-pink-500">
+              <a href="tel:+380955837060" className="hover:text-pink-500">
                 +380955837060
               </a>
             </div>

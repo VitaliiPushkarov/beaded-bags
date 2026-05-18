@@ -9,7 +9,7 @@ export const revalidate = 300
 export async function generateMetadata(): Promise<Metadata> {
   const locale = await getRequestLocale()
   return {
-    title: locale === 'en' ? 'Sale | GERDAN' : 'Sale | GERDAN',
+    title: locale === 'en' ? 'Sale' : 'Розпродаж',
     description:
       locale === 'en'
         ? 'Discounted handmade bags and accessories by GERDAN.'

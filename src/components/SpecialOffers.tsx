@@ -1,6 +1,5 @@
 import Image from 'next/image'
 import Link from 'next/link'
-import type { Product, ProductVariant } from '@prisma/client'
 import {
   calcLocalizedDiscountedPrice,
   formatLocalizedMoney,
@@ -8,18 +7,15 @@ import {
 } from '@/lib/localized-product'
 import { matchAccessorySubcategory } from '@/lib/shop-taxonomy'
 import { getRequestLocale } from '@/lib/server-locale'
+import { getProductsLite } from '@/lib/db/products'
+import type { ProductCardDTO } from '@/lib/product-card-dto'
 
-type ProductWithVariants = Product & {
-  variants: (ProductVariant & {
-    images?: { url: string; hover?: boolean; sort?: number }[]
-  })[]
-}
-
-const BASE_URL = process.env.NEXT_PUBLIC_SITE_URL ?? 'https://gerdan.online'
+type ProductWithVariants = ProductCardDTO
+type SpecialOfferVariant = ProductCardDTO['variants'][number]
 const SPECIAL_OFFERS_VISIBLE_COUNT = 12
 const SPECIAL_OFFERS_SOURCE_RANGE = 60
 
-function isDiscountedVariant(v: ProductVariant) {
+function isDiscountedVariant(v: SpecialOfferVariant) {
   return (
     (typeof v.discountPercent === 'number' && v.discountPercent > 0) ||
     (typeof v.discountUAH === 'number' && v.discountUAH > 0)
@@ -27,17 +23,10 @@ function isDiscountedVariant(v: ProductVariant) {
 }
 
 async function getSpecialOffers(): Promise<ProductWithVariants[]> {
-  const res = await fetch(
-    `${BASE_URL}/api/products?lite=1&discounted=1&limit=${SPECIAL_OFFERS_SOURCE_RANGE}`,
-    {
-      cache: 'no-store',
-    },
-  )
-  if (!res.ok) return []
-  const json = (await res.json()) as
-    | ProductWithVariants[]
-    | { items?: ProductWithVariants[] }
-  const items = Array.isArray(json) ? json : (json.items ?? [])
+  const items = await getProductsLite({
+    onSale: true,
+    take: SPECIAL_OFFERS_SOURCE_RANGE,
+  })
 
   return items
     .filter((item) => item.variants.some((v) => isDiscountedVariant(v)))
