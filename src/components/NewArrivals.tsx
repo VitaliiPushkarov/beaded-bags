@@ -42,7 +42,10 @@ async function getNewArrivals(): Promise<NewArrivalsVariant[]> {
               status: 'PUBLISHED',
             },
           },
-          orderBy: [{ sortNewArrivals: 'asc' }, { product: { createdAt: 'desc' } }],
+          orderBy: [
+            { sortNewArrivals: 'asc' },
+            { product: { createdAt: 'desc' } },
+          ],
           take: NEW_ARRIVALS_VISIBLE_COUNT,
           include: {
             images: {
@@ -68,7 +71,10 @@ async function getNewArrivals(): Promise<NewArrivalsVariant[]> {
     )
   } catch (error) {
     if (isPrismaAvailabilityError(error)) {
-      console.error('[db] Failed to load new arrivals, using empty list.', error)
+      console.error(
+        '[db] Failed to load new arrivals, using empty list.',
+        error,
+      )
       return []
     }
     throw error
@@ -90,10 +96,12 @@ export default async function NewArrivals() {
         </h2>
 
         <div className="relative flex flex-col gap-2">
-          <div className="flex items-stretch gap-5 overflow-x-auto scrollbar-always snap-x pb-2">
+          <div className="flex items-stretch gap-5 overflow-x-auto scrollbar-always snap-x pb-6 [scrollbar-gutter:stable]">
             {variants.length === 0 ? (
               <div className="text-gray-500 text-sm">
-                {locale === 'en' ? 'No products yet.' : 'Поки що немає товарів.'}
+                {locale === 'en'
+                  ? 'No products yet.'
+                  : 'Поки що немає товарів.'}
               </div>
             ) : (
               variants.map((variant) => {
@@ -180,16 +188,18 @@ export default async function NewArrivals() {
                           className="object-cover transition-opacity duration-300 opacity-0 group-hover:opacity-100 group-hover:scale-[1.02]"
                         />
                       </div>
-                      <div className="mt-3 flex items-center justify-between gap-4">
-                        <div className="text-sm truncate">{productName}</div>
-                        <div className="text-sm text-gray-700 whitespace-nowrap flex items-baseline gap-2">
+                      <div className="mt-3 flex flex-col gap-1.5 min-w-0">
+                        <div className="text-[16px] leading-snug line-clamp-2 break-words">
+                          {productName}
+                        </div>
+                        <div className="text-sm md:text-lg text-gray-700 whitespace-nowrap flex items-baseline gap-2">
                           <span>{finalPriceLabel}</span>
                           {hasDiscount && (
                             <>
                               <span className="text-xs text-gray-500 line-through">
                                 {basePriceLabel}
                               </span>
-                              <span className="text-[10px] text-white md:text-xs border  rounded-full px-2 py-0.5 self-center bg-[#DE2222]">
+                              <span className="text-[10px] text-white md:text-xs border rounded-full px-2 py-0.5 self-center bg-[#DE2222]">
                                 -{discountPercent}%
                               </span>
                             </>

@@ -80,7 +80,9 @@ export function AddonsSection(props: {
               return (
                 <div key={addonV.id} className="relative shrink-0 w-[140px]">
                   {/* Картинка як лінк на сторінку аксесуара */}
-                  <Link href={`/products/${addonV.product.slug}#variant=${addonV.id}`}>
+                  <Link
+                    href={`/products/${addonV.product.slug}#variant=${addonV.id}`}
+                  >
                     <div className="relative w-full aspect-4/5 rounded-lg overflow-hidden bg-gray-100">
                       <Image
                         src={addonImageUrl(addonV)}
@@ -108,9 +110,7 @@ export function AddonsSection(props: {
                   </button>
 
                   {/* Назва + ціна під картинкою */}
-                  <div className="mt-2 text-xs text-gray-900">
-                    {title}
-                  </div>
+                  <div className="mt-2 text-xs text-gray-900">{title}</div>
                   <div className="text-xs text-gray-600 flex items-center gap-1.5 flex-wrap">
                     <span>{finalPriceLabel}</span>
                     {pricing.hasDiscount && (
@@ -118,7 +118,7 @@ export function AddonsSection(props: {
                         <span className="text-[11px] text-gray-500 line-through">
                           {basePriceLabel}
                         </span>
-                        <span className="text-[10px] border border-black rounded-full px-1 py-0.5">
+                        <span className="text-[10px] text-white md:text-xs border rounded-full px-1 py-0.5 self-center bg-[#DE2222]">
                           -{pricing.discountPercent}%
                         </span>
                       </>
@@ -161,10 +161,10 @@ export function AddonsSection(props: {
         )
 
         return (
-        <div className="mt-3 w-full rounded-md border border-gray-200 bg-gray-50 px-3 py-2 text-sm text-gray-800">
-          {t('Обрані прикраси', 'Selected add-ons')}:{' '}
-          <span className="font-medium">+{totalLabel}</span>
-        </div>
+          <div className="mt-3 w-full rounded-md border border-gray-200 bg-gray-50 px-3 py-2 text-sm text-gray-800">
+            {t('Обрані прикраси', 'Selected add-ons')}:{' '}
+            <span className="font-medium">+{totalLabel}</span>
+          </div>
         )
       })()}
     </>

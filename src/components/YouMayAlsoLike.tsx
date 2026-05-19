@@ -96,7 +96,7 @@ export default function YouMayAlsoLike({
         // підтримка різних форматів відповіді:
         const list = Array.isArray(json)
           ? json
-          : json?.items ?? json?.products ?? []
+          : (json?.items ?? json?.products ?? [])
 
         if (!cancelled) {
           // 1) Exclude current product robustly
@@ -209,6 +209,8 @@ export default function YouMayAlsoLike({
                   key={`sk-${idx}`}
                   className="
                   shrink-0
+                  grow-0
+                  min-w-0
                   basis-[85%] sm:basis-[48%] md:basis-[32%] lg:basis-[19%]
                 "
                 >
@@ -243,23 +245,21 @@ export default function YouMayAlsoLike({
                   : Number.MAX_SAFE_INTEGER,
             }))
 
-            const cardVariant = normalizedVariants
-              .slice()
-              .sort((a, b) => {
-                if (a.rank !== b.rank) return a.rank - b.rank
-                if (a.pricing.hasDiscount !== b.pricing.hasDiscount) {
-                  return a.pricing.hasDiscount ? -1 : 1
-                }
-                if (a.pricing.finalPrice !== b.pricing.finalPrice) {
-                  return a.pricing.finalPrice - b.pricing.finalPrice
-                }
-                if (a.sortCatalog !== b.sortCatalog) {
-                  return a.sortCatalog - b.sortCatalog
-                }
-                return String(a.variant.id ?? '').localeCompare(
-                  String(b.variant.id ?? ''),
-                )
-              })[0]
+            const cardVariant = normalizedVariants.slice().sort((a, b) => {
+              if (a.rank !== b.rank) return a.rank - b.rank
+              if (a.pricing.hasDiscount !== b.pricing.hasDiscount) {
+                return a.pricing.hasDiscount ? -1 : 1
+              }
+              if (a.pricing.finalPrice !== b.pricing.finalPrice) {
+                return a.pricing.finalPrice - b.pricing.finalPrice
+              }
+              if (a.sortCatalog !== b.sortCatalog) {
+                return a.sortCatalog - b.sortCatalog
+              }
+              return String(a.variant.id ?? '').localeCompare(
+                String(b.variant.id ?? ''),
+              )
+            })[0]
 
             const image =
               p?.image ||
@@ -276,7 +276,13 @@ export default function YouMayAlsoLike({
               typeof p?.basePriceUAH === 'number' ||
               typeof p?.basePriceUSD === 'number' ||
               typeof p?.priceUAH === 'number'
-            const { basePrice, finalPrice, hasDiscount, discountPercent, currency } =
+            const {
+              basePrice,
+              finalPrice,
+              hasDiscount,
+              discountPercent,
+              currency,
+            } =
               cardVariant?.pricing ??
               calcLocalizedDiscountedPrice({
                 locale,
@@ -300,10 +306,15 @@ export default function YouMayAlsoLike({
                 key={p.id ?? p.slug ?? idx}
                 className="
                 shrink-0
+                grow-0
+                min-w-0
                 basis-[85%] sm:basis-[48%] md:basis-[32%] lg:basis-[19%]
               "
               >
-                <Link href={href} className="block">
+                <Link
+                  href={href}
+                  className="flex h-full w-full flex-col min-w-0"
+                >
                   <div className="relative w-full aspect-4/5 border bg-white overflow-hidden">
                     <Image
                       src={image}
@@ -315,19 +326,19 @@ export default function YouMayAlsoLike({
                     />
                   </div>
 
-                  <div className="mt-3 flex items-center justify-between gap-3">
-                    <div className="text-sm text-gray-900 truncate">
+                  <div className="mt-3 flex flex-col gap-1.5 min-w-0 min-h-[58px]">
+                    <div className="text-[16px] text-gray-900 leading-snug line-clamp-2 break-words">
                       {productName}
                     </div>
                     {hasAnyPrice && (
-                      <div className="text-sm text-gray-900 whitespace-nowrap flex items-baseline gap-1.5">
+                      <div className="text-sm md:text-lg text-gray-900 whitespace-nowrap flex items-baseline gap-1.5">
                         <span>{finalPriceLabel}</span>
                         {hasDiscount && (
                           <>
                             <span className="text-xs text-gray-500 line-through">
                               {basePriceLabel}
                             </span>
-                            <span className="text-[10px] border border-black rounded-full px-1.5 py-0.5 self-center">
+                            <span className="text-[10px] text-white md:text-xs border rounded-full px-2 py-0.5 self-center bg-[#DE2222]">
                               -{discountPercent}%
                             </span>
                           </>
@@ -338,7 +349,7 @@ export default function YouMayAlsoLike({
                 </Link>
               </div>
             )
-          }
+          },
         )}
       </div>
     </div>

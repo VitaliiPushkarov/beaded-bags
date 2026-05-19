@@ -72,10 +72,18 @@ export default function ProductCardLarge({
       discountPercent: v?.discountPercent,
       discountUAH: v?.discountUAH ?? 0,
     })
-  const finalPriceLabel = formatLocalizedMoney(finalPrice, currency, numberLocale)
+  const finalPriceLabel = formatLocalizedMoney(
+    finalPrice,
+    currency,
+    numberLocale,
+  )
   const basePriceLabel = formatLocalizedMoney(basePrice, currency, numberLocale)
   const offerNote = pickLocalizedText(p.offerNote, p.offerNoteEn, locale)
-  const variantColorLabel = pickLocalizedText(v?.color, (v as any)?.colorEn, locale)
+  const variantColorLabel = pickLocalizedText(
+    v?.color,
+    (v as any)?.colorEn,
+    locale,
+  )
   const availabilityStatus = resolveAvailabilityStatus({
     availabilityStatus: (v as any)?.availabilityStatus,
     inStock: v?.inStock ?? p.inStock,
@@ -155,17 +163,17 @@ export default function ProductCardLarge({
         </div>
       </Link>
 
-      <div className=" p-1 md:p-3">
-        <div className="flex items-center justify-between flex-wrap">
-          <Link href={productHref}>
-            <h3 className="text-sm md:text-xl font-normal truncate">
+      <div className="mt-3">
+        <div className="flex flex-col gap-1.5 md:gap-2">
+          <Link href={productHref} className="min-w-0">
+            <h3 className="text-[16px] font-normal leading-snug line-clamp-2 break-words">
               {productName}
             </h3>
           </Link>
 
-          <div className="whitespace-nowrap flex flex-col items-end">
+          <div className="whitespace-nowrap flex flex-col items-start">
             <div className="flex items-baseline gap-2">
-              <div className="text-sm md:text-xl font-light">
+              <div className="text-sm md:text-lg font-light">
                 {finalPriceLabel}
               </div>
               {hasDiscount && (
@@ -173,7 +181,7 @@ export default function ProductCardLarge({
                   <div className="text-xs md:text-base text-gray-500 line-through">
                     {basePriceLabel}
                   </div>
-                  <span className="text-[10px] text-white md:text-xs border  rounded-full px-2 py-0.5 self-center bg-[#DE2222]">
+                  <span className="text-[10px] text-white md:text-xs border rounded-full px-2 py-0.5 self-center bg-[#DE2222]">
                     -{discountPercent}%
                   </span>
                 </>
