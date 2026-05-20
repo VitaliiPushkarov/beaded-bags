@@ -1,5 +1,5 @@
 'use client'
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import Image from 'next/image'
 import dynamic from 'next/dynamic'
 
@@ -64,6 +64,11 @@ function getVariantIdFromHash(hash: string): string | undefined {
   const raw = hash.startsWith('#') ? hash.slice(1) : hash
   const params = new URLSearchParams(raw)
   return params.get('variant') || undefined
+}
+
+function getVariantIdFromLocation(loc: Location): string | undefined {
+  const fromQuery = new URLSearchParams(loc.search).get('variant')
+  return fromQuery || getVariantIdFromHash(loc.hash)
 }
 
 function availabilityRank(
@@ -160,20 +165,84 @@ function collectOptionImages(
   return one ? [one] : []
 }
 
+function InstagramIcon({ className }: { className?: string }) {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" className={className} aria-hidden>
+      <rect
+        x="3.5"
+        y="3.5"
+        width="17"
+        height="17"
+        rx="5.5"
+        stroke="currentColor"
+        strokeWidth="1.5"
+      />
+      <circle cx="12" cy="12" r="4" stroke="currentColor" strokeWidth="1.5" />
+      <circle cx="17" cy="7" r="1" fill="currentColor" />
+    </svg>
+  )
+}
+
+function TikTokIcon({ className }: { className?: string }) {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" className={className} aria-hidden>
+      <path
+        d="M14 5v8.2a4.2 4.2 0 1 1-3-4"
+        stroke="currentColor"
+        strokeWidth="1.5"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+      <path
+        d="M14 5c1 .9 2.2 1.4 3.6 1.5"
+        stroke="currentColor"
+        strokeWidth="1.5"
+        strokeLinecap="round"
+      />
+    </svg>
+  )
+}
+
+function ThreadsIcon({ className }: { className?: string }) {
+  return (
+    <svg
+      viewBox="0 0 16 16"
+      fill="currentColor"
+      className={className}
+      aria-hidden
+    >
+      <path d="M6.321 6.016c-.27-.18-1.166-.802-1.166-.802.756-1.081 1.753-1.502 3.132-1.502.975 0 1.803.327 2.394.948s.928 1.509 1.005 2.644q.492.207.905.484c1.109.745 1.719 1.86 1.719 3.137 0 2.716-2.226 5.075-6.256 5.075C4.594 16 1 13.987 1 7.994 1 2.034 4.482 0 8.044 0 9.69 0 13.55.243 15 5.036l-1.36.353C12.516 1.974 10.163 1.43 8.006 1.43c-3.565 0-5.582 2.171-5.582 6.79 0 4.143 2.254 6.343 5.63 6.343 2.777 0 4.847-1.443 4.847-3.556 0-1.438-1.208-2.127-1.27-2.127-.236 1.234-.868 3.31-3.644 3.31-1.618 0-3.013-1.118-3.013-2.582 0-2.09 1.984-2.847 3.55-2.847.586 0 1.294.04 1.663.114 0-.637-.54-1.728-1.9-1.728-1.25 0-1.566.405-1.967.868ZM8.716 8.19c-2.04 0-2.304.87-2.304 1.416 0 .878 1.043 1.168 1.6 1.168 1.02 0 2.067-.282 2.232-2.423a6.2 6.2 0 0 0-1.528-.161" />
+    </svg>
+  )
+}
+
 export function ProductInteractive({ p }: { p: ProductWithVariants }) {
   const locale = useLocale()
   const numberLocale = useLocaleNumberFormat()
   const t = useT()
   const productName = pickLocalizedText(p.name, (p as any).nameEn, locale)
   const [selectedColorKey, setSelectedColorKey] = useState<string | undefined>()
+  const [selectedVariantId, setSelectedVariantId] = useState<
+    string | undefined
+  >()
   const [isColorLockedByEntry, setIsColorLockedByEntry] = useState(false)
   const [selectedSizeId, setSelectedSizeId] = useState<string | undefined>()
   const [selectedPouchId, setSelectedPouchId] = useState<string | undefined>()
   const [strapId, setStrapId] = useState<string | undefined>()
   const [galleryReady, setGalleryReady] = useState(false)
+  const selectedVariantIdRef = useRef<string | undefined>(undefined)
+  const selectedColorKeyRef = useRef<string | undefined>(undefined)
 
   const openCart = useUI((s) => s.openCart)
   const add = useCart((s) => s.add)
+
+  useEffect(() => {
+    selectedVariantIdRef.current = selectedVariantId
+  }, [selectedVariantId])
+
+  useEffect(() => {
+    selectedColorKeyRef.current = selectedColorKey
+  }, [selectedColorKey])
 
   const colorOptions = useMemo(() => {
     const map = new Map<
@@ -202,7 +271,10 @@ export function ProductInteractive({ p }: { p: ProductWithVariants }) {
       if (!existing) {
         map.set(key, {
           key,
-          label: toOptionLabel(localizedColor, locale === 'en' ? 'Base' : 'Базовий'),
+          label: toOptionLabel(
+            localizedColor,
+            locale === 'en' ? 'Base' : 'Базовий',
+          ),
           hex: variant.hex ?? null,
           minSort: sort,
           rank,
@@ -235,12 +307,38 @@ export function ProductInteractive({ p }: { p: ProductWithVariants }) {
     )
   }, [locale, p.variants, selectedColorKey])
 
+  const selectedVariant = useMemo(
+    () =>
+      selectedVariantId
+        ? p.variants.find((variant) => variant.id === selectedVariantId) || null
+        : null,
+    [p.variants, selectedVariantId],
+  )
+
   const v = useMemo(
     () =>
+      selectedVariant ||
       choosePreferredVariant(variantsByColor) ||
       choosePreferredVariant(p.variants) ||
       null,
-    [variantsByColor, p.variants],
+    [selectedVariant, variantsByColor, p.variants],
+  )
+
+  const pickPreferredVariantForColorKey = useCallback(
+    (colorKey: string) =>
+      choosePreferredVariant(
+        p.variants.filter(
+          (variant) =>
+            toOptionKey(
+              pickLocalizedText(
+                variant.color,
+                (variant as any).colorEn,
+                locale,
+              ),
+            ) === colorKey,
+        ),
+      ),
+    [locale, p.variants],
   )
 
   const sizeOptions = useMemo(
@@ -288,48 +386,83 @@ export function ProductInteractive({ p }: { p: ProductWithVariants }) {
     [strapOptions, strapId],
   )
 
-  const didInitVariantFromUrlRef = useRef(false)
   useEffect(() => {
-    if (didInitVariantFromUrlRef.current) return
     if (typeof window === 'undefined') return
     if (!p.variants?.length) return
 
-    const variantFromHash = getVariantIdFromHash(window.location.hash)
-    const hashVariant = variantFromHash
-      ? p.variants.find((variant) => variant.id === variantFromHash)
-      : null
+    const syncFromUrl = () => {
+      const requestedVariantId = getVariantIdFromLocation(window.location)
+      const requestedVariant = requestedVariantId
+        ? p.variants.find((variant) => variant.id === requestedVariantId) ||
+          null
+        : null
 
-    const initialVariant = hashVariant || choosePreferredVariant(p.variants)
-    if (!initialVariant) return
+      const nextVariant = requestedVariant || choosePreferredVariant(p.variants)
+      if (!nextVariant) return
 
-    setSelectedColorKey(
-      toOptionKey(
+      const nextColorKey = toOptionKey(
         pickLocalizedText(
-          initialVariant.color,
-          (initialVariant as any).colorEn,
+          nextVariant.color,
+          (nextVariant as any).colorEn,
           locale,
         ),
-      ),
-    )
-    setSelectedSizeId(undefined)
-    setSelectedPouchId(undefined)
-    setStrapId(undefined)
-    setIsColorLockedByEntry(Boolean(hashVariant))
+      )
+      const changed = selectedVariantIdRef.current !== nextVariant.id
+      if (changed) {
+        setSelectedSizeId(undefined)
+        setSelectedPouchId(undefined)
+        setStrapId(undefined)
+      }
+      if (selectedVariantIdRef.current !== nextVariant.id) {
+        selectedVariantIdRef.current = nextVariant.id
+        setSelectedVariantId(nextVariant.id)
+      }
+      if (selectedColorKeyRef.current !== nextColorKey) {
+        selectedColorKeyRef.current = nextColorKey
+        setSelectedColorKey(nextColorKey)
+      }
+      setIsColorLockedByEntry(Boolean(requestedVariant))
+    }
 
-    didInitVariantFromUrlRef.current = true
+    syncFromUrl()
+    window.addEventListener('popstate', syncFromUrl)
+    window.addEventListener('hashchange', syncFromUrl)
+
+    return () => {
+      window.removeEventListener('popstate', syncFromUrl)
+      window.removeEventListener('hashchange', syncFromUrl)
+    }
   }, [locale, p.variants])
 
   useEffect(() => {
     if (!colorOptions.length) return
 
-    const exists =
-      selectedColorKey &&
-      colorOptions.some((option) => option.key === selectedColorKey)
+    const currentColorKey = selectedColorKeyRef.current
+    if (!currentColorKey) return
 
-    if (!exists) {
-      setSelectedColorKey(colorOptions[0].key)
+    const exists = colorOptions.some((option) => option.key === currentColorKey)
+    if (exists) return
+
+    const fallbackKey = colorOptions[0].key
+    selectedColorKeyRef.current = fallbackKey
+    setSelectedColorKey(fallbackKey)
+  }, [colorOptions])
+
+  useEffect(() => {
+    if (!selectedColorKey) return
+
+    const stillValid =
+      selectedVariantId &&
+      variantsByColor.some((variant) => variant.id === selectedVariantId)
+    if (stillValid) return
+
+    const preferred = choosePreferredVariant(variantsByColor)
+    const nextId = preferred?.id
+    if (selectedVariantId !== nextId) {
+      selectedVariantIdRef.current = nextId
+      setSelectedVariantId(nextId)
     }
-  }, [colorOptions, selectedColorKey])
+  }, [selectedColorKey, selectedVariantId, variantsByColor])
 
   useEffect(() => {
     if (!sizeOptions.length) {
@@ -389,12 +522,22 @@ export function ProductInteractive({ p }: { p: ProductWithVariants }) {
   useEffect(() => {
     if (typeof window === 'undefined') return
     if (!v?.id) return
+    if (selectedVariantIdRef.current && selectedVariantIdRef.current !== v.id) {
+      return
+    }
 
-    const current = getVariantIdFromHash(window.location.hash) || ''
-    if (current === v.id) return
+    const url = new URL(window.location.href)
+    const current =
+      url.searchParams.get('variant') || getVariantIdFromHash(url.hash) || ''
+    if (current === v.id && url.searchParams.get('variant') === v.id) return
 
-    const url = `${window.location.pathname}${window.location.search}#variant=${v.id}`
-    window.history.replaceState(window.history.state, '', url)
+    url.searchParams.set('variant', v.id)
+    if (url.hash.startsWith('#variant=')) {
+      url.hash = ''
+    }
+
+    const next = `${url.pathname}?${url.searchParams.toString()}${url.hash}`
+    window.history.replaceState(window.history.state, '', next)
   }, [v?.id])
 
   useEffect(() => {
@@ -523,7 +666,14 @@ export function ProductInteractive({ p }: { p: ProductWithVariants }) {
       .map((option) => {
         const pick = choosePreferredVariant(
           p.variants.filter(
-            (variant) => toOptionKey(variant.color) === option.key,
+            (variant) =>
+              toOptionKey(
+                pickLocalizedText(
+                  variant.color,
+                  (variant as any).colorEn,
+                  locale,
+                ),
+              ) === option.key,
           ),
         )
         if (!pick) return null
@@ -543,7 +693,7 @@ export function ProductInteractive({ p }: { p: ProductWithVariants }) {
           hex: string | null
         } => Boolean(entry),
       )
-  }, [colorOptions, hasAdvancedConfigurator, p.variants])
+  }, [colorOptions, hasAdvancedConfigurator, locale, p.variants])
 
   const selectedSimpleVariantId = useMemo(() => {
     const selected = simpleSwatchEntries.find(
@@ -721,9 +871,7 @@ export function ProductInteractive({ p }: { p: ProductWithVariants }) {
         (addonV as any).colorEn,
         locale,
       )
-      const name = `${addonName}${
-        addonColor ? ` — ${addonColor}` : ''
-      }`
+      const name = `${addonName}${addonColor ? ` — ${addonColor}` : ''}`
 
       add({
         productId: addonV.product.id,
@@ -773,9 +921,7 @@ export function ProductInteractive({ p }: { p: ProductWithVariants }) {
 
           <div className="mb-1">
             <div className="flex items-baseline gap-2">
-              <div className="text-lg md:text-2xl">
-                {finalPriceLabel}
-              </div>
+              <div className="text-lg md:text-2xl">{finalPriceLabel}</div>
               {hasDiscount && (
                 <>
                   <div className="text-sm md:text-lg text-gray-500 line-through">
@@ -867,6 +1013,12 @@ export function ProductInteractive({ p }: { p: ProductWithVariants }) {
                                   if (isColorLockedByEntry)
                                     setIsColorLockedByEntry(false)
                                   setSelectedColorKey(option.key)
+                                  const nextId =
+                                    pickPreferredVariantForColorKey(
+                                      option.key,
+                                    )?.id
+                                  selectedVariantIdRef.current = nextId
+                                  setSelectedVariantId(nextId)
                                 }}
                                 className={`inline-flex items-center gap-2 rounded-full border px-3 py-1.5 text-xs transition cursor-pointer ${
                                   isActive
@@ -890,9 +1042,11 @@ export function ProductInteractive({ p }: { p: ProductWithVariants }) {
                         </div>
                         {isColorLockedByEntry && (
                           <div className="mt-2 text-xs text-gray-500">
-                            {t('Початковий колір із каталогу', 'Initial color from catalog')}
-                            :{' '}
-                            {selectedColorLabel || '—'}
+                            {t(
+                              'Початковий колір із каталогу',
+                              'Initial color from catalog',
+                            )}
+                            : {selectedColorLabel || '—'}
                           </div>
                         )}
                       </div>
@@ -923,7 +1077,9 @@ export function ProductInteractive({ p }: { p: ProductWithVariants }) {
                                   }`}
                                 >
                                   {size.size}
-                                  {extra > 0 ? ` (+${extra} ${optionPriceUnitLabel})` : ''}
+                                  {extra > 0
+                                    ? ` (+${extra} ${optionPriceUnitLabel})`
+                                    : ''}
                                 </button>
                               )
                             })}
@@ -965,7 +1121,9 @@ export function ProductInteractive({ p }: { p: ProductWithVariants }) {
                                   }`}
                                 >
                                   {pouch.color}
-                                  {extra > 0 ? ` (+${extra} ${optionPriceUnitLabel})` : ''}
+                                  {extra > 0
+                                    ? ` (+${extra} ${optionPriceUnitLabel})`
+                                    : ''}
                                 </button>
                               )
                             })}
@@ -1018,7 +1176,9 @@ export function ProductInteractive({ p }: { p: ProductWithVariants }) {
                                   ) : null}
                                   <span>
                                     {strap.name}
-                                    {extra > 0 ? ` (+${extra} ${optionPriceUnitLabel})` : ''}
+                                    {extra > 0
+                                      ? ` (+${extra} ${optionPriceUnitLabel})`
+                                      : ''}
                                   </span>
                                 </button>
                               )
@@ -1042,18 +1202,25 @@ export function ProductInteractive({ p }: { p: ProductWithVariants }) {
                       {t('Ваш вибір', 'Your selection')}:
                     </div>
                     {selectedVariantColor && (
-                      <div>{t('Колір', 'Color')}: {selectedVariantColor}</div>
+                      <div>
+                        {t('Колір', 'Color')}: {selectedVariantColor}
+                      </div>
                     )}
                     {selectedSize?.size && (
-                      <div>{t('Розмір', 'Size')}: {selectedSize.size}</div>
+                      <div>
+                        {t('Розмір', 'Size')}: {selectedSize.size}
+                      </div>
                     )}
                     {selectedPouch?.color && (
                       <div>
-                        {t('Колір мішечка', 'Pouch color')}: {selectedPouch.color}
+                        {t('Колір мішечка', 'Pouch color')}:{' '}
+                        {selectedPouch.color}
                       </div>
                     )}
                     {selectedStrap?.name && (
-                      <div>{t('Ремінець', 'Strap')}: {selectedStrap.name}</div>
+                      <div>
+                        {t('Ремінець', 'Strap')}: {selectedStrap.name}
+                      </div>
                     )}
                     {/*  {!isConfigurationComplete && (
                       <div className="mt-1 text-red-600">
@@ -1095,6 +1262,8 @@ export function ProductInteractive({ p }: { p: ProductWithVariants }) {
                         if (!entry) return
                         if (isColorLockedByEntry) setIsColorLockedByEntry(false)
                         setSelectedColorKey(entry.key)
+                        selectedVariantIdRef.current = entry.variant.id
+                        setSelectedVariantId(entry.variant.id)
                       }}
                     />
                   </div>
@@ -1154,23 +1323,45 @@ export function ProductInteractive({ p }: { p: ProductWithVariants }) {
             )}
           />
 
-          <div className="mt-8 space-y-3 text-sm text-gray-700">
-            <div className="flex items-center gap-2">
-              <span>{shippingNote}</span>
+          <div className="mt-6">
+            <div className="text-[11px] uppercase tracking-[0.08em] text-gray-600">
+              {t('Соцмережі', 'Socials')}
             </div>
-
-            <p>
-              {t('Маєте питання? Напишіть нам у', 'Have questions? Message us on')}{' '}
+            <div className="mt-2 flex items-center gap-2">
               <a
                 href="https://instagram.com/gerdan.studio"
                 target="_blank"
                 rel="noreferrer"
-                className="underline underline-offset-2"
+                aria-label="Instagram"
+                className="inline-flex h-9 w-9 items-center justify-center rounded-full border border-black text-white bg-black transition hover:bg-white hover:text-black"
               >
-                Instagram
+                <InstagramIcon className="h-6 w-6" />
               </a>
-              .
-            </p>
+              <a
+                href="https://www.tiktok.com/@gerdan.studio"
+                target="_blank"
+                rel="noreferrer"
+                aria-label="TikTok"
+                className="inline-flex h-9 w-9 items-center justify-center rounded-full border border-black text-white bg-black transition hover:bg-white hover:text-black"
+              >
+                <TikTokIcon className="h-6 w-6" />
+              </a>
+              <a
+                href="https://www.threads.net/@gerdan.studio"
+                target="_blank"
+                rel="noreferrer"
+                aria-label="Threads"
+                className="inline-flex h-9 w-9 items-center justify-center rounded-full border border-black text-white bg-black transition hover:bg-white hover:text-black"
+              >
+                <ThreadsIcon className="h-4 w-4" />
+              </a>
+            </div>
+          </div>
+
+          <div className="mt-8 space-y-3 text-sm text-gray-700">
+            <div className="flex items-center gap-2">
+              <span>{shippingNote}</span>
+            </div>
           </div>
         </div>
       </section>

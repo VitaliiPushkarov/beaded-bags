@@ -81,7 +81,7 @@ export function AddonsSection(props: {
                 <div key={addonV.id} className="relative shrink-0 w-[140px]">
                   {/* Картинка як лінк на сторінку аксесуара */}
                   <Link
-                    href={`/products/${addonV.product.slug}#variant=${addonV.id}`}
+                    href={`/products/${addonV.product.slug}?variant=${addonV.id}`}
                   >
                     <div className="relative w-full aspect-4/5 rounded-lg overflow-hidden bg-gray-100">
                       <Image

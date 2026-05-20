@@ -115,7 +115,7 @@ export default function ProductCardLarge({
     primaryImage
 
   const productHref = `/products/${p.slug}${
-    activeVariantId ? `#variant=${activeVariantId}` : ''
+    activeVariantId ? `?variant=${activeVariantId}` : ''
   }`
 
   return (

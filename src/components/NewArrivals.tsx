@@ -161,7 +161,7 @@ export default async function NewArrivals() {
                   numberLocale,
                 )
 
-                const productHref = `/products/${p.slug}#variant=${variant.id}`
+                const productHref = `/products/${p.slug}?variant=${variant.id}`
 
                 return (
                   <div
