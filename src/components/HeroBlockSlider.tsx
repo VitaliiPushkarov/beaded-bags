@@ -39,7 +39,7 @@ export default function HeroBlockSlider({ slides, autoPlayMs = 7000 }: Props) {
   if (ordered.length === 0) return null
 
   return (
-    <section className="relative w-full h-[600px] md:h-[740px]">
+    <section className="relative w-full h-[600px] md:h-[740px] ">
       <div className="relative h-full px-6">
         <div className="relative h-full overflow-hidden">
           {ordered.map((slide, index) => {
@@ -50,7 +50,9 @@ export default function HeroBlockSlider({ slides, autoPlayMs = 7000 }: Props) {
                 key={slide.id}
                 href={slide.linkHref}
                 className={`absolute inset-0 block transition-opacity duration-500 ${
-                  isActive ? 'opacity-100 z-20' : 'opacity-0 z-10 pointer-events-none'
+                  isActive
+                    ? 'opacity-100 z-20'
+                    : 'opacity-0 z-10 pointer-events-none'
                 }`}
               >
                 <Image
@@ -59,7 +61,7 @@ export default function HeroBlockSlider({ slides, autoPlayMs = 7000 }: Props) {
                   fill
                   loading={index === 0 ? 'eager' : 'lazy'}
                   sizes="100vw"
-                  className="object-cover object-center md:hidden"
+                  className="object-contain object-center md:hidden"
                   quality={60}
                 />
                 <Image
@@ -67,7 +69,7 @@ export default function HeroBlockSlider({ slides, autoPlayMs = 7000 }: Props) {
                   alt={slide.desktopAlt}
                   fill
                   priority={index === 0}
-                  className="object-cover object-center hidden md:block"
+                  className="object-contain object-center hidden md:block"
                   quality={80}
                   sizes="100vw"
                 />
