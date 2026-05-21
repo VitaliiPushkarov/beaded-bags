@@ -67,6 +67,7 @@ const VariantSchema = z.object({
   priceUSD: NullablePriceSchema,
   discountPercent: z.coerce.number().optional().nullable(),
   discountUAH: z.coerce.number().optional().nullable(),
+  sortCatalog: z.coerce.number().int().optional().nullable(),
   availabilityStatus: z.enum(AvailabilityStatus).optional().nullable(),
   inStock: z.coerce.boolean(),
   sku: z.string().trim().optional().nullable(),
@@ -218,6 +219,7 @@ export async function PATCH(
                 priceUSD: v.priceUSD ?? null,
                 discountPercent: sanitizeDiscountPercent(v.discountPercent),
                 discountUAH: v.discountUAH ?? null,
+                sortCatalog: sanitizeSortCatalog(v.sortCatalog),
                 inStock: isInStockStatus(availabilityStatus),
                 availabilityStatus,
                 sku: v.sku ?? null,
@@ -397,6 +399,7 @@ export async function PATCH(
                 priceUSD: v.priceUSD ?? null,
                 discountPercent: sanitizeDiscountPercent(v.discountPercent),
                 discountUAH: v.discountUAH ?? null,
+                sortCatalog: sanitizeSortCatalog(v.sortCatalog),
                 inStock: isInStockStatus(availabilityStatus),
                 availabilityStatus,
                 sku: v.sku ?? null,
@@ -543,7 +546,7 @@ export async function GET(
       where: { id },
       include: {
         variants: {
-          orderBy: { id: 'asc' },
+          orderBy: [{ sortCatalog: 'asc' }, { id: 'asc' }],
           include: {
             images: true,
             straps: true,

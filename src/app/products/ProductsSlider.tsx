@@ -52,7 +52,18 @@ export default function ProductsSlider() {
       try {
         const res = await fetch('/api/products', { cache: 'no-store' })
         const data = (await res.json()) as ProductWithVariants[]
-        setProducts(data)
+        const normalized = (data || []).map((product) => ({
+          ...product,
+          variants: [...(product.variants || [])].sort((a, b) => {
+            const sortA =
+              typeof a.sortCatalog === 'number' ? a.sortCatalog : 0
+            const sortB =
+              typeof b.sortCatalog === 'number' ? b.sortCatalog : 0
+            if (sortA !== sortB) return sortA - sortB
+            return a.id.localeCompare(b.id)
+          }),
+        }))
+        setProducts(normalized)
       } catch (err) {
         console.error('❌ Failed to load products:', err)
       } finally {

@@ -12,6 +12,7 @@ export type ProductCardVariantImageDTO = {
 
 export type ProductCardVariantDTO = {
   id: string
+  sortCatalog: number | null
   color: string | null
   colorEn: string | null
   hex: string | null

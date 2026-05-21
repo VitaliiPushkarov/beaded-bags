@@ -580,6 +580,7 @@ model HomeHeroBannerSettings {
   linkHref      String   @default("/shop")
   desktopAlt    String   @default("Gerdan Hero")
   mobileAlt     String   @default("Gerdan Hero Mobile")
+  slides        Json
   createdAt     DateTime @default(now())
   updatedAt     DateTime @updatedAt
 }

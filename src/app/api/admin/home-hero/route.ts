@@ -3,7 +3,11 @@ import { z } from 'zod'
 import { revalidatePath } from 'next/cache'
 
 import { prisma } from '@/lib/prisma'
-import { getHomeHeroBannerSettings } from '@/lib/home-hero-banner'
+import {
+  getHomeHeroBannerSettings,
+  HOME_HERO_BANNER_DEFAULTS,
+  type HomeHeroSlideDTO,
+} from '@/lib/home-hero-banner'
 
 const ImagePathSchema = z
   .string()
@@ -29,16 +33,48 @@ const LinkHrefSchema = z
     'Invalid link href',
   )
 
-const PayloadSchema = z.object({
+const SlideSchema = z.object({
+  id: z.string().trim().min(1).max(120).optional(),
   desktopImage: ImagePathSchema,
   mobileImage: ImagePathSchema,
   linkHref: LinkHrefSchema,
   desktopAlt: z.string().trim().min(1).max(180),
   mobileAlt: z.string().trim().min(1).max(180),
+  sort: z.coerce.number().int().min(0).optional().default(0),
+  isActive: z.coerce.boolean().optional().default(true),
+})
+
+const PayloadSchema = z.object({
+  slides: z.array(SlideSchema).min(1).max(20),
 })
 
 function isAdmin(req: NextRequest): boolean {
   return req.cookies.get('admin-auth')?.value === 'true'
+}
+
+function normalizeSlides(slides: z.infer<typeof SlideSchema>[]): HomeHeroSlideDTO[] {
+  const seenIds = new Set<string>()
+
+  return slides
+    .map((slide, index) => {
+      let id = String(slide.id || '').trim() || `home-hero-slide-${index + 1}`
+      while (seenIds.has(id)) {
+        id = `${id}-${index + 1}`
+      }
+      seenIds.add(id)
+
+      return {
+        id,
+        desktopImage: slide.desktopImage,
+        mobileImage: slide.mobileImage,
+        linkHref: slide.linkHref,
+        desktopAlt: slide.desktopAlt,
+        mobileAlt: slide.mobileAlt,
+        sort: Math.max(0, Number(slide.sort) || 0),
+        isActive: slide.isActive !== false,
+      }
+    })
+    .sort((a, b) => a.sort - b.sort || a.id.localeCompare(b.id))
 }
 
 export async function GET(req: NextRequest) {
@@ -68,36 +104,46 @@ export async function PUT(req: NextRequest) {
     }
 
     const data = parsed.data
+    const slides = normalizeSlides(data.slides)
+    const primarySlide =
+      slides.find((slide) => slide.isActive) ||
+      slides[0] ||
+      HOME_HERO_BANNER_DEFAULTS.slides[0]
 
     const updated = await prisma.homeHeroBannerSettings.upsert({
       where: { id: 1 },
       update: {
-        desktopImage: data.desktopImage,
-        mobileImage: data.mobileImage,
-        linkHref: data.linkHref,
-        desktopAlt: data.desktopAlt,
-        mobileAlt: data.mobileAlt,
+        slides,
+        desktopImage: primarySlide.desktopImage,
+        mobileImage: primarySlide.mobileImage,
+        linkHref: primarySlide.linkHref,
+        desktopAlt: primarySlide.desktopAlt,
+        mobileAlt: primarySlide.mobileAlt,
       },
       create: {
         id: 1,
-        desktopImage: data.desktopImage,
-        mobileImage: data.mobileImage,
-        linkHref: data.linkHref,
-        desktopAlt: data.desktopAlt,
-        mobileAlt: data.mobileAlt,
+        slides,
+        desktopImage: primarySlide.desktopImage,
+        mobileImage: primarySlide.mobileImage,
+        linkHref: primarySlide.linkHref,
+        desktopAlt: primarySlide.desktopAlt,
+        mobileAlt: primarySlide.mobileAlt,
       },
       select: {
-        desktopImage: true,
-        mobileImage: true,
-        linkHref: true,
-        desktopAlt: true,
-        mobileAlt: true,
+        slides: true,
       },
     })
 
     revalidatePath('/')
 
-    return NextResponse.json({ settings: updated }, { status: 200 })
+    return NextResponse.json(
+      {
+        settings: {
+          slides: updated.slides,
+        },
+      },
+      { status: 200 },
+    )
   } catch (error) {
     console.error('Admin home hero PUT error:', error)
 

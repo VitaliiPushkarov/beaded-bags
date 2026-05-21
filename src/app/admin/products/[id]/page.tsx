@@ -59,7 +59,7 @@ export default async function AdminProductEditPage({ params }: PageProps) {
     where: { id },
     include: {
       variants: {
-        orderBy: { id: 'asc' },
+        orderBy: [{ sortCatalog: 'asc' }, { id: 'asc' }],
         include: {
           images: {
             orderBy: { sort: 'asc' },
@@ -123,7 +123,7 @@ export default async function AdminProductEditPage({ params }: PageProps) {
           inStock: true,
           availabilityStatus: 'IN_STOCK',
         },
-        orderBy: { id: 'asc' },
+        orderBy: [{ sortCatalog: 'asc' }, { id: 'asc' }],
         include: {
           images: true,
         },
@@ -342,6 +342,7 @@ export default async function AdminProductEditPage({ params }: PageProps) {
         colorEn: (v as any).colorEn ?? '',
         modelSize: (v as any).modelSize ?? '',
         pouchColor: (v as any).pouchColor ?? '',
+        sortCatalog: String(v.sortCatalog ?? 0),
         hex: v.hex ?? '',
         image: main,
         images,

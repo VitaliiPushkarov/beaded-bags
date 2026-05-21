@@ -80,7 +80,7 @@ export async function GET(req: NextRequest) {
                 basePriceUSD: true,
                 variants: {
                   take: 1,
-                  orderBy: { sortCatalog: 'asc' },
+                  orderBy: [{ sortCatalog: 'asc' }, { id: 'asc' }],
                   select: {
                     image: true,
                     priceUAH: true,
@@ -167,7 +167,7 @@ export async function GET(req: NextRequest) {
               variants: {
                 where: discountedVariantWhere,
                 take: 6,
-                orderBy: { sortCatalog: 'asc' },
+                orderBy: [{ sortCatalog: 'asc' }, { id: 'asc' }],
                 select: {
                   id: true,
                   color: true,
@@ -223,7 +223,7 @@ export async function GET(req: NextRequest) {
           where,
           include: {
             variants: {
-              orderBy: { id: 'asc' },
+              orderBy: [{ sortCatalog: 'asc' }, { id: 'asc' }],
               include: {
                 images: true,
                 straps: {

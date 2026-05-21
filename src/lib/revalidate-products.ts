@@ -54,20 +54,17 @@ export function revalidateProductCache({ reason, before, after }: RevalidateInpu
   paths.add('/admin/costs')
 
   const slugChanged = (before?.slug ?? null) !== (after?.slug ?? null)
-  const typeChanged = (before?.type ?? null) !== (after?.type ?? null)
-  const groupChanged = (before?.group ?? null) !== (after?.group ?? null)
   const statusChanged = (before?.status ?? null) !== (after?.status ?? null)
 
   // Always refresh affected PDP pages.
   addSnapshotPaths(paths, before)
   addSnapshotPaths(paths, after)
 
-  // Taxonomy/list-level pages are refreshed on create/delete, and when product
-  // moved between type/group buckets.
-  if (reason !== 'update' || typeChanged || groupChanged || statusChanged) {
-    paths.add('/shop')
-    paths.add('/sale')
-  }
+  // Taxonomy/list-level pages are refreshed on every product mutation because
+  // card previews depend on variant-level fields (price/image/sortCatalog/
+  // discount/availability), not only on type/group/status changes.
+  paths.add('/shop')
+  paths.add('/sale')
 
   // Product sitemap should refresh only when URL structure may change:
   // new product, deleted product, or slug changed.

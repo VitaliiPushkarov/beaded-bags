@@ -93,6 +93,7 @@ const ProductCreateSchema = z.object({
         priceUSD: NullablePriceSchema,
         discountPercent: z.coerce.number().optional().nullable(),
         discountUAH: z.coerce.number().optional().nullable(),
+        sortCatalog: z.coerce.number().int().optional().nullable(),
         availabilityStatus: z.enum(AvailabilityStatus).optional().nullable(),
         inStock: z.coerce.boolean(),
         sku: z.string().trim().optional().nullable(),
@@ -139,7 +140,7 @@ export async function GET() {
         createdAt: true,
         updatedAt: true,
         variants: {
-          orderBy: [{ sortCatalog: 'asc' }],
+          orderBy: [{ sortCatalog: 'asc' }, { id: 'asc' }],
           select: {
             id: true,
             color: true,
@@ -211,7 +212,7 @@ export async function POST(req: NextRequest) {
         inStock: data.inStock,
 
         variants: {
-          create: data.variants.map((v, idx) => {
+          create: data.variants.map((v) => {
             const availabilityStatus = resolveAvailabilityStatus({
               availabilityStatus: v.availabilityStatus,
               inStock: v.inStock,
@@ -231,6 +232,7 @@ export async function POST(req: NextRequest) {
               priceUSD: v.priceUSD ?? null,
               discountPercent: sanitizeDiscountPercent(v.discountPercent),
               discountUAH: v.discountUAH ?? null,
+              sortCatalog: sanitizeSortCatalog(v.sortCatalog),
               inStock: isInStockStatus(availabilityStatus),
               availabilityStatus,
               sku: v.sku ?? null,
@@ -260,8 +262,6 @@ export async function POST(req: NextRequest) {
                 })),
               },
 
-              // sensible default order for new variants
-              sortCatalog: idx + 1,
             }
           }),
         },

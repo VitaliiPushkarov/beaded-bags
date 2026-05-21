@@ -1,7 +1,6 @@
 import { prisma } from '@/lib/prisma'
 import type { Prisma, ProductType } from '@prisma/client'
 import type { ProductCardDTO } from '@/lib/product-card-dto'
-import { resolveAvailabilityStatus } from '@/lib/availability'
 import {
   isPrismaAvailabilityError,
   withPrismaRetry,
@@ -21,9 +20,7 @@ type GetProductsParams = {
 
 const PRODUCT_PAGE_INCLUDE = {
   variants: {
-    orderBy: {
-      id: 'asc',
-    },
+    orderBy: [{ sortCatalog: 'asc' }, { id: 'asc' }],
     include: {
       images: {
         orderBy: { sort: 'asc' },
@@ -91,7 +88,7 @@ const PRODUCT_CARD_SELECT = {
   basePriceUAH: true,
   basePriceUSD: true,
   variants: {
-    orderBy: { sortCatalog: 'asc' },
+    orderBy: [{ sortCatalog: 'asc' }, { id: 'asc' }],
     select: {
       id: true,
       color: true,
@@ -256,32 +253,6 @@ function buildOrderBy(
   return orderBy
 }
 
-function availabilityPriority(input: {
-  availabilityStatus?: ProductCardDTO['variants'][number]['availabilityStatus'] | null
-  inStock?: boolean | null
-}) {
-  const status = resolveAvailabilityStatus({
-    availabilityStatus: input.availabilityStatus,
-    inStock: input.inStock,
-  })
-
-  if (status === 'IN_STOCK') return 0
-  if (status === 'PREORDER') return 1
-  return 2
-}
-
-function withPrioritizedCatalogVariants(
-  items: ProductCardDTO[],
-): ProductCardDTO[] {
-  return items.map((item) => ({
-    ...item,
-    // Keep existing sortCatalog order inside each availability bucket.
-    variants: [...(item.variants || [])].sort(
-      (a, b) => availabilityPriority(a) - availabilityPriority(b),
-    ),
-  }))
-}
-
 export async function getProductBySlug(slug: string) {
   try {
     return await withPrismaRetry(
@@ -323,7 +294,7 @@ export async function getProductMetaBySlug(slug: string) {
             description: true,
             descriptionEn: true,
             variants: {
-              orderBy: { sortCatalog: 'asc' },
+              orderBy: [{ sortCatalog: 'asc' }, { id: 'asc' }],
               select: {
                 image: true,
                 images: {
@@ -435,5 +406,5 @@ export async function getProductsLite(
     throw error
   }
 
-  return withPrioritizedCatalogVariants(items as ProductCardDTO[])
+  return items as ProductCardDTO[]
 }

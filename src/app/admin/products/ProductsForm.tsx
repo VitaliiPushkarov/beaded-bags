@@ -98,6 +98,7 @@ type VariantInput = {
   colorEn: string
   modelSize: string
   pouchColor: string
+  sortCatalog: string
   hex: string
   image: string
   images: string[]
@@ -221,6 +222,7 @@ export default function ProductForm({
               colorEn: (v as any).colorEn ?? '',
               modelSize: (v as any).modelSize ?? '',
               pouchColor: (v as any).pouchColor ?? '',
+              sortCatalog: String((v as any).sortCatalog ?? ''),
               images: seededImages,
               image: main,
               priceUSD: (v as any).priceUSD ?? '',
@@ -275,6 +277,7 @@ export default function ProductForm({
               colorEn: '',
               modelSize: '',
               pouchColor: '',
+              sortCatalog: '1',
               hex: '',
               image: '',
               images: [],
@@ -462,6 +465,7 @@ export default function ProductForm({
           colorEn: '',
           modelSize: '',
           pouchColor: '',
+          sortCatalog: String(prev.variants.length + 1),
           hex: '',
           image: '',
           images: [],
@@ -504,7 +508,7 @@ export default function ProductForm({
         basePriceUSD: values.basePriceUSD ? Number(values.basePriceUSD) : null,
         offerNote: values.offerNote?.trim() || null,
         offerNoteEn: values.offerNoteEn?.trim() || null,
-        variants: values.variants.map((v) => {
+        variants: values.variants.map((v, variantIndex) => {
           const availabilityStatus = resolveAvailabilityStatus({
             availabilityStatus: v.availabilityStatus,
             inStock: v.inStock,
@@ -517,6 +521,9 @@ export default function ProductForm({
             colorEn: v.colorEn,
             modelSize: v.modelSize,
             pouchColor: v.pouchColor,
+            sortCatalog: v.sortCatalog
+              ? Number(v.sortCatalog)
+              : variantIndex + 1,
             hex: v.hex,
             image: v.image,
             images: normalizeImages(v.images),
@@ -947,8 +954,26 @@ export default function ProductForm({
                 key={index}
                 className="p-4 sm:p-6 grid gap-4 sm:gap-6 gap-y-8 sm:gap-y-10 md:grid-cols-2 bg-white"
               >
-                <div className="md:col-span-2 flex items-center justify-between">
-                  <div className="text-sm font-light">Варіант #{index + 1}</div>
+                <div className="md:col-span-2 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+                  <div className="flex items-center gap-3">
+                    <div className="text-sm font-light">
+                      Варіант #{index + 1}
+                    </div>
+                    <label className="flex items-center gap-2 text-xs text-gray-700">
+                      <span className="font-medium">Позиція</span>
+                      <input
+                        className="w-20 border rounded px-2 py-1 text-sm border-blue-300 text-center"
+                        inputMode="numeric"
+                        value={v.sortCatalog}
+                        onChange={(e) =>
+                          onVariantChange(index, {
+                            sortCatalog: e.target.value.replace(/[^\d]/g, ''),
+                          })
+                        }
+                        placeholder="0"
+                      />
+                    </label>
+                  </div>
                   <button
                     type="button"
                     className="text-sm px-2 py-1 rounded border  disabled:opacity-50 text-blue-700 border-blue-700 hover:bg-blue-700 hover:text-white cursor-pointer"

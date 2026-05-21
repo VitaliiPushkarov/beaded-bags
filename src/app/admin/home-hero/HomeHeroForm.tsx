@@ -4,7 +4,10 @@ import Image from 'next/image'
 import { useMemo, useState } from 'react'
 import type { ChangeEvent, FormEvent } from 'react'
 
-import type { HomeHeroBannerSettingsDTO } from '@/lib/home-hero-banner'
+import type {
+  HomeHeroBannerSettingsDTO,
+  HomeHeroSlideDTO,
+} from '@/lib/home-hero-banner'
 
 type Props = {
   initial: HomeHeroBannerSettingsDTO
@@ -12,15 +15,48 @@ type Props = {
 
 type Values = HomeHeroBannerSettingsDTO
 
+type UploadTarget = {
+  slideId: string
+  device: 'desktop' | 'mobile'
+}
+
+function createSlideId() {
+  if (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') {
+    return crypto.randomUUID()
+  }
+  return `home-hero-slide-${Date.now()}`
+}
+
+function createBlankSlide(sort: number): HomeHeroSlideDTO {
+  return {
+    id: createSlideId(),
+    desktopImage: '/img/hero-block-01.jpg',
+    mobileImage: '/img/hero-block-m.jpg',
+    linkHref: '/shop',
+    desktopAlt: 'Gerdan Hero',
+    mobileAlt: 'Gerdan Hero Mobile',
+    sort,
+    isActive: true,
+  }
+}
+
 export default function HomeHeroForm({ initial }: Props) {
   const [values, setValues] = useState<Values>(initial)
   const [savedValues, setSavedValues] = useState<Values>(initial)
   const [saving, setSaving] = useState(false)
-  const [uploadingTarget, setUploadingTarget] = useState<
-    'desktop' | 'mobile' | null
-  >(null)
+  const [uploadingTarget, setUploadingTarget] = useState<UploadTarget | null>(
+    null,
+  )
   const [success, setSuccess] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
+
+  const slides = useMemo(
+    () =>
+      [...(values.slides || [])].sort(
+        (a, b) => a.sort - b.sort || a.id.localeCompare(b.id),
+      ),
+    [values.slides],
+  )
 
   const isDirty = useMemo(
     () => JSON.stringify(values) !== JSON.stringify(savedValues),
@@ -70,9 +106,42 @@ export default function HomeHeroForm({ initial }: Props) {
     return uploadJson.secure_url
   }
 
+  function updateSlide(slideId: string, patch: Partial<HomeHeroSlideDTO>) {
+    setValues((prev) => ({
+      ...prev,
+      slides: (prev.slides || []).map((slide) =>
+        slide.id === slideId ? { ...slide, ...patch } : slide,
+      ),
+    }))
+  }
+
+  function removeSlide(slideId: string) {
+    setValues((prev) => {
+      const next = (prev.slides || []).filter((slide) => slide.id !== slideId)
+      if (next.length === 0) {
+        return {
+          ...prev,
+          slides: [createBlankSlide(1)],
+        }
+      }
+      return {
+        ...prev,
+        slides: next,
+      }
+    })
+  }
+
+  function addSlide() {
+    setValues((prev) => ({
+      ...prev,
+      slides: [...(prev.slides || []), createBlankSlide((prev.slides || []).length + 1)],
+    }))
+  }
+
   async function onPickFile(
     event: ChangeEvent<HTMLInputElement>,
-    target: 'desktop' | 'mobile',
+    slideId: string,
+    device: 'desktop' | 'mobile',
   ) {
     const file = event.target.files?.[0]
     if (!file) return
@@ -80,13 +149,12 @@ export default function HomeHeroForm({ initial }: Props) {
     try {
       setSuccess(null)
       setError(null)
-      setUploadingTarget(target)
+      setUploadingTarget({ slideId, device })
 
       const url = await uploadToCloudinary(file)
-      setValues((prev) => ({
-        ...prev,
-        [target === 'desktop' ? 'desktopImage' : 'mobileImage']: url,
-      }))
+      updateSlide(slideId, {
+        [device === 'desktop' ? 'desktopImage' : 'mobileImage']: url,
+      })
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Помилка завантаження')
     } finally {
@@ -103,24 +171,34 @@ export default function HomeHeroForm({ initial }: Props) {
       setSuccess(null)
       setError(null)
 
+      const payload: HomeHeroBannerSettingsDTO = {
+        slides: slides.map((slide, index) => ({
+          ...slide,
+          sort: Number.isFinite(Number(slide.sort))
+            ? Math.max(0, Math.round(Number(slide.sort)))
+            : index + 1,
+          isActive: slide.isActive !== false,
+        })),
+      }
+
       const res = await fetch('/api/admin/home-hero', {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(values),
+        body: JSON.stringify(payload),
       })
 
-      const payload = (await res.json().catch(() => ({}))) as {
+      const responsePayload = (await res.json().catch(() => ({}))) as {
         error?: string | { fieldErrors?: Record<string, string[]> }
         settings?: HomeHeroBannerSettingsDTO
       }
 
       if (!res.ok) {
-        if (typeof payload.error === 'string') {
-          setError(payload.error)
+        if (typeof responsePayload.error === 'string') {
+          setError(responsePayload.error)
           return
         }
 
-        const fields = payload.error?.fieldErrors
+        const fields = responsePayload.error?.fieldErrors
         if (fields) {
           const firstMessage = Object.values(fields)
             .flat()
@@ -129,16 +207,13 @@ export default function HomeHeroForm({ initial }: Props) {
           return
         }
 
-        setError('Не вдалося зберегти банер')
+        setError('Не вдалося зберегти слайдер')
         return
       }
 
-      if (payload.settings) {
-        setValues(payload.settings)
-        setSavedValues(payload.settings)
-      } else {
-        setSavedValues(values)
-      }
+      const nextSettings = responsePayload.settings || payload
+      setValues(nextSettings)
+      setSavedValues(nextSettings)
       setSuccess('Зміни збережено')
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Мережева помилка')
@@ -152,139 +227,186 @@ export default function HomeHeroForm({ initial }: Props) {
       onSubmit={onSubmit}
       className="space-y-5 rounded-xl border border-slate-200 bg-white p-5"
     >
-      <div>
-        <h1 className="text-2xl font-semibold">HeroBlock на головній</h1>
+      <div className="flex items-center justify-between gap-4">
+        <h1 className="text-2xl font-semibold">HeroBlock слайдер на головній</h1>
+        <button
+          type="button"
+          onClick={addSlide}
+          className="cursor-pointer rounded-md border border-slate-300 px-3 py-2 text-sm font-medium hover:bg-slate-50"
+        >
+          Додати слайд
+        </button>
       </div>
 
-      <div className="grid gap-5 lg:grid-cols-2">
-        <div className="block text-sm font-medium text-slate-800">
-          <span>Desktop банер (URL)</span>
-          <input
-            className="mt-2 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm"
-            value={values.desktopImage}
-            onChange={(e) =>
-              setValues((prev) => ({ ...prev, desktopImage: e.target.value }))
-            }
-            placeholder="/img/hero-block-01.jpg або https://..."
-            required
-          />
-          <label
-            htmlFor="home-hero-desktop-upload"
-            className="mt-2 w-full sm:w-auto shrink-0 inline-flex items-center justify-center px-3 py-2 rounded-lg border text-sm font-medium hover:bg-gray-50 bg-blue-700 text-white hover:text-black cursor-pointer"
-          >
-            Вибрати файл
-          </label>
-          <input
-            id="home-hero-desktop-upload"
-            type="file"
-            accept="image/*"
-            className="sr-only"
-            onChange={(e) => onPickFile(e, 'desktop')}
-          />
-          {uploadingTarget === 'desktop' ? (
-            <span className="mt-1 inline-block text-xs text-slate-500">
-              Завантажую...
-            </span>
-          ) : null}
-        </div>
+      <div className="space-y-6">
+        {slides.map((slide, index) => {
+          const desktopUploadId = `home-hero-desktop-upload-${slide.id}`
+          const mobileUploadId = `home-hero-mobile-upload-${slide.id}`
 
-        <div className="block text-sm font-medium text-slate-800">
-          <span>Mobile банер (URL)</span>
-          <input
-            className="mt-2 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm"
-            value={values.mobileImage}
-            onChange={(e) =>
-              setValues((prev) => ({ ...prev, mobileImage: e.target.value }))
-            }
-            placeholder="/img/hero-block-m.jpg або https://..."
-            required
-          />
-          <label
-            htmlFor="home-hero-mobile-upload"
-            className="mt-2 w-full sm:w-auto shrink-0 inline-flex items-center justify-center px-3 py-2 rounded-lg border text-sm font-medium hover:bg-gray-50 bg-blue-700 text-white hover:text-black cursor-pointer"
-          >
-            Вибрати файл
-          </label>
-          <input
-            id="home-hero-mobile-upload"
-            type="file"
-            accept="image/*"
-            className="sr-only"
-            onChange={(e) => onPickFile(e, 'mobile')}
-          />
-          {uploadingTarget === 'mobile' ? (
-            <span className="mt-1 inline-block text-xs text-slate-500">
-              Завантажую...
-            </span>
-          ) : null}
-        </div>
-      </div>
+          return (
+            <div key={slide.id} className="rounded-lg border border-slate-200 p-4">
+              <div className="mb-4 flex items-center justify-between gap-3">
+                <div className="text-sm font-medium text-slate-800">Слайд #{index + 1}</div>
+                <button
+                  type="button"
+                  onClick={() => removeSlide(slide.id)}
+                  className="cursor-pointer rounded-md border border-rose-300 px-2 py-1 text-xs text-rose-700 hover:bg-rose-50"
+                  disabled={slides.length <= 1}
+                >
+                  Видалити
+                </button>
+              </div>
 
-      <div className="grid gap-5 lg:grid-cols-3">
-        <label className="block text-sm font-medium text-slate-800">
-          Посилання при кліку
-          <input
-            className="mt-2 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm"
-            value={values.linkHref}
-            onChange={(e) =>
-              setValues((prev) => ({ ...prev, linkHref: e.target.value }))
-            }
-            placeholder="/shop"
-            required
-          />
-        </label>
+              <div className="grid gap-4 lg:grid-cols-2">
+                <div className="block text-sm font-medium text-slate-800">
+                  <div>Desktop банер (URL)</div>
+                  <input
+                    className="mt-2 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm"
+                    value={slide.desktopImage}
+                    onChange={(e) => updateSlide(slide.id, { desktopImage: e.target.value })}
+                    placeholder="/img/hero-block-01.jpg або https://..."
+                    required
+                  />
+                  <label
+                    htmlFor={desktopUploadId}
+                    className="mt-2 w-full sm:w-auto inline-flex items-center justify-center px-3 py-2 rounded-lg border text-sm font-medium hover:bg-gray-50 bg-blue-700 text-white hover:text-black cursor-pointer"
+                  >
+                    Вибрати файл
+                  </label>
+                  <input
+                    id={desktopUploadId}
+                    type="file"
+                    accept="image/*"
+                    className="sr-only"
+                    onChange={(e) => onPickFile(e, slide.id, 'desktop')}
+                  />
+                  {uploadingTarget?.slideId === slide.id &&
+                  uploadingTarget.device === 'desktop' ? (
+                    <span className="mt-1 inline-block text-xs text-slate-500">
+                      Завантажую...
+                    </span>
+                  ) : null}
+                </div>
 
-        <label className="block text-sm font-medium text-slate-800">
-          ALT desktop
-          <input
-            className="mt-2 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm"
-            value={values.desktopAlt}
-            onChange={(e) =>
-              setValues((prev) => ({ ...prev, desktopAlt: e.target.value }))
-            }
-            required
-          />
-        </label>
+                <div className="block text-sm font-medium text-slate-800">
+                  <div>Mobile банер (URL)</div>
+                  <input
+                    className="mt-2 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm"
+                    value={slide.mobileImage}
+                    onChange={(e) => updateSlide(slide.id, { mobileImage: e.target.value })}
+                    placeholder="/img/hero-block-m.jpg або https://..."
+                    required
+                  />
+                  <label
+                    htmlFor={mobileUploadId}
+                    className="mt-2 w-full sm:w-auto inline-flex items-center justify-center px-3 py-2 rounded-lg border text-sm font-medium hover:bg-gray-50 bg-blue-700 text-white hover:text-black cursor-pointer"
+                  >
+                    Вибрати файл
+                  </label>
+                  <input
+                    id={mobileUploadId}
+                    type="file"
+                    accept="image/*"
+                    className="sr-only"
+                    onChange={(e) => onPickFile(e, slide.id, 'mobile')}
+                  />
+                  {uploadingTarget?.slideId === slide.id &&
+                  uploadingTarget.device === 'mobile' ? (
+                    <span className="mt-1 inline-block text-xs text-slate-500">
+                      Завантажую...
+                    </span>
+                  ) : null}
+                </div>
+              </div>
 
-        <label className="block text-sm font-medium text-slate-800">
-          ALT mobile
-          <input
-            className="mt-2 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm"
-            value={values.mobileAlt}
-            onChange={(e) =>
-              setValues((prev) => ({ ...prev, mobileAlt: e.target.value }))
-            }
-            required
-          />
-        </label>
-      </div>
+              <div className="mt-4 grid gap-4 lg:grid-cols-3">
+                <label className="block text-sm font-medium text-slate-800">
+                  Посилання при кліку
+                  <input
+                    className="mt-2 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm"
+                    value={slide.linkHref}
+                    onChange={(e) => updateSlide(slide.id, { linkHref: e.target.value })}
+                    placeholder="/shop"
+                    required
+                  />
+                </label>
 
-      <div className="grid gap-4 lg:grid-cols-2">
-        <div className="rounded-lg border border-slate-200 p-3">
-          <div className="mb-2 text-xs uppercase tracking-wide text-slate-500">
-            Preview Desktop
-          </div>
-          <Image
-            src={values.desktopImage}
-            alt={values.desktopAlt}
-            width={1400}
-            height={900}
-            className="h-56 w-full rounded-md object-cover"
-          />
-        </div>
+                <label className="block text-sm font-medium text-slate-800">
+                  ALT desktop
+                  <input
+                    className="mt-2 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm"
+                    value={slide.desktopAlt}
+                    onChange={(e) => updateSlide(slide.id, { desktopAlt: e.target.value })}
+                    required
+                  />
+                </label>
 
-        <div className="rounded-lg border border-slate-200 p-3">
-          <div className="mb-2 text-xs uppercase tracking-wide text-slate-500">
-            Preview Mobile
-          </div>
-          <Image
-            src={values.mobileImage}
-            alt={values.mobileAlt}
-            width={900}
-            height={1400}
-            className="h-56 w-full rounded-md object-cover"
-          />
-        </div>
+                <label className="block text-sm font-medium text-slate-800">
+                  ALT mobile
+                  <input
+                    className="mt-2 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm"
+                    value={slide.mobileAlt}
+                    onChange={(e) => updateSlide(slide.id, { mobileAlt: e.target.value })}
+                    required
+                  />
+                </label>
+              </div>
+
+              <div className="mt-4 grid gap-4 lg:grid-cols-3">
+                <label className="block text-sm font-medium text-slate-800">
+                  Позиція
+                  <input
+                    className="mt-2 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm"
+                    inputMode="numeric"
+                    value={String(slide.sort)}
+                    onChange={(e) =>
+                      updateSlide(slide.id, {
+                        sort: Number(e.target.value.replace(/[^\d]/g, '')) || 0,
+                      })
+                    }
+                  />
+                </label>
+
+                <label className="inline-flex items-center gap-2 text-sm font-medium text-slate-800 pt-8">
+                  <input
+                    type="checkbox"
+                    checked={slide.isActive}
+                    onChange={(e) => updateSlide(slide.id, { isActive: e.target.checked })}
+                  />
+                  Активний слайд
+                </label>
+              </div>
+
+              <div className="mt-4 grid gap-4 lg:grid-cols-2">
+                <div className="rounded-lg border border-slate-200 p-3">
+                  <div className="mb-2 text-xs uppercase tracking-wide text-slate-500">
+                    Preview Desktop
+                  </div>
+                  <Image
+                    src={slide.desktopImage}
+                    alt={slide.desktopAlt}
+                    width={1400}
+                    height={900}
+                    className="h-56 w-full rounded-md object-cover"
+                  />
+                </div>
+
+                <div className="rounded-lg border border-slate-200 p-3">
+                  <div className="mb-2 text-xs uppercase tracking-wide text-slate-500">
+                    Preview Mobile
+                  </div>
+                  <Image
+                    src={slide.mobileImage}
+                    alt={slide.mobileAlt}
+                    width={900}
+                    height={1400}
+                    className="h-56 w-full rounded-md object-cover"
+                  />
+                </div>
+              </div>
+            </div>
+          )
+        })}
       </div>
 
       {error ? (

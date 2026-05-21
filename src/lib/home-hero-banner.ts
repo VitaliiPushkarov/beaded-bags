@@ -4,36 +4,105 @@ import {
   withPrismaRetry,
 } from '@/lib/prisma-resilience'
 
-export type HomeHeroBannerSettingsDTO = {
+export type HomeHeroSlideDTO = {
+  id: string
   desktopImage: string
   mobileImage: string
   linkHref: string
   desktopAlt: string
   mobileAlt: string
+  sort: number
+  isActive: boolean
 }
 
-export const HOME_HERO_BANNER_DEFAULTS: HomeHeroBannerSettingsDTO = {
+export type HomeHeroBannerSettingsDTO = {
+  slides: HomeHeroSlideDTO[]
+}
+
+const DEFAULT_SLIDE: HomeHeroSlideDTO = {
+  id: 'home-hero-slide-1',
   desktopImage: '/img/hero-block-01.jpg',
   mobileImage: '/img/hero-block-m.jpg',
   linkHref: '/shop',
   desktopAlt: 'Gerdan Hero',
   mobileAlt: 'Gerdan Hero Mobile',
+  sort: 1,
+  isActive: true,
+}
+
+export const HOME_HERO_BANNER_DEFAULTS: HomeHeroBannerSettingsDTO = {
+  slides: [DEFAULT_SLIDE],
 }
 
 function clean(input: unknown): string {
   return typeof input === 'string' ? input.trim() : ''
 }
 
-function mergeWithDefaults(
-  input: Partial<HomeHeroBannerSettingsDTO> | null | undefined,
-): HomeHeroBannerSettingsDTO {
+function sanitizeSort(input: unknown, fallback: number): number {
+  const parsed = Number(input)
+  if (!Number.isFinite(parsed)) return fallback
+  return Math.max(0, Math.round(parsed))
+}
+
+function normalizeSlides(input: unknown): HomeHeroSlideDTO[] {
+  if (!Array.isArray(input)) return []
+
+  const slides = input
+    .map((item, index) => {
+      if (!item || typeof item !== 'object') return null
+      const source = item as Record<string, unknown>
+
+      const desktopImage = clean(source.desktopImage)
+      const mobileImage = clean(source.mobileImage)
+      const linkHref = clean(source.linkHref)
+      const desktopAlt = clean(source.desktopAlt)
+      const mobileAlt = clean(source.mobileAlt)
+
+      if (!desktopImage || !mobileImage || !linkHref) return null
+
+      return {
+        id: clean(source.id) || `home-hero-slide-${index + 1}`,
+        desktopImage,
+        mobileImage,
+        linkHref,
+        desktopAlt: desktopAlt || DEFAULT_SLIDE.desktopAlt,
+        mobileAlt: mobileAlt || DEFAULT_SLIDE.mobileAlt,
+        sort: sanitizeSort(source.sort, index + 1),
+        isActive: source.isActive !== false,
+      } satisfies HomeHeroSlideDTO
+    })
+    .filter((item): item is HomeHeroSlideDTO => Boolean(item))
+    .sort((a, b) => a.sort - b.sort || a.id.localeCompare(b.id))
+
+  return slides
+}
+
+function mergeWithDefaults(input: {
+  slides?: unknown
+  desktopImage?: string | null
+  mobileImage?: string | null
+  linkHref?: string | null
+  desktopAlt?: string | null
+  mobileAlt?: string | null
+} | null | undefined): HomeHeroBannerSettingsDTO {
+  const fromJson = normalizeSlides(input?.slides)
+  if (fromJson.length > 0) {
+    return { slides: fromJson }
+  }
+
+  const legacySlide: HomeHeroSlideDTO = {
+    id: DEFAULT_SLIDE.id,
+    desktopImage: clean(input?.desktopImage) || DEFAULT_SLIDE.desktopImage,
+    mobileImage: clean(input?.mobileImage) || DEFAULT_SLIDE.mobileImage,
+    linkHref: clean(input?.linkHref) || DEFAULT_SLIDE.linkHref,
+    desktopAlt: clean(input?.desktopAlt) || DEFAULT_SLIDE.desktopAlt,
+    mobileAlt: clean(input?.mobileAlt) || DEFAULT_SLIDE.mobileAlt,
+    sort: 1,
+    isActive: true,
+  }
+
   return {
-    desktopImage:
-      clean(input?.desktopImage) || HOME_HERO_BANNER_DEFAULTS.desktopImage,
-    mobileImage: clean(input?.mobileImage) || HOME_HERO_BANNER_DEFAULTS.mobileImage,
-    linkHref: clean(input?.linkHref) || HOME_HERO_BANNER_DEFAULTS.linkHref,
-    desktopAlt: clean(input?.desktopAlt) || HOME_HERO_BANNER_DEFAULTS.desktopAlt,
-    mobileAlt: clean(input?.mobileAlt) || HOME_HERO_BANNER_DEFAULTS.mobileAlt,
+    slides: [legacySlide],
   }
 }
 
@@ -44,6 +113,7 @@ export async function getHomeHeroBannerSettings(): Promise<HomeHeroBannerSetting
         prisma.homeHeroBannerSettings.findUnique({
           where: { id: 1 },
           select: {
+            slides: true,
             desktopImage: true,
             mobileImage: true,
             linkHref: true,

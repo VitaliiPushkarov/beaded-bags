@@ -269,7 +269,7 @@ export default async function AdminCostsPage({ searchParams }: PageProps) {
         },
       },
       variants: {
-        orderBy: { sortCatalog: 'asc' },
+        orderBy: [{ sortCatalog: 'asc' }, { id: 'asc' }],
         select: {
           id: true,
           color: true,
