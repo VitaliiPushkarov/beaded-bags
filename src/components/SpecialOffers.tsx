@@ -127,7 +127,7 @@ export default async function SpecialOffers() {
                 return (
                   <div
                     key={p.id}
-                    className="w-[260px] shrink-0 snap-start 2xl:w-[560px] 2xl:min-h-[680px]"
+                    className="w-[260px] shrink-0 snap-start 2xl:w-[320px] 2xl:min-h-[480px]"
                   >
                     <Link
                       href={`/products/${p.slug}`}

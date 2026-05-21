@@ -55,10 +55,8 @@ export default function ProductsSlider() {
         const normalized = (data || []).map((product) => ({
           ...product,
           variants: [...(product.variants || [])].sort((a, b) => {
-            const sortA =
-              typeof a.sortCatalog === 'number' ? a.sortCatalog : 0
-            const sortB =
-              typeof b.sortCatalog === 'number' ? b.sortCatalog : 0
+            const sortA = typeof a.sortCatalog === 'number' ? a.sortCatalog : 0
+            const sortB = typeof b.sortCatalog === 'number' ? b.sortCatalog : 0
             if (sortA !== sortB) return sortA - sortB
             return a.id.localeCompare(b.id)
           }),
@@ -142,7 +140,7 @@ export default function ProductsSlider() {
                 0: { slidesPerView: 1, spaceBetween: 16 }, // mobile
                 768: { slidesPerView: 2, spaceBetween: 18 }, // tablet
                 1024: { slidesPerView: 3, spaceBetween: 20 }, // laptop/desktop
-                1444: { slidesPerView: 4, spaceBetween: 22 }, // large desktop
+                1444: { slidesPerView: 6, spaceBetween: 22 }, // large desktop
               }}
               navigation={false}
               className="pr-20"

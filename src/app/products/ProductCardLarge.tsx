@@ -123,7 +123,7 @@ export default function ProductCardLarge({
       {/* зображення прив'язане до варіанту */}
       <Link href={productHref} className="block">
         <div
-          className="group relative md:h-[560px] aspect-3/4 2xl:aspect-auto bg-gray-100 2xl:h-[720px] overflow-hidden"
+          className="group relative md:h-[560px] aspect-3/4 2xl:aspect-auto bg-gray-100 2xl:h-[480px] overflow-hidden"
           onMouseEnter={() => setIsHovered(true)}
           onMouseLeave={() => setIsHovered(false)}
         >

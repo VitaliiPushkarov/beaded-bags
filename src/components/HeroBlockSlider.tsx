@@ -2,7 +2,7 @@
 
 import Image from 'next/image'
 import Link from 'next/link'
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 
 import type { HomeHeroSlideDTO } from '@/lib/home-hero-banner'
 
@@ -21,6 +21,8 @@ export default function HeroBlockSlider({ slides, autoPlayMs = 7000 }: Props) {
   }, [slides])
 
   const [activeIndex, setActiveIndex] = useState(0)
+  const touchStartXRef = useRef<number | null>(null)
+  const touchEndXRef = useRef<number | null>(null)
 
   useEffect(() => {
     setActiveIndex(0)
@@ -38,10 +40,53 @@ export default function HeroBlockSlider({ slides, autoPlayMs = 7000 }: Props) {
 
   if (ordered.length === 0) return null
 
+  const SWIPE_THRESHOLD = 40
+
+  const goPrev = () => {
+    setActiveIndex((prev) => (prev - 1 + ordered.length) % ordered.length)
+  }
+
+  const goNext = () => {
+    setActiveIndex((prev) => (prev + 1) % ordered.length)
+  }
+
+  const onTouchStart = (event: React.TouchEvent<HTMLDivElement>) => {
+    const x = event.touches[0]?.clientX
+    if (typeof x !== 'number') return
+    touchStartXRef.current = x
+    touchEndXRef.current = x
+  }
+
+  const onTouchMove = (event: React.TouchEvent<HTMLDivElement>) => {
+    const x = event.touches[0]?.clientX
+    if (typeof x !== 'number') return
+    touchEndXRef.current = x
+  }
+
+  const onTouchEnd = () => {
+    const startX = touchStartXRef.current
+    const endX = touchEndXRef.current
+    if (startX == null || endX == null) return
+
+    const delta = startX - endX
+    if (Math.abs(delta) >= SWIPE_THRESHOLD) {
+      if (delta > 0) goNext()
+      else goPrev()
+    }
+
+    touchStartXRef.current = null
+    touchEndXRef.current = null
+  }
+
   return (
-    <section className="relative w-full h-[600px] md:h-[740px] ">
+    <section className="relative w-full h-[600px] md:h-[640px] ">
       <div className="relative h-full px-6">
-        <div className="relative h-full overflow-hidden">
+        <div
+          className="relative h-full overflow-hidden"
+          onTouchStart={onTouchStart}
+          onTouchMove={onTouchMove}
+          onTouchEnd={onTouchEnd}
+        >
           {ordered.map((slide, index) => {
             const isActive = index === activeIndex
 
