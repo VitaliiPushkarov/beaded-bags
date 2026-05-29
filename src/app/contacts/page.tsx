@@ -63,8 +63,8 @@ export default async function Contacts() {
               <p className="font-semibold">{isEn ? 'Address:' : 'Адреса:'}</p>
               <p>
                 {isEn
-                  ? '62 Velyka Perspektyvna St, Kropyvnytskyi, Ukraine'
-                  : 'вул.Велика Перспективна 62, Кропивницький, Україна'}
+                  ? '37/16 Vokzalna St, Kropyvnytskyi, Ukraine'
+                  : 'вул.Вокзальна 37/16, Кропивницький, Україна'}
               </p>
             </div>
           </div>
