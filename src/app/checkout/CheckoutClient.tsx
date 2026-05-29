@@ -63,8 +63,6 @@ function clearCheckoutFormDraft() {
 
 export default function CheckoutClient() {
   const t = useT()
-  const isOnlinePaymentEnabled =
-    process.env.NEXT_PUBLIC_LIQPAY_CHECKOUT_ENABLED === 'true'
   const router = useRouter()
   const sp = useSearchParams()
   const paymentResult = sp.get('payment')
@@ -137,12 +135,6 @@ export default function CheckoutClient() {
 
   const cart = useCart()
   const co = useCheckout()
-
-  useEffect(() => {
-    if (!isOnlinePaymentEnabled && co.paymentMethod === 'LIQPAY') {
-      co.setPaymentMethod('BANK_TRANSFER')
-    }
-  }, [co, isOnlinePaymentEnabled])
 
   const promo = usePromo()
   const appliedPromoCode = resolvePromoCode(promo)
@@ -239,10 +231,6 @@ export default function CheckoutClient() {
     const discountUAH = calcDiscountUAH(subtotal, appliedPromoCode)
     const total = Math.max(0, subtotal - discountUAH) + shipping
 
-    const paymentMethod = isOnlinePaymentEnabled
-      ? co.paymentMethod
-      : 'BANK_TRANSFER'
-
     setLoading(true)
     try {
       const emailClean = form.email.trim()
@@ -276,7 +264,7 @@ export default function CheckoutClient() {
           items,
           amountUAH: total,
           promoCode: appliedPromoCode,
-          paymentMethod,
+          paymentMethod: co.paymentMethod,
         }),
       })
 
@@ -287,7 +275,7 @@ export default function CheckoutClient() {
         return
       }
 
-      if (isOnlinePaymentEnabled && paymentMethod === 'LIQPAY') {
+      if (co.paymentMethod === 'LIQPAY') {
         try {
           const payRes = await fetch('/api/payments/liqpay/create', {
             method: 'POST',
@@ -469,35 +457,27 @@ export default function CheckoutClient() {
           <h2 className="text-xl font-semibold">{t('Оплата', 'Payment')}</h2>
 
           <div className="space-y-3 text-sm">
-            {isOnlinePaymentEnabled ? (
-              <label className="flex items-start gap-3 cursor-pointer">
-                <input
-                  type="radio"
-                  name="payment"
-                  className="mt-1 w-4 h-4"
-                  checked={co.paymentMethod === 'LIQPAY'}
-                  onChange={() => co.setPaymentMethod('LIQPAY')}
-                />
-                <div>
-                  <p className="font-medium uppercase">
-                    {t('Онлайн оплата (LiqPay)', 'Online payment (LiqPay)')}
-                  </p>
-                  <p className="text-gray-600">
-                    {t(
-                      'Картка, Apple Pay або Google Pay на сторінці LiqPay checkout.',
-                      'Card, Apple Pay or Google Pay on LiqPay checkout page.',
-                    )}
-                  </p>
-                </div>
-              </label>
-            ) : (
-              <p className="text-gray-600">
-                {t(
-                  'Онлайн-оплата тимчасово недоступна.',
-                  'Online payment is temporarily unavailable.',
-                )}
-              </p>
-            )}
+            {/* Онлайн оплата LiqPay */}
+            <label className="flex items-start gap-3 cursor-pointer">
+              <input
+                type="radio"
+                name="payment"
+                className="mt-1 w-4 h-4"
+                checked={co.paymentMethod === 'LIQPAY'}
+                onChange={() => co.setPaymentMethod('LIQPAY')}
+              />
+              <div>
+                <p className="font-medium uppercase">
+                  {t('Онлайн оплата (LiqPay)', 'Online payment (LiqPay)')}
+                </p>
+                <p className="text-gray-600">
+                  {t(
+                    'Картка, Apple Pay або Google Pay на сторінці LiqPay checkout.',
+                    'Card, Apple Pay or Google Pay on LiqPay checkout page.',
+                  )}
+                </p>
+              </div>
+            </label>
 
             {/* Оплата по реквізитам */}
             <label className="flex items-start gap-3 cursor-pointer select-none">

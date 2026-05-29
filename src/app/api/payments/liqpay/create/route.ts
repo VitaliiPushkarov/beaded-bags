@@ -46,15 +46,6 @@ function resolveLiqPayMode(publicKey: string): 'live' | 'development' {
 
 export async function POST(req: NextRequest) {
   try {
-    const liqPayCheckoutEnabled =
-      process.env.LIQPAY_CHECKOUT_ENABLED?.trim().toLowerCase() === 'true'
-    if (!liqPayCheckoutEnabled) {
-      return NextResponse.json(
-        { error: 'LiqPay checkout is temporarily disabled' },
-        { status: 503 },
-      )
-    }
-
     const parsed = BodySchema.safeParse(await req.json())
     if (!parsed.success) {
       return NextResponse.json(
