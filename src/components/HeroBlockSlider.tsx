@@ -52,40 +52,67 @@ export default function HeroBlockSlider({ slides, autoPlayMs = 9000 }: Props) {
     return active.length > 0 ? active : sorted
   }, [slides])
 
+  const hasLoop = ordered.length > 1
+  const loopSlides = useMemo(() => {
+    if (!hasLoop) return ordered
+    return [ordered[ordered.length - 1], ...ordered, ordered[0]]
+  }, [hasLoop, ordered])
+
   const [activeIndex, setActiveIndex] = useState(0)
-  const [isAutoPlayEnabled, setIsAutoPlayEnabled] = useState(true)
+  const [isTransitionEnabled, setIsTransitionEnabled] = useState(true)
   const touchStartXRef = useRef<number | null>(null)
   const touchEndXRef = useRef<number | null>(null)
 
   useEffect(() => {
     setActiveIndex(0)
+    setIsTransitionEnabled(true)
   }, [ordered.length])
 
   useEffect(() => {
-    if (!isAutoPlayEnabled || ordered.length <= 1) return
+    if (!hasLoop) return
 
     const timer = window.setInterval(() => {
-      setActiveIndex((prev) => (prev + 1) % ordered.length)
+      goNext()
     }, autoPlayMs)
 
     return () => window.clearInterval(timer)
-  }, [ordered.length, autoPlayMs, isAutoPlayEnabled])
+  }, [hasLoop, autoPlayMs])
+
+  useEffect(() => {
+    if (isTransitionEnabled) return
+
+    const id = window.requestAnimationFrame(() => {
+      setIsTransitionEnabled(true)
+    })
+
+    return () => window.cancelAnimationFrame(id)
+  }, [isTransitionEnabled])
 
   if (ordered.length === 0) return null
 
   const SWIPE_THRESHOLD = 40
-  const stopAutoPlay = () => setIsAutoPlayEnabled(false)
 
   const goPrev = () => {
-    setActiveIndex((prev) => (prev - 1 + ordered.length) % ordered.length)
+    if (!hasLoop) {
+      setActiveIndex(0)
+      return
+    }
+
+    setIsTransitionEnabled(true)
+    setActiveIndex((prev) => prev - 1)
   }
 
   const goNext = () => {
-    setActiveIndex((prev) => (prev + 1) % ordered.length)
+    if (!hasLoop) {
+      setActiveIndex(0)
+      return
+    }
+
+    setIsTransitionEnabled(true)
+    setActiveIndex((prev) => prev + 1)
   }
 
   const onTouchStart = (event: React.TouchEvent<HTMLDivElement>) => {
-    stopAutoPlay()
     const x = event.touches[0]?.clientX
     if (typeof x !== 'number') return
     touchStartXRef.current = x
@@ -113,6 +140,26 @@ export default function HeroBlockSlider({ slides, autoPlayMs = 9000 }: Props) {
     touchEndXRef.current = null
   }
 
+  const currentDotIndex =
+    ((activeIndex % ordered.length) + ordered.length) % ordered.length
+
+  const translateIndex = hasLoop ? activeIndex + 1 : activeIndex
+
+  const onTrackTransitionEnd = () => {
+    if (!hasLoop) return
+
+    if (activeIndex >= ordered.length) {
+      setIsTransitionEnabled(false)
+      setActiveIndex(0)
+      return
+    }
+
+    if (activeIndex < 0) {
+      setIsTransitionEnabled(false)
+      setActiveIndex(ordered.length - 1)
+    }
+  }
+
   return (
     <section className="relative w-full">
       <div className="relative px-0 md:px-6">
@@ -122,14 +169,17 @@ export default function HeroBlockSlider({ slides, autoPlayMs = 9000 }: Props) {
           onTouchMove={onTouchMove}
           onTouchEnd={onTouchEnd}
         >
-          <div className="md:hidden overflow-hidden">
+          <div className="md:hidden overflow-hidden aspect-[2/3]">
             <div
-              className="flex transition-transform duration-700 ease-in-out"
-              style={{ transform: `translateX(-${activeIndex * 100}%)` }}
+              className={`flex ease-in-out ${
+                isTransitionEnabled ? 'transition-transform duration-700' : ''
+              }`}
+              style={{ transform: `translateX(-${translateIndex * 100}%)` }}
+              onTransitionEnd={onTrackTransitionEnd}
             >
-              {ordered.map((slide, index) => (
+              {loopSlides.map((slide, index) => (
                 <Link
-                  key={slide.id}
+                  key={`${slide.id}-mobile-${index}`}
                   href={slide.linkHref}
                   className="block w-full shrink-0"
                 >
@@ -138,8 +188,8 @@ export default function HeroBlockSlider({ slides, autoPlayMs = 9000 }: Props) {
                     alt={slide.mobileAlt}
                     width={1200}
                     height={1800}
-                    priority={index === 0}
-                    className="w-full h-auto object-contain"
+                    priority={index <= 1}
+                    className="h-full w-full object-contain"
                     sizes="100vw"
                     quality={60}
                   />
@@ -148,14 +198,17 @@ export default function HeroBlockSlider({ slides, autoPlayMs = 9000 }: Props) {
             </div>
           </div>
 
-          <div className="hidden md:block overflow-hidden">
+          <div className="hidden md:block overflow-hidden aspect-[2/1]">
             <div
-              className="flex transition-transform duration-700 ease-in-out"
-              style={{ transform: `translateX(-${activeIndex * 100}%)` }}
+              className={`flex ease-in-out ${
+                isTransitionEnabled ? 'transition-transform duration-700' : ''
+              }`}
+              style={{ transform: `translateX(-${translateIndex * 100}%)` }}
+              onTransitionEnd={onTrackTransitionEnd}
             >
-              {ordered.map((slide, index) => (
+              {loopSlides.map((slide, index) => (
                 <Link
-                  key={slide.id}
+                  key={`${slide.id}-desktop-${index}`}
                   href={slide.linkHref}
                   className="block w-full shrink-0"
                 >
@@ -164,8 +217,8 @@ export default function HeroBlockSlider({ slides, autoPlayMs = 9000 }: Props) {
                     alt={slide.desktopAlt}
                     width={2880}
                     height={1440}
-                    priority={index === 0}
-                    className="w-full h-auto object-contain"
+                    priority={index <= 1}
+                    className="h-full w-full object-contain"
                     sizes="(min-width: 768px) calc(100vw - 48px), 100vw"
                     quality={80}
                   />
@@ -176,23 +229,21 @@ export default function HeroBlockSlider({ slides, autoPlayMs = 9000 }: Props) {
 
           {ordered.length > 1 ? (
             <>
-              <button
-                type="button"
-                onClick={() => {
-                  stopAutoPlay()
-                  goPrev()
-                }}
+                <button
+                  type="button"
+                  onClick={() => {
+                    goPrev()
+                  }}
                 aria-label="Previous"
-                className="absolute left-2 md:-left-4 top-1/2 -translate-y-1/2 z-20 h-7 w-[21px] hidden md:flex items-center justify-center text-[#FF3D8C] hover:opacity-80 transition cursor-pointer"
+                className="absolute left-2 top-1/2 z-20 hidden h-7 w-[21px] -translate-y-1/2 cursor-pointer items-center justify-center text-[#FF3D8C] transition hover:opacity-80 md:-left-4 md:flex"
               ></button>
-              <button
-                type="button"
-                onClick={() => {
-                  stopAutoPlay()
-                  goNext()
-                }}
+                <button
+                  type="button"
+                  onClick={() => {
+                    goNext()
+                  }}
                 aria-label="Next"
-                className="absolute right-2 md:-right-4 top-1/2 -translate-y-1/2 z-20 h-7 w-[21px] hidden md:flex items-center justify-center text-[#FF3D8C] hover:opacity-80 transition cursor-pointer"
+                className="absolute right-2 top-1/2 z-20 hidden h-7 w-[21px] -translate-y-1/2 cursor-pointer items-center justify-center text-[#FF3D8C] transition hover:opacity-80 md:-right-4 md:flex"
               >
                 <Chevron dir="right" className="h-7 w-[21px]" />
               </button>
@@ -203,12 +254,12 @@ export default function HeroBlockSlider({ slides, autoPlayMs = 9000 }: Props) {
                     key={slide.id}
                     type="button"
                     onClick={() => {
-                      stopAutoPlay()
+                      setIsTransitionEnabled(true)
                       setActiveIndex(index)
                     }}
                     aria-label={`Перейти до слайду ${index + 1}`}
                     className={`h-2.5 w-2.5 rounded-full transition ${
-                      index === activeIndex
+                      index === currentDotIndex
                         ? 'bg-[#FF3D8C]'
                         : 'bg-[#FF3D8C]/45 hover:bg-[#FF3D8C]/75'
                     }`}

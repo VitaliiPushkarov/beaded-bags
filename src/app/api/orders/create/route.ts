@@ -109,7 +109,7 @@ export async function POST(req: NextRequest) {
     }
 
     // важливо: у схемі paymentMethod обов’язковий
-    const paymentMethod = data.paymentMethod ?? 'LIQPAY'
+    const paymentMethod = data.paymentMethod ?? 'BANK_TRANSFER'
 
     const productIds = Array.from(
       new Set(

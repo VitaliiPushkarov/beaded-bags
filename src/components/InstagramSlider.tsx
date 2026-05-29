@@ -4,38 +4,21 @@ import Image from 'next/image'
 import dynamic from 'next/dynamic'
 import { useEffect, useRef, useState } from 'react'
 import { useT } from '@/lib/i18n'
+import type { InstagramPostDTO } from '@/lib/home-page-config'
 
 const InstagramSliderInner = dynamic(() => import('./InstagramSliderInner'), {
   ssr: false,
 })
 
-const previewImages = [
-  {
-    src: '/img/instagram/inst1.jpg',
-    href: 'https://www.instagram.com/p/DRsKzcsjNSG/',
-    alt: 'Instagram Image 1',
-  },
-  {
-    src: '/img/instagram/inst2.jpg',
-    href: 'https://www.instagram.com/p/DRkWfJ1DIZo/',
-    alt: 'Instagram Image 2',
-  },
-  {
-    src: '/img/instagram/inst3.jpg',
-    href: 'https://www.instagram.com/p/DRmxdVJDJ3L/?img_index=1',
-    alt: 'Instagram Image 3',
-  },
-  {
-    src: '/img/instagram/inst4.jpg',
-    href: 'https://www.instagram.com/p/DRzpakajLzB/?img_index=1',
-    alt: 'Instagram Image 4',
-  },
-]
-
-export default function InstagramSlider() {
+export default function InstagramSlider({
+  posts,
+}: {
+  posts: InstagramPostDTO[]
+}) {
   const t = useT()
   const containerRef = useRef<HTMLDivElement | null>(null)
   const [active, setActive] = useState(false)
+  const previewPosts = posts.slice(0, 4)
 
   useEffect(() => {
     if (!containerRef.current) return
@@ -64,14 +47,20 @@ export default function InstagramSlider() {
 
   return (
     <section className="w-full py-8" ref={containerRef}>
+      <div className="mx-auto px-4 md:px-6 pb-4">
+        <h2 className="text-2xl uppercase font-semibold">
+          {t('МИ В INSTAGRAM', "We're on Instagram")}
+        </h2>
+      </div>
+
       {active ? (
-        <InstagramSliderInner />
+        <InstagramSliderInner posts={posts} />
       ) : (
         <div className="mx-auto">
           <div className="flex gap-3 overflow-x-auto pb-2">
-            {previewImages.map((img) => (
+            {previewPosts.map((img) => (
               <a
-                key={img.src}
+                key={img.id}
                 href={img.href}
                 target="_blank"
                 rel="noopener noreferrer"

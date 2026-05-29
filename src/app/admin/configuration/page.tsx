@@ -6,6 +6,12 @@ import { redirect } from 'next/navigation'
 import { prisma } from '@/lib/prisma'
 import HomeHeroForm from '../home-hero/HomeHeroForm'
 import { getHomeHeroBannerSettings } from '@/lib/home-hero-banner'
+import {
+  getHeroImagesSettings,
+  getInstagramSliderSettings,
+} from '@/lib/home-page-config'
+import HeroImagesForm from './HeroImagesForm'
+import InstagramSliderForm from './InstagramSliderForm'
 
 export const dynamic = 'force-dynamic'
 
@@ -31,6 +37,8 @@ export default async function AdminConfigurationPage({
   const selectedOnly = params.selected === '1'
   const saved = params.saved === '1'
   const heroInitial = await getHomeHeroBannerSettings()
+  const heroImagesInitial = await getHeroImagesSettings()
+  const instagramInitial = await getInstagramSliderSettings()
 
   function buildConfigurationHref(input?: {
     saved?: boolean
@@ -167,6 +175,8 @@ export default async function AdminConfigurationPage({
       </div>
 
       <HomeHeroForm initial={heroInitial} />
+      <HeroImagesForm initial={heroImagesInitial} />
+      <InstagramSliderForm initial={instagramInitial} />
 
       <form
         action="/admin/configuration"

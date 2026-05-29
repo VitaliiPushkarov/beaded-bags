@@ -6,6 +6,10 @@ import CategorySection from '@/components/CategorySection'
 import { getRequestLocale } from '@/lib/server-locale'
 import SpecialOffers from '@/components/SpecialOffers'
 import { getLocaleAlternates, getSiteUrl } from '@/lib/site-url'
+import {
+  getHeroImagesSettings,
+  getInstagramSliderSettings,
+} from '@/lib/home-page-config'
 
 const HeroImages = dynamic(() => import('@/components/HeroImages'), {
   loading: () => <section className="h-[520px] md:h-[620px]" />,
@@ -55,6 +59,8 @@ export async function generateMetadata(): Promise<Metadata> {
 export default async function Home() {
   const locale = await getRequestLocale()
   const siteUrl = getSiteUrl(locale)
+  const heroImages = await getHeroImagesSettings()
+  const instagram = await getInstagramSliderSettings()
   const isEn = locale === 'en'
   const organizationJsonLd = {
     '@context': 'https://schema.org',
@@ -113,18 +119,18 @@ export default async function Home() {
 
       <>
         <HeroImages
-          leftImg="/img/hero-img-1.webp"
-          centerVideo="/media/hero-video.mp4"
-          centerPoster="/img/hero-img-2.webp"
-          rightImg="/img/rightImg.jpg"
-          altLeft="Beaded bag on rock"
-          altRight="Model with beaded bag"
+          leftImg={heroImages.leftImg}
+          centerVideo={heroImages.centerVideo}
+          centerPoster={heroImages.centerPoster}
+          rightImg={heroImages.rightImg}
+          altLeft={heroImages.altLeft}
+          altRight={heroImages.altRight}
         />
       </>
       <SpecialOffers />
 
       <ProductsSlider />
-      <InstagramSlider />
+      <InstagramSlider posts={instagram.posts} />
       <CategorySection />
       {/* <About image="/img/about-section-preview.png" alt="Про нас" /> */}
     </>

@@ -21,6 +21,8 @@ export async function generateMetadata(): Promise<Metadata> {
 export default async function InfoPage() {
   const locale = await getRequestLocale()
   const isEn = locale === 'en'
+  const isOnlinePaymentEnabled =
+    process.env.LIQPAY_CHECKOUT_ENABLED?.trim().toLowerCase() === 'true'
   const items = [
     {
       id: 'pay',
@@ -34,14 +36,26 @@ export default async function InfoPage() {
               : 'Ми надаємо можливість оплати наступними способами:'}
           </p>
 
-          <p className="font-semibold">
-            {isEn ? 'Card payment on the website.' : 'Оплата на сайті карткою.'}
-          </p>
-          <p className="text-gray-700">
-            {isEn
-              ? 'Online payment is processed via LiqPay checkout: bank card, Apple Pay and Google Pay (on supported devices/browsers).'
-              : 'Онлайн-оплата працює через LiqPay checkout: банківська картка, Apple Pay та Google Pay (на сумісних пристроях/браузерах).'}
-          </p>
+          {isOnlinePaymentEnabled ? (
+            <>
+              <p className="font-semibold">
+                {isEn
+                  ? 'Card payment on the website.'
+                  : 'Оплата на сайті карткою.'}
+              </p>
+              <p className="text-gray-700">
+                {isEn
+                  ? 'Online payment is processed via LiqPay checkout: bank card, Apple Pay and Google Pay (on supported devices/browsers).'
+                  : 'Онлайн-оплата працює через LiqPay checkout: банківська картка, Apple Pay та Google Pay (на сумісних пристроях/браузерах).'}
+              </p>
+            </>
+          ) : (
+            <p className="text-gray-700">
+              {isEn
+                ? 'Online payment is temporarily unavailable.'
+                : 'Онлайн-оплата тимчасово недоступна.'}
+            </p>
+          )}
           <p className="font-semibold">
             {isEn ? 'Bank transfer' : 'Банківський переказ'}
           </p>

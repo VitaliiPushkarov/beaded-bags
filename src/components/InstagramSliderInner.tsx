@@ -2,103 +2,36 @@
 
 import Image from 'next/image'
 import { Swiper, SwiperSlide } from 'swiper/react'
-import { A11y, FreeMode, Autoplay } from 'swiper/modules'
-import { useEffect, useRef, useState } from 'react'
+import { A11y, Autoplay } from 'swiper/modules'
+import { useState } from 'react'
 import type { Swiper as SwiperType } from 'swiper'
 import 'swiper/css'
 import { useT } from '@/lib/i18n'
+import type { InstagramPostDTO } from '@/lib/home-page-config'
 
-const instSliderImages = [
-  {
-    id: 1,
-    src: '/img/instagram/inst1.jpg',
-    href: 'https://www.instagram.com/p/DRsKzcsjNSG/',
-    alt: 'Instagram Image 1',
-    caption: 'Сумка Truffle Tote - мінімалізм, що витримує твій ритм дня.',
-  },
-  {
-    id: 2,
-    src: '/img/instagram/inst2.jpg',
-    href: 'https://www.instagram.com/p/DRkWfJ1DIZo/',
-    alt: 'Instagram Image 2',
-    caption:
-      'Cozy Bag — в’язана бананка-мішечок, що створена для твоїх шалених буднів.',
-  },
-  {
-    id: 3,
-    src: '/img/instagram/inst3.jpg',
-    href: 'https://www.instagram.com/p/DRmxdVJDJ3L/?img_index=1',
-    alt: 'Instagram Image 3',
-    caption:
-      'Металевий чохол з бісеру повторює її характер: стриманий, сталевий та витончений. ',
-  },
-  {
-    id: 4,
-    src: '/img/instagram/inst4.jpg',
-    href: 'https://www.instagram.com/p/DRzpakajLzB/?img_index=1',
-    alt: 'Instagram Image 4',
-    caption:
-      'Gerdan Electric: лаймовий неон, лаконічна форма та знайомий усім класичний принт.',
-  },
-  {
-    id: 5,
-    src: '/img/instagram/inst5.jpg',
-    href: 'https://www.instagram.com/p/DRuvg6_DOzc/?img_index=1',
-    alt: 'Instagram Image 5',
-    caption:
-      'Рожева Cozy Bag виглядає, як базовий аксесуар, але чомусь усі обертаються.',
-  },
-  {
-    id: 6,
-    src: '/img/instagram/inst6.jpg',
-    href: 'https://www.instagram.com/p/DRhyOB_jNAG/?img_index=1',
-    alt: 'Instagram Image 6',
-    caption: 'Gerdan Glassy — сумка, яка ніби створена зі скла.',
-  },
-]
-
-export default function InstagramSliderInner() {
+export default function InstagramSliderInner({ posts }: { posts: InstagramPostDTO[] }) {
   const t = useT()
-  const swiperRef = useRef<SwiperType | null>(null)
+  const [swiper, setSwiper] = useState<SwiperType | null>(null)
+  const [activeIndex, setActiveIndex] = useState(0)
 
-  const [isDesktop, setIsDesktop] = useState(false)
-
-  useEffect(() => {
-    const update = () => {
-      if (typeof window !== 'undefined') {
-        setIsDesktop(window.innerWidth >= 768)
-      }
-    }
-
-    update()
-    window.addEventListener('resize', update)
-    return () => window.removeEventListener('resize', update)
-  }, [])
+  if (posts.length === 0) return null
 
   return (
     <div className="mx-auto">
-      <div
-        className="relative"
-        onMouseEnter={() => {
-          if (isDesktop) swiperRef.current?.autoplay.stop()
-        }}
-        onMouseLeave={() => {
-          if (isDesktop) swiperRef.current?.autoplay.start()
-        }}
-      >
+      <div className="relative pb-8">
         <Swiper
-          modules={[A11y, FreeMode, Autoplay]}
-          loop={isDesktop}
-          freeMode={isDesktop}
+          modules={[A11y, Autoplay]}
+          loop={posts.length > 1}
           grabCursor
-          speed={isDesktop ? 10000 : 300}
+          speed={300}
           autoplay={
-            isDesktop
+            posts.length > 1
               ? {
-                  delay: 0,
+                  delay: 4500,
                   disableOnInteraction: false,
+                  pauseOnMouseEnter: true,
                 }
-              : undefined
+              : false
           }
           slidesPerView={1.2}
           spaceBetween={12}
@@ -112,22 +45,17 @@ export default function InstagramSliderInner() {
               spaceBetween: 8,
             },
           }}
-          resistanceRatio={0}
           className="w-full"
-          simulateTouch={true}
-          followFinger={true}
-          onSwiper={(swiper) => {
-            swiperRef.current = swiper
-            if (!isDesktop) {
-              // hard-disable autoplay on mobile
-              // (prevents any resume after interactions)
-              swiper.params.autoplay = false
-              swiper.autoplay?.stop()
-            }
+          onSwiper={(instance) => {
+            setSwiper(instance)
+            setActiveIndex(instance.realIndex)
+          }}
+          onSlideChange={(instance) => {
+            setActiveIndex(instance.realIndex)
           }}
         >
-          {instSliderImages.map((slide) => (
-            <SwiperSlide key={slide.src}>
+          {posts.map((slide) => (
+            <SwiperSlide key={slide.id}>
               <a
                 href={slide.href}
                 target="_blank"
@@ -169,6 +97,31 @@ export default function InstagramSliderInner() {
             </SwiperSlide>
           ))}
         </Swiper>
+
+        {posts.length > 1 ? (
+          <div className="absolute bottom-4 left-1/2 z-20 flex -translate-x-1/2 items-center gap-2">
+            {posts.map((slide, index) => (
+              <button
+                key={slide.id}
+                type="button"
+                onClick={() => {
+                  if (!swiper) return
+                  if (swiper.params.loop) {
+                    swiper.slideToLoop(index)
+                    return
+                  }
+                  swiper.slideTo(index)
+                }}
+                aria-label={`Перейти до слайду ${index + 1}`}
+                className={`h-2.5 w-2.5 rounded-full transition ${
+                  index === activeIndex
+                    ? 'bg-[#FF3D8C]'
+                    : 'bg-[#FF3D8C]/45 hover:bg-[#FF3D8C]/75'
+                }`}
+              />
+            ))}
+          </div>
+        ) : null}
       </div>
     </div>
   )
