@@ -115,14 +115,15 @@ export default async function BlogPostPage({ params }: BlogPostPageProps) {
           <h1 className="text-3xl md:text-4xl font-semibold leading-tight mb-3">
             {post.title}
           </h1>
-          <div className="relative w-full aspect-[16/10] rounded-md overflow-hidden bg-gray-100 mb-4">
+          <div className="relative w-full max-w-[760px] mx-auto aspect-[4/3] rounded-md overflow-hidden bg-gray-100 mb-4">
             <Image
               src={post.coverImage}
               alt={post.coverImageAlt}
               fill
               priority
-              className="object-cover"
-              sizes="(max-width: 960px) 100vw, 900px"
+              className="object-contain"
+              sizes="(max-width: 800px) 100vw, 760px"
+              quality={75}
             />
           </div>
           <p className="text-gray-600">{post.excerpt}</p>

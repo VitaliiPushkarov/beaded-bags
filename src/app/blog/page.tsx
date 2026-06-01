@@ -77,13 +77,14 @@ export default async function BlogPage() {
               className="border rounded-md overflow-hidden hover:border-gray-900 transition-colors"
             >
               <Link href={`/blog/${post.slug}`} className="block">
-                <div className="relative aspect-[16/10] bg-gray-100">
+                <div className="relative aspect-[4/3] bg-gray-100">
                   <Image
                     src={post.coverImage}
                     alt={post.coverImageAlt}
                     fill
-                    className="object-cover"
-                    sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 560px"
+                    className="object-contain"
+                    sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 520px"
+                    quality={70}
                   />
                 </div>
               </Link>
