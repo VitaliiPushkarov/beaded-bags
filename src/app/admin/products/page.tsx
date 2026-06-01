@@ -569,16 +569,20 @@ export default async function AdminProductsPage({ searchParams }: PageProps) {
 
           {/* Desktop table */}
           <div className="hidden md:block overflow-x-auto">
-            <table className="min-w-full text-sm">
+            <table className="min-w-full text-sm 2xl:text-base">
               <thead className="bg-gray-50">
                 <tr>
-                  <th className="p-2 text-left">Назва</th>
-                  <th className="p-2 text-left">Тип</th>
-                  <th className="p-2 text-left">Статус</th>
-                  <th className="p-2 text-center">Позиція</th>
-                  <th className="p-2 text-right">Базова ціна</th>
-                  <th className="p-2 text-center">Варіантів</th>
-                  <th className="p-2 text-right">Дії</th>
+                  <th className="p-2 2xl:px-4 2xl:py-3 text-left">Назва</th>
+                  <th className="p-2 2xl:px-4 2xl:py-3 text-left">Тип</th>
+                  <th className="p-2 2xl:px-4 2xl:py-3 text-left">Статус</th>
+                  <th className="p-2 2xl:px-4 2xl:py-3 text-center">Позиція</th>
+                  <th className="p-2 2xl:px-4 2xl:py-3 text-right">
+                    Базова ціна
+                  </th>
+                  <th className="p-2 2xl:px-4 2xl:py-3 text-center">
+                    Варіантів
+                  </th>
+                  <th className="p-2 2xl:px-4 2xl:py-3 text-right">Дії</th>
                 </tr>
               </thead>
               <tbody>
@@ -587,14 +591,14 @@ export default async function AdminProductsPage({ searchParams }: PageProps) {
 
                   return (
                     <tr key={p.id} className="border-t">
-                      <td className="p-2">
-                        <div className="flex items-center gap-3">
+                      <td className="p-2 2xl:px-4 2xl:py-3">
+                        <div className="flex items-center gap-3 2xl:gap-4">
                           {chips.length > 0 ? (
                             <div className="flex -space-x-2 shrink-0">
                               {chips.map((imageUrl, index) => (
                                 <div
                                   key={`${p.id}-chip-desktop-${index}`}
-                                  className="h-8 w-8 overflow-hidden rounded-full border-2 border-white bg-gray-100 shadow-sm"
+                                  className="h-8 w-8 2xl:h-22 2xl:w-22 overflow-hidden rounded-full border-2 border-white bg-gray-100 shadow-sm"
                                 >
                                   {/* eslint-disable-next-line @next/next/no-img-element */}
                                   <img
@@ -622,19 +626,25 @@ export default async function AdminProductsPage({ searchParams }: PageProps) {
                           </div>
                         </div>
                       </td>
-                      <td className="p-2">{TYPE_LABELS[p.type]}</td>
-                      <td className="p-2">
+                      <td className="p-2 2xl:px-4 2xl:py-3">
+                        {TYPE_LABELS[p.type]}
+                      </td>
+                      <td className="p-2 2xl:px-4 2xl:py-3">
                         <ProductStatusSelect
                           productId={p.id}
                           initialStatus={p.status}
                         />
                       </td>
-                      <td className="p-2 text-center">{p.sortCatalog}</td>
-                      <td className="p-2 text-right">
+                      <td className="p-2 2xl:px-4 2xl:py-3 text-center">
+                        {p.sortCatalog}
+                      </td>
+                      <td className="p-2 2xl:px-4 2xl:py-3 text-right">
                         {p.basePriceUAH != null ? `${p.basePriceUAH} ₴` : '—'}
                       </td>
-                      <td className="p-2 text-center">{p.variants.length}</td>
-                      <td className="p-2 text-right">
+                      <td className="p-2 2xl:px-4 2xl:py-3 text-center">
+                        {p.variants.length}
+                      </td>
+                      <td className="p-2 2xl:px-4 2xl:py-3 text-right">
                         <Link
                           href={`/admin/products/${p.id}`}
                           className="text-xs text-blue-600 hover:underline"
