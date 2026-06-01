@@ -2,6 +2,7 @@ export const revalidate = 300
 
 import { notFound } from 'next/navigation'
 import { Suspense } from 'react'
+import { cache } from 'react'
 import Breadcrumbs from '@/components/ui/BreadCrumbs'
 import { ProductClient } from './ProductClient'
 import type { ProductType } from '@prisma/client'
@@ -16,9 +17,11 @@ import {
   resolveAvailabilityStatus,
   toSchemaOrgAvailability,
 } from '@/lib/availability'
-import { getProductBySlug, getProductMetaBySlug } from '@/lib/db/products'
+import { getProductBySlug } from '@/lib/db/products'
 import { getRequestLocale } from '@/lib/server-locale'
 import { getLocaleAlternates, getSiteUrl } from '@/lib/site-url'
+
+const getProductForRoute = cache(async (slug: string) => getProductBySlug(slug))
 
 function getTypeToRoute(locale: 'uk' | 'en') {
   return {
@@ -60,7 +63,7 @@ export async function generateMetadata(props: {
   const siteUrl = getSiteUrl(locale)
   const { slug } = await props.params
 
-  const product = await getProductMetaBySlug(slug)
+  const product = await getProductForRoute(slug)
 
   if (!product) return {}
 
@@ -109,7 +112,7 @@ export default async function ProductPage({
   const siteUrl = getSiteUrl(locale)
   const { slug } = await params
 
-  const p = await getProductBySlug(slug)
+  const p = await getProductForRoute(slug)
 
   if (!p) {
     return notFound()

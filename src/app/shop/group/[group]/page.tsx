@@ -140,6 +140,7 @@ export default async function ShopGroupPage({
     color: pickFirstQueryValue(sp.color),
     group: dbGroup,
     onSale: isTruthyQueryParam(pickFirstQueryValue(sp.onSale)),
+    imageTake: 2,
   })
   const listLd = {
     '@context': 'https://schema.org',

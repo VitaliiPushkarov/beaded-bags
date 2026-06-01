@@ -540,10 +540,6 @@ export function ProductInteractive({ p }: { p: ProductWithVariants }) {
     window.history.replaceState(window.history.state, '', next)
   }, [v?.id])
 
-  useEffect(() => {
-    setGalleryReady(true)
-  }, [])
-
   const selectedSizeExtraPriceUAH = useMemo(() => {
     const raw = Number(selectedSize?.extraPriceUAH ?? 0)
     if (!Number.isFinite(raw)) return 0
@@ -910,7 +906,10 @@ export function ProductInteractive({ p }: { p: ProductWithVariants }) {
               galleryReady ? 'opacity-100' : 'opacity-0 pointer-events-none'
             }`}
           >
-            <ProductGallery images={galleryImages} />
+            <ProductGallery
+              images={galleryImages}
+              onReady={() => setGalleryReady(true)}
+            />
           </div>
         </div>
 

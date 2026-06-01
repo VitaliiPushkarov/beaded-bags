@@ -16,6 +16,7 @@ type GetProductsParams = {
   forBestsellers?: boolean
   onSale?: boolean
   take?: number
+  imageTake?: number
 }
 
 const PRODUCT_PAGE_INCLUDE = {
@@ -75,44 +76,46 @@ const PRODUCT_PAGE_INCLUDE = {
   },
 } satisfies Prisma.ProductInclude
 
-const PRODUCT_CARD_SELECT = {
-  id: true,
-  slug: true,
-  name: true,
-  nameEn: true,
-  type: true,
-  group: true,
-  inStock: true,
-  offerNote: true,
-  offerNoteEn: true,
-  basePriceUAH: true,
-  basePriceUSD: true,
-  variants: {
-    orderBy: [{ sortCatalog: 'asc' }, { id: 'asc' }],
-    select: {
-      id: true,
-      color: true,
-      colorEn: true,
-      hex: true,
-      image: true,
-      priceUAH: true,
-      priceUSD: true,
-      discountPercent: true,
-      discountUAH: true,
-      inStock: true,
-      availabilityStatus: true,
-      images: {
-        orderBy: { sort: 'asc' },
-        take: 4,
-        select: {
-          url: true,
-          hover: true,
-          sort: true,
+function createProductCardSelect(imageTake: number) {
+  return {
+    id: true,
+    slug: true,
+    name: true,
+    nameEn: true,
+    type: true,
+    group: true,
+    inStock: true,
+    offerNote: true,
+    offerNoteEn: true,
+    basePriceUAH: true,
+    basePriceUSD: true,
+    variants: {
+      orderBy: [{ sortCatalog: 'asc' }, { id: 'asc' }],
+      select: {
+        id: true,
+        color: true,
+        colorEn: true,
+        hex: true,
+        image: true,
+        priceUAH: true,
+        priceUSD: true,
+        discountPercent: true,
+        discountUAH: true,
+        inStock: true,
+        availabilityStatus: true,
+        images: {
+          orderBy: { sort: 'asc' },
+          take: imageTake,
+          select: {
+            url: true,
+            hover: true,
+            sort: true,
+          },
         },
       },
     },
-  },
-} satisfies Prisma.ProductSelect
+  } satisfies Prisma.ProductSelect
+}
 
 function withAccessoryCompatType(type: ProductType): ProductType[] {
   return type === 'ACCESSORY' ? ['ACCESSORY', 'ORNAMENTS'] : [type]
@@ -385,6 +388,10 @@ export async function getProductsLite(
     typeof params.take === 'number'
       ? Math.min(Math.max(params.take, 1), 60)
       : undefined
+  const imageTake =
+    typeof params.imageTake === 'number'
+      ? Math.min(Math.max(params.imageTake, 1), 4)
+      : 4
 
   let items
   try {
@@ -394,7 +401,7 @@ export async function getProductsLite(
           where,
           orderBy,
           take,
-          select: PRODUCT_CARD_SELECT,
+          select: createProductCardSelect(imageTake),
         }),
       { scope: 'db.products.getProductsLite.findMany' },
     )

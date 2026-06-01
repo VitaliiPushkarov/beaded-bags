@@ -23,9 +23,11 @@ export type ProductWithVariants = ProductCardDTO
 export default function ProductCardLarge({
   p,
   preferredColor,
+  aboveTheFold = false,
 }: {
   p: ProductWithVariants
   preferredColor?: string
+  aboveTheFold?: boolean
 }) {
   const locale = useLocale()
   const numberLocale = useLocaleNumberFormat()
@@ -97,7 +99,7 @@ export default function ProductCardLarge({
       : null
 
   const CARD_SIZES =
-    '(max-width: 640px) 50vw, (max-width: 1024px) 33vw, (max-width: 1280px) 25vw, 20vw'
+    '(max-width: 640px) 50vw, (max-width: 1024px) 33vw, (max-width: 1280px) 25vw, 280px'
 
   const [isHovered, setIsHovered] = useState(false)
 
@@ -143,7 +145,9 @@ export default function ProductCardLarge({
                 className={`object-cover transition-opacity duration-300 ${
                   isHovered ? 'opacity-0 scale-[1.02]' : 'opacity-100'
                 }`}
-                priority={false}
+                priority={aboveTheFold}
+                loading={aboveTheFold ? 'eager' : 'lazy'}
+                fetchPriority={aboveTheFold ? 'high' : 'auto'}
                 sizes={CARD_SIZES}
               />
               {hoverImage && (

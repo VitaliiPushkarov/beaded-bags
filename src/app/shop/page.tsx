@@ -170,6 +170,7 @@ export default async function ShopPage({
     type: safeType ?? undefined,
     group: safeGroup || undefined,
     onSale: isTruthyQueryParam(pickFirstQueryValue(sp.onSale)),
+    imageTake: 2,
   })
 
   const jsonLd = {

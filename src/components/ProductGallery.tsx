@@ -14,9 +14,10 @@ import { useT } from '@/lib/i18n'
 
 type PhotoGalleryProps = {
   images: string[]
+  onReady?: () => void
 }
 
-export default function PhotoGallery({ images }: PhotoGalleryProps) {
+export default function PhotoGallery({ images, onReady }: PhotoGalleryProps) {
   const t = useT()
   const placeholder = '/img/placeholder.png'
   const list = useMemo(() => (images.length ? images : [placeholder]), [images])
@@ -118,6 +119,10 @@ export default function PhotoGallery({ images }: PhotoGalleryProps) {
   useEffect(() => {
     preloadAround(activeIndex)
   }, [activeIndex, preloadAround])
+
+  useEffect(() => {
+    onReady?.()
+  }, [onReady])
 
   const mobileBullets = useMemo(() => {
     if (!hasMultipleImages) return []

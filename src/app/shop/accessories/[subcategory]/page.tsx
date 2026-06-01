@@ -129,6 +129,7 @@ export default async function AccessorySubcategoryPage({
     color: pickFirstQueryValue(sp.color),
     types: ['ACCESSORY'],
     onSale: isTruthyQueryParam(pickFirstQueryValue(sp.onSale)),
+    imageTake: 2,
   })
   const products = rawProducts.filter((item) =>
     matchAccessorySubcategory(item, subcategory),

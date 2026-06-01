@@ -2,8 +2,9 @@
 
 import Image from 'next/image'
 import { Swiper, SwiperSlide } from 'swiper/react'
-import { A11y, Autoplay } from 'swiper/modules'
-import { useState } from 'react'
+import { A11y } from 'swiper/modules'
+import { useRef, useState } from 'react'
+import type { WheelEvent } from 'react'
 import type { Swiper as SwiperType } from 'swiper'
 import 'swiper/css'
 import { useT } from '@/lib/i18n'
@@ -13,27 +14,56 @@ export default function InstagramSliderInner({ posts }: { posts: InstagramPostDT
   const t = useT()
   const [swiper, setSwiper] = useState<SwiperType | null>(null)
   const [activeIndex, setActiveIndex] = useState(0)
+  const lastWheelAtRef = useRef(0)
 
   if (posts.length === 0) return null
+
+  const handleWheel = (event: WheelEvent<HTMLDivElement>) => {
+    if (!swiper || posts.length <= 1) return
+
+    const deltaX = event.deltaX
+    const deltaY = event.deltaY
+    const absX = Math.abs(deltaX)
+    const absY = Math.abs(deltaY)
+
+    // React only to horizontal touchpad/mouse wheel gestures.
+    // Vertical page scroll must pass through untouched.
+    if (absX < 16) return
+    if (absX <= absY * 1.15) return
+
+    const now = Date.now()
+    if (now - lastWheelAtRef.current < 420) {
+      event.preventDefault()
+      return
+    }
+
+    lastWheelAtRef.current = now
+    event.preventDefault()
+
+    if (deltaX > 0) {
+      swiper.slideNext()
+      return
+    }
+
+    swiper.slidePrev()
+  }
 
   return (
     <div className="mx-auto">
       <div className="relative pb-8">
+        <div onWheel={handleWheel}>
         <Swiper
-          modules={[A11y, Autoplay]}
+          modules={[A11y]}
           loop={posts.length > 1}
           grabCursor
+          simulateTouch
+          allowTouchMove={posts.length > 1}
+          touchRatio={1}
+          threshold={8}
+          touchStartPreventDefault={false}
           speed={300}
-          autoplay={
-            posts.length > 1
-              ? {
-                  delay: 4500,
-                  disableOnInteraction: false,
-                  pauseOnMouseEnter: true,
-                }
-              : false
-          }
           slidesPerView={1.2}
+          slidesPerGroup={1}
           spaceBetween={12}
           breakpoints={{
             768: {
@@ -45,7 +75,7 @@ export default function InstagramSliderInner({ posts }: { posts: InstagramPostDT
               spaceBetween: 8,
             },
           }}
-          className="w-full"
+          className="w-full [touch-action:pan-y]"
           onSwiper={(instance) => {
             setSwiper(instance)
             setActiveIndex(instance.realIndex)
@@ -97,6 +127,7 @@ export default function InstagramSliderInner({ posts }: { posts: InstagramPostDT
             </SwiperSlide>
           ))}
         </Swiper>
+        </div>
 
         {posts.length > 1 ? (
           <div className="absolute bottom-4 left-1/2 z-20 flex -translate-x-1/2 items-center gap-2">

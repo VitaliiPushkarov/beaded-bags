@@ -167,6 +167,7 @@ export default async function ShopCategoryPage({
     types: config.types,
     group: config.group,
     onSale: isTruthyQueryParam(pickFirstQueryValue(sp.onSale)),
+    imageTake: 2,
   })
 
   const itemListLd = buildItemListJsonLd(
