@@ -4,6 +4,7 @@ import assert from 'node:assert/strict'
 import { OrderCreateCheckoutBodySchema } from './create-order-schema'
 
 type CheckoutPayloadFixture = {
+  idempotencyKey?: string
   customer: {
     name: string
     surname: string
@@ -82,6 +83,14 @@ test('OrderCreateCheckoutBodySchema accepts legacy checkout payload with patrony
   assert.equal(parsed.success, true)
   if (!parsed.success) return
   assert.equal(parsed.data.customer.patronymic, 'Петрівна')
+})
+
+test('OrderCreateCheckoutBodySchema accepts idempotencyKey', () => {
+  const payload = buildValidCheckoutPayload()
+  payload.idempotencyKey = 'checkout-attempt-1'
+
+  const parsed = OrderCreateCheckoutBodySchema.safeParse(payload)
+  assert.equal(parsed.success, true)
 })
 
 test('OrderCreateCheckoutBodySchema requires surname', () => {

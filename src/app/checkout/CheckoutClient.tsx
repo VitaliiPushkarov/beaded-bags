@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import Image from 'next/image'
 import NovaPoshtaPicker from '@/components/checkout/NovaPoshtaPicker'
@@ -11,6 +11,7 @@ import { IMaskInput } from 'react-imask'
 import { usePromo } from '@/lib/usePromo'
 import { calcDiscountUAH, resolvePromoCode } from '@/lib/promo'
 import { useT } from '@/lib/i18n'
+import { buildCheckoutAttemptFingerprint } from '@/lib/orders/checkout-attempt'
 
 type CheckoutFormState = {
   name: string
@@ -20,6 +21,7 @@ type CheckoutFormState = {
 }
 
 const CHECKOUT_FORM_DRAFT_KEY = 'gerdan_checkout_form_draft'
+const CHECKOUT_ATTEMPT_META_KEY = 'gerdan_checkout_attempt_meta'
 
 function emptyCheckoutForm(): CheckoutFormState {
   return {
@@ -58,6 +60,50 @@ function clearCheckoutFormDraft() {
   if (typeof window === 'undefined') return
   try {
     sessionStorage.removeItem(CHECKOUT_FORM_DRAFT_KEY)
+  } catch {}
+}
+
+function createCheckoutAttemptKey() {
+  if (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') {
+    return crypto.randomUUID()
+  }
+
+  return `checkout-${Date.now()}-${Math.random().toString(36).slice(2)}`
+}
+
+function getOrCreateCheckoutAttemptKey(fingerprint: string) {
+  if (typeof window === 'undefined') return createCheckoutAttemptKey()
+
+  try {
+    const raw = sessionStorage.getItem(CHECKOUT_ATTEMPT_META_KEY)
+    if (raw) {
+      const parsed = JSON.parse(raw) as { key?: string; fingerprint?: string }
+      if (
+        typeof parsed.key === 'string' &&
+        parsed.key &&
+        parsed.fingerprint === fingerprint
+      ) {
+        return parsed.key
+      }
+    }
+  } catch {}
+
+  const key = createCheckoutAttemptKey()
+
+  try {
+    sessionStorage.setItem(
+      CHECKOUT_ATTEMPT_META_KEY,
+      JSON.stringify({ key, fingerprint }),
+    )
+  } catch {}
+
+  return key
+}
+
+function clearCheckoutAttemptKey() {
+  if (typeof window === 'undefined') return
+  try {
+    sessionStorage.removeItem(CHECKOUT_ATTEMPT_META_KEY)
   } catch {}
 }
 
@@ -108,6 +154,7 @@ export default function CheckoutClient() {
 
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const submitLockRef = useRef(false)
 
   useEffect(() => {
     saveCheckoutFormDraft(form)
@@ -179,6 +226,9 @@ export default function CheckoutClient() {
   }
 
   const submitOrder = async () => {
+    if (submitLockRef.current || loading) return
+
+    submitLockRef.current = true
     setError(null)
     const fioValid = isNameValid(form.name) && isNameValid(form.surname)
     const phoneNorm = normalizeUaPhone(form.phone)
@@ -230,6 +280,16 @@ export default function CheckoutClient() {
 
     const discountUAH = calcDiscountUAH(subtotal, appliedPromoCode)
     const total = Math.max(0, subtotal - discountUAH) + shipping
+    const fingerprint = buildCheckoutAttemptFingerprint({
+      items,
+      amountUAH: total,
+      paymentMethod: co.paymentMethod,
+      customerPhone: phoneNorm,
+      cityRef: co.np.cityRef,
+      warehouseRef: co.np.warehouseRef,
+      promoCode: appliedPromoCode,
+    })
+    const idempotencyKey = getOrCreateCheckoutAttemptKey(fingerprint)
 
     setLoading(true)
     try {
@@ -264,6 +324,7 @@ export default function CheckoutClient() {
           items,
           amountUAH: total,
           promoCode: appliedPromoCode,
+          idempotencyKey,
           paymentMethod: co.paymentMethod,
         }),
       })
@@ -346,12 +407,14 @@ export default function CheckoutClient() {
 
       clearCart()
       clearCheckoutFormDraft()
+      clearCheckoutAttemptKey()
       router.push(`/checkout/success?order=${json.orderNumber}`)
       return
     } catch (e) {
       console.error(e)
       setError(t('Невідома помилка мережі', 'Unknown network error'))
     } finally {
+      submitLockRef.current = false
       setLoading(false)
     }
   }

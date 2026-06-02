@@ -28,6 +28,7 @@ export const OrderCreateCheckoutBodySchema = z.object({
   items: z.array(OrderItemSchema).min(1),
   amountUAH: z.number().min(0),
   promoCode: z.string().optional().nullable(),
+  idempotencyKey: z.string().trim().min(1).max(120).optional(),
   customer: buildOrderCustomerSchema(2).extend({
     phone: z.string().min(10),
   }),

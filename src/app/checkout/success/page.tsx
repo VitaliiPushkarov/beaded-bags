@@ -5,6 +5,7 @@ import { pushMetaPurchase } from '@/lib/analytics/datalayer'
 import { useCart } from '@/app/store/cart'
 
 const CHECKOUT_FORM_DRAFT_KEY = 'gerdan_checkout_form_draft'
+const CHECKOUT_ATTEMPT_META_KEY = 'gerdan_checkout_attempt_meta'
 
 function SuccessInner() {
   const router = useRouter()
@@ -26,6 +27,7 @@ function SuccessInner() {
     clearCart()
     try {
       sessionStorage.removeItem(CHECKOUT_FORM_DRAFT_KEY)
+      sessionStorage.removeItem(CHECKOUT_ATTEMPT_META_KEY)
     } catch {}
   }, [orderNumber, clearCart])
 

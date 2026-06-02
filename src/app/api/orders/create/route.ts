@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { Prisma } from '@prisma/client'
 
 import { prisma } from '@/lib/prisma'
 import { buildOrderFinancialSnapshot } from '@/lib/finance'
@@ -75,6 +76,11 @@ function escHtml(s: string) {
     .replaceAll('>', '&gt;')
 }
 
+function normalizeIdempotencyKey(value: string | undefined): string | null {
+  const trimmed = String(value ?? '').trim()
+  return trimmed.length > 0 ? trimmed : null
+}
+
 export async function POST(req: NextRequest) {
   try {
     const json = await req.json()
@@ -110,6 +116,25 @@ export async function POST(req: NextRequest) {
 
     // важливо: у схемі paymentMethod обов’язковий
     const paymentMethod = data.paymentMethod ?? 'LIQPAY'
+    const idempotencyKey = normalizeIdempotencyKey(data.idempotencyKey)
+
+    if (idempotencyKey) {
+      const existing = await prisma.order.findUnique({
+        where: { checkoutSessionKey: idempotencyKey },
+        select: { id: true, shortNumber: true },
+      })
+
+      if (existing) {
+        return NextResponse.json(
+          {
+            orderId: existing.id,
+            orderNumber: existing.shortNumber,
+            reused: true,
+          },
+          { status: 200 },
+        )
+      }
+    }
 
     const productIds = Array.from(
       new Set(
@@ -238,69 +263,97 @@ export async function POST(req: NextRequest) {
       })),
     })
 
-    const created = await prisma.order.create({
-      data: {
-        status: 'PENDING',
-        subtotalUAH: subtotal,
-        deliveryUAH,
-        discountUAH,
-        totalUAH,
-        itemsCostUAH: financialSnapshot.itemsCostUAH,
-        paymentFeeUAH: financialSnapshot.paymentFeeUAH,
-        grossProfitUAH: financialSnapshot.grossProfitUAH,
+    let created
+    try {
+      created = await prisma.order.create({
+        data: {
+          status: 'PENDING',
+          subtotalUAH: subtotal,
+          deliveryUAH,
+          discountUAH,
+          totalUAH,
+          itemsCostUAH: financialSnapshot.itemsCostUAH,
+          paymentFeeUAH: financialSnapshot.paymentFeeUAH,
+          grossProfitUAH: financialSnapshot.grossProfitUAH,
 
-        customerName: data.customer.name,
-        customerSurname: data.customer.surname,
-        customerPatronymic: data.customer.patronymic ?? null,
-        customerPhone: data.customer.phone,
-        customerEmail: data.customer.email ?? null,
+          customerName: data.customer.name,
+          customerSurname: data.customer.surname,
+          customerPatronymic: data.customer.patronymic ?? null,
+          customerPhone: data.customer.phone,
+          customerEmail: data.customer.email ?? null,
 
-        npCityRef: data.shipping.np.cityRef,
-        npCityName: data.shipping.np.cityName,
-        npWarehouseRef: data.shipping.np.warehouseRef,
-        npWarehouseName: data.shipping.np.warehouseName,
+          npCityRef: data.shipping.np.cityRef,
+          npCityName: data.shipping.np.cityName,
+          npWarehouseRef: data.shipping.np.warehouseRef,
+          npWarehouseName: data.shipping.np.warehouseName,
 
-        paymentMethod,
-        paymentId: null,
-        paymentStatus: null,
+          paymentMethod,
+          paymentId: null,
+          paymentStatus: null,
+          checkoutSessionKey: idempotencyKey,
 
-        customer: data.customer.phone
-          ? {
-              connectOrCreate: {
-                where: { phone: data.customer.phone },
-                create: {
-                  name: `${data.customer.name} ${data.customer.surname}`.trim(),
-                  phone: data.customer.phone,
-                  email: data.customer.email ?? null,
+          customer: data.customer.phone
+            ? {
+                connectOrCreate: {
+                  where: { phone: data.customer.phone },
+                  create: {
+                    name: `${data.customer.name} ${data.customer.surname}`.trim(),
+                    phone: data.customer.phone,
+                    email: data.customer.email ?? null,
+                  },
                 },
-              },
-            }
-          : undefined,
+              }
+            : undefined,
 
-        items: {
-          create: data.items.map((it, index) => ({
-            productId: it.productId ?? null,
-            variantId: it.variantId ?? null,
-            name: it.name,
-            color: it.color ?? null,
-            modelSize: it.modelSize ?? null,
-            pouchColor: it.pouchColor ?? null,
-            image: it.image ?? null,
-            priceUAH: it.priceUAH,
-            qty: it.qty,
-            discountUAH: financialSnapshot.lines[index]?.discountUAH ?? 0,
-            lineRevenueUAH: financialSnapshot.lines[index]?.lineRevenueUAH ?? 0,
-            unitCostUAH: financialSnapshot.lines[index]?.unitCostUAH ?? 0,
-            totalCostUAH: financialSnapshot.lines[index]?.totalCostUAH ?? 0,
-            strapName: it.strapName ?? null,
-            addons: it.addons ?? [],
-          })),
+          items: {
+            create: data.items.map((it, index) => ({
+              productId: it.productId ?? null,
+              variantId: it.variantId ?? null,
+              name: it.name,
+              color: it.color ?? null,
+              modelSize: it.modelSize ?? null,
+              pouchColor: it.pouchColor ?? null,
+              image: it.image ?? null,
+              priceUAH: it.priceUAH,
+              qty: it.qty,
+              discountUAH: financialSnapshot.lines[index]?.discountUAH ?? 0,
+              lineRevenueUAH: financialSnapshot.lines[index]?.lineRevenueUAH ?? 0,
+              unitCostUAH: financialSnapshot.lines[index]?.unitCostUAH ?? 0,
+              totalCostUAH: financialSnapshot.lines[index]?.totalCostUAH ?? 0,
+              strapName: it.strapName ?? null,
+              addons: it.addons ?? [],
+            })),
+          },
         },
-      },
-      include: {
-        items: true,
-      },
-    })
+        include: {
+          items: true,
+        },
+      })
+    } catch (error: unknown) {
+      if (
+        idempotencyKey &&
+        error instanceof Prisma.PrismaClientKnownRequestError &&
+        error.code === 'P2002'
+      ) {
+        const existing = await prisma.order.findUnique({
+          where: { checkoutSessionKey: idempotencyKey },
+          select: { id: true, shortNumber: true },
+        })
+
+        if (existing) {
+          return NextResponse.json(
+            {
+              orderId: existing.id,
+              orderNumber: existing.shortNumber,
+              reused: true,
+            },
+            { status: 200 },
+          )
+        }
+      }
+
+      throw error
+    }
 
     // Telegram notification (best-effort)
     try {

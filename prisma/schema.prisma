@@ -328,6 +328,7 @@ model Order {
   paymentId          String?
   paymentStatus      String?
   paymentRaw         Json?
+  checkoutSessionKey String?       @unique
   customerId         String?
   shortNumber        Int           @unique @default(autoincrement())
   grossProfitUAH     Int           @default(0)
