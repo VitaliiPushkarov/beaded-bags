@@ -1,7 +1,8 @@
 import { NextResponse } from 'next/server'
 import type { NextRequest } from 'next/server'
+import { isAdminRequest } from '@/lib/admin-auth'
 
-export function middleware(req: NextRequest) {
+export async function middleware(req: NextRequest) {
   const { pathname } = req.nextUrl
 
   // If not accessing /admin, continue
@@ -9,7 +10,7 @@ export function middleware(req: NextRequest) {
     return NextResponse.next()
   }
 
-  const loggedIn = req.cookies.get('admin-auth')?.value === 'true'
+  const loggedIn = await isAdminRequest(req)
   const isLoginPage = pathname.startsWith('/admin/login')
 
   // If not logged in and not on /admin/login → redirect

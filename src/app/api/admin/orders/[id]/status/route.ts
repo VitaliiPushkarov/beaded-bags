@@ -1,16 +1,20 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { revalidatePath } from 'next/cache'
 import { z } from 'zod'
+import { OrderStatus } from '@prisma/client'
+import { requireAdmin } from '@/lib/admin-auth'
 import { prisma } from '@/lib/prisma'
-import type { OrderStatus } from '@prisma/client'
 
 const BodySchema = z.object({
-  status: z.custom<OrderStatus>(),
+  status: z.nativeEnum(OrderStatus),
 })
 
 type PageProps = { params: Promise<{ id: string }> }
 
 export async function PATCH(req: NextRequest, { params }: PageProps) {
+  const unauthorized = await requireAdmin(req)
+  if (unauthorized) return unauthorized
+
   try {
     const { id } = await params
     const json = await req.json()

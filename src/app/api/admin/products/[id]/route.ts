@@ -8,6 +8,7 @@ import {
   AvailabilityStatus,
 } from '@prisma/client'
 import { isInStockStatus, resolveAvailabilityStatus } from '@/lib/availability'
+import { requireAdmin } from '@/lib/admin-auth'
 import { revalidateProductCache } from '@/lib/revalidate-products'
 
 const ImagePath = z
@@ -114,6 +115,9 @@ export async function PATCH(
   req: NextRequest,
   { params }: { params: Promise<{ id: string }> },
 ) {
+  const unauthorized = await requireAdmin(req)
+  if (unauthorized) return unauthorized
+
   try {
     const { id } = await params
     const existing = await prisma.product.findUnique({
@@ -503,9 +507,12 @@ export async function PATCH(
 
 // --------- DELETE: видалення товару ---------
 export async function DELETE(
-  _req: NextRequest,
+  req: NextRequest,
   { params }: { params: Promise<{ id: string }> },
 ) {
+  const unauthorized = await requireAdmin(req)
+  if (unauthorized) return unauthorized
+
   try {
     const { id } = await params
     const existing = await prisma.product.findUnique({
@@ -536,9 +543,12 @@ export async function DELETE(
 
 // --------- GET: один товар ---------
 export async function GET(
-  _req: NextRequest,
+  req: NextRequest,
   { params }: { params: Promise<{ id: string }> },
 ) {
+  const unauthorized = await requireAdmin(req)
+  if (unauthorized) return unauthorized
+
   try {
     const { id } = await params
 

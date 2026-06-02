@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { ProductStatus } from '@prisma/client'
 import { z } from 'zod'
 
+import { requireAdmin } from '@/lib/admin-auth'
 import { prisma } from '@/lib/prisma'
 import { revalidateProductCache } from '@/lib/revalidate-products'
 
@@ -13,6 +14,9 @@ export async function PATCH(
   req: NextRequest,
   { params }: { params: Promise<{ id: string }> },
 ) {
+  const unauthorized = await requireAdmin(req)
+  if (unauthorized) return unauthorized
+
   try {
     const { id } = await params
     const parsed = BodySchema.safeParse(await req.json())

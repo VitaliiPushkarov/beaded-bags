@@ -2,6 +2,7 @@ import { MaterialCategory } from '@prisma/client'
 import { NextRequest, NextResponse } from 'next/server'
 import { z } from 'zod'
 
+import { requireAdmin } from '@/lib/admin-auth'
 import type { MaterialNameSuggestion } from '@/lib/admin-materials'
 import { prisma } from '@/lib/prisma'
 
@@ -25,6 +26,9 @@ function scoreNameMatch(name: string, query: string): number {
 }
 
 export async function GET(request: NextRequest) {
+  const unauthorized = await requireAdmin(request)
+  if (unauthorized) return unauthorized
+
   const url = new URL(request.url)
   const parsed = QuerySchema.safeParse({
     q: url.searchParams.get('q') ?? '',

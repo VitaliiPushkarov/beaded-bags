@@ -8,6 +8,7 @@ import {
   AvailabilityStatus,
 } from '@prisma/client'
 import { isInStockStatus, resolveAvailabilityStatus } from '@/lib/availability'
+import { requireAdmin } from '@/lib/admin-auth'
 import { revalidateProductCache } from '@/lib/revalidate-products'
 
 // Accept both absolute URLs and local paths like "/img/foo.jpg".
@@ -119,7 +120,10 @@ function sanitizeSortCatalog(input: number | null | undefined) {
 }
 
 // --------- GET: list products for admin ---------
-export async function GET() {
+export async function GET(req: NextRequest) {
+  const unauthorized = await requireAdmin(req)
+  if (unauthorized) return unauthorized
+
   try {
     const products = await prisma.product.findMany({
       orderBy: [{ name: 'asc' }, { createdAt: 'desc' }],
@@ -173,6 +177,9 @@ export async function GET() {
 
 // --------- POST: create product ---------
 export async function POST(req: NextRequest) {
+  const unauthorized = await requireAdmin(req)
+  if (unauthorized) return unauthorized
+
   try {
     const json = await req.json()
     const parsed = ProductCreateSchema.safeParse(json)

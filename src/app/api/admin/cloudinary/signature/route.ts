@@ -1,9 +1,10 @@
-import { NextResponse } from 'next/server'
+import { NextRequest, NextResponse } from 'next/server'
 import crypto from 'crypto'
+import { requireAdmin } from '@/lib/admin-auth'
 
-export async function POST(req: Request) {
-  // TODO: тут можна додати перевірку, що юзер — адмін (якщо у вас вже є auth middleware)
-  // await requireAdmin(req)
+export async function POST(req: NextRequest) {
+  const unauthorized = await requireAdmin(req)
+  if (unauthorized) return unauthorized
 
   const { folder } = (await req.json().catch(() => ({}))) as {
     folder?: string

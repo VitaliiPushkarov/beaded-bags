@@ -1,8 +1,15 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { PrismaClient } from '@prisma/client'
-const prisma = new PrismaClient()
+import { requireAdmin } from '@/lib/admin-auth'
+import { prisma } from '@/lib/prisma'
 
 export async function POST(req: NextRequest) {
+  if (process.env.NODE_ENV === 'production') {
+    return NextResponse.json({ ok: false, error: 'Not found' }, { status: 404 })
+  }
+
+  const unauthorized = await requireAdmin(req)
+  if (unauthorized) return unauthorized
+
   const { orderId } = await req.json()
   if (!orderId)
     return NextResponse.json(

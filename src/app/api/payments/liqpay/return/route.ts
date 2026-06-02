@@ -64,28 +64,26 @@ export async function GET(req: NextRequest) {
   const signature = String(sp.get('signature') ?? '')
   const privateKey = process.env.LIQPAY_PRIVATE_KEY?.trim()
 
-  let decoded: DecodedPayload | null = decodePayload(data)
+  const decoded = decodePayload(data)
+  let trustedPayload: DecodedPayload | null = null
 
-  // If return URL carries signed payload, verify it before trusting fields.
   if (decoded && data && signature && privateKey) {
     const expected = liqpaySign(privateKey, data)
     if (!safeEqual(expected, signature)) {
       return toHome(req)
     }
-  } else if (!decoded) {
-    // Fallback for flows that send plain query fields only.
-    decoded = {
-      order_id: sp.get('order_id') ?? undefined,
-      status: sp.get('status') ?? undefined,
-    }
+
+    trustedPayload = decoded
   }
 
-  const orderId = pickOrderId(sp, decoded)
-  const paymentStatus = pickStatus(sp, decoded)
-  const mappedOrderStatus = mapLiqPayOrderStatus({
-    ...decoded,
-    status: paymentStatus || decoded?.status,
-  })
+  const orderId = pickOrderId(sp, trustedPayload) || String(sp.get('order_id') ?? sp.get('orderId') ?? '').trim()
+  const paymentStatus = trustedPayload ? pickStatus(sp, trustedPayload) : ''
+  const mappedOrderStatus = trustedPayload
+    ? mapLiqPayOrderStatus({
+        ...trustedPayload,
+        status: paymentStatus || trustedPayload?.status,
+      })
+    : null
 
   if (!orderId) {
     return toHome(req)
@@ -100,24 +98,31 @@ export async function GET(req: NextRequest) {
     return toHome(req)
   }
 
-  const updateData: Prisma.OrderUpdateInput = {
-    paymentStatus: paymentStatus || null,
-    paymentRaw: decoded as Prisma.InputJsonValue,
-  }
+  if (trustedPayload) {
+    const updateData: Prisma.OrderUpdateInput = {
+      paymentStatus: paymentStatus || null,
+      paymentRaw: trustedPayload as Prisma.InputJsonValue,
+    }
 
-  if (decoded?.transaction_id !== undefined && decoded?.transaction_id !== null) {
-    updateData.paymentId = String(decoded.transaction_id)
-  }
+    if (
+      trustedPayload.transaction_id !== undefined &&
+      trustedPayload.transaction_id !== null
+    ) {
+      updateData.paymentId = String(trustedPayload.transaction_id)
+    }
 
-  // Do not downgrade already paid orders.
-  if (mappedOrderStatus && !(existing.status === 'PAID' && mappedOrderStatus !== 'PAID')) {
-    updateData.status = mappedOrderStatus
-  }
+    if (
+      mappedOrderStatus &&
+      !(existing.status === 'PAID' && mappedOrderStatus !== 'PAID')
+    ) {
+      updateData.status = mappedOrderStatus
+    }
 
-  await prisma.order.update({
-    where: { id: existing.id },
-    data: updateData,
-  })
+    await prisma.order.update({
+      where: { id: existing.id },
+      data: updateData,
+    })
+  }
 
   const finalStatus =
     mappedOrderStatus && !(existing.status === 'PAID' && mappedOrderStatus !== 'PAID')

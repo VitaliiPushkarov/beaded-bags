@@ -1,13 +1,25 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { z } from 'zod'
+import { requireAdmin } from '@/lib/admin-auth'
+
+const BodySchema = z.object({
+  toName: z.string().trim().min(1).max(120),
+  toPhone: z.string().trim().min(8).max(24),
+  toCityRef: z.string().trim().min(1).max(120),
+  toWarehouseRef: z.string().trim().min(1).max(120),
+  weight: z.coerce.number().positive().max(100).optional().default(0.5),
+})
 
 export async function POST(req: NextRequest) {
-  const {
-    toName,
-    toPhone,
-    toCityRef,
-    toWarehouseRef,
-    weight = 0.5,
-  } = await req.json()
+  const unauthorized = await requireAdmin(req)
+  if (unauthorized) return unauthorized
+
+  const parsed = BodySchema.safeParse(await req.json())
+  if (!parsed.success) {
+    return NextResponse.json({ error: parsed.error.flatten() }, { status: 400 })
+  }
+
+  const { toName, toPhone, toCityRef, toWarehouseRef, weight } = parsed.data
   const body = {
     apiKey: process.env.NP_KEY,
     modelName: 'InternetDocument',

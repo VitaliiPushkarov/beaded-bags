@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { z } from 'zod'
 import { revalidatePath } from 'next/cache'
 
+import { requireAdmin } from '@/lib/admin-auth'
 import { prisma } from '@/lib/prisma'
 import {
   getInstagramSliderSettings,
@@ -50,14 +51,9 @@ const PayloadSchema = z.object({
   posts: z.array(PostSchema).min(1).max(20),
 })
 
-function isAdmin(req: NextRequest): boolean {
-  return req.cookies.get('admin-auth')?.value === 'true'
-}
-
 export async function GET(req: NextRequest) {
-  if (!isAdmin(req)) {
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-  }
+  const unauthorized = await requireAdmin(req)
+  if (unauthorized) return unauthorized
 
   try {
     const settings = await getInstagramSliderSettings()
@@ -69,9 +65,8 @@ export async function GET(req: NextRequest) {
 }
 
 export async function PUT(req: NextRequest) {
-  if (!isAdmin(req)) {
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-  }
+  const unauthorized = await requireAdmin(req)
+  if (unauthorized) return unauthorized
 
   try {
     const parsed = PayloadSchema.safeParse(await req.json())

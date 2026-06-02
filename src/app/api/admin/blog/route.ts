@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { BlogPostStatus } from '@prisma/client'
 import { z } from 'zod'
 
+import { requireAdmin } from '@/lib/admin-auth'
 import { normalizeBlogSections } from '@/lib/blog'
 import { prisma } from '@/lib/prisma'
 import { revalidateBlogCache } from '@/lib/revalidate-blog'
@@ -74,7 +75,10 @@ function resolvePublishedAt(input: {
   return input.incomingPublishedAt ?? input.existingPublishedAt ?? null
 }
 
-export async function GET() {
+export async function GET(req: NextRequest) {
+  const unauthorized = await requireAdmin(req)
+  if (unauthorized) return unauthorized
+
   try {
     const posts = await prisma.blogPost.findMany({
       orderBy: [{ updatedAt: 'desc' }],
@@ -98,6 +102,9 @@ export async function GET() {
 }
 
 export async function POST(req: NextRequest) {
+  const unauthorized = await requireAdmin(req)
+  if (unauthorized) return unauthorized
+
   try {
     const parsed = BlogPostSchema.safeParse(await req.json())
 

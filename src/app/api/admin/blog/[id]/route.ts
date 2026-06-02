@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { BlogPostStatus } from '@prisma/client'
 import { z } from 'zod'
 
+import { requireAdmin } from '@/lib/admin-auth'
 import { normalizeBlogSections } from '@/lib/blog'
 import { prisma } from '@/lib/prisma'
 import { revalidateBlogCache } from '@/lib/revalidate-blog'
@@ -78,6 +79,9 @@ export async function PATCH(
   req: NextRequest,
   { params }: { params: Promise<{ id: string }> },
 ) {
+  const unauthorized = await requireAdmin(req)
+  if (unauthorized) return unauthorized
+
   try {
     const { id } = await params
     const existing = await prisma.blogPost.findUnique({
@@ -161,9 +165,12 @@ export async function PATCH(
 }
 
 export async function DELETE(
-  _req: NextRequest,
+  req: NextRequest,
   { params }: { params: Promise<{ id: string }> },
 ) {
+  const unauthorized = await requireAdmin(req)
+  if (unauthorized) return unauthorized
+
   try {
     const { id } = await params
 
