@@ -8,6 +8,7 @@
     "start": "next start",
     "lint": "eslint . --cache",
     "migrate:purchases-other-to-expenses": "node --import tsx scripts/migrate-purchase-others-to-expenses.ts",
+    "normalize:admin-production-expenses": "node --import tsx scripts/normalize-admin-production-expenses.ts",
     "import:gerdan:stage": "node --import tsx scripts/imports/gerdan-stage.ts",
     "import:gerdan:mapping": "node --import tsx scripts/imports/gerdan-build-mapping.ts",
     "import:gerdan:db": "node --import tsx scripts/imports/gerdan-import-db.ts",

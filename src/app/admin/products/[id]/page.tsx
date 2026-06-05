@@ -361,10 +361,12 @@ export default async function AdminProductEditPage({ params }: PageProps) {
         }),
         inStock: v.inStock,
         sku: v.sku ?? '',
+        liqpayGoodId: v.liqpayGoodId?.toString() ?? '',
         straps:
           (v as any).straps?.map((s: any) => ({
             id: s.id,
             name: s.name ?? '',
+            liqpayGoodId: s.liqpayGoodId?.toString() ?? '',
             extraPriceUAH: String(s.extraPriceUAH ?? 0),
             sort: String(s.sort ?? 0),
             imageUrl: s.imageUrl ?? '',
@@ -373,6 +375,7 @@ export default async function AdminProductEditPage({ params }: PageProps) {
           (v as any).pouches?.map((pouch: any) => ({
             id: pouch.id,
             color: pouch.color ?? '',
+            liqpayGoodId: pouch.liqpayGoodId?.toString() ?? '',
             extraPriceUAH: String(pouch.extraPriceUAH ?? 0),
             sort: String(pouch.sort ?? 0),
             imageUrl: pouch.imageUrl ?? '',
@@ -381,6 +384,7 @@ export default async function AdminProductEditPage({ params }: PageProps) {
           (v as any).sizes?.map((size: any) => ({
             id: size.id,
             size: size.size ?? '',
+            liqpayGoodId: size.liqpayGoodId?.toString() ?? '',
             extraPriceUAH: String(size.extraPriceUAH ?? 0),
             sort: String(size.sort ?? 0),
             imageUrl: size.imageUrl ?? '',

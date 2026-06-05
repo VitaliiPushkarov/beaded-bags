@@ -21,9 +21,19 @@ const ImagePath = z
     'Invalid image path',
   )
 
+const NullableIntSchema = z.preprocess(
+  (value) => {
+    if (value === '' || value == null) return null
+    const num = Number(value)
+    return Number.isFinite(num) ? num : value
+  },
+  z.number().int().positive().nullable(),
+)
+
 const StrapSchema = z.object({
   id: z.string().optional(),
   name: z.string().trim().min(1),
+  liqpayGoodId: NullableIntSchema.optional(),
   extraPriceUAH: z.coerce.number().int().min(0).optional().default(0),
   sort: z.coerce.number().int().optional().default(0),
   imageUrl: ImagePath.optional().nullable(),
@@ -32,6 +42,7 @@ const StrapSchema = z.object({
 const PouchSchema = z.object({
   id: z.string().optional(),
   color: z.string().trim().min(1),
+  liqpayGoodId: NullableIntSchema.optional(),
   extraPriceUAH: z.coerce.number().int().min(0).optional().default(0),
   sort: z.coerce.number().int().optional().default(0),
   imageUrl: ImagePath.optional().nullable(),
@@ -40,6 +51,7 @@ const PouchSchema = z.object({
 const SizeSchema = z.object({
   id: z.string().optional(),
   size: z.string().trim().min(1),
+  liqpayGoodId: NullableIntSchema.optional(),
   extraPriceUAH: z.coerce.number().int().min(0).optional().default(0),
   sort: z.coerce.number().int().optional().default(0),
   imageUrl: ImagePath.optional().nullable(),
@@ -72,6 +84,7 @@ const VariantSchema = z.object({
   availabilityStatus: z.enum(AvailabilityStatus).optional().nullable(),
   inStock: z.coerce.boolean(),
   sku: z.string().trim().optional().nullable(),
+  liqpayGoodId: NullableIntSchema.optional(),
   shippingNote: z.string().trim().optional().nullable(),
   straps: z.array(StrapSchema).optional().default([]),
   pouches: z.array(PouchSchema).optional().default([]),
@@ -227,6 +240,7 @@ export async function PATCH(
                 inStock: isInStockStatus(availabilityStatus),
                 availabilityStatus,
                 sku: v.sku ?? null,
+                liqpayGoodId: v.liqpayGoodId ?? null,
                 shippingNote: v.shippingNote ?? null,
               },
             })
@@ -240,6 +254,7 @@ export async function PATCH(
                   where: { id: strap.id, variantId: v.id },
                   data: {
                     name: strap.name,
+                    liqpayGoodId: strap.liqpayGoodId ?? null,
                     extraPriceUAH: strap.extraPriceUAH ?? 0,
                     sort: strap.sort ?? i,
                     imageUrl: strap.imageUrl ?? null,
@@ -253,6 +268,7 @@ export async function PATCH(
                     data: {
                       variantId: v.id,
                       name: strap.name,
+                      liqpayGoodId: strap.liqpayGoodId ?? null,
                       extraPriceUAH: strap.extraPriceUAH ?? 0,
                       sort: strap.sort ?? i,
                       imageUrl: strap.imageUrl ?? null,
@@ -266,6 +282,7 @@ export async function PATCH(
                   data: {
                     variantId: v.id,
                     name: strap.name,
+                    liqpayGoodId: strap.liqpayGoodId ?? null,
                     extraPriceUAH: strap.extraPriceUAH ?? 0,
                     sort: strap.sort ?? i,
                     imageUrl: strap.imageUrl ?? null,
@@ -292,6 +309,7 @@ export async function PATCH(
                   where: { id: pouch.id, variantId: v.id },
                   data: {
                     color: pouch.color,
+                    liqpayGoodId: pouch.liqpayGoodId ?? null,
                     extraPriceUAH: pouch.extraPriceUAH ?? 0,
                     sort: pouch.sort ?? i,
                     imageUrl: pouch.imageUrl ?? null,
@@ -305,6 +323,7 @@ export async function PATCH(
                     data: {
                       variantId: v.id,
                       color: pouch.color,
+                      liqpayGoodId: pouch.liqpayGoodId ?? null,
                       extraPriceUAH: pouch.extraPriceUAH ?? 0,
                       sort: pouch.sort ?? i,
                       imageUrl: pouch.imageUrl ?? null,
@@ -318,6 +337,7 @@ export async function PATCH(
                   data: {
                     variantId: v.id,
                     color: pouch.color,
+                    liqpayGoodId: pouch.liqpayGoodId ?? null,
                     extraPriceUAH: pouch.extraPriceUAH ?? 0,
                     sort: pouch.sort ?? i,
                     imageUrl: pouch.imageUrl ?? null,
@@ -344,6 +364,7 @@ export async function PATCH(
                   where: { id: size.id, variantId: v.id },
                   data: {
                     size: size.size,
+                    liqpayGoodId: size.liqpayGoodId ?? null,
                     extraPriceUAH: size.extraPriceUAH ?? 0,
                     sort: size.sort ?? i,
                     imageUrl: size.imageUrl ?? null,
@@ -357,6 +378,7 @@ export async function PATCH(
                     data: {
                       variantId: v.id,
                       size: size.size,
+                      liqpayGoodId: size.liqpayGoodId ?? null,
                       extraPriceUAH: size.extraPriceUAH ?? 0,
                       sort: size.sort ?? i,
                       imageUrl: size.imageUrl ?? null,
@@ -370,6 +392,7 @@ export async function PATCH(
                   data: {
                     variantId: v.id,
                     size: size.size,
+                    liqpayGoodId: size.liqpayGoodId ?? null,
                     extraPriceUAH: size.extraPriceUAH ?? 0,
                     sort: size.sort ?? i,
                     imageUrl: size.imageUrl ?? null,
@@ -407,10 +430,12 @@ export async function PATCH(
                 inStock: isInStockStatus(availabilityStatus),
                 availabilityStatus,
                 sku: v.sku ?? null,
+                liqpayGoodId: v.liqpayGoodId ?? null,
                 shippingNote: v.shippingNote ?? null,
                 straps: {
                   create: (v.straps ?? []).map((s, i) => ({
                     name: s.name,
+                    liqpayGoodId: s.liqpayGoodId ?? null,
                     extraPriceUAH: s.extraPriceUAH ?? 0,
                     sort: s.sort ?? i,
                     imageUrl: s.imageUrl ?? null,
@@ -419,6 +444,7 @@ export async function PATCH(
                 pouches: {
                   create: (v.pouches ?? []).map((pouch, i) => ({
                     color: pouch.color,
+                    liqpayGoodId: pouch.liqpayGoodId ?? null,
                     extraPriceUAH: pouch.extraPriceUAH ?? 0,
                     sort: pouch.sort ?? i,
                     imageUrl: pouch.imageUrl ?? null,
@@ -427,6 +453,7 @@ export async function PATCH(
                 sizes: {
                   create: (v.sizes ?? []).map((size, i) => ({
                     size: size.size,
+                    liqpayGoodId: size.liqpayGoodId ?? null,
                     extraPriceUAH: size.extraPriceUAH ?? 0,
                     sort: size.sort ?? i,
                     imageUrl: size.imageUrl ?? null,

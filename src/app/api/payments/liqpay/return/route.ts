@@ -6,6 +6,7 @@ import { liqpaySign } from '@/lib/liqpay'
 import { mapLiqPayOrderStatus } from '@/lib/liqpay-payment-status'
 
 export const runtime = 'nodejs'
+const REDIRECT_STATUS = 303
 
 type DecodedPayload = {
   order_id?: string
@@ -19,13 +20,24 @@ function toBasePath(req: NextRequest) {
 }
 
 function toHome(req: NextRequest) {
-  return NextResponse.redirect(new URL('/', toBasePath(req)))
+  return NextResponse.redirect(new URL('/', toBasePath(req)), REDIRECT_STATUS)
 }
 
 function toCheckout(req: NextRequest, reason?: string) {
   const url = new URL('/checkout', toBasePath(req))
   if (reason) url.searchParams.set('payment', reason)
-  return NextResponse.redirect(url)
+  return NextResponse.redirect(url, REDIRECT_STATUS)
+}
+
+function toSuccess(
+  req: NextRequest,
+  input: { orderNumber: string | number; orderId: string; pending?: boolean },
+) {
+  const url = new URL('/checkout/success', toBasePath(req))
+  url.searchParams.set('order', String(input.orderNumber))
+  url.searchParams.set('orderId', input.orderId)
+  if (input.pending) url.searchParams.set('pending', '1')
+  return NextResponse.redirect(url, REDIRECT_STATUS)
 }
 
 function decodePayload(data: string): DecodedPayload | null {
@@ -57,11 +69,72 @@ function pickStatus(sp: URLSearchParams, decoded: DecodedPayload | null): string
   return String(decoded?.status ?? sp.get('status') ?? '').trim()
 }
 
-export async function GET(req: NextRequest) {
-  const sp = req.nextUrl.searchParams
+async function parsePostedReturnBody(req: NextRequest): Promise<{
+  data: string
+  signature: string
+}> {
+  const contentType = req.headers.get('content-type')?.toLowerCase() || ''
 
-  const data = String(sp.get('data') ?? '')
-  const signature = String(sp.get('signature') ?? '')
+  if (contentType.includes('application/json')) {
+    const body = (await req.json()) as { data?: unknown; signature?: unknown }
+    return {
+      data: String(body?.data ?? ''),
+      signature: String(body?.signature ?? ''),
+    }
+  }
+
+  if (contentType.includes('application/x-www-form-urlencoded')) {
+    const raw = await req.text()
+    const params = new URLSearchParams(raw)
+    return {
+      data: String(params.get('data') ?? ''),
+      signature: String(params.get('signature') ?? ''),
+    }
+  }
+
+  const form = await req.formData()
+  return {
+    data: String(form.get('data') ?? ''),
+    signature: String(form.get('signature') ?? ''),
+  }
+}
+
+async function waitForFinalStatus(orderId: string, attempts = 8, delayMs = 500) {
+  let latest = await prisma.order.findUnique({
+    where: { id: orderId },
+    select: { status: true, shortNumber: true, id: true },
+  })
+
+  for (let attempt = 0; attempt < attempts; attempt += 1) {
+    if (!latest) return null
+    if (
+      latest.status === 'PAID' ||
+      latest.status === 'FAILED' ||
+      latest.status === 'CANCELLED'
+    ) {
+      return latest
+    }
+
+    await new Promise((resolve) => setTimeout(resolve, delayMs))
+    latest = await prisma.order.findUnique({
+      where: { id: orderId },
+      select: { status: true, shortNumber: true, id: true },
+    })
+  }
+
+  return latest
+}
+
+async function handleReturn(args: {
+  req: NextRequest
+  data?: string
+  signature?: string
+  searchParams?: URLSearchParams
+}) {
+  const { req } = args
+  const sp = args.searchParams ?? req.nextUrl.searchParams
+  const data = String(args.data ?? sp.get('data') ?? '')
+  const signature = String(args.signature ?? sp.get('signature') ?? '')
   const privateKey = process.env.LIQPAY_PRIVATE_KEY?.trim()
 
   const decoded = decodePayload(data)
@@ -76,7 +149,9 @@ export async function GET(req: NextRequest) {
     trustedPayload = decoded
   }
 
-  const orderId = pickOrderId(sp, trustedPayload) || String(sp.get('order_id') ?? sp.get('orderId') ?? '').trim()
+  const orderId =
+    pickOrderId(sp, trustedPayload) ||
+    String(sp.get('order_id') ?? sp.get('orderId') ?? '').trim()
   const paymentStatus = trustedPayload ? pickStatus(sp, trustedPayload) : ''
   const mappedOrderStatus = trustedPayload
     ? mapLiqPayOrderStatus({
@@ -130,12 +205,10 @@ export async function GET(req: NextRequest) {
       : existing.status
 
   if (finalStatus === 'PAID') {
-    return NextResponse.redirect(
-      new URL(
-        `/checkout/success?order=${encodeURIComponent(String(existing.shortNumber))}`,
-        toBasePath(req),
-      ),
-    )
+    return toSuccess(req, {
+      orderNumber: existing.shortNumber,
+      orderId: existing.id,
+    })
   }
 
   if (finalStatus === 'CANCELLED') {
@@ -146,5 +219,35 @@ export async function GET(req: NextRequest) {
     return toCheckout(req, 'failed')
   }
 
-  return toCheckout(req)
+  const settled = await waitForFinalStatus(existing.id)
+
+  if (settled?.status === 'PAID') {
+    return toSuccess(req, {
+      orderNumber: settled.shortNumber,
+      orderId: settled.id,
+    })
+  }
+
+  if (settled?.status === 'CANCELLED') {
+    return toCheckout(req, 'cancelled')
+  }
+
+  if (settled?.status === 'FAILED') {
+    return toCheckout(req, 'failed')
+  }
+
+  return toSuccess(req, {
+    orderNumber: existing.shortNumber,
+    orderId: existing.id,
+    pending: true,
+  })
+}
+
+export async function GET(req: NextRequest) {
+  return handleReturn({ req })
+}
+
+export async function POST(req: NextRequest) {
+  const { data, signature } = await parsePostedReturnBody(req)
+  return handleReturn({ req, data, signature })
 }

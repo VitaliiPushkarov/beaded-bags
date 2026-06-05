@@ -164,6 +164,7 @@ model ProductVariant {
   id                    String                   @id @default(cuid())
   productId             String
   sku                   String?                  @unique
+  liqpayGoodId          Int?
   color                 String?
   colorEn               String?
   modelSize             String?
@@ -222,6 +223,7 @@ model ProductVariantStrap {
   id            String                     @id @default(cuid())
   variantId     String
   name          String
+  liqpayGoodId  Int?
   slug          String?
   imageUrl      String?
   mainImageUrl  String?
@@ -245,6 +247,7 @@ model ProductVariantPouch {
   id            String                     @id @default(cuid())
   variantId     String
   color         String
+  liqpayGoodId  Int?
   imageUrl      String?
   mainImageUrl  String?
   extraPriceUAH Int                        @default(0)
@@ -267,6 +270,7 @@ model ProductVariantSize {
   id            String                    @id @default(cuid())
   variantId     String
   size          String
+  liqpayGoodId  Int?
   imageUrl      String?
   mainImageUrl  String?
   extraPriceUAH Int                       @default(0)
@@ -346,6 +350,9 @@ model OrderItem {
   orderId        String
   productId      String?
   variantId      String?
+  strapId        String?
+  sizeId         String?
+  pouchId        String?
   name           String
   color          String?
   modelSize      String?

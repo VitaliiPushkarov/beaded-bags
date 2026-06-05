@@ -1,6 +1,9 @@
 type CheckoutAttemptItem = {
   productId?: string | null
   variantId?: string | null
+  strapId?: string | null
+  sizeId?: string | null
+  pouchId?: string | null
   qty: number
   priceUAH: number
   color?: string | null
@@ -33,6 +36,9 @@ export function buildCheckoutAttemptFingerprint(args: {
     items: args.items.map((item) => ({
       productId: String(item.productId ?? ''),
       variantId: String(item.variantId ?? ''),
+      strapId: String(item.strapId ?? ''),
+      sizeId: String(item.sizeId ?? ''),
+      pouchId: String(item.pouchId ?? ''),
       qty: Math.trunc(Number(item.qty) || 0),
       priceUAH: Math.round(Number(item.priceUAH) || 0),
       color: String(item.color ?? ''),

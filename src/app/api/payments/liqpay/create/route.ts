@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { z } from 'zod'
 import { buildLiqPayPayload } from '@/lib/liqpay'
+import { buildLiqPayRroInfo } from '@/lib/liqpay-rro'
 import { prisma } from '@/lib/prisma'
 
 export const runtime = 'nodejs'
@@ -77,6 +78,19 @@ export async function POST(req: NextRequest) {
         paymentMethod: true,
         customerEmail: true,
         customerPhone: true,
+        items: {
+          select: {
+            name: true,
+            qty: true,
+            priceUAH: true,
+            discountUAH: true,
+            lineRevenueUAH: true,
+            variantId: true,
+            strapId: true,
+            sizeId: true,
+            pouchId: true,
+          },
+        },
       },
     })
 
@@ -99,6 +113,88 @@ export async function POST(req: NextRequest) {
     }
 
     const liqPayMode = resolveLiqPayMode(publicKey)
+    const variantIds = Array.from(
+      new Set(
+        order.items
+          .map((item) => item.variantId)
+          .filter((id): id is string => typeof id === 'string' && id.length > 0),
+      ),
+    )
+    const strapIds = Array.from(
+      new Set(
+        order.items
+          .map((item) => item.strapId)
+          .filter((id): id is string => typeof id === 'string' && id.length > 0),
+      ),
+    )
+    const sizeIds = Array.from(
+      new Set(
+        order.items
+          .map((item) => item.sizeId)
+          .filter((id): id is string => typeof id === 'string' && id.length > 0),
+      ),
+    )
+    const pouchIds = Array.from(
+      new Set(
+        order.items
+          .map((item) => item.pouchId)
+          .filter((id): id is string => typeof id === 'string' && id.length > 0),
+      ),
+    )
+
+    const [variants, straps, sizes, pouches] = await Promise.all([
+      variantIds.length
+        ? prisma.productVariant.findMany({
+            where: { id: { in: variantIds } },
+            select: {
+              id: true,
+              liqpayGoodId: true,
+            },
+          })
+        : Promise.resolve([]),
+      strapIds.length
+        ? prisma.productVariantStrap.findMany({
+            where: { id: { in: strapIds } },
+            select: {
+              id: true,
+              name: true,
+              extraPriceUAH: true,
+              liqpayGoodId: true,
+            },
+          })
+        : Promise.resolve([]),
+      sizeIds.length
+        ? prisma.productVariantSize.findMany({
+            where: { id: { in: sizeIds } },
+            select: {
+              id: true,
+              size: true,
+              extraPriceUAH: true,
+              liqpayGoodId: true,
+            },
+          })
+        : Promise.resolve([]),
+      pouchIds.length
+        ? prisma.productVariantPouch.findMany({
+            where: { id: { in: pouchIds } },
+            select: {
+              id: true,
+              color: true,
+              extraPriceUAH: true,
+              liqpayGoodId: true,
+            },
+          })
+        : Promise.resolve([]),
+    ])
+
+    const rroInfo = buildLiqPayRroInfo({
+      items: order.items,
+      variantsById: new Map(variants.map((variant) => [variant.id, variant])),
+      strapsById: new Map(straps.map((strap) => [strap.id, strap])),
+      sizesById: new Map(sizes.map((size) => [size.id, size])),
+      pouchesById: new Map(pouches.map((pouch) => [pouch.id, pouch])),
+      deliveryEmail: order.customerEmail ?? null,
+    })
 
     const { data, signature } = buildLiqPayPayload({
       publicKey,
@@ -113,6 +209,7 @@ export async function POST(req: NextRequest) {
         email: order.customerEmail ?? undefined,
         phone: order.customerPhone ?? undefined,
       },
+      rroInfo,
     })
 
     await prisma.order.update({

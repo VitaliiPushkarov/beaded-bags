@@ -71,6 +71,7 @@ type VariantAddonLinkInput = {
 type VariantStrapInput = {
   id?: string
   name: string
+  liqpayGoodId: string
   extraPriceUAH: string
   sort: string
   imageUrl?: string
@@ -79,6 +80,7 @@ type VariantStrapInput = {
 type VariantPouchInput = {
   id?: string
   color: string
+  liqpayGoodId: string
   extraPriceUAH: string
   sort: string
   imageUrl?: string
@@ -87,6 +89,7 @@ type VariantPouchInput = {
 type VariantSizeInput = {
   id?: string
   size: string
+  liqpayGoodId: string
   extraPriceUAH: string
   sort: string
   imageUrl?: string
@@ -110,6 +113,7 @@ type VariantInput = {
   availabilityStatus: AvailabilityStatus
   inStock: boolean
   sku: string
+  liqpayGoodId: string
   addons?: VariantAddonLinkInput[]
   straps?: VariantStrapInput[]
   pouches?: VariantPouchInput[]
@@ -228,9 +232,11 @@ export default function ProductForm({
               priceUSD: (v as any).priceUSD ?? '',
               availabilityStatus,
               inStock: isInStockStatus(availabilityStatus),
+              liqpayGoodId: String((v as any).liqpayGoodId ?? ''),
               straps: (v.straps || []).map((s) => ({
                 id: s.id,
                 name: s.name || '',
+                liqpayGoodId: String((s as any).liqpayGoodId ?? ''),
                 extraPriceUAH: String(s.extraPriceUAH ?? ''),
                 sort: String(s.sort ?? ''),
                 imageUrl: (s as any).imageUrl ?? '',
@@ -238,6 +244,7 @@ export default function ProductForm({
               pouches: ((v as any).pouches || []).map((pouch: any) => ({
                 id: pouch.id,
                 color: pouch.color || '',
+                liqpayGoodId: String(pouch.liqpayGoodId ?? ''),
                 extraPriceUAH: String(pouch.extraPriceUAH ?? ''),
                 sort: String(pouch.sort ?? ''),
                 imageUrl: pouch.imageUrl ?? '',
@@ -245,6 +252,7 @@ export default function ProductForm({
               sizes: ((v as any).sizes || []).map((size: any) => ({
                 id: size.id,
                 size: size.size || '',
+                liqpayGoodId: String(size.liqpayGoodId ?? ''),
                 extraPriceUAH: String(size.extraPriceUAH ?? ''),
                 sort: String(size.sort ?? ''),
                 imageUrl: size.imageUrl ?? '',
@@ -289,6 +297,7 @@ export default function ProductForm({
               availabilityStatus: 'IN_STOCK',
               inStock: true,
               sku: '',
+              liqpayGoodId: '',
               addons: [],
               straps: [],
               pouches: [],
@@ -477,6 +486,7 @@ export default function ProductForm({
           availabilityStatus: 'IN_STOCK',
           inStock: true,
           sku: '',
+          liqpayGoodId: '',
           addons: [],
           straps: [],
           pouches: [],
@@ -536,10 +546,12 @@ export default function ProductForm({
             shippingNote: v.shippingNote || null,
             inStock: isInStockStatus(availabilityStatus),
             sku: v.sku,
+            liqpayGoodId: v.liqpayGoodId ? Number(v.liqpayGoodId) : null,
             straps: (v.straps || [])
               .map((s, idx) => ({
                 id: s.id,
                 name: s.name.trim(),
+                liqpayGoodId: s.liqpayGoodId ? Number(s.liqpayGoodId) : null,
                 extraPriceUAH: s.extraPriceUAH
                   ? Math.max(0, Number(s.extraPriceUAH))
                   : 0,
@@ -551,6 +563,9 @@ export default function ProductForm({
               .map((pouch, idx) => ({
                 id: pouch.id,
                 color: pouch.color.trim(),
+                liqpayGoodId: pouch.liqpayGoodId
+                  ? Number(pouch.liqpayGoodId)
+                  : null,
                 extraPriceUAH: pouch.extraPriceUAH
                   ? Math.max(0, Number(pouch.extraPriceUAH))
                   : 0,
@@ -562,6 +577,9 @@ export default function ProductForm({
               .map((size, idx) => ({
                 id: size.id,
                 size: size.size.trim(),
+                liqpayGoodId: size.liqpayGoodId
+                  ? Number(size.liqpayGoodId)
+                  : null,
                 extraPriceUAH: size.extraPriceUAH
                   ? Math.max(0, Number(size.extraPriceUAH))
                   : 0,
@@ -1233,6 +1251,19 @@ export default function ProductForm({
                     />
                   </label>
                   <label className="block text-sm font-medium ">
+                    LiqPay товар ID
+                    <input
+                      className="mt-1 w-full border rounded px-2 py-1 text-sm border-blue-300"
+                      inputMode="numeric"
+                      value={v.liqpayGoodId}
+                      onChange={(e) =>
+                        onVariantChange(index, {
+                          liqpayGoodId: e.target.value.replace(/[^\d]/g, ''),
+                        })
+                      }
+                    />
+                  </label>
+                  <label className="block text-sm font-medium ">
                     Ціна (UAH)
                     <input
                       className="mt-1 w-full border rounded px-2 py-1 text-sm border-blue-300"
@@ -1337,6 +1368,7 @@ export default function ProductForm({
                             ...(v.straps || []),
                             {
                               name: '',
+                              liqpayGoodId: '',
                               extraPriceUAH: '',
                               imageUrl: '',
                               sort: String((v.straps || []).length),
@@ -1355,8 +1387,9 @@ export default function ProductForm({
                       </div>
                     ) : (
                       <div className="space-y-3">
-                        <div className="hidden sm:grid gap-2 sm:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_110px_70px] px-1 text-[11px] uppercase tracking-wide text-gray-500">
+                        <div className="hidden sm:grid gap-2 sm:grid-cols-[minmax(0,1fr)_130px_minmax(0,1fr)_110px_70px] px-1 text-[11px] uppercase tracking-wide text-gray-500">
                           <div>Ремінець</div>
+                          <div>LiqPay ID</div>
                           <div>Фото (URL)</div>
                           <div>Націнка</div>
                           <div>Позиція</div>
@@ -1364,7 +1397,7 @@ export default function ProductForm({
                         {(v.straps || []).map((strap, strapIndex) => (
                           <div
                             key={strap.id || `strap-${strapIndex}`}
-                            className="grid gap-2 sm:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_110px_70px]"
+                            className="grid gap-2 sm:grid-cols-[minmax(0,1fr)_130px_minmax(0,1fr)_110px_70px]"
                           >
                             <input
                               className="w-full min-w-0 border rounded px-2 py-2 text-sm border-blue-300"
@@ -1375,6 +1408,23 @@ export default function ProductForm({
                                 next[strapIndex] = {
                                   ...next[strapIndex],
                                   name: e.target.value,
+                                }
+                                setVariantStraps(index, next)
+                              }}
+                            />
+                            <input
+                              className="w-full min-w-0 border rounded px-2 py-2 text-sm border-blue-300 text-center"
+                              placeholder="LiqPay ID"
+                              inputMode="numeric"
+                              value={strap.liqpayGoodId}
+                              onChange={(e) => {
+                                const next = [...(v.straps || [])]
+                                next[strapIndex] = {
+                                  ...next[strapIndex],
+                                  liqpayGoodId: e.target.value.replace(
+                                    /[^\d]/g,
+                                    '',
+                                  ),
                                 }
                                 setVariantStraps(index, next)
                               }}
@@ -1425,7 +1475,7 @@ export default function ProductForm({
                             />
                             <button
                               type="button"
-                              className="text-sm px-3 py-2 rounded border border-blue-700 text-blue-700 hover:bg-blue-700 hover:text-white cursor-pointer sm:col-span-4 sm:justify-self-end"
+                              className="text-sm px-3 py-2 rounded border border-blue-700 text-blue-700 hover:bg-blue-700 hover:text-white cursor-pointer sm:col-span-5 sm:justify-self-end"
                               onClick={() => {
                                 const next = (v.straps || []).filter(
                                   (_, i) => i !== strapIndex,
@@ -1457,6 +1507,7 @@ export default function ProductForm({
                             ...(v.pouches || []),
                             {
                               color: '',
+                              liqpayGoodId: '',
                               extraPriceUAH: '',
                               imageUrl: '',
                               sort: String((v.pouches || []).length),
@@ -1475,8 +1526,9 @@ export default function ProductForm({
                       </div>
                     ) : (
                       <div className="space-y-3">
-                        <div className="hidden sm:grid gap-2 sm:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_110px_70px] px-1 text-[11px] uppercase tracking-wide text-gray-500">
+                        <div className="hidden sm:grid gap-2 sm:grid-cols-[minmax(0,1fr)_130px_minmax(0,1fr)_110px_70px] px-1 text-[11px] uppercase tracking-wide text-gray-500">
                           <div>Колір</div>
+                          <div>LiqPay ID</div>
                           <div>Фото (URL)</div>
                           <div>Націнка</div>
                           <div>Позиція</div>
@@ -1484,7 +1536,7 @@ export default function ProductForm({
                         {(v.pouches || []).map((pouch, pouchIndex) => (
                           <div
                             key={pouch.id || `pouch-${pouchIndex}`}
-                            className="grid gap-2 sm:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_110px_70px]"
+                            className="grid gap-2 sm:grid-cols-[minmax(0,1fr)_130px_minmax(0,1fr)_110px_70px]"
                           >
                             <input
                               className="w-full min-w-0 border rounded px-2 py-2 text-sm border-blue-300"
@@ -1495,6 +1547,23 @@ export default function ProductForm({
                                 next[pouchIndex] = {
                                   ...next[pouchIndex],
                                   color: e.target.value,
+                                }
+                                setVariantPouches(index, next)
+                              }}
+                            />
+                            <input
+                              className="w-full min-w-0 border rounded px-2 py-2 text-sm border-blue-300 text-center"
+                              placeholder="LiqPay ID"
+                              inputMode="numeric"
+                              value={pouch.liqpayGoodId}
+                              onChange={(e) => {
+                                const next = [...(v.pouches || [])]
+                                next[pouchIndex] = {
+                                  ...next[pouchIndex],
+                                  liqpayGoodId: e.target.value.replace(
+                                    /[^\d]/g,
+                                    '',
+                                  ),
                                 }
                                 setVariantPouches(index, next)
                               }}
@@ -1545,7 +1614,7 @@ export default function ProductForm({
                             />
                             <button
                               type="button"
-                              className="text-sm px-3 py-2 rounded border border-blue-700 text-blue-700 hover:bg-blue-700 hover:text-white cursor-pointer sm:col-span-4 sm:justify-self-end"
+                              className="text-sm px-3 py-2 rounded border border-blue-700 text-blue-700 hover:bg-blue-700 hover:text-white cursor-pointer sm:col-span-5 sm:justify-self-end"
                               onClick={() => {
                                 const next = (v.pouches || []).filter(
                                   (_, i) => i !== pouchIndex,
@@ -1577,6 +1646,7 @@ export default function ProductForm({
                             ...(v.sizes || []),
                             {
                               size: '',
+                              liqpayGoodId: '',
                               extraPriceUAH: '',
                               imageUrl: '',
                               sort: String((v.sizes || []).length),
@@ -1595,8 +1665,9 @@ export default function ProductForm({
                       </div>
                     ) : (
                       <div className="space-y-3">
-                        <div className="hidden sm:grid gap-2 sm:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_110px_70px] px-1 text-[11px] uppercase tracking-wide text-gray-500">
+                        <div className="hidden sm:grid gap-2 sm:grid-cols-[minmax(0,1fr)_130px_minmax(0,1fr)_110px_70px] px-1 text-[11px] uppercase tracking-wide text-gray-500">
                           <div>Розмір</div>
+                          <div>LiqPay ID</div>
                           <div>Фото (URL)</div>
                           <div>Націнка</div>
                           <div>Позиція</div>
@@ -1604,7 +1675,7 @@ export default function ProductForm({
                         {(v.sizes || []).map((size, sizeIndex) => (
                           <div
                             key={size.id || `size-${sizeIndex}`}
-                            className="grid gap-2 sm:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_110px_70px]"
+                            className="grid gap-2 sm:grid-cols-[minmax(0,1fr)_130px_minmax(0,1fr)_110px_70px]"
                           >
                             <input
                               className="w-full min-w-0 border rounded px-2 py-2 text-sm border-blue-300"
@@ -1615,6 +1686,23 @@ export default function ProductForm({
                                 next[sizeIndex] = {
                                   ...next[sizeIndex],
                                   size: e.target.value,
+                                }
+                                setVariantSizes(index, next)
+                              }}
+                            />
+                            <input
+                              className="w-full min-w-0 border rounded px-2 py-2 text-sm border-blue-300 text-center"
+                              placeholder="LiqPay ID"
+                              inputMode="numeric"
+                              value={size.liqpayGoodId}
+                              onChange={(e) => {
+                                const next = [...(v.sizes || [])]
+                                next[sizeIndex] = {
+                                  ...next[sizeIndex],
+                                  liqpayGoodId: e.target.value.replace(
+                                    /[^\d]/g,
+                                    '',
+                                  ),
                                 }
                                 setVariantSizes(index, next)
                               }}
@@ -1665,7 +1753,7 @@ export default function ProductForm({
                             />
                             <button
                               type="button"
-                              className="text-sm px-3 py-2 rounded border border-blue-700 text-blue-700 hover:bg-blue-700 hover:text-white cursor-pointer sm:col-span-4 sm:justify-self-end"
+                              className="text-sm px-3 py-2 rounded border border-blue-700 text-blue-700 hover:bg-blue-700 hover:text-white cursor-pointer sm:col-span-5 sm:justify-self-end"
                               onClick={() => {
                                 const next = (v.sizes || []).filter(
                                   (_, i) => i !== sizeIndex,

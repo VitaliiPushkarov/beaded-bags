@@ -22,9 +22,19 @@ const ImagePath = z
     'Invalid image path',
   )
 
+const NullableIntSchema = z.preprocess(
+  (value) => {
+    if (value === '' || value == null) return null
+    const num = Number(value)
+    return Number.isFinite(num) ? num : value
+  },
+  z.number().int().positive().nullable(),
+)
+
 const StrapSchema = z.object({
   id: z.string().optional(),
   name: z.string().trim().min(1),
+  liqpayGoodId: NullableIntSchema.optional(),
   extraPriceUAH: z.coerce.number().int().min(0).optional().default(0),
   sort: z.coerce.number().int().optional().default(0),
   imageUrl: ImagePath.optional().nullable(),
@@ -33,6 +43,7 @@ const StrapSchema = z.object({
 const PouchSchema = z.object({
   id: z.string().optional(),
   color: z.string().trim().min(1),
+  liqpayGoodId: NullableIntSchema.optional(),
   extraPriceUAH: z.coerce.number().int().min(0).optional().default(0),
   sort: z.coerce.number().int().optional().default(0),
   imageUrl: ImagePath.optional().nullable(),
@@ -41,6 +52,7 @@ const PouchSchema = z.object({
 const SizeSchema = z.object({
   id: z.string().optional(),
   size: z.string().trim().min(1),
+  liqpayGoodId: NullableIntSchema.optional(),
   extraPriceUAH: z.coerce.number().int().min(0).optional().default(0),
   sort: z.coerce.number().int().optional().default(0),
   imageUrl: ImagePath.optional().nullable(),
@@ -98,6 +110,7 @@ const ProductCreateSchema = z.object({
         availabilityStatus: z.enum(AvailabilityStatus).optional().nullable(),
         inStock: z.coerce.boolean(),
         sku: z.string().trim().optional().nullable(),
+        liqpayGoodId: NullableIntSchema.optional(),
 
         // Optional per-variant shipping text (e.g. "Відправка протягом 1–3 днів")
         shippingNote: z.string().trim().optional().nullable(),
@@ -160,6 +173,7 @@ export async function GET(req: NextRequest) {
             inStock: true,
             availabilityStatus: true,
             sku: true,
+            liqpayGoodId: true,
           },
         },
       },
@@ -243,10 +257,12 @@ export async function POST(req: NextRequest) {
               inStock: isInStockStatus(availabilityStatus),
               availabilityStatus,
               sku: v.sku ?? null,
+              liqpayGoodId: v.liqpayGoodId ?? null,
               shippingNote: v.shippingNote ?? null,
               straps: {
                 create: (v.straps ?? []).map((s, strapIdx) => ({
                   name: s.name,
+                  liqpayGoodId: s.liqpayGoodId ?? null,
                   extraPriceUAH: s.extraPriceUAH ?? 0,
                   sort: s.sort ?? strapIdx,
                   imageUrl: s.imageUrl ?? null,
@@ -255,6 +271,7 @@ export async function POST(req: NextRequest) {
               pouches: {
                 create: (v.pouches ?? []).map((pouch, pouchIdx) => ({
                   color: pouch.color,
+                  liqpayGoodId: pouch.liqpayGoodId ?? null,
                   extraPriceUAH: pouch.extraPriceUAH ?? 0,
                   sort: pouch.sort ?? pouchIdx,
                   imageUrl: pouch.imageUrl ?? null,
@@ -263,6 +280,7 @@ export async function POST(req: NextRequest) {
               sizes: {
                 create: (v.sizes ?? []).map((size, sizeIdx) => ({
                   size: size.size,
+                  liqpayGoodId: size.liqpayGoodId ?? null,
                   extraPriceUAH: size.extraPriceUAH ?? 0,
                   sort: size.sort ?? sizeIdx,
                   imageUrl: size.imageUrl ?? null,

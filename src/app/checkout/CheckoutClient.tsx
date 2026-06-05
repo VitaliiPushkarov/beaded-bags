@@ -264,6 +264,9 @@ export default function CheckoutClient() {
     const items = cart.items.map((it) => ({
       productId: it.productId,
       variantId: it.variantId,
+      strapId: it.strapId ?? null,
+      sizeId: it.sizeId ?? null,
+      pouchId: it.pouchId ?? null,
       name: it.name,
       color: it.color ?? null,
       modelSize: it.modelSize ?? null,

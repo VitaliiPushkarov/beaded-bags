@@ -15,6 +15,15 @@ export interface LiqPayBasePayload {
   language?: string
   sender_email?: string
   sender_phone?: string
+  rro_info?: {
+    items: Array<{
+      id: number
+      amount: number
+      cost: number
+      price: number
+    }>
+    delivery_emails?: string[]
+  }
 }
 
 export function liqpayEncode(obj: unknown): string {
@@ -38,6 +47,7 @@ export function buildLiqPayPayload(args: {
   serverUrl: string // webhook LiqPay
   mode?: 'live' | 'development'
   customer?: { name?: string; email?: string; phone?: string }
+  rroInfo?: LiqPayBasePayload['rro_info']
 }): { data: string; signature: string } {
   const payload: LiqPayBasePayload = {
     public_key: args.publicKey,
@@ -58,6 +68,7 @@ export function buildLiqPayPayload(args: {
 
   if (args.customer?.email) payload.sender_email = args.customer.email
   if (args.customer?.phone) payload.sender_phone = args.customer.phone
+  if (args.rroInfo) payload.rro_info = args.rroInfo
 
   const data = liqpayEncode(payload)
   const signature = liqpaySign(args.privateKey, data)

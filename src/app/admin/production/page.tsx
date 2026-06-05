@@ -144,10 +144,8 @@ function parsePositiveInt(raw: string, min: number, max: number): number | null 
 function buildProductionExpenseTitle(production: {
   artisanName: string
   itemName: string
-  qty: number
-  ratePerUnitUAH: number
 }): string {
-  return `${production.artisanName}: ${production.itemName}, ${production.qty} шт, ${production.ratePerUnitUAH}₴/шт`
+  return `${production.artisanName}: ${production.itemName}`
 }
 
 function buildProductionItemLabel(production: AdminProductionWithRelations): string {
@@ -389,8 +387,6 @@ export default async function AdminProductionPage({ searchParams }: PageProps) {
         const expenseTitle = buildProductionExpenseTitle({
           artisanName: production.artisan.name,
           itemName,
-          qty: production.qty,
-          ratePerUnitUAH: production.ratePerUnitUAH,
         })
 
         const expense = await tx.expense.create({
@@ -399,15 +395,7 @@ export default async function AdminProductionPage({ searchParams }: PageProps) {
             category: ExpenseCategory.PAYROLL,
             amountUAH: settledNowUAH,
             expenseDate: new Date(),
-            notes: [
-              'Оплата роботи майстра (admin production)',
-              `adminProductionId=${production.id}`,
-              `itemType=${production.itemType}`,
-              `qty=${production.qty}`,
-              `rate=${production.ratePerUnitUAH}`,
-              `total=${production.totalLaborUAH}`,
-              `settledNow=${settledNowUAH}`,
-            ].join('\n'),
+            notes: null,
           },
         })
 

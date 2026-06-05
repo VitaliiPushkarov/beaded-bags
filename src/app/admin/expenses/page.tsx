@@ -72,7 +72,9 @@ function getValidExpenseCategory(value?: string): ExpenseCategory | undefined {
 
 function getValidExpenseSortKey(value?: string): ExpenseSortKey {
   const allowed: ExpenseSortKey[] = ['date', 'amount', 'title', 'category']
-  return allowed.includes(value as ExpenseSortKey) ? (value as ExpenseSortKey) : 'date'
+  return allowed.includes(value as ExpenseSortKey)
+    ? (value as ExpenseSortKey)
+    : 'date'
 }
 
 function getValidSortDirection(
@@ -201,7 +203,9 @@ export default async function AdminExpensesPage({ searchParams }: PageProps) {
       <Card>
         <CardHeader>
           <CardTitle>Нова витрата</CardTitle>
-          <CardDescription>Додай операційну витрату для обліку.</CardDescription>
+          <CardDescription>
+            Додай операційну витрату для обліку.
+          </CardDescription>
         </CardHeader>
         <CardContent>
           <form action={createExpense} className="grid gap-4 sm:grid-cols-2">
@@ -273,7 +277,10 @@ export default async function AdminExpensesPage({ searchParams }: PageProps) {
           </div>
         </CardHeader>
         <CardContent className="space-y-4 pt-6">
-          <form method="get" className="grid gap-3 sm:grid-cols-2 xl:grid-cols-6">
+          <form
+            method="get"
+            className="grid gap-3 sm:grid-cols-2 xl:grid-cols-6"
+          >
             <div className="space-y-1.5 xl:col-span-2">
               <Label htmlFor="expense-search">Пошук</Label>
               <Input

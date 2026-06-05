@@ -309,6 +309,9 @@ export async function POST(req: NextRequest) {
             create: data.items.map((it, index) => ({
               productId: it.productId ?? null,
               variantId: it.variantId ?? null,
+              strapId: it.strapId ?? null,
+              sizeId: it.sizeId ?? null,
+              pouchId: it.pouchId ?? null,
               name: it.name,
               color: it.color ?? null,
               modelSize: it.modelSize ?? null,

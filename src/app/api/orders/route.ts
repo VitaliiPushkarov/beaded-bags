@@ -17,6 +17,9 @@ const BodySchema = z.object({
       z.object({
         productId: z.string().min(1),
         variantId: z.string().optional().nullable(),
+        strapId: z.string().optional().nullable(),
+        sizeId: z.string().optional().nullable(),
+        pouchId: z.string().optional().nullable(),
         name: z.string().min(1),
         color: z.string().optional().nullable(),
         modelSize: z.string().optional().nullable(),
@@ -209,6 +212,9 @@ export async function POST(req: NextRequest) {
           create: data.items.map((item, index) => ({
             productId: item.productId,
             variantId: item.variantId ?? null,
+            strapId: item.strapId ?? null,
+            sizeId: item.sizeId ?? null,
+            pouchId: item.pouchId ?? null,
             name: item.name,
             color: item.color ?? null,
             modelSize: item.modelSize ?? null,
