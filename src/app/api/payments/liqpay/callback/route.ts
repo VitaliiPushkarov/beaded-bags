@@ -3,6 +3,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import type { Prisma } from '@prisma/client'
 import { liqpaySign } from '@/lib/liqpay'
 import { mapLiqPayOrderStatus } from '@/lib/liqpay-payment-status'
+import { sendOrderTelegramNotification } from '@/lib/order-telegram'
 import { prisma } from '@/lib/prisma'
 
 export const runtime = 'nodejs'
@@ -89,7 +90,7 @@ export async function POST(req: NextRequest) {
 
     const existing = await prisma.order.findUnique({
       where: { id: orderId },
-      select: { status: true },
+      select: { id: true, status: true },
     })
 
     if (!existing) {
@@ -108,17 +109,47 @@ export async function POST(req: NextRequest) {
       paymentRaw: decoded as Prisma.InputJsonValue,
     }
 
-    if (
-      mappedOrderStatus &&
-      !(existing.status === 'PAID' && mappedOrderStatus !== 'PAID')
-    ) {
-      updateData.status = mappedOrderStatus
-    }
-
     await prisma.order.update({
       where: { id: orderId },
       data: updateData,
     })
+
+    let transitionedToPaid = false
+
+    if (mappedOrderStatus === 'PAID') {
+      const result = await prisma.order.updateMany({
+        where: {
+          id: orderId,
+          status: {
+            not: 'PAID',
+          },
+        },
+        data: {
+          status: 'PAID',
+        },
+      })
+      transitionedToPaid = result.count > 0
+    } else if (mappedOrderStatus) {
+      await prisma.order.updateMany({
+        where: {
+          id: orderId,
+          status: {
+            not: 'PAID',
+          },
+        },
+        data: {
+          status: mappedOrderStatus,
+        },
+      })
+    }
+
+    if (transitionedToPaid) {
+      try {
+        await sendOrderTelegramNotification(existing.id)
+      } catch (error) {
+        console.error('LiqPay callback Telegram error:', error)
+      }
+    }
 
     return new NextResponse('ok')
   } catch (e: unknown) {

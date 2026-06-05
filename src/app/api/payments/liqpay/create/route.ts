@@ -202,7 +202,7 @@ export async function POST(req: NextRequest) {
       orderId: order.id,
       amountUAH: order.totalUAH,
       description: `Замовлення #${order.shortNumber}`,
-      resultUrl: `${baseUrl}/api/payments/liqpay/return`,
+      resultUrl: `${baseUrl}/api/payments/liqpay/return?orderId=${encodeURIComponent(order.id)}`,
       serverUrl: `${baseUrl}/api/payments/liqpay/callback`,
       mode: liqPayMode,
       customer: {

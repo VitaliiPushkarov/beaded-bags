@@ -5,76 +5,8 @@ import { prisma } from '@/lib/prisma'
 import { buildOrderFinancialSnapshot } from '@/lib/finance'
 import { buildManagedUnitCostUAH } from '@/lib/management-accounting'
 import { calcDiscountUAH, resolvePromoCode } from '@/lib/promo'
-import { formatCustomerFullName } from '@/lib/orders/customer'
 import { OrderCreateCheckoutBodySchema } from '@/lib/orders/create-order-schema'
-
-async function sendTelegram(text: string) {
-  const token = process.env.TELEGRAM_BOT_TOKEN
-  const chatId = process.env.TELEGRAM_CHAT_ID
-  if (!token || !chatId) {
-    console.warn(
-      'Telegram is not configured: missing TELEGRAM_BOT_TOKEN/TELEGRAM_CHAT_ID',
-    )
-    return
-  }
-
-  try {
-    const controller = new AbortController()
-    const t = setTimeout(() => controller.abort(), 2000)
-
-    const res = await fetch(
-      `https://api.telegram.org/bot${token}/sendMessage`,
-      {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          chat_id: chatId,
-          text,
-          parse_mode: 'HTML',
-          disable_web_page_preview: true,
-        }),
-        signal: controller.signal,
-      },
-    )
-
-    clearTimeout(t)
-
-    if (!res.ok) {
-      const body = await res.text().catch(() => '')
-      console.error('Telegram sendMessage failed:', res.status, body)
-      return
-    }
-
-    console.info('Telegram sendMessage ok')
-  } catch (e) {
-    console.error('Telegram sendMessage error:', e)
-  }
-}
-
-function formatUAH(v: number) {
-  const n = Math.round(Number(v) || 0)
-  return `${n} ₴`
-}
-function shortNumber(n: number) {
-  const t = Math.round(Number(n) || 0)
-  return `${t}`
-}
-function paymentMethodName(method: string) {
-  switch (method) {
-    case 'LIQPAY':
-      return 'LiqPay'
-    case 'BANK_TRANSFER':
-      return 'Банківський переказ'
-    default:
-      return method
-  }
-}
-function escHtml(s: string) {
-  return s
-    .replaceAll('&', '&amp;')
-    .replaceAll('<', '&lt;')
-    .replaceAll('>', '&gt;')
-}
+import { sendOrderTelegramNotification } from '@/lib/order-telegram'
 
 function normalizeIdempotencyKey(value: string | undefined): string | null {
   const trimmed = String(value ?? '').trim()
@@ -358,58 +290,15 @@ export async function POST(req: NextRequest) {
       throw error
     }
 
-    // Telegram notification (best-effort)
-    try {
-      const itemsText = created.items
-        .map((i) => {
-          const addonsText = Array.isArray((i as any).addons)
-            ? ((i as any).addons as any[])
-                .map((a) => a?.name)
-                .filter(Boolean)
-                .join(', ')
-            : ''
-
-          const line =
-            `• ${i.name}` +
-            (i.color ? ` — ${i.color}` : '') +
-            (i.modelSize ? `\n  ↳ розмір моделі: ${i.modelSize}` : '') +
-            (i.pouchColor ? `\n  ↳ мішечок: ${i.pouchColor}` : '') +
-            (i.strapName ? `\n  ↳ ремінець: ${i.strapName}` : '') +
-            (addonsText ? `\n  ↳ додатково: ${addonsText}` : '') +
-            ` × ${i.qty} — ${formatUAH(i.priceUAH)}`
-          return escHtml(line)
-        })
-        .join('\n')
-
-      const msg =
-        `🛍 <b>Нове замовлення</b>\n` +
-        `\n<b>Номер:</b> ${escHtml(shortNumber(created.shortNumber))}` +
-        `\n<b>Сума:</b> ${escHtml(formatUAH(created.totalUAH))}` +
-        `\n<b>Оплата:</b> ${escHtml(paymentMethodName(created.paymentMethod))}\n` +
-        `\n<b>Доставка:</b> Нова пошта` +
-        `\n<b>Місто:</b> ${escHtml(created.npCityName)}` +
-        `\n<b>Відділення:</b> ${escHtml(created.npWarehouseName)}` +
-        `\n<b>Клієнт:</b> ${escHtml(
-          formatCustomerFullName({
-            name: created.customerName,
-            surname: created.customerSurname,
-            patronymic: created.customerPatronymic,
-          }),
-        )}` +
-        `\n<b>Телефон:</b> ${escHtml(created.customerPhone)}` +
-        (created.customerEmail
-          ? `\n<b>Email:</b> ${escHtml(created.customerEmail)}`
-          : '') +
-        `\n\n<b>Товари:</b>\n${itemsText}`
-
-      console.info('Telegram: sending order notification', created.id)
-      // Best-effort: attempt send, but never fail the order request
-      await sendTelegram(msg)
-    } catch (e) {
-      console.error(
-        'Telegram: failed to send order notification (non-blocking):',
-        e,
-      )
+    if (created.paymentMethod !== 'LIQPAY') {
+      try {
+        await sendOrderTelegramNotification(created.id)
+      } catch (e) {
+        console.error(
+          'Telegram: failed to send order notification (non-blocking):',
+          e,
+        )
+      }
     }
 
     return NextResponse.json(
