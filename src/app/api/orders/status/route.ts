@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { refreshOrderFromLiqPayStatusApi } from '@/lib/liqpay-settlement'
 import { prisma } from '@/lib/prisma'
 
 export const runtime = 'nodejs'
@@ -17,6 +18,7 @@ export async function GET(req: NextRequest) {
       id: true,
       shortNumber: true,
       status: true,
+      paymentMethod: true,
     },
   })
 
@@ -28,15 +30,24 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ error: 'Order mismatch' }, { status: 404 })
   }
 
+  let latest = order
+
+  if (latest.paymentMethod === 'LIQPAY' && latest.status === 'PENDING') {
+    const refreshed = await refreshOrderFromLiqPayStatusApi(latest.id)
+    if (refreshed) {
+      latest = refreshed
+    }
+  }
+
   return NextResponse.json(
     {
-      orderId: order.id,
-      orderNumber: order.shortNumber,
-      status: order.status,
+      orderId: latest.id,
+      orderNumber: latest.shortNumber,
+      status: latest.status,
       isFinal:
-        order.status === 'PAID' ||
-        order.status === 'FAILED' ||
-        order.status === 'CANCELLED',
+        latest.status === 'PAID' ||
+        latest.status === 'FAILED' ||
+        latest.status === 'CANCELLED',
     },
     {
       headers: {

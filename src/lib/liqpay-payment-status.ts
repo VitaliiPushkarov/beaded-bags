@@ -6,10 +6,21 @@ export type LiqPayStatusPayload = {
   [key: string]: unknown
 }
 
-type MappedOrderStatus = 'PAID' | 'FAILED' | 'CANCELLED' | null
+export type MappedOrderStatus = 'PAID' | 'FAILED' | 'CANCELLED' | null
+
+const PAID_STATUSES = new Set([
+  'success',
+  'sandbox',
+  'wait_accept',
+  'wait_compensation',
+])
 
 function toLower(value: unknown): string {
   return String(value ?? '').trim().toLowerCase()
+}
+
+function hasTransactionId(payload: LiqPayStatusPayload): boolean {
+  return toLower(payload.transaction_id).length > 0
 }
 
 function isCancellationSignal(payload: LiqPayStatusPayload): boolean {
@@ -41,9 +52,10 @@ export function mapLiqPayOrderStatus(
 ): MappedOrderStatus {
   const status = toLower(payload.status)
 
-  if (status === 'success' || status === 'sandbox') return 'PAID'
+  if (PAID_STATUSES.has(status)) return 'PAID'
 
   if (status === 'failure') {
+    if (!hasTransactionId(payload)) return 'CANCELLED'
     return isCancellationSignal(payload) ? 'CANCELLED' : 'FAILED'
   }
 

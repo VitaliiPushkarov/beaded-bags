@@ -162,6 +162,7 @@ export default function CheckoutClient() {
 
   useEffect(() => {
     if (paymentResult === 'cancelled') {
+      clearCheckoutAttemptKey()
       setError(
         t(
           'Оплату скасовано. Дані клієнта збережено, спробуйте ще раз.',
@@ -171,6 +172,7 @@ export default function CheckoutClient() {
       return
     }
     if (paymentResult === 'failed') {
+      clearCheckoutAttemptKey()
       setError(
         t(
           'Оплата не пройшла. Дані клієнта збережено, спробуйте ще раз.',

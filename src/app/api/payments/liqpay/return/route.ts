@@ -1,10 +1,12 @@
 import crypto from 'crypto'
 import { NextRequest, NextResponse } from 'next/server'
-import type { Prisma } from '@prisma/client'
-import { prisma } from '@/lib/prisma'
 import { liqpaySign } from '@/lib/liqpay'
-import { mapLiqPayOrderStatus } from '@/lib/liqpay-payment-status'
-import { sendOrderTelegramNotification } from '@/lib/order-telegram'
+import {
+  loadOrderSettlementSnapshot,
+  refreshOrderFromLiqPayStatusApi,
+  settleOrderFromLiqPayPayload,
+} from '@/lib/liqpay-settlement'
+import { prisma } from '@/lib/prisma'
 
 export const runtime = 'nodejs'
 const REDIRECT_STATUS = 303
@@ -154,89 +156,38 @@ async function handleReturn(args: {
     pickOrderId(sp, trustedPayload) ||
     String(sp.get('order_id') ?? sp.get('orderId') ?? '').trim()
   const paymentStatus = trustedPayload ? pickStatus(sp, trustedPayload) : ''
-  const mappedOrderStatus = trustedPayload
-    ? mapLiqPayOrderStatus({
-        ...trustedPayload,
-        status: paymentStatus || trustedPayload?.status,
-      })
-    : null
 
   if (!orderId) {
     return toHome(req)
   }
 
-  const existing = await prisma.order.findUnique({
-    where: { id: orderId },
-    select: { id: true, shortNumber: true, status: true, paymentStatus: true },
-  })
+  const existing = await loadOrderSettlementSnapshot(orderId)
 
   if (!existing) {
     return toHome(req)
   }
 
-  let transitionedToPaid = false
-
   if (trustedPayload) {
-    const updateData: Prisma.OrderUpdateInput = {
-      paymentStatus: paymentStatus || null,
-      paymentRaw: trustedPayload as Prisma.InputJsonValue,
-    }
-
-    if (
-      trustedPayload.transaction_id !== undefined &&
-      trustedPayload.transaction_id !== null
-    ) {
-      updateData.paymentId = String(trustedPayload.transaction_id)
-    }
-
-    await prisma.order.update({
-      where: { id: existing.id },
-      data: updateData,
+    await settleOrderFromLiqPayPayload({
+      orderId: existing.id,
+      payload: {
+        ...trustedPayload,
+        status: paymentStatus || trustedPayload.status,
+      },
     })
-
-    if (mappedOrderStatus === 'PAID') {
-      const result = await prisma.order.updateMany({
-        where: {
-          id: existing.id,
-          status: {
-            not: 'PAID',
-          },
-        },
-        data: {
-          status: 'PAID',
-        },
-      })
-      transitionedToPaid = result.count > 0
-    } else if (mappedOrderStatus) {
-      await prisma.order.updateMany({
-        where: {
-          id: existing.id,
-          status: {
-            not: 'PAID',
-          },
-        },
-        data: {
-          status: mappedOrderStatus,
-        },
-      })
-    }
   }
 
-  if (transitionedToPaid) {
-    try {
-      await sendOrderTelegramNotification(existing.id)
-    } catch (error) {
-      console.error('LiqPay return Telegram error:', error)
-    }
-  }
-
-  const latest = await prisma.order.findUnique({
-    where: { id: existing.id },
-    select: { id: true, shortNumber: true, status: true, paymentStatus: true },
-  })
+  let latest = await loadOrderSettlementSnapshot(existing.id)
 
   if (!latest) {
     return toHome(req)
+  }
+
+  if (latest.paymentMethod === 'LIQPAY' && latest.status === 'PENDING') {
+    const refreshed = await refreshOrderFromLiqPayStatusApi(latest.id)
+    if (refreshed) {
+      latest = refreshed
+    }
   }
 
   const finalStatus = latest.status
@@ -256,7 +207,14 @@ async function handleReturn(args: {
     return toCheckout(req, 'failed')
   }
 
-  const settled = await waitForFinalStatus(latest.id)
+  let settled = await waitForFinalStatus(latest.id)
+
+  if (settled?.status === 'PENDING' && latest.paymentMethod === 'LIQPAY') {
+    const refreshed = await refreshOrderFromLiqPayStatusApi(latest.id)
+    if (refreshed) {
+      settled = refreshed
+    }
+  }
 
   if (settled?.status === 'PAID') {
     return toSuccess(req, {
@@ -271,21 +229,6 @@ async function handleReturn(args: {
 
   if (settled?.status === 'FAILED') {
     return toCheckout(req, 'failed')
-  }
-
-  if (!trustedPayload && latest.status === 'PENDING') {
-    await prisma.order.updateMany({
-      where: {
-        id: latest.id,
-        status: 'PENDING',
-      },
-      data: {
-        status: 'CANCELLED',
-        paymentStatus: latest.paymentStatus || 'cancelled',
-      },
-    })
-
-    return toCheckout(req, 'cancelled')
   }
 
   return toSuccess(req, {
