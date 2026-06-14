@@ -3,7 +3,10 @@ import { Prisma } from '@prisma/client'
 
 import { prisma } from '@/lib/prisma'
 import { buildOrderFinancialSnapshot } from '@/lib/finance'
-import { buildManagedUnitCostUAH } from '@/lib/management-accounting'
+import {
+  buildManagedUnitCostUAH,
+  getAverageLaborCostByVariantId,
+} from '@/lib/management-accounting'
 import { calcDiscountUAH, resolvePromoCode } from '@/lib/promo'
 import { OrderCreateCheckoutBodySchema } from '@/lib/orders/create-order-schema'
 import { sendOrderTelegramNotification } from '@/lib/order-telegram'
@@ -155,6 +158,10 @@ export async function POST(req: NextRequest) {
           },
         })
       : []
+    const averageLaborCostByVariantId = await getAverageLaborCostByVariantId(
+      prisma,
+      variantIds,
+    )
 
     const costByProductId = new Map(
       products.map((product) => [
@@ -173,6 +180,7 @@ export async function POST(req: NextRequest) {
         variant.id,
         buildManagedUnitCostUAH({
           profile: variant.product.costProfile,
+          laborCostUAHOverride: averageLaborCostByVariantId.get(variant.id),
           materialUsages: variant.product.materialUsages,
           packagingTemplateCostUAH: variant.product.packagingTemplate?.costUAH,
           includeShipping: false,

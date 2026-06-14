@@ -55,6 +55,67 @@ function roundUAH(value: number): number {
   return Math.round(value)
 }
 
+export function buildAverageLaborCostByVariantId(
+  rates: Array<{
+    variantId: string
+    ratePerUnitUAH: number
+  }>,
+): Map<string, number> {
+  const totals = new Map<string, { sum: number; count: number }>()
+
+  for (const rate of rates) {
+    const variantId = rate.variantId.trim()
+    if (!variantId) continue
+
+    const amount = Number(rate.ratePerUnitUAH)
+    if (!Number.isFinite(amount) || amount < 0) continue
+
+    const current = totals.get(variantId) ?? { sum: 0, count: 0 }
+    current.sum += amount
+    current.count += 1
+    totals.set(variantId, current)
+  }
+
+  return new Map(
+    Array.from(totals.entries()).map(([variantId, total]) => [
+      variantId,
+      total.count > 0 ? roundUAH(total.sum / total.count) : 0,
+    ]),
+  )
+}
+
+export async function getAverageLaborCostByVariantId(
+  prisma: PrismaClient,
+  variantIds: string[],
+) {
+  const uniqueVariantIds = Array.from(
+    new Set(variantIds.map((variantId) => variantId.trim()).filter(Boolean)),
+  )
+  if (uniqueVariantIds.length === 0) {
+    return new Map<string, number>()
+  }
+
+  const rates = await prisma.artisanRate.findMany({
+    where: {
+      variantId: {
+        in: uniqueVariantIds,
+      },
+      isActive: true,
+      artisan: {
+        is: {
+          isActive: true,
+        },
+      },
+    },
+    select: {
+      variantId: true,
+      ratePerUnitUAH: true,
+    },
+  })
+
+  return buildAverageLaborCostByVariantId(rates)
+}
+
 function normalizeVariantKey(value: string): string {
   return value
     .toLowerCase()
@@ -215,6 +276,7 @@ export function buildManagedCostBreakdown(input: {
     shippingCostUAH: number
     otherCostUAH: number
   } | null
+  laborCostUAHOverride?: number | null
   materialUsages?: Array<{
     quantity: number
     variantColor?: string | null
@@ -229,7 +291,7 @@ export function buildManagedCostBreakdown(input: {
     input.materialUsages ?? [],
     input.variantColor,
   )
-  const laborCostUAH = roundUAH(profile?.laborCostUAH ?? 0)
+  const laborCostUAH = roundUAH(input.laborCostUAHOverride ?? profile?.laborCostUAH ?? 0)
   const packagingCostUAH = roundUAH(input.packagingTemplateCostUAH ?? 0)
   const shippingCostUAH = roundUAH(profile?.shippingCostUAH ?? 0)
   const otherCostUAH = roundUAH(profile?.otherCostUAH ?? 0)
@@ -255,6 +317,7 @@ export function buildManagedUnitCostUAH(input: {
     shippingCostUAH: number
     otherCostUAH: number
   } | null
+  laborCostUAHOverride?: number | null
   materialUsages?: Array<{
     quantity: number
     variantColor?: string | null
@@ -267,6 +330,7 @@ export function buildManagedUnitCostUAH(input: {
 }): number {
   const breakdown = buildManagedCostBreakdown({
     profile: input.profile,
+    laborCostUAHOverride: input.laborCostUAHOverride,
     materialUsages: input.materialUsages,
     packagingTemplateCostUAH: input.packagingTemplateCostUAH,
     variantColor: input.variantColor,

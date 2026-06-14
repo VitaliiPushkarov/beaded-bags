@@ -2,7 +2,10 @@ import { NextRequest, NextResponse } from 'next/server'
 import { z } from 'zod'
 import { prisma } from '@/lib/prisma'
 import { buildOrderFinancialSnapshot } from '@/lib/finance'
-import { buildManagedUnitCostUAH } from '@/lib/management-accounting'
+import {
+  buildManagedUnitCostUAH,
+  getAverageLaborCostByVariantId,
+} from '@/lib/management-accounting'
 import { buildOrderCustomerSchema } from '@/lib/orders/customer'
 
 const SupportedPaymentMethodSchema = z.enum([
@@ -138,6 +141,10 @@ export async function POST(req: NextRequest) {
           },
         })
       : []
+    const averageLaborCostByVariantId = await getAverageLaborCostByVariantId(
+      prisma,
+      variantIds,
+    )
 
     const costByProductId = new Map(
       products.map((product) => [
@@ -156,6 +163,7 @@ export async function POST(req: NextRequest) {
         variant.id,
         buildManagedUnitCostUAH({
           profile: variant.product.costProfile,
+          laborCostUAHOverride: averageLaborCostByVariantId.get(variant.id),
           materialUsages: variant.product.materialUsages,
           packagingTemplateCostUAH: variant.product.packagingTemplate?.costUAH,
           includeShipping: false,

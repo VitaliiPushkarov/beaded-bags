@@ -57,6 +57,11 @@ export type FinanceProductSnapshot = {
   unitCostUAH: number
 }
 
+export type FinanceVariantSnapshot = {
+  id: string
+  unitCostUAH: number
+}
+
 type FinanceResolvedProduct = {
   id: string
   unitCostUAH: number
@@ -65,7 +70,8 @@ type FinanceResolvedProduct = {
 }
 
 export type FinanceProductResolver = {
-  byId: Map<string, number>
+  byProductId: Map<string, number>
+  byVariantId: Map<string, number>
   byExactKey: Map<string, FinanceResolvedProduct>
   products: FinanceResolvedProduct[]
 }
@@ -119,13 +125,18 @@ function buildFinanceLineKey(
 }
 
 function resolveProductUnitCost(
-  item: Pick<OrderItem, 'productId' | 'name'>,
+  item: Pick<OrderItem, 'productId' | 'variantId' | 'name'>,
   resolver?: FinanceProductResolver,
 ): number {
   if (!resolver) return 0
 
+  if (item.variantId) {
+    const variantCost = resolver.byVariantId.get(item.variantId)
+    if (typeof variantCost === 'number') return variantCost
+  }
+
   if (item.productId) {
-    return resolver.byId.get(item.productId) ?? 0
+    return resolver.byProductId.get(item.productId) ?? 0
   }
 
   const candidates = getFinanceNameCandidates(item.name)
@@ -179,9 +190,12 @@ function resolveProductUnitCost(
 }
 
 export function buildFinanceProductResolver(
-  products: FinanceProductSnapshot[],
+  input: {
+    products: FinanceProductSnapshot[]
+    variants?: FinanceVariantSnapshot[]
+  },
 ): FinanceProductResolver {
-  const resolvedProducts = products.map((product) => ({
+  const resolvedProducts = input.products.map((product) => ({
     id: product.id,
     unitCostUAH: product.unitCostUAH,
     normalizedName: normalizeFinanceProductKey(product.name),
@@ -199,7 +213,12 @@ export function buildFinanceProductResolver(
   }
 
   return {
-    byId: new Map(products.map((product) => [product.id, product.unitCostUAH])),
+    byProductId: new Map(
+      input.products.map((product) => [product.id, product.unitCostUAH]),
+    ),
+    byVariantId: new Map(
+      (input.variants ?? []).map((variant) => [variant.id, variant.unitCostUAH]),
+    ),
     byExactKey,
     products: resolvedProducts,
   }

@@ -30,7 +30,10 @@ import {
   startOfDay,
   toDateInputValue,
 } from '@/lib/admin-finance'
-import { buildManagedUnitCostUAH } from '@/lib/management-accounting'
+import {
+  buildManagedUnitCostUAH,
+  getAverageLaborCostByVariantId,
+} from '@/lib/management-accounting'
 
 export const dynamic = 'force-dynamic'
 
@@ -143,45 +146,97 @@ export default async function AdminFinancePage({ searchParams }: PageProps) {
       ),
     ),
   )
+  const variantIds = Array.from(
+    new Set(
+      orders.flatMap((order) =>
+        order.items
+          .map((item) => item.variantId)
+          .filter((variantId): variantId is string => Boolean(variantId)),
+      ),
+    ),
+  )
 
-  const products = productIds.length
-    ? await prisma.product.findMany({
-        where: {
-          id: { in: productIds },
-        },
-        select: {
-          id: true,
-          name: true,
-          slug: true,
-          packagingTemplate: {
-            select: {
-              costUAH: true,
+  const [products, variants, averageLaborCostByVariantId] = await Promise.all([
+    productIds.length
+      ? prisma.product.findMany({
+          where: {
+            id: { in: productIds },
+          },
+          select: {
+            id: true,
+            name: true,
+            slug: true,
+            packagingTemplate: {
+              select: {
+                costUAH: true,
+              },
+            },
+            materialUsages: {
+              select: {
+                quantity: true,
+                variantColor: true,
+                material: {
+                  select: {
+                    unitCostUAH: true,
+                  },
+                },
+              },
+            },
+            costProfile: {
+              select: {
+                laborCostUAH: true,
+                shippingCostUAH: true,
+                otherCostUAH: true,
+              },
             },
           },
-          materialUsages: {
-            select: {
-              quantity: true,
-              variantColor: true,
-              material: {
-                select: {
-                  unitCostUAH: true,
+        })
+      : Promise.resolve([]),
+    variantIds.length
+      ? prisma.productVariant.findMany({
+          where: {
+            id: { in: variantIds },
+          },
+          select: {
+            id: true,
+            color: true,
+            product: {
+              select: {
+                id: true,
+                packagingTemplate: {
+                  select: {
+                    costUAH: true,
+                  },
+                },
+                materialUsages: {
+                  select: {
+                    quantity: true,
+                    variantColor: true,
+                    notes: true,
+                    material: {
+                      select: {
+                        unitCostUAH: true,
+                      },
+                    },
+                  },
+                },
+                costProfile: {
+                  select: {
+                    laborCostUAH: true,
+                    shippingCostUAH: true,
+                    otherCostUAH: true,
+                  },
                 },
               },
             },
           },
-          costProfile: {
-            select: {
-              laborCostUAH: true,
-              shippingCostUAH: true,
-              otherCostUAH: true,
-            },
-          },
-        },
-      })
-    : []
+        })
+      : Promise.resolve([]),
+    getAverageLaborCostByVariantId(prisma, variantIds),
+  ])
 
-  const productResolver = buildFinanceProductResolver(
-    products.map((product) => ({
+  const productResolver = buildFinanceProductResolver({
+    products: products.map((product) => ({
       id: product.id,
       name: product.name,
       slug: product.slug,
@@ -192,7 +247,18 @@ export default async function AdminFinancePage({ searchParams }: PageProps) {
         includeShipping: false,
       }),
     })),
-  )
+    variants: variants.map((variant) => ({
+      id: variant.id,
+      unitCostUAH: buildManagedUnitCostUAH({
+        profile: variant.product.costProfile,
+        laborCostUAHOverride: averageLaborCostByVariantId.get(variant.id),
+        materialUsages: variant.product.materialUsages,
+        packagingTemplateCostUAH: variant.product.packagingTemplate?.costUAH,
+        includeShipping: false,
+        variantColor: variant.color,
+      }),
+    })),
+  })
 
   const materialsCatalogTotalUAH = Math.round(
     materials.reduce(

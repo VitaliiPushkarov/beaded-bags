@@ -16,7 +16,10 @@ import { Select } from '@/components/ui/select'
 import { calcDiscountedPrice } from '@/lib/pricing'
 import { toDateInputValue } from '@/lib/admin-finance'
 import { buildOrderFinancialSnapshot } from '@/lib/finance'
-import { buildManagedUnitCostUAH } from '@/lib/management-accounting'
+import {
+  buildManagedUnitCostUAH,
+  getAverageLaborCostByVariantId,
+} from '@/lib/management-accounting'
 import { prisma } from '@/lib/prisma'
 import OrdersTableClient from './OrdersTableClient'
 
@@ -199,6 +202,10 @@ export default async function AdminOrdersPage() {
         },
       },
     })
+    const averageLaborCostByVariantId = await getAverageLaborCostByVariantId(
+      prisma,
+      variantIds,
+    )
 
     const variantsById = new Map(variants.map((variant) => [variant.id, variant]))
 
@@ -216,6 +223,7 @@ export default async function AdminOrdersPage() {
 
       const unitCostUAH = buildManagedUnitCostUAH({
         profile: variant.product.costProfile,
+        laborCostUAHOverride: averageLaborCostByVariantId.get(variant.id),
         materialUsages: variant.product.materialUsages,
         packagingTemplateCostUAH: variant.product.packagingTemplate?.costUAH,
         includeShipping: false,

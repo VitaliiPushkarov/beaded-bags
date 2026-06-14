@@ -13,6 +13,7 @@ import { ACTIVE_PRODUCT_TYPES, TYPE_LABELS } from '@/lib/labels'
 import {
   buildManagedUnitCostUAH,
   calculateMaterialsCostFromUsages,
+  getAverageLaborCostByVariantId,
 } from '@/lib/management-accounting'
 import { prisma } from '@/lib/prisma'
 import { calcDiscountedPrice } from '@/lib/pricing'
@@ -49,6 +50,7 @@ type ProductForCosts = {
   } | null
   materialUsages: Array<{
     quantity: number
+    variantColor: string | null
     notes: string | null
     material: {
       unitCostUAH: number
@@ -97,9 +99,19 @@ type CostSortKey =
   | 'margin'
 type SortDirection = 'asc' | 'desc'
 
+const OptionalNonNegativeInt = z.preprocess(
+  (value) => {
+    if (value == null) return undefined
+    if (typeof value === 'string' && value.trim() === '') return undefined
+    const parsed = Number(value)
+    return Number.isFinite(parsed) ? parsed : value
+  },
+  z.number().int().min(0).optional(),
+)
+
 const CostAssemblySchema = z.object({
   productId: z.string().min(1),
-  laborCostUAH: z.coerce.number().int().min(0).default(0),
+  laborCostUAH: OptionalNonNegativeInt,
   shippingCostUAH: z.coerce.number().int().min(0).default(0),
   otherCostUAH: z.coerce.number().int().min(0).default(0),
   notes: z.string().trim().optional(),
@@ -198,17 +210,22 @@ export default async function AdminCostsPage({ searchParams }: PageProps) {
       throw new Error('Не вдалося зберегти збірку собівартості')
     }
 
+    const laborCostPayload =
+      typeof parsed.data.laborCostUAH === 'number'
+        ? { laborCostUAH: parsed.data.laborCostUAH }
+        : {}
+
     await prisma.productCostProfile.upsert({
       where: { productId: parsed.data.productId },
       create: {
         productId: parsed.data.productId,
-        laborCostUAH: parsed.data.laborCostUAH,
+        ...laborCostPayload,
         shippingCostUAH: parsed.data.shippingCostUAH,
         otherCostUAH: parsed.data.otherCostUAH,
         notes: parsed.data.notes || null,
       },
       update: {
-        laborCostUAH: parsed.data.laborCostUAH,
+        ...laborCostPayload,
         shippingCostUAH: parsed.data.shippingCostUAH,
         otherCostUAH: parsed.data.otherCostUAH,
         notes: parsed.data.notes || null,
@@ -282,6 +299,10 @@ export default async function AdminCostsPage({ searchParams }: PageProps) {
       },
     },
   })
+  const averageLaborCostByVariantId = await getAverageLaborCostByVariantId(
+    prisma,
+    products.flatMap((product) => product.variants.map((variant) => variant.id)),
+  )
 
   const rows = products
     .flatMap<CostRow>((product) => {
@@ -296,7 +317,12 @@ export default async function AdminCostsPage({ searchParams }: PageProps) {
           Math.max(0, product.packagingTemplate?.costUAH ?? 0),
         )
         const laborCostUAH = Math.round(
-          Math.max(0, product.costProfile?.laborCostUAH ?? 0),
+          Math.max(
+            0,
+            variant
+              ? (averageLaborCostByVariantId.get(variant.id) ?? 0)
+              : (product.costProfile?.laborCostUAH ?? 0),
+          ),
         )
         const shippingCostUAH = Math.round(
           Math.max(0, product.costProfile?.shippingCostUAH ?? 0),
@@ -306,6 +332,7 @@ export default async function AdminCostsPage({ searchParams }: PageProps) {
         )
         const unitCostUAH = buildManagedUnitCostUAH({
           profile: product.costProfile,
+          laborCostUAHOverride: variant ? laborCostUAH : undefined,
           materialUsages: product.materialUsages,
           packagingTemplateCostUAH: product.packagingTemplate?.costUAH,
           includeShipping: false,
@@ -313,6 +340,7 @@ export default async function AdminCostsPage({ searchParams }: PageProps) {
         })
         const unitCostWithShippingUAH = buildManagedUnitCostUAH({
           profile: product.costProfile,
+          laborCostUAHOverride: variant ? laborCostUAH : undefined,
           materialUsages: product.materialUsages,
           packagingTemplateCostUAH: product.packagingTemplate?.costUAH,
           includeShipping: true,
@@ -335,7 +363,9 @@ export default async function AdminCostsPage({ searchParams }: PageProps) {
           readinessIssues.push('Не задано пакування')
         }
         if (laborCostUAH <= 0) {
-          readinessIssues.push('Не задана оплата роботи')
+          readinessIssues.push(
+            variant ? 'Не задані активні ставки майстрів' : 'Не задана оплата роботи',
+          )
         }
         if (salePriceUAH > 0 && unitCostUAH >= salePriceUAH) {
           readinessIssues.push('Собівартість >= ціни продажу')
@@ -404,8 +434,8 @@ export default async function AdminCostsPage({ searchParams }: PageProps) {
         <div>
           <h1 className="text-2xl font-semibold">Собівартість</h1>
           <p className="mt-1 text-sm text-gray-600">
-            Збірка собівартості: матеріали та пакування із Запасів + ручні
-            витрати на одиницю.
+            Збірка собівартості: матеріали та пакування із Запасів + середня
+            робота по активних ставках майстрів для варіанта.
           </p>
         </div>
 
@@ -626,7 +656,9 @@ export default async function AdminCostsPage({ searchParams }: PageProps) {
                     </div>
                     <div className="rounded border bg-gray-50 p-3">
                       <div className="text-xs text-gray-500">
-                        Робота за 1 сумку
+                        {variant
+                          ? 'Середня робота по майстрам'
+                          : 'Робота за 1 сумку'}
                       </div>
                       <div className="mt-1 font-medium">{formatUAH(laborCostUAH)}</div>
                     </div>
@@ -662,7 +694,15 @@ export default async function AdminCostsPage({ searchParams }: PageProps) {
                     >
                       Запасах
                     </Link>
-                    .
+                    .{variant ? (
+                      <>
+                        {' '}Ставки майстрів для цього варіанта редагуються в{' '}
+                        <Link href="/admin/artisans" className="text-blue-600 hover:underline">
+                          Майстрах
+                        </Link>
+                        .
+                      </>
+                    ) : null}
                   </div>
 
                   <form
@@ -678,17 +718,24 @@ export default async function AdminCostsPage({ searchParams }: PageProps) {
                       })}#cost-product-${product.id}-${variant?.id ?? 'base'}`}
                     />
 
-                    <label className="block text-sm font-medium">
-                      Оплата за роботу за 1 сумку (грн)
-                      <input
-                        name="laborCostUAH"
-                        type="number"
-                        min="0"
-                        step="1"
-                        defaultValue={laborCostUAH}
-                        className="mt-2 w-full rounded-lg border px-3 py-2 text-sm"
-                      />
-                    </label>
+                    {variant ? (
+                      <div className="rounded border border-blue-100 bg-blue-50 px-3 py-2 text-sm text-blue-900 md:col-span-2 xl:col-span-4">
+                        Робота для цього варіанта рахується автоматично як
+                        середнє по активних ставках майстрів.
+                      </div>
+                    ) : (
+                      <label className="block text-sm font-medium">
+                        Оплата за роботу за 1 сумку (грн)
+                        <input
+                          name="laborCostUAH"
+                          type="number"
+                          min="0"
+                          step="1"
+                          defaultValue={laborCostUAH}
+                          className="mt-2 w-full rounded-lg border px-3 py-2 text-sm"
+                        />
+                      </label>
+                    )}
 
                     <label className="block text-sm font-medium">
                       Інші витрати на 1 шт (грн)
