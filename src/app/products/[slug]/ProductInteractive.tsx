@@ -627,7 +627,7 @@ export function ProductInteractive({ p }: { p: ProductWithVariants }) {
 
   const shippingNote =
     ((v as any)?.shippingNote as string | undefined | null) ||
-    t('Відправка протягом 1–3 днів', 'Ships within 1-3 days')
+    t('Відправка день у день', 'Ships within 1 business day')
   const offerNote = pickLocalizedText(
     p.offerNote,
     (p as any).offerNoteEn,
@@ -962,8 +962,8 @@ export function ProductInteractive({ p }: { p: ProductWithVariants }) {
                 ? t('Є в наявності', 'In stock')
                 : variantPreorder
                   ? t(
-                      'Відкрито передзамовлення (7–14 робочих днів). Залиште контакт — ми напишемо вам.',
-                      'Pre-order is open (7-14 business days). Leave contact details and we will reach out.',
+                      'Відкрите передзамовлення. Виготовлення до 7 робочих днів. Залиште контакт — ми надішлемо вам деталі.',
+                      'Pre-order is open 7 business days. Leave contact details and we will reach out.',
                     )
                   : t('Немає в наявності', 'Out of stock')}
             </span>

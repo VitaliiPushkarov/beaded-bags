@@ -1313,7 +1313,7 @@ export default function ProductForm({
                       onChange={(e) =>
                         onVariantChange(index, { shippingNote: e.target.value })
                       }
-                      placeholder="Відправка протягом 1–3 днів"
+                      placeholder="Відправка день у день"
                     />
                   </label>
 
