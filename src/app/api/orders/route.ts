@@ -201,21 +201,19 @@ export async function POST(req: NextRequest) {
         customerPatronymic: data.customer.patronymic ?? null,
         customerPhone: data.customer.phone,
         customerEmail: data.customer.email ?? null,
+        shippingMethod: 'NOVA_POSHTA',
+        shippingCountryCode: 'UA',
+        shippingCountryName: 'Ukraine',
+        shippingRegion: null,
+        shippingCity: data.shipping.npCityName,
+        shippingPostalCode: null,
+        shippingAddressLine1: data.shipping.npWarehouseName,
+        shippingAddressLine2: null,
         npCityRef: data.shipping.npCityRef,
         npCityName: data.shipping.npCityName,
         npWarehouseRef: data.shipping.npWarehouseRef,
         npWarehouseName: data.shipping.npWarehouseName,
         paymentMethod: data.paymentMethod,
-        customer: {
-          connectOrCreate: {
-            where: { phone: data.customer.phone },
-            create: {
-              name: `${data.customer.name} ${data.customer.surname}`.trim(),
-              phone: data.customer.phone,
-              email: data.customer.email ?? null,
-            },
-          },
-        },
         items: {
           create: data.items.map((item, index) => ({
             productId: item.productId,

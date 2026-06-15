@@ -8,10 +8,18 @@ import { useUI } from '@/app/store/ui'
 import { useIsMounted } from '@/lib/useIsMounted'
 import { pushMetaInitiateCheckout } from '@/lib/analytics/datalayer'
 import { usePromo } from '@/lib/usePromo'
-import { resolvePromoCode, calcDiscountUAH } from '@/lib/promo'
-import { useT } from '@/lib/i18n'
+import { resolvePromoCode, calcDiscountUAH, getPromoDiscountPct } from '@/lib/promo'
+import { useLocale, useLocaleNumberFormat, useT } from '@/lib/i18n'
+import {
+  getCartItemUnitPrice,
+  resolveCartDisplayCurrency,
+  sumCartDisplayAmount,
+} from '@/lib/cart-money'
+import { formatLocalizedMoney } from '@/lib/localized-product'
 
 export default function CartDrawer() {
+  const locale = useLocale()
+  const numberLocale = useLocaleNumberFormat()
   const t = useT()
   const cartOpen = useUI((s) => s.cartOpen)
   const closeCart = useUI((s) => s.closeCart)
@@ -35,9 +43,34 @@ export default function CartDrawer() {
     [subtotalUAH, appliedPromoCode],
   )
 
+  const discountPct = useMemo(
+    () => getPromoDiscountPct(appliedPromoCode),
+    [appliedPromoCode],
+  )
+
+  const displayCurrency = useMemo(
+    () => resolveCartDisplayCurrency({ items, locale }),
+    [items, locale],
+  )
+
+  const subtotalDisplay = useMemo(
+    () => sumCartDisplayAmount(items, displayCurrency),
+    [displayCurrency, items],
+  )
+
+  const discountDisplay = useMemo(() => {
+    if (!discountPct) return 0
+    return Math.round((subtotalDisplay * discountPct) / 100)
+  }, [discountPct, subtotalDisplay])
+
   const finalTotalUAH = useMemo(
     () => Math.max(0, subtotalUAH - discountUAH),
     [subtotalUAH, discountUAH],
+  )
+
+  const finalTotalDisplay = useMemo(
+    () => Math.max(0, subtotalDisplay - discountDisplay),
+    [subtotalDisplay, discountDisplay],
   )
 
   // lock body scroll when open
@@ -121,7 +154,11 @@ export default function CartDrawer() {
                         {it.name}
                       </Link>
                       <div className="text-lg md:text-sm mt-1 text-gray-600">
-                        {it.priceUAH} грн
+                        {formatLocalizedMoney(
+                          getCartItemUnitPrice(it, displayCurrency),
+                          displayCurrency,
+                          numberLocale,
+                        )}
                       </div>
                       {it.color && (
                         <div className="text-xs mt-1 text-gray-600">
@@ -215,13 +252,20 @@ export default function CartDrawer() {
 
             {/* Footer */}
             <div className="border-t px-5 py-4 space-y-3 bg-white flex-none">
-              {discountUAH > 0 && (
+              {discountDisplay > 0 && (
                 <div
                   className="flex items-center justify-between text-sm text-gray-600"
                   suppressHydrationWarning
                 >
                   <span>{t('Знижка (промокод)', 'Discount (promo code)')}</span>
-                  <span>- {discountUAH} грн</span>
+                  <span>
+                    -{' '}
+                    {formatLocalizedMoney(
+                      discountDisplay,
+                      displayCurrency,
+                      numberLocale,
+                    )}
+                  </span>
                 </div>
               )}
 
@@ -230,7 +274,13 @@ export default function CartDrawer() {
                 suppressHydrationWarning
               >
                 <span>{t('Разом', 'Total')}:</span>
-                <span className="font-semibold">{finalTotalUAH} грн</span>
+                <span className="font-semibold">
+                  {formatLocalizedMoney(
+                    finalTotalDisplay,
+                    displayCurrency,
+                    numberLocale,
+                  )}
+                </span>
               </div>
 
               <Link

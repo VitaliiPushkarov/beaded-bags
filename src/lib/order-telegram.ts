@@ -1,5 +1,6 @@
 import { prisma } from '@/lib/prisma'
 import { formatCustomerFullName } from '@/lib/orders/customer'
+import { getOrderShippingDetails } from '@/lib/orders/shipping'
 import { toAbsoluteUrl } from '@/lib/site-url'
 
 const TELEGRAM_TIMEOUT_MS = 5000
@@ -33,8 +34,16 @@ type TelegramOrder = {
   shortNumber: number
   totalUAH: number
   paymentMethod: string
-  npCityName: string
-  npWarehouseName: string
+  shippingMethod?: string | null
+  shippingCountryCode?: string | null
+  shippingCountryName?: string | null
+  shippingRegion?: string | null
+  shippingCity?: string | null
+  shippingPostalCode?: string | null
+  shippingAddressLine1?: string | null
+  shippingAddressLine2?: string | null
+  npCityName?: string | null
+  npWarehouseName?: string | null
   customerName: string
   customerSurname: string
   customerPatronymic: string | null
@@ -151,15 +160,18 @@ function buildOrderItemsText(order: TelegramOrder) {
 
 export function buildOrderTelegramMessage(order: TelegramOrder) {
   const itemsText = buildOrderItemsText(order)
+  const shipping = getOrderShippingDetails(order)
+  const shippingText = shipping.fields
+    .map((field) => `\n<b>${escHtml(field.label)}:</b> ${escHtml(field.value)}`)
+    .join('')
 
   return (
     `🛍 <b>Нове замовлення</b>\n` +
     `\n<b>Номер:</b> ${escHtml(shortNumber(order.shortNumber))}` +
     `\n<b>Сума:</b> ${escHtml(formatUAH(order.totalUAH))}` +
     `\n<b>Оплата:</b> ${escHtml(paymentMethodName(order.paymentMethod))}\n` +
-    `\n<b>Доставка:</b> Нова пошта` +
-    `\n<b>Місто:</b> ${escHtml(order.npCityName)}` +
-    `\n<b>Відділення:</b> ${escHtml(order.npWarehouseName)}` +
+    `\n<b>Доставка:</b> ${escHtml(shipping.methodLabel)}` +
+    shippingText +
     `\n<b>Клієнт:</b> ${escHtml(
       formatCustomerFullName({
         name: order.customerName,
@@ -197,7 +209,12 @@ export function buildOrderTelegramPhotoCaption(order: TelegramOrder) {
     patronymic: order.customerPatronymic,
   })
 
-  return `🛍 <b>Нове замовлення #${escHtml(shortNumber(order.shortNumber))}`
+  return (
+    `🛍 <b>Нове замовлення #${escHtml(shortNumber(order.shortNumber))}</b>` +
+    `\n${escHtml(firstItemName)} · ${escHtml(String(totalQty))} шт` +
+    `\n${escHtml(formatUAH(order.totalUAH))}` +
+    `\n${escHtml(customerName)}`
+  )
 }
 
 export function buildOrderTelegramMediaGroups(order: TelegramOrder) {

@@ -9,6 +9,7 @@ import {
 } from '@/lib/management-accounting'
 import { calcDiscountUAH, resolvePromoCode } from '@/lib/promo'
 import { OrderCreateCheckoutBodySchema } from '@/lib/orders/create-order-schema'
+import { resolveCheckoutPaymentMethod } from '@/lib/orders/payment-methods'
 import { sendOrderTelegramNotification } from '@/lib/order-telegram'
 
 function normalizeIdempotencyKey(value: string | undefined): string | null {
@@ -49,8 +50,10 @@ export async function POST(req: NextRequest) {
       )
     }
 
-    // важливо: у схемі paymentMethod обов’язковий
-    const paymentMethod = data.paymentMethod ?? 'LIQPAY'
+    const paymentMethod = resolveCheckoutPaymentMethod(
+      data.paymentMethod,
+      data.shipping.method,
+    )
     const idempotencyKey = normalizeIdempotencyKey(data.idempotencyKey)
 
     if (idempotencyKey) {
@@ -203,6 +206,37 @@ export async function POST(req: NextRequest) {
       })),
     })
 
+    const shippingCreateData =
+      data.shipping.method === 'nova_poshta'
+        ? {
+            shippingMethod: 'NOVA_POSHTA' as const,
+            shippingCountryCode: 'UA',
+            shippingCountryName: 'Ukraine',
+            shippingRegion: null,
+            shippingCity: data.shipping.np.cityName,
+            shippingPostalCode: null,
+            shippingAddressLine1: data.shipping.np.warehouseName,
+            shippingAddressLine2: null,
+            npCityRef: data.shipping.np.cityRef,
+            npCityName: data.shipping.np.cityName,
+            npWarehouseRef: data.shipping.np.warehouseRef,
+            npWarehouseName: data.shipping.np.warehouseName,
+          }
+        : {
+            shippingMethod: 'INTERNATIONAL_ADDRESS' as const,
+            shippingCountryCode: data.shipping.address.countryCode.toUpperCase(),
+            shippingCountryName: data.shipping.address.countryName,
+            shippingRegion: data.shipping.address.region ?? null,
+            shippingCity: data.shipping.address.city,
+            shippingPostalCode: data.shipping.address.postalCode,
+            shippingAddressLine1: data.shipping.address.addressLine1,
+            shippingAddressLine2: data.shipping.address.addressLine2 ?? null,
+            npCityRef: null,
+            npCityName: null,
+            npWarehouseRef: null,
+            npWarehouseName: null,
+          }
+
     let created
     try {
       created = await prisma.order.create({
@@ -221,29 +255,12 @@ export async function POST(req: NextRequest) {
           customerPatronymic: data.customer.patronymic ?? null,
           customerPhone: data.customer.phone,
           customerEmail: data.customer.email ?? null,
-
-          npCityRef: data.shipping.np.cityRef,
-          npCityName: data.shipping.np.cityName,
-          npWarehouseRef: data.shipping.np.warehouseRef,
-          npWarehouseName: data.shipping.np.warehouseName,
+          ...shippingCreateData,
 
           paymentMethod,
           paymentId: null,
           paymentStatus: null,
           checkoutSessionKey: idempotencyKey,
-
-          customer: data.customer.phone
-            ? {
-                connectOrCreate: {
-                  where: { phone: data.customer.phone },
-                  create: {
-                    name: `${data.customer.name} ${data.customer.surname}`.trim(),
-                    phone: data.customer.phone,
-                    email: data.customer.email ?? null,
-                  },
-                },
-              }
-            : undefined,
 
           items: {
             create: data.items.map((it, index) => ({

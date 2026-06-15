@@ -270,21 +270,6 @@ export default async function AdminOrdersPage() {
       return Number.isNaN(value.getTime()) ? new Date() : value
     })()
 
-    const customerRelation = parsed.data.customerPhone?.trim()
-      ? {
-          customer: {
-            connectOrCreate: {
-              where: { phone: parsed.data.customerPhone.trim() },
-              create: {
-                name: `${parsed.data.customerName} ${parsed.data.customerSurname}`.trim(),
-                phone: parsed.data.customerPhone.trim(),
-                email: null,
-              },
-            },
-          },
-        }
-      : {}
-
     await prisma.order.create({
       data: {
         createdAt,
@@ -301,6 +286,14 @@ export default async function AdminOrdersPage() {
         customerPatronymic: null,
         customerPhone,
         customerEmail: null,
+        shippingMethod: 'NOVA_POSHTA',
+        shippingCountryCode: 'UA',
+        shippingCountryName: 'Ukraine',
+        shippingRegion: null,
+        shippingCity: 'Ручне замовлення',
+        shippingPostalCode: null,
+        shippingAddressLine1: sourceLabel,
+        shippingAddressLine2: null,
         npCityRef: 'manual-city',
         npCityName: 'Ручне замовлення',
         npWarehouseRef: 'manual-point',
@@ -315,7 +308,6 @@ export default async function AdminOrdersPage() {
             unitPriceUAH: item.priceUAH,
           })),
         },
-        ...customerRelation,
         items: {
           create: items.map((item, index) => {
             const details = buildVariantSelectionLabel({

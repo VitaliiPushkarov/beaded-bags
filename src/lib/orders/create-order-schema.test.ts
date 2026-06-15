@@ -12,15 +12,28 @@ type CheckoutPayloadFixture = {
     phone: string
     email: string
   }
-  shipping: {
-    method: 'nova_poshta'
-    np: {
-      cityRef: string
-      cityName: string
-      warehouseRef: string
-      warehouseName: string
-    }
-  }
+  shipping:
+    | {
+        method: 'nova_poshta'
+        np: {
+          cityRef: string
+          cityName: string
+          warehouseRef: string
+          warehouseName: string
+        }
+      }
+    | {
+        method: 'international_address'
+        address: {
+          countryCode: string
+          countryName: string
+          city: string
+          region?: string
+          postalCode: string
+          addressLine1: string
+          addressLine2?: string
+        }
+      }
   items: Array<{
     productId: string
     variantId: string
@@ -88,6 +101,26 @@ test('OrderCreateCheckoutBodySchema accepts legacy checkout payload with patrony
 test('OrderCreateCheckoutBodySchema accepts idempotencyKey', () => {
   const payload = buildValidCheckoutPayload()
   payload.idempotencyKey = 'checkout-attempt-1'
+
+  const parsed = OrderCreateCheckoutBodySchema.safeParse(payload)
+  assert.equal(parsed.success, true)
+})
+
+test('OrderCreateCheckoutBodySchema accepts international shipping payload', () => {
+  const payload = buildValidCheckoutPayload()
+  payload.customer.phone = '+48501112233'
+  payload.shipping = {
+    method: 'international_address',
+    address: {
+      countryCode: 'PL',
+      countryName: 'Poland',
+      city: 'Warsaw',
+      region: 'Mazowieckie',
+      postalCode: '00-001',
+      addressLine1: 'Marszalkowska 10',
+      addressLine2: 'Apt 5',
+    },
+  }
 
   const parsed = OrderCreateCheckoutBodySchema.safeParse(payload)
   assert.equal(parsed.success, true)

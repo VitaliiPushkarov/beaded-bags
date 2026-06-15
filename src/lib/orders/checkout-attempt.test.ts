@@ -8,6 +8,7 @@ test('buildCheckoutAttemptFingerprint is stable for equivalent payloads', () => 
     amountUAH: 2500,
     paymentMethod: 'LIQPAY',
     customerPhone: '380501112233',
+    shippingMethod: 'nova_poshta',
     cityRef: 'city-ref',
     warehouseRef: 'warehouse-ref',
     promoCode: 'WELCOME',
@@ -30,6 +31,7 @@ test('buildCheckoutAttemptFingerprint is stable for equivalent payloads', () => 
     amountUAH: 2500,
     paymentMethod: 'LIQPAY',
     customerPhone: '380501112233',
+    shippingMethod: 'nova_poshta',
     cityRef: 'city-ref',
     warehouseRef: 'warehouse-ref',
     promoCode: 'WELCOME',
@@ -56,6 +58,7 @@ test('buildCheckoutAttemptFingerprint changes when checkout payload changes', ()
     amountUAH: 2500,
     paymentMethod: 'LIQPAY',
     customerPhone: '380501112233',
+    shippingMethod: 'nova_poshta',
     cityRef: 'city-ref',
     warehouseRef: 'warehouse-ref',
     items: [
@@ -72,6 +75,7 @@ test('buildCheckoutAttemptFingerprint changes when checkout payload changes', ()
     amountUAH: 5000,
     paymentMethod: 'LIQPAY',
     customerPhone: '380501112233',
+    shippingMethod: 'nova_poshta',
     cityRef: 'city-ref',
     warehouseRef: 'warehouse-ref',
     items: [
@@ -79,6 +83,46 @@ test('buildCheckoutAttemptFingerprint changes when checkout payload changes', ()
         productId: 'product-1',
         variantId: 'variant-1',
         qty: 2,
+        priceUAH: 2500,
+      },
+    ],
+  })
+
+  assert.notEqual(first, second)
+})
+
+test('buildCheckoutAttemptFingerprint changes when shipping method changes', () => {
+  const first = buildCheckoutAttemptFingerprint({
+    amountUAH: 2500,
+    paymentMethod: 'LIQPAY',
+    customerPhone: '+48501112233',
+    shippingMethod: 'international_address',
+    shippingCountryCode: 'PL',
+    shippingCity: 'Warsaw',
+    shippingPostalCode: '00-001',
+    shippingAddressLine1: 'Marszalkowska 10',
+    items: [
+      {
+        productId: 'product-1',
+        variantId: 'variant-1',
+        qty: 1,
+        priceUAH: 2500,
+      },
+    ],
+  })
+
+  const second = buildCheckoutAttemptFingerprint({
+    amountUAH: 2500,
+    paymentMethod: 'LIQPAY',
+    customerPhone: '+48501112233',
+    shippingMethod: 'nova_poshta',
+    cityRef: 'city-ref',
+    warehouseRef: 'warehouse-ref',
+    items: [
+      {
+        productId: 'product-1',
+        variantId: 'variant-1',
+        qty: 1,
         priceUAH: 2500,
       },
     ],

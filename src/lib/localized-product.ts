@@ -19,6 +19,25 @@ function normalizeMoneyAmount(value: number | null | undefined): number | null {
   return Math.max(0, Math.round(value))
 }
 
+export function convertOptionPriceFromUAH(input: {
+  extraPriceUAH?: number | null
+  targetCurrency: MoneyCurrency
+  referencePriceUAH?: number | null
+  referencePriceUSD?: number | null
+}): number | null {
+  const amountUAH = normalizeMoneyAmount(input.extraPriceUAH)
+  if (amountUAH == null) return null
+  if (input.targetCurrency === 'UAH') return amountUAH
+
+  const referencePriceUAH = normalizeMoneyAmount(input.referencePriceUAH)
+  const referencePriceUSD = normalizeMoneyAmount(input.referencePriceUSD)
+
+  if (referencePriceUAH == null || referencePriceUAH <= 0) return null
+  if (referencePriceUSD == null) return null
+
+  return Math.max(0, Math.round((amountUAH * referencePriceUSD) / referencePriceUAH))
+}
+
 export function pickLocalizedText(
   ukText: string | null | undefined,
   enText: string | null | undefined,

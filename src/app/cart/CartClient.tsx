@@ -11,7 +11,13 @@ import {
   emitPromoChanged,
   calcDiscountUAH,
 } from '@/lib/promo'
-import { useT } from '@/lib/i18n'
+import { useLocale, useLocaleNumberFormat, useT } from '@/lib/i18n'
+import {
+  getCartItemUnitPrice,
+  resolveCartDisplayCurrency,
+  sumCartDisplayAmount,
+} from '@/lib/cart-money'
+import { formatLocalizedMoney } from '@/lib/localized-product'
 
 function QtyBox({
   onDec,
@@ -59,6 +65,8 @@ const useCartRemove = () => useCart((s) => s.remove)
 const useCartTotal = () => useCart((s) => s.total)
 
 export default function CartPage() {
+  const locale = useLocale()
+  const numberLocale = useLocaleNumberFormat()
   const t = useT()
   const items = useCartItems()
   const setQty = useCartSetQty()
@@ -97,9 +105,28 @@ export default function CartPage() {
     return getPromoDiscountPct(appliedPromoCode)
   }, [appliedPromoCode])
 
+  const displayCurrency = useMemo(
+    () => resolveCartDisplayCurrency({ items, locale }),
+    [items, locale],
+  )
+
+  const subtotalDisplay = useMemo(
+    () => sumCartDisplayAmount(items, displayCurrency),
+    [displayCurrency, items],
+  )
+
+  const discountDisplay = useMemo(() => {
+    if (!discountPct) return 0
+    return Math.round((subtotalDisplay * discountPct) / 100)
+  }, [discountPct, subtotalDisplay])
+
   const finalTotalUAH = useMemo(() => {
     return Math.max(0, subtotalUAH - discountUAH)
   }, [subtotalUAH, discountUAH])
+
+  const finalTotalDisplay = useMemo(() => {
+    return Math.max(0, subtotalDisplay - discountDisplay)
+  }, [subtotalDisplay, discountDisplay])
 
   const applyPromo = () => {
     setPromoTouched(true)
@@ -140,7 +167,18 @@ export default function CartPage() {
           {/* рядки */}
           <div className="divide-y">
             {items.map((it) => {
-              const line = it.priceUAH * it.qty
+              const unitPrice = getCartItemUnitPrice(it, displayCurrency)
+              const line = unitPrice * it.qty
+              const unitPriceLabel = formatLocalizedMoney(
+                unitPrice,
+                displayCurrency,
+                numberLocale,
+              )
+              const linePriceLabel = formatLocalizedMoney(
+                line,
+                displayCurrency,
+                numberLocale,
+              )
               return (
                 <div
                   key={`${it.productId}-${it.variantId}-${it.strapId ?? ''}-${it.sizeId ?? ''}-${it.pouchId ?? ''}`}
@@ -205,7 +243,7 @@ export default function CartPage() {
 
                   {/* Ціна */}
                   <div className="lg:text-center text-xl">
-                    {it.priceUAH} грн
+                    {unitPriceLabel}
                   </div>
 
                   {/* Кількість */}
@@ -250,7 +288,7 @@ export default function CartPage() {
 
                   {/* Разом */}
                   <div className="lg:text-right text-xl font-medium">
-                    {line} грн
+                    {linePriceLabel}
                   </div>
                 </div>
               )
@@ -266,15 +304,23 @@ export default function CartPage() {
 
           <div className="flex items-center justify-between text-lg">
             <span>{t('Вартість замовлення', 'Subtotal')}</span>
-            <span className="font-semibold">{subtotalUAH} грн</span>
+            <span className="font-semibold">
+              {formatLocalizedMoney(subtotalDisplay, displayCurrency, numberLocale)}
+            </span>
           </div>
 
-          {isPromoApplied && discountUAH > 0 && (
+          {isPromoApplied && discountDisplay > 0 && (
             <div className="flex items-center justify-between text-lg">
               <span className="text-gray-700">
                 {t('Знижка', 'Discount')} ({discountPct}%)
               </span>
-              <span className="font-semibold">−{discountUAH} грн</span>
+              <span className="font-semibold">
+                −{formatLocalizedMoney(
+                  discountDisplay,
+                  displayCurrency,
+                  numberLocale,
+                )}
+              </span>
             </div>
           )}
 
@@ -339,7 +385,13 @@ export default function CartPage() {
 
           <div className="flex items-center justify-between text-xl pt-2">
             <span className="uppercase tracking-wide">{t('Разом', 'Total')}</span>
-            <span className="font-semibold">{finalTotalUAH} грн</span>
+            <span className="font-semibold">
+              {formatLocalizedMoney(
+                finalTotalDisplay,
+                displayCurrency,
+                numberLocale,
+              )}
+            </span>
           </div>
           <div className="w-full">
             <Link

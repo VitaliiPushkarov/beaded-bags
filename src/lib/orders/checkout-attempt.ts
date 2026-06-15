@@ -22,16 +22,30 @@ export function buildCheckoutAttemptFingerprint(args: {
   amountUAH: number
   paymentMethod: 'LIQPAY' | 'BANK_TRANSFER'
   customerPhone: string
+  shippingMethod?: 'nova_poshta' | 'international_address'
   cityRef?: string
   warehouseRef?: string
+  shippingCountryCode?: string
+  shippingCity?: string
+  shippingRegion?: string
+  shippingPostalCode?: string
+  shippingAddressLine1?: string
+  shippingAddressLine2?: string
   promoCode?: string | null
 }) {
   return JSON.stringify({
     amountUAH: Math.round(Number(args.amountUAH) || 0),
     paymentMethod: args.paymentMethod,
     customerPhone: String(args.customerPhone ?? '').trim(),
+    shippingMethod: String(args.shippingMethod ?? '').trim(),
     cityRef: String(args.cityRef ?? '').trim(),
     warehouseRef: String(args.warehouseRef ?? '').trim(),
+    shippingCountryCode: String(args.shippingCountryCode ?? '').trim(),
+    shippingCity: String(args.shippingCity ?? '').trim(),
+    shippingRegion: String(args.shippingRegion ?? '').trim(),
+    shippingPostalCode: String(args.shippingPostalCode ?? '').trim(),
+    shippingAddressLine1: String(args.shippingAddressLine1 ?? '').trim(),
+    shippingAddressLine2: String(args.shippingAddressLine2 ?? '').trim(),
     promoCode: String(args.promoCode ?? '').trim(),
     items: args.items.map((item) => ({
       productId: String(item.productId ?? ''),

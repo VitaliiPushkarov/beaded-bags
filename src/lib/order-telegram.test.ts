@@ -9,12 +9,48 @@ import {
   resolveOrderTelegramPreviewImages,
 } from './order-telegram'
 
-function buildOrderFixture() {
+type OrderFixture = {
+  id: string
+  shortNumber: number
+  totalUAH: number
+  paymentMethod: string
+  shippingMethod: string
+  shippingCountryCode: string
+  shippingCountryName: string
+  shippingRegion?: string | null
+  shippingCity?: string | null
+  shippingPostalCode?: string | null
+  shippingAddressLine1?: string | null
+  shippingAddressLine2?: string | null
+  npCityName: string | null
+  npWarehouseName: string | null
+  customerName: string
+  customerSurname: string
+  customerPatronymic: string | null
+  customerPhone: string
+  customerEmail: string
+  items: Array<{
+    name: string
+    color: string | null
+    modelSize: string | null
+    pouchColor: string | null
+    strapName: string | null
+    priceUAH: number
+    qty: number
+    image: string
+    addons: Array<{ name: string }>
+  }>
+}
+
+function buildOrderFixture(): OrderFixture {
   return {
     id: 'order-1',
     shortNumber: 123,
     totalUAH: 4200,
     paymentMethod: 'LIQPAY',
+    shippingMethod: 'NOVA_POSHTA',
+    shippingCountryCode: 'UA',
+    shippingCountryName: 'Ukraine',
     npCityName: 'Київ',
     npWarehouseName: 'Відділення 1',
     customerName: 'Марія',
@@ -87,6 +123,27 @@ test('buildOrderTelegramMessage escapes html-sensitive customer and item fields'
 
   assert.match(message, /Марія &lt;script&gt; Іваненко/)
   assert.match(message, /Bag &amp; Chain/)
+})
+
+test('buildOrderTelegramMessage renders international shipping details', () => {
+  const order = buildOrderFixture()
+  order.shippingMethod = 'INTERNATIONAL_ADDRESS'
+  order.shippingCountryCode = 'PL'
+  order.shippingCountryName = 'Poland'
+  order.shippingRegion = 'Mazowieckie'
+  order.shippingCity = 'Warsaw'
+  order.shippingPostalCode = '00-001'
+  order.shippingAddressLine1 = 'Marszalkowska 10'
+  order.shippingAddressLine2 = 'Apt 5'
+  order.npCityName = null
+  order.npWarehouseName = null
+
+  const message = buildOrderTelegramMessage(order)
+
+  assert.match(message, /Міжнародна доставка/)
+  assert.match(message, /Польща/)
+  assert.match(message, /00-001 Warsaw/)
+  assert.match(message, /Marszalkowska 10/)
 })
 
 test('buildOrderTelegramMediaGroups chunks images and adds caption only to first album item', () => {

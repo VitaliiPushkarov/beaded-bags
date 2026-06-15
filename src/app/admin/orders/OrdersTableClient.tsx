@@ -12,6 +12,7 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table'
+import { getOrderShippingDetails } from '@/lib/orders/shipping'
 
 type Props = {
   orders: Order[]
@@ -33,26 +34,8 @@ const STATUS_STYLES: Record<OrderStatus, string> = {
   FULFILLED: 'bg-gray-50 border-gray-300 text-gray-700',
 }
 
-function getNovaPoshtaAddress(o: Order): string {
-  const a = o as any
-
-  const cityName = a.npCityName || ''
-  const warehouseRaw = a.npWarehouseName || ''
-  const warehouseName = String(warehouseRaw).trim()
-  const isLegacyManualSourceInWarehouse =
-    cityName === 'Ручне замовлення' &&
-    ['MESSENGER', 'FAIR', 'SHOWROOM', 'OTHER'].includes(
-      warehouseName.toUpperCase(),
-    )
-
-  const parts = [
-    cityName && String(cityName).trim(),
-    !isLegacyManualSourceInWarehouse &&
-      warehouseName &&
-      `Відділення: ${warehouseName}`,
-  ].filter(Boolean)
-
-  return parts.length ? parts.join(', ') : '—'
+function getShippingSummary(o: Order): string {
+  return getOrderShippingDetails(o as any).summary
 }
 
 type NormalizedOrderItem = {
@@ -196,9 +179,9 @@ export default function OrdersTableClient({ orders }: Props) {
               </div>
 
               <div className="mt-3 text-sm">
-                <div className="text-xs text-gray-500">Адреса НП</div>
+                <div className="text-xs text-gray-500">Доставка</div>
                 <div className="wrap-break-word text-gray-800">
-                  {getNovaPoshtaAddress(o)}
+                  {getShippingSummary(o)}
                 </div>
               </div>
 
@@ -280,7 +263,7 @@ export default function OrdersTableClient({ orders }: Props) {
               <TableHead>ID</TableHead>
               <TableHead>Клієнт</TableHead>
               <TableHead>Телефон</TableHead>
-              <TableHead>Адреса НП</TableHead>
+              <TableHead>Доставка</TableHead>
               <TableHead>Замовлення</TableHead>
               <TableHead className="text-right">Сума</TableHead>
               <TableHead>Статус</TableHead>
@@ -296,7 +279,7 @@ export default function OrdersTableClient({ orders }: Props) {
                 </TableCell>
                 <TableCell>{o.customerPhone}</TableCell>
                 <TableCell className="max-w-[280px] whitespace-normal wrap-break-word">
-                  {getNovaPoshtaAddress(o)}
+                  {getShippingSummary(o)}
                 </TableCell>
                 <TableCell className="max-w-[520px] whitespace-normal wrap-break-word">
                   {(() => {

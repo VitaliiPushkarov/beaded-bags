@@ -312,34 +312,42 @@ model Customer {
 }
 
 model Order {
-  id                 String        @id @default(cuid())
-  status             OrderStatus   @default(PENDING)
-  createdAt          DateTime      @default(now())
-  subtotalUAH        Int
-  deliveryUAH        Int           @default(0)
-  discountUAH        Int           @default(0)
-  totalUAH           Int
-  customerName       String
-  customerSurname    String
-  customerPatronymic String?
-  customerPhone      String
-  customerEmail      String?
-  npCityRef          String
-  npCityName         String
-  npWarehouseRef     String
-  npWarehouseName    String
-  paymentMethod      PaymentMethod
-  paymentId          String?
-  paymentStatus      String?
-  paymentRaw         Json?
-  checkoutSessionKey String?       @unique
-  customerId         String?
-  shortNumber        Int           @unique @default(autoincrement())
-  grossProfitUAH     Int           @default(0)
-  itemsCostUAH       Int           @default(0)
-  paymentFeeUAH      Int           @default(0)
-  customer           Customer?     @relation(fields: [customerId], references: [id])
-  items              OrderItem[]
+  id                   String         @id @default(cuid())
+  status               OrderStatus    @default(PENDING)
+  createdAt            DateTime       @default(now())
+  subtotalUAH          Int
+  deliveryUAH          Int            @default(0)
+  discountUAH          Int            @default(0)
+  totalUAH             Int
+  customerName         String
+  customerSurname      String
+  customerPatronymic   String?
+  customerPhone        String
+  customerEmail        String?
+  shippingMethod       ShippingMethod @default(NOVA_POSHTA)
+  shippingCountryCode  String?
+  shippingCountryName  String?
+  shippingRegion       String?
+  shippingCity         String?
+  shippingPostalCode   String?
+  shippingAddressLine1 String?
+  shippingAddressLine2 String?
+  npCityRef            String?
+  npCityName           String?
+  npWarehouseRef       String?
+  npWarehouseName      String?
+  paymentMethod        PaymentMethod
+  paymentId            String?
+  paymentStatus        String?
+  paymentRaw           Json?
+  checkoutSessionKey   String?        @unique
+  customerId           String?
+  shortNumber          Int            @unique @default(autoincrement())
+  grossProfitUAH       Int            @default(0)
+  itemsCostUAH         Int            @default(0)
+  paymentFeeUAH        Int            @default(0)
+  customer             Customer?      @relation(fields: [customerId], references: [id])
+  items                OrderItem[]
 
   @@index([status, createdAt])
   @@index([customerPhone])
@@ -415,29 +423,29 @@ model PurchaseItem {
 }
 
 model Expense {
-  id                 String              @id @default(cuid())
+  id                 String                      @id @default(cuid())
   title              String
   category           ExpenseCategory
   amountUAH          Int
   expenseDate        DateTime
   notes              String?
-  createdAt          DateTime            @default(now())
-  updatedAt          DateTime            @updatedAt
-  artisanProductions ArtisanProduction[] @relation("ArtisanProductionPaidExpense")
-  adminProductions   AdminProduction[]   @relation("AdminProductionPaidExpense")
+  createdAt          DateTime                    @default(now())
+  updatedAt          DateTime                    @updatedAt
+  artisanProductions ArtisanProduction[]         @relation("ArtisanProductionPaidExpense")
+  adminProductions   AdminProduction[]           @relation("AdminProductionPaidExpense")
   adminSettlements   AdminProductionSettlement[] @relation("AdminProductionSettlementExpense")
 
   @@index([expenseDate, category])
 }
 
 model Artisan {
-  id               String               @id @default(cuid())
+  id               String              @id @default(cuid())
   name             String
   phone            String?
-  isActive         Boolean              @default(true)
+  isActive         Boolean             @default(true)
   notes            String?
-  createdAt        DateTime             @default(now())
-  updatedAt        DateTime             @updatedAt
+  createdAt        DateTime            @default(now())
+  updatedAt        DateTime            @updatedAt
   rates            ArtisanRate[]
   productions      ArtisanProduction[]
   adminProductions AdminProduction[]
@@ -465,28 +473,28 @@ model ArtisanRate {
 }
 
 model ArtisanProduction {
-  id                       String                  @id @default(cuid())
-  artisanId                String
-  productId                String
-  variantId                String
-  rateId                   String?
-  qty                      Int
-  ratePerUnitSnapshotUAH   Int
-  totalLaborUAH            Int
-  settledAmountUAH         Int                     @default(0)
-  producedAt               DateTime                @default(now())
-  status                   ArtisanProductionStatus @default(SUBMITTED)
-  notes                    String?
-  approvedAt               DateTime?
-  paidAt                   DateTime?
-  paidExpenseId            String?
-  createdAt                DateTime                @default(now())
-  updatedAt                DateTime                @updatedAt
-  artisan                  Artisan                 @relation(fields: [artisanId], references: [id], onDelete: Cascade)
-  product                  Product                 @relation(fields: [productId], references: [id], onDelete: Cascade)
-  variant                  ProductVariant          @relation(fields: [variantId], references: [id], onDelete: Cascade)
-  rate                     ArtisanRate?            @relation(fields: [rateId], references: [id], onDelete: SetNull)
-  paidExpense              Expense?                @relation("ArtisanProductionPaidExpense", fields: [paidExpenseId], references: [id], onDelete: SetNull)
+  id                     String                  @id @default(cuid())
+  artisanId              String
+  productId              String
+  variantId              String
+  rateId                 String?
+  qty                    Int
+  ratePerUnitSnapshotUAH Int
+  totalLaborUAH          Int
+  settledAmountUAH       Int                     @default(0)
+  producedAt             DateTime                @default(now())
+  status                 ArtisanProductionStatus @default(SUBMITTED)
+  notes                  String?
+  approvedAt             DateTime?
+  paidAt                 DateTime?
+  paidExpenseId          String?
+  createdAt              DateTime                @default(now())
+  updatedAt              DateTime                @updatedAt
+  artisan                Artisan                 @relation(fields: [artisanId], references: [id], onDelete: Cascade)
+  product                Product                 @relation(fields: [productId], references: [id], onDelete: Cascade)
+  variant                ProductVariant          @relation(fields: [variantId], references: [id], onDelete: Cascade)
+  rate                   ArtisanRate?            @relation(fields: [rateId], references: [id], onDelete: SetNull)
+  paidExpense            Expense?                @relation("ArtisanProductionPaidExpense", fields: [paidExpenseId], references: [id], onDelete: SetNull)
 
   @@index([artisanId, producedAt])
   @@index([productId, producedAt])
@@ -497,28 +505,28 @@ model ArtisanProduction {
 }
 
 model AdminProduction {
-  id                String                  @id @default(cuid())
-  artisanId         String
-  itemType          AdminProductionItemType @default(CATALOG_VARIANT)
-  productId         String?
-  variantId         String?
-  customItemName    String?
-  qty               Int
-  ratePerUnitUAH    Int
-  totalLaborUAH     Int
-  settledAmountUAH  Int                     @default(0)
-  producedAt        DateTime                @default(now())
-  status            ArtisanProductionStatus @default(SUBMITTED)
-  notes             String?
-  paidAt            DateTime?
-  paidExpenseId     String?
-  createdAt         DateTime                @default(now())
-  updatedAt         DateTime                @updatedAt
-  artisan           Artisan                 @relation(fields: [artisanId], references: [id], onDelete: Cascade)
-  product           Product?                @relation(fields: [productId], references: [id], onDelete: SetNull)
-  variant           ProductVariant?         @relation(fields: [variantId], references: [id], onDelete: SetNull)
-  paidExpense       Expense?                @relation("AdminProductionPaidExpense", fields: [paidExpenseId], references: [id], onDelete: SetNull)
-  settlements       AdminProductionSettlement[]
+  id               String                      @id @default(cuid())
+  artisanId        String
+  itemType         AdminProductionItemType     @default(CATALOG_VARIANT)
+  productId        String?
+  variantId        String?
+  customItemName   String?
+  qty              Int
+  ratePerUnitUAH   Int
+  totalLaborUAH    Int
+  settledAmountUAH Int                         @default(0)
+  producedAt       DateTime                    @default(now())
+  status           ArtisanProductionStatus     @default(SUBMITTED)
+  notes            String?
+  paidAt           DateTime?
+  paidExpenseId    String?
+  createdAt        DateTime                    @default(now())
+  updatedAt        DateTime                    @updatedAt
+  artisan          Artisan                     @relation(fields: [artisanId], references: [id], onDelete: Cascade)
+  product          Product?                    @relation(fields: [productId], references: [id], onDelete: SetNull)
+  variant          ProductVariant?             @relation(fields: [variantId], references: [id], onDelete: SetNull)
+  paidExpense      Expense?                    @relation("AdminProductionPaidExpense", fields: [paidExpenseId], references: [id], onDelete: SetNull)
+  settlements      AdminProductionSettlement[]
 
   @@index([artisanId, producedAt])
   @@index([itemType, producedAt])
@@ -529,15 +537,15 @@ model AdminProduction {
 }
 
 model AdminProductionSettlement {
-  id                String          @id @default(cuid())
-  productionId      String
-  amountUAH         Int
-  settledAt         DateTime        @default(now())
-  note              String?
-  expenseId         String?
-  createdAt         DateTime        @default(now())
-  production        AdminProduction @relation(fields: [productionId], references: [id], onDelete: Cascade)
-  expense           Expense?        @relation("AdminProductionSettlementExpense", fields: [expenseId], references: [id], onDelete: SetNull)
+  id           String          @id @default(cuid())
+  productionId String
+  amountUAH    Int
+  settledAt    DateTime        @default(now())
+  note         String?
+  expenseId    String?
+  createdAt    DateTime        @default(now())
+  production   AdminProduction @relation(fields: [productionId], references: [id], onDelete: Cascade)
+  expense      Expense?        @relation("AdminProductionSettlementExpense", fields: [expenseId], references: [id], onDelete: SetNull)
 
   @@index([productionId, settledAt])
   @@index([expenseId])
@@ -582,17 +590,17 @@ model BlogPost {
 }
 
 model HomeHeroBannerSettings {
-  id            Int      @id @default(1)
-  desktopImage  String
-  mobileImage   String
-  linkHref      String   @default("/shop")
-  desktopAlt    String   @default("Gerdan Hero")
-  mobileAlt     String   @default("Gerdan Hero Mobile")
-  slides        Json
-  heroImages    Json?
+  id             Int      @id @default(1)
+  desktopImage   String
+  mobileImage    String
+  linkHref       String   @default("/shop")
+  desktopAlt     String   @default("Gerdan Hero")
+  mobileAlt      String   @default("Gerdan Hero Mobile")
+  slides         Json
+  heroImages     Json?
   instagramPosts Json?
-  createdAt     DateTime @default(now())
-  updatedAt     DateTime @updatedAt
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
 }
 
 model Collection {
@@ -676,6 +684,11 @@ enum PaymentMethod {
   COD
   BANK_TRANSFER
   WAYFORPAY
+}
+
+enum ShippingMethod {
+  NOVA_POSHTA
+  INTERNATIONAL_ADDRESS
 }
 
 enum ExpenseCategory {

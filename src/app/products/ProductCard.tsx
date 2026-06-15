@@ -59,6 +59,15 @@ export default function ProductCard({ product }: ProductCardProps) {
     discountPercent: firstVariant?.discountPercent,
     discountUAH: firstVariant?.discountUAH ?? 0,
   })
+  const usdPricingForCart = calcLocalizedDiscountedPrice({
+    locale: 'en',
+    priceUAH: firstVariant?.priceUAH ?? product.basePriceUAH ?? 0,
+    priceUSD: (firstVariant as any)?.priceUSD ?? product.basePriceUSD ?? null,
+    discountPercent: firstVariant?.discountPercent,
+    discountUAH: firstVariant?.discountUAH ?? 0,
+  })
+  const finalPriceUSDForCart =
+    usdPricingForCart.currency === 'USD' ? usdPricingForCart.finalPrice : null
   const finalPriceLabel = formatLocalizedMoney(finalPrice, currency, numberLocale)
   const basePriceLabel = formatLocalizedMoney(basePrice, currency, numberLocale)
   const productName = pickLocalizedText(product.name, product.nameEn, locale)
@@ -126,6 +135,7 @@ export default function ProductCard({ product }: ProductCardProps) {
               modelSize: null,
               pouchColor: null,
               priceUAH: finalPriceUAHForCart,
+              priceUSD: finalPriceUSDForCart,
               image: img,
               qty: 1,
               slug: product.slug,

@@ -13,6 +13,7 @@ import { AddonsSection } from './AddonsSection'
 import type { ProductWithVariants } from './productTypes'
 import {
   calcLocalizedDiscountedPrice,
+  convertOptionPriceFromUAH,
   formatLocalizedMoney,
   pickLocalizedText,
 } from '@/lib/localized-product'
@@ -589,31 +590,82 @@ export function ProductInteractive({ p }: { p: ProductWithVariants }) {
   })
   const variantInStock = isInStockStatus(availabilityStatus)
   const variantPreorder = isPreorderStatus(availabilityStatus)
+  const referencePriceUAH = v?.priceUAH ?? p.basePriceUAH ?? 0
+  const referencePriceUSD = (v as any)?.priceUSD ?? (p as any).basePriceUSD ?? null
 
   const { basePrice, finalPrice, hasDiscount, discountPercent, currency } =
     calcLocalizedDiscountedPrice({
       locale,
-      priceUAH: v?.priceUAH ?? p.basePriceUAH ?? 0,
-      priceUSD: (v as any)?.priceUSD ?? (p as any).basePriceUSD ?? null,
+      priceUAH: referencePriceUAH,
+      priceUSD: referencePriceUSD,
       discountPercent: v?.discountPercent,
       discountUAH: v?.discountUAH ?? 0,
     })
   const { basePrice: basePriceUAH, finalPrice: finalPriceUAH } =
     calcLocalizedDiscountedPrice({
       locale: 'uk',
-      priceUAH: v?.priceUAH ?? p.basePriceUAH ?? 0,
+      priceUAH: referencePriceUAH,
       discountPercent: v?.discountPercent,
       discountUAH: v?.discountUAH ?? 0,
     })
+  const usdPricing = calcLocalizedDiscountedPrice({
+    locale: 'en',
+    priceUAH: referencePriceUAH,
+    priceUSD: referencePriceUSD,
+    discountPercent: v?.discountPercent,
+    discountUAH: v?.discountUAH ?? 0,
+  })
 
   const extraTotalUAH =
     selectedSizeExtraPriceUAH +
     selectedPouchExtraPriceUAH +
     selectedStrapExtraPriceUAH
+  const selectedSizeExtraPriceUSD =
+    convertOptionPriceFromUAH({
+      extraPriceUAH: selectedSize?.extraPriceUAH,
+      targetCurrency: 'USD',
+      referencePriceUAH,
+      referencePriceUSD,
+    }) ?? 0
+  const selectedPouchExtraPriceUSD =
+    convertOptionPriceFromUAH({
+      extraPriceUAH: selectedPouch?.extraPriceUAH,
+      targetCurrency: 'USD',
+      referencePriceUAH,
+      referencePriceUSD,
+    }) ?? 0
+  const selectedStrapExtraPriceUSD =
+    convertOptionPriceFromUAH({
+      extraPriceUAH: selectedStrap?.extraPriceUAH,
+      targetCurrency: 'USD',
+      referencePriceUAH,
+      referencePriceUSD,
+    }) ?? 0
+  const extraTotalUSD =
+    selectedSizeExtraPriceUSD +
+    selectedPouchExtraPriceUSD +
+    selectedStrapExtraPriceUSD
 
-  const basePriceWithOptions = basePrice + extraTotalUAH
-  const finalPriceWithOptions = finalPrice + extraTotalUAH
+  const basePriceWithOptionsUAH = basePriceUAH + extraTotalUAH
   const finalPriceWithOptionsUAH = finalPriceUAH + extraTotalUAH
+  const basePriceWithOptionsUSD =
+    usdPricing.currency === 'USD'
+      ? usdPricing.basePrice + extraTotalUSD
+      : null
+  const finalPriceWithOptionsUSD =
+    usdPricing.currency === 'USD'
+      ? usdPricing.finalPrice + extraTotalUSD
+      : null
+  const basePriceWithOptions =
+    currency === 'USD'
+      ? (basePriceWithOptionsUSD ?? basePriceWithOptionsUAH)
+      : basePriceWithOptionsUAH
+  const finalPriceWithOptions =
+    currency === 'USD'
+      ? (finalPriceWithOptionsUSD ?? finalPriceWithOptionsUAH)
+      : finalPriceWithOptionsUAH
+  const finalPriceUSDForCart =
+    usdPricing.currency === 'USD' ? finalPriceWithOptionsUSD : null
   const finalPriceLabel = formatLocalizedMoney(
     finalPriceWithOptions,
     currency,
@@ -638,7 +690,16 @@ export function ProductInteractive({ p }: { p: ProductWithVariants }) {
     (v as any)?.colorEn,
     locale,
   )
-  const optionPriceUnitLabel = currency === 'USD' ? 'USD' : t('грн', 'UAH')
+  const formatOptionExtraLabel = (extraPriceUAH: number | null | undefined) => {
+    const extra = convertOptionPriceFromUAH({
+      extraPriceUAH,
+      targetCurrency: currency,
+      referencePriceUAH,
+      referencePriceUSD,
+    })
+    if (!extra) return ''
+    return ` (+${formatLocalizedMoney(extra, currency, numberLocale)})`
+  }
 
   const selectedColorLabel = colorOptions.find(
     (option) => option.key === selectedColorKey,
@@ -844,6 +905,7 @@ export function ProductInteractive({ p }: { p: ProductWithVariants }) {
       modelSize: selectedSize?.size ?? null,
       pouchColor: selectedPouch?.color ?? null,
       priceUAH: finalPriceWithOptionsUAH,
+      priceUSD: finalPriceUSDForCart,
       image: galleryImages[0],
       qty: 1,
       slug: p.slug,
@@ -868,6 +930,16 @@ export function ProductInteractive({ p }: { p: ProductWithVariants }) {
         locale,
       )
       const name = `${addonName}${addonColor ? ` — ${addonColor}` : ''}`
+      const addonUsdPricing = calcLocalizedDiscountedPrice({
+        locale: 'en',
+        priceUAH: addonV.priceUAH ?? addonV.product.basePriceUAH ?? 0,
+        priceUSD:
+          (addonV as any).priceUSD ??
+          (addonV.product as any).basePriceUSD ??
+          null,
+        discountPercent: addonV.discountPercent,
+        discountUAH: addonV.discountUAH ?? 0,
+      })
 
       add({
         productId: addonV.product.id,
@@ -877,6 +949,10 @@ export function ProductInteractive({ p }: { p: ProductWithVariants }) {
         modelSize: null,
         pouchColor: null,
         priceUAH: addonPrice(addonV),
+        priceUSD:
+          addonUsdPricing.currency === 'USD'
+            ? addonUsdPricing.finalPrice
+            : null,
         image: addonImageUrl(addonV) || galleryImages[0],
         qty: 1,
         slug: addonV.product.slug,
@@ -1077,7 +1153,7 @@ export function ProductInteractive({ p }: { p: ProductWithVariants }) {
                                 >
                                   {size.size}
                                   {extra > 0
-                                    ? ` (+${extra} ${optionPriceUnitLabel})`
+                                    ? formatOptionExtraLabel(size.extraPriceUAH)
                                     : ''}
                                 </button>
                               )
@@ -1121,7 +1197,7 @@ export function ProductInteractive({ p }: { p: ProductWithVariants }) {
                                 >
                                   {pouch.color}
                                   {extra > 0
-                                    ? ` (+${extra} ${optionPriceUnitLabel})`
+                                    ? formatOptionExtraLabel(pouch.extraPriceUAH)
                                     : ''}
                                 </button>
                               )
@@ -1176,7 +1252,7 @@ export function ProductInteractive({ p }: { p: ProductWithVariants }) {
                                   <span>
                                     {strap.name}
                                     {extra > 0
-                                      ? ` (+${extra} ${optionPriceUnitLabel})`
+                                      ? formatOptionExtraLabel(strap.extraPriceUAH)
                                       : ''}
                                   </span>
                                 </button>

@@ -4,14 +4,30 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import Image from 'next/image'
 import NovaPoshtaPicker from '@/components/checkout/NovaPoshtaPicker'
+import {
+  CHECKOUT_COUNTRIES,
+  DEFAULT_CHECKOUT_COUNTRY_CODE,
+  getCheckoutCountryByCode,
+  getCheckoutCountryLabel,
+} from '@/lib/checkout-countries'
 import { useCart } from '../store/cart'
 import { useCheckout } from '@/stores/checkout'
 import { IMaskInput } from 'react-imask'
 
 import { usePromo } from '@/lib/usePromo'
-import { calcDiscountUAH, resolvePromoCode } from '@/lib/promo'
-import { useT } from '@/lib/i18n'
+import { calcDiscountUAH, getPromoDiscountPct, resolvePromoCode } from '@/lib/promo'
+import { useLocale, useLocaleNumberFormat, useT } from '@/lib/i18n'
 import { buildCheckoutAttemptFingerprint } from '@/lib/orders/checkout-attempt'
+import {
+  isOnlinePaymentAvailableForShippingMethod,
+  resolveCheckoutPaymentMethod,
+} from '@/lib/orders/payment-methods'
+import {
+  getCartItemUnitPrice,
+  resolveCartDisplayCurrency,
+  sumCartDisplayAmount,
+} from '@/lib/cart-money'
+import { formatLocalizedMoney } from '@/lib/localized-product'
 
 type CheckoutFormState = {
   name: string
@@ -108,6 +124,8 @@ function clearCheckoutAttemptKey() {
 }
 
 export default function CheckoutClient() {
+  const locale = useLocale()
+  const numberLocale = useLocaleNumberFormat()
   const t = useT()
   const router = useRouter()
   const sp = useSearchParams()
@@ -123,10 +141,13 @@ export default function CheckoutClient() {
     surname: false,
     phone: false,
     email: false,
+    intlCity: false,
+    intlPostalCode: false,
+    intlAddressLine1: false,
   })
 
   const lettersOnly = (s: string) =>
-    s.replace(/[^A-Za-zА-Яа-яЁёІіЇїЄєҐґ' -]/gu, '')
+    s.replace(/[^\p{L}\p{M}' -]/gu, '')
 
   const normalizeUaPhone = (s: string) => {
     let d = s.replace(/\D/g, '') // only digits
@@ -139,10 +160,20 @@ export default function CheckoutClient() {
     return d
   }
 
+  const normalizeIntlPhone = (s: string) => {
+    const value = String(s ?? '').trim()
+    if (!value) return ''
+    if (value.startsWith('+')) {
+      return `+${value.slice(1).replace(/\D/g, '')}`
+    }
+    return value.replace(/\D/g, '')
+  }
+
   const isNameValid = (s: string) => lettersOnly(s).trim().length >= 2
   const isEmailValid = (s: string) => !s || /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(s)
   const isUaPhoneValid = (d: string) =>
     /^\d{12}$/.test(d) && d.startsWith('380')
+  const isIntlPhoneValid = (s: string) => /^\+[1-9]\d{6,14}$/.test(s)
 
   const inputClass = (ok: boolean, wasTouched: boolean) =>
     'mt-3 w-full border-b pr-3 py-2 outline-none text-[14px] ' +
@@ -187,6 +218,28 @@ export default function CheckoutClient() {
 
   const promo = usePromo()
   const appliedPromoCode = resolvePromoCode(promo)
+  const selectedCountry = useMemo(
+    () => getCheckoutCountryByCode(co.shippingCountryCode),
+    [co.shippingCountryCode],
+  )
+  const isUkraineShipping =
+    selectedCountry.code === DEFAULT_CHECKOUT_COUNTRY_CODE
+  const shippingMethod = isUkraineShipping
+    ? 'nova_poshta'
+    : 'international_address'
+  const onlinePaymentAvailable = isOnlinePaymentAvailableForShippingMethod(
+    shippingMethod,
+  )
+  const selectedPaymentMethod = resolveCheckoutPaymentMethod(
+    co.paymentMethod,
+    shippingMethod,
+  )
+
+  useEffect(() => {
+    if (!onlinePaymentAvailable && co.paymentMethod !== 'BANK_TRANSFER') {
+      co.setPaymentMethod('BANK_TRANSFER')
+    }
+  }, [co, onlinePaymentAvailable])
 
   const subtotalUAH = useMemo(
     () => cart.items.reduce((s, i) => s + i.priceUAH * i.qty, 0),
@@ -198,9 +251,38 @@ export default function CheckoutClient() {
     [subtotalUAH, appliedPromoCode],
   )
 
+  const discountPct = useMemo(
+    () => getPromoDiscountPct(appliedPromoCode),
+    [appliedPromoCode],
+  )
+
   const finalTotalUAH = useMemo(
     () => Math.max(0, subtotalUAH - discountUAH),
     [subtotalUAH, discountUAH],
+  )
+
+  const checkoutDisplayCurrency = useMemo(
+    () =>
+      resolveCartDisplayCurrency({
+        items: cart.items,
+        preferredCurrency: isUkraineShipping ? 'UAH' : 'USD',
+      }),
+    [cart.items, isUkraineShipping],
+  )
+
+  const subtotalDisplay = useMemo(
+    () => sumCartDisplayAmount(cart.items, checkoutDisplayCurrency),
+    [cart.items, checkoutDisplayCurrency],
+  )
+
+  const discountDisplay = useMemo(() => {
+    if (!discountPct) return 0
+    return Math.round((subtotalDisplay * discountPct) / 100)
+  }, [discountPct, subtotalDisplay])
+
+  const finalTotalDisplay = useMemo(
+    () => Math.max(0, subtotalDisplay - discountDisplay),
+    [subtotalDisplay, discountDisplay],
   )
 
   const saveLastOrderMeta = (
@@ -233,9 +315,18 @@ export default function CheckoutClient() {
     submitLockRef.current = true
     setError(null)
     const fioValid = isNameValid(form.name) && isNameValid(form.surname)
-    const phoneNorm = normalizeUaPhone(form.phone)
-    const phoneValid = isUaPhoneValid(phoneNorm)
+    const phoneNorm = isUkraineShipping
+      ? normalizeUaPhone(form.phone)
+      : normalizeIntlPhone(form.phone)
+    const phoneValid = isUkraineShipping
+      ? isUaPhoneValid(phoneNorm)
+      : isIntlPhoneValid(phoneNorm)
     const emailValid = isEmailValid(form.email)
+    const intlCity = String(co.intl.city ?? '').trim()
+    const intlRegion = String(co.intl.region ?? '').trim()
+    const intlPostalCode = String(co.intl.postalCode ?? '').trim()
+    const intlAddressLine1 = String(co.intl.addressLine1 ?? '').trim()
+    const intlAddressLine2 = String(co.intl.addressLine2 ?? '').trim()
 
     if (!fioValid || !phoneValid || !emailValid) {
       setTouched({
@@ -243,17 +334,41 @@ export default function CheckoutClient() {
         surname: true,
         phone: true,
         email: true,
+        intlCity: true,
+        intlPostalCode: true,
+        intlAddressLine1: true,
       })
       setError(
         t('Перевірте правильність полів форми', 'Please check form fields'),
       )
       return
     }
-    if (!co.np.cityRef || !co.np.warehouseRef) {
+    if (isUkraineShipping) {
+      if (
+        !co.np.cityRef ||
+        !co.np.cityName ||
+        !co.np.warehouseRef ||
+        !co.np.warehouseText
+      ) {
+        setError(
+          t(
+            'Оберіть місто та відділення Нової Пошти',
+            'Select city and Nova Poshta branch',
+          ),
+        )
+        return
+      }
+    } else if (!intlCity || !intlPostalCode || !intlAddressLine1) {
+      setTouched((prev) => ({
+        ...prev,
+        intlCity: true,
+        intlPostalCode: true,
+        intlAddressLine1: true,
+      }))
       setError(
         t(
-          'Оберіть місто та відділення Нової Пошти',
-          'Select city and Nova Poshta branch',
+          'Заповніть міжнародну адресу доставки',
+          'Fill in the international shipping address',
         ),
       )
       return
@@ -288,10 +403,17 @@ export default function CheckoutClient() {
     const fingerprint = buildCheckoutAttemptFingerprint({
       items,
       amountUAH: total,
-      paymentMethod: co.paymentMethod,
+      paymentMethod: selectedPaymentMethod,
       customerPhone: phoneNorm,
-      cityRef: co.np.cityRef,
-      warehouseRef: co.np.warehouseRef,
+      shippingMethod,
+      cityRef: isUkraineShipping ? co.np.cityRef : undefined,
+      warehouseRef: isUkraineShipping ? co.np.warehouseRef : undefined,
+      shippingCountryCode: selectedCountry.code,
+      shippingCity: isUkraineShipping ? undefined : intlCity,
+      shippingRegion: isUkraineShipping ? undefined : intlRegion,
+      shippingPostalCode: isUkraineShipping ? undefined : intlPostalCode,
+      shippingAddressLine1: isUkraineShipping ? undefined : intlAddressLine1,
+      shippingAddressLine2: isUkraineShipping ? undefined : intlAddressLine2,
       promoCode: appliedPromoCode,
     })
     const idempotencyKey = getOrCreateCheckoutAttemptKey(fingerprint)
@@ -307,30 +429,45 @@ export default function CheckoutClient() {
       } = {
         name: lettersOnly(form.name).trim(),
         surname: lettersOnly(form.surname).trim(),
-        phone: normalizeUaPhone(form.phone),
+        phone: phoneNorm,
         email: form.email?.trim() || undefined,
       }
       if (emailClean) customer.email = emailClean
+
+      const shippingPayload = isUkraineShipping
+        ? {
+            method: 'nova_poshta' as const,
+            np: {
+              cityRef: co.np.cityRef!,
+              cityName: co.np.cityName!,
+              warehouseRef: co.np.warehouseRef!,
+              warehouseName: co.np.warehouseText!,
+            },
+          }
+        : {
+            method: 'international_address' as const,
+            address: {
+              countryCode: selectedCountry.code,
+              countryName: selectedCountry.nameEn,
+              city: intlCity,
+              region: intlRegion || undefined,
+              postalCode: intlPostalCode,
+              addressLine1: intlAddressLine1,
+              addressLine2: intlAddressLine2 || undefined,
+            },
+          }
 
       const res = await fetch('/api/orders/create', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           customer,
-          shipping: {
-            method: 'nova_poshta',
-            np: {
-              cityRef: co.np.cityRef,
-              cityName: co.np.cityName,
-              warehouseRef: co.np.warehouseRef,
-              warehouseName: co.np.warehouseText,
-            },
-          },
+          shipping: shippingPayload,
           items,
           amountUAH: total,
           promoCode: appliedPromoCode,
           idempotencyKey,
-          paymentMethod: co.paymentMethod,
+          paymentMethod: selectedPaymentMethod,
         }),
       })
 
@@ -341,7 +478,7 @@ export default function CheckoutClient() {
         return
       }
 
-      if (co.paymentMethod === 'LIQPAY') {
+      if (selectedPaymentMethod === 'LIQPAY') {
         try {
           const payRes = await fetch('/api/payments/liqpay/create', {
             method: 'POST',
@@ -473,29 +610,57 @@ export default function CheckoutClient() {
             )}
           </div>
           <div>
-            <IMaskInput
-              mask={'+{380} 00 000 00 00'}
-              // keep value as a formatted string; we normalize to digits on submit
-              value={form.phone}
-              unmask={false}
-              inputMode="tel"
-              placeholder="+380 XX XXX XX XX"
-              className={inputClass(
-                isUaPhoneValid(normalizeUaPhone(form.phone)),
-                touched.phone,
-              )}
-              onAccept={(value) =>
-                setForm({ ...form, phone: String(value ?? '') })
-              }
-              onBlur={() => setTouched({ ...touched, phone: true })}
-            />
-            {touched.phone && !isUaPhoneValid(normalizeUaPhone(form.phone)) && (
-              <p className="text-xs text-rose-600 mt-1">
-                {t(
-                  'Введіть номер у форматі +380 XX XXX XX XX',
-                  'Enter phone number in +380 XX XXX XX XX format',
-                )}
-              </p>
+            {isUkraineShipping ? (
+              <>
+                <IMaskInput
+                  mask={'+{380} 00 000 00 00'}
+                  // keep value as a formatted string; we normalize to digits on submit
+                  value={form.phone}
+                  unmask={false}
+                  inputMode="tel"
+                  placeholder="+380 XX XXX XX XX"
+                  className={inputClass(
+                    isUaPhoneValid(normalizeUaPhone(form.phone)),
+                    touched.phone,
+                  )}
+                  onAccept={(value) =>
+                    setForm({ ...form, phone: String(value ?? '') })
+                  }
+                  onBlur={() => setTouched({ ...touched, phone: true })}
+                />
+                {touched.phone &&
+                  !isUaPhoneValid(normalizeUaPhone(form.phone)) && (
+                    <p className="text-xs text-rose-600 mt-1">
+                      {t(
+                        'Введіть номер у форматі +380 XX XXX XX XX',
+                        'Enter phone number in +380 XX XXX XX XX format',
+                      )}
+                    </p>
+                  )}
+              </>
+            ) : (
+              <>
+                <input
+                  className={inputClass(
+                    isIntlPhoneValid(normalizeIntlPhone(form.phone)),
+                    touched.phone,
+                  )}
+                  value={form.phone}
+                  onChange={(e) => setForm({ ...form, phone: e.target.value })}
+                  onBlur={() => setTouched({ ...touched, phone: true })}
+                  inputMode="tel"
+                  placeholder="+48 123 456 789"
+                />
+                {touched.phone &&
+                  !isIntlPhoneValid(normalizeIntlPhone(form.phone)) && (
+                    <p className="text-xs text-rose-600 mt-1">
+                      {t(
+                        'Введіть номер у міжнародному форматі, наприклад +48 123 456 789',
+                        'Enter phone in international format, for example +48 123 456 789',
+                      )}
+                    </p>
+                  )}
+              </>
             )}
           </div>
           <div>
@@ -514,10 +679,125 @@ export default function CheckoutClient() {
           </div>
         </div>
 
-        {/* Доставка НП */}
+        {/* Доставка */}
         <div className="space-y-4">
           <h2 className="text-xl font-semibold">{t('Доставка', 'Shipping')}</h2>
-          <NovaPoshtaPicker />
+          <div>
+            <label className="text-xs text-gray-500">
+              {t('Країна доставки*', 'Shipping country*')}
+            </label>
+            <select
+              className="mt-3 w-full border-b pr-3 py-2 outline-none text-[14px] border-black bg-transparent"
+              value={selectedCountry.code}
+              onChange={(e) => co.setShippingCountry(e.target.value)}
+            >
+              {CHECKOUT_COUNTRIES.map((country) => (
+                <option key={country.code} value={country.code}>
+                  {getCheckoutCountryLabel(country, locale)}
+                </option>
+              ))}
+            </select>
+          </div>
+
+          {isUkraineShipping ? (
+            <NovaPoshtaPicker />
+          ) : (
+            <div className="grid gap-3 md:grid-cols-2">
+              <div>
+                <input
+                  className={inputClass(
+                    Boolean(String(co.intl.city ?? '').trim()),
+                    touched.intlCity,
+                  )}
+                  value={co.intl.city ?? ''}
+                  onChange={(e) =>
+                    co.setInternational({ city: e.target.value })
+                  }
+                  onBlur={() => setTouched({ ...touched, intlCity: true })}
+                  placeholder={t('МІСТО*', 'CITY*')}
+                />
+                {touched.intlCity && !String(co.intl.city ?? '').trim() && (
+                  <p className="text-xs text-rose-600 mt-1">
+                    {t('Вкажіть місто доставки', 'Enter shipping city')}
+                  </p>
+                )}
+              </div>
+
+              <div>
+                <input
+                  className={inputClass(
+                    Boolean(String(co.intl.postalCode ?? '').trim()),
+                    touched.intlPostalCode,
+                  )}
+                  value={co.intl.postalCode ?? ''}
+                  onChange={(e) =>
+                    co.setInternational({ postalCode: e.target.value })
+                  }
+                  onBlur={() =>
+                    setTouched({ ...touched, intlPostalCode: true })
+                  }
+                  placeholder={t('ПОШТОВИЙ ІНДЕКС*', 'POSTAL CODE*')}
+                />
+                {touched.intlPostalCode &&
+                  !String(co.intl.postalCode ?? '').trim() && (
+                    <p className="text-xs text-rose-600 mt-1">
+                      {t('Вкажіть поштовий індекс', 'Enter postal code')}
+                    </p>
+                  )}
+              </div>
+
+              <div className="md:col-span-2">
+                <input
+                  className={inputClass(
+                    Boolean(String(co.intl.addressLine1 ?? '').trim()),
+                    touched.intlAddressLine1,
+                  )}
+                  value={co.intl.addressLine1 ?? ''}
+                  onChange={(e) =>
+                    co.setInternational({ addressLine1: e.target.value })
+                  }
+                  onBlur={() =>
+                    setTouched({ ...touched, intlAddressLine1: true })
+                  }
+                  placeholder={t('АДРЕСА*', 'ADDRESS LINE 1*')}
+                />
+                {touched.intlAddressLine1 &&
+                  !String(co.intl.addressLine1 ?? '').trim() && (
+                    <p className="text-xs text-rose-600 mt-1">
+                      {t(
+                        'Вкажіть адресу доставки',
+                        'Enter shipping address',
+                      )}
+                    </p>
+                  )}
+              </div>
+
+              <div className="md:col-span-2">
+                <input
+                  className="mt-3 w-full border-b pr-3 py-2 outline-none text-[14px] border-black"
+                  value={co.intl.addressLine2 ?? ''}
+                  onChange={(e) =>
+                    co.setInternational({ addressLine2: e.target.value })
+                  }
+                  placeholder={t(
+                    'КВАРТИРА, ОФІС, ПОВЕРХ',
+                    'ADDRESS LINE 2',
+                  )}
+                />
+              </div>
+
+              <div className="md:col-span-2">
+                <input
+                  className="mt-3 w-full border-b pr-3 py-2 outline-none text-[14px] border-black"
+                  value={co.intl.region ?? ''}
+                  onChange={(e) =>
+                    co.setInternational({ region: e.target.value })
+                  }
+                  placeholder={t('ОБЛАСТЬ / ШТАТ', 'REGION / STATE')}
+                />
+              </div>
+            </div>
+          )}
         </div>
 
         {/* Оплата */}
@@ -527,24 +807,43 @@ export default function CheckoutClient() {
           <div className="space-y-3 text-sm">
             {/* Онлайн оплата LiqPay */}
             <label className="flex items-start gap-3 cursor-pointer">
-              <input
-                type="radio"
-                name="payment"
-                className="mt-1 w-4 h-4"
-                checked={co.paymentMethod === 'LIQPAY'}
-                onChange={() => co.setPaymentMethod('LIQPAY')}
-              />
-              <div>
-                <p className="font-medium uppercase">
-                  {t('Онлайн оплата (LiqPay)', 'Online payment (LiqPay)')}
-                </p>
-                <p className="text-gray-600">
-                  {t(
-                    'Картка, Apple Pay або Google Pay на сторінці LiqPay checkout.',
-                    'Card, Apple Pay or Google Pay on LiqPay checkout page.',
-                  )}
-                </p>
-              </div>
+              {onlinePaymentAvailable ? (
+                <>
+                  <input
+                    type="radio"
+                    name="payment"
+                    className="mt-1 w-4 h-4"
+                    checked={selectedPaymentMethod === 'LIQPAY'}
+                    onChange={() => co.setPaymentMethod('LIQPAY')}
+                  />
+                  <div>
+                    <p className="font-medium uppercase">
+                      {t('Онлайн оплата (LiqPay)', 'Online payment (LiqPay)')}
+                    </p>
+                    <p className="text-gray-600">
+                      {t(
+                        'Картка, Apple Pay або Google Pay на сторінці LiqPay checkout.',
+                        'Card, Apple Pay or Google Pay on LiqPay checkout page.',
+                      )}
+                    </p>
+                  </div>
+                </>
+              ) : (
+                <div className="rounded border border-slate-200 bg-slate-50 px-4 py-3 text-gray-700">
+                  <p className="font-medium">
+                    {t(
+                      'Онлайн-оплата для міжнародних замовлень тимчасово недоступна.',
+                      'Online payment is currently unavailable for international orders.',
+                    )}
+                  </p>
+                  <p className="mt-1 text-sm text-gray-600">
+                    {t(
+                      'Для доставки за кордон зараз доступна оплата по реквізитах.',
+                      'Bank transfer is currently available for international delivery.',
+                    )}
+                  </p>
+                </div>
+              )}
             </label>
 
             {/* Оплата по реквізитам */}
@@ -553,7 +852,7 @@ export default function CheckoutClient() {
                 type="radio"
                 name="payment"
                 className="mt-1 w-4 h-4"
-                checked={co.paymentMethod === 'BANK_TRANSFER'}
+                checked={selectedPaymentMethod === 'BANK_TRANSFER'}
                 onChange={() => co.setPaymentMethod('BANK_TRANSFER')}
               />
 
@@ -563,8 +862,12 @@ export default function CheckoutClient() {
                 </p>
                 <p className="text-gray-600">
                   {t(
-                    'Після створення замовлення ми надішлемо реквізити для оплати.',
-                    'We will send bank details after the order is created.',
+                    `Після створення замовлення ми надішлемо реквізити для оплати в ${
+                      checkoutDisplayCurrency === 'USD' ? 'USD' : 'грн'
+                    }.`,
+                    `We will send payment details in ${
+                      checkoutDisplayCurrency === 'USD' ? 'USD' : 'UAH'
+                    } after the order is created.`,
                   )}
                 </p>
               </div>
@@ -617,7 +920,12 @@ export default function CheckoutClient() {
                   </span>
                 )}
                 <span className="text-xs text-gray-500">
-                  {item.qty} {t('шт', 'pcs')} · {item.priceUAH} грн
+                  {item.qty} {t('шт', 'pcs')} ·{' '}
+                  {formatLocalizedMoney(
+                    getCartItemUnitPrice(item, checkoutDisplayCurrency),
+                    checkoutDisplayCurrency,
+                    numberLocale,
+                  )}
                 </span>
               </div>
             </div>
@@ -631,19 +939,38 @@ export default function CheckoutClient() {
         </div>
         <div className="flex items-center justify-between">
           <span>{t('Вартість', 'Subtotal')}</span>
-          <span className="font-semibold">{subtotalUAH} грн</span>
+          <span className="font-semibold">
+            {formatLocalizedMoney(
+              subtotalDisplay,
+              checkoutDisplayCurrency,
+              numberLocale,
+            )}
+          </span>
         </div>
 
-        {discountUAH > 0 && (
+        {discountDisplay > 0 && (
           <div className="flex items-center justify-between text-sm text-gray-600">
             <span>{t('Знижка (промокод)', 'Discount (promo code)')}</span>
-            <span>- {discountUAH} грн</span>
+            <span>
+              -{' '}
+              {formatLocalizedMoney(
+                discountDisplay,
+                checkoutDisplayCurrency,
+                numberLocale,
+              )}
+            </span>
           </div>
         )}
 
         <div className="flex items-center justify-between">
           <span>{t('До сплати', 'Total')}</span>
-          <span className="font-semibold">{finalTotalUAH} грн</span>
+          <span className="font-semibold">
+            {formatLocalizedMoney(
+              finalTotalDisplay,
+              checkoutDisplayCurrency,
+              numberLocale,
+            )}
+          </span>
         </div>
 
         <button

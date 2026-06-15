@@ -7,6 +7,7 @@ type OrderItemAddon = {
   addonVariantId: string
   name: string
   priceUAH: number
+  priceUSD?: number | null
   qty: number
 }
 
@@ -18,6 +19,7 @@ type CartItem = {
   modelSize: string | null
   pouchColor: string | null
   priceUAH: number
+  priceUSD?: number | null
   qty: number
   strapId: string | null
   strapName: string | null
