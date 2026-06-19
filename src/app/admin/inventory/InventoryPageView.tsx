@@ -33,6 +33,7 @@ import {
   getMaterialCategoryDefaultUnit,
 } from '@/lib/material-categories'
 import type { MaterialsBulkCreateActionResult } from '@/lib/admin-materials'
+import { updateVariantInventoryQuantity } from '@/lib/product-inventory'
 import { prisma } from '@/lib/prisma'
 import { cn } from '@/lib/utils'
 
@@ -541,17 +542,10 @@ export default async function InventoryPageView({
       throw new Error('Не вдалося оновити запас варіанту')
     }
 
-    await prisma.productVariantInventory.upsert({
-      where: { variantId: parsed.data.variantId },
-      create: {
-        variantId: parsed.data.variantId,
-        finishedGoodsQty: parsed.data.finishedGoodsQty,
-        notes: parsed.data.notes || null,
-      },
-      update: {
-        finishedGoodsQty: parsed.data.finishedGoodsQty,
-        notes: parsed.data.notes || null,
-      },
+    await updateVariantInventoryQuantity({
+      variantId: parsed.data.variantId,
+      finishedGoodsQty: parsed.data.finishedGoodsQty,
+      notes: parsed.data.notes || null,
     })
 
     revalidateInventoryViews()

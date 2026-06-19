@@ -6,6 +6,11 @@ import {
   type LiqPayStatusPayload,
 } from '@/lib/liqpay-payment-status'
 import { sendOrderTelegramNotification } from '@/lib/order-telegram'
+import {
+  applyPaidOrderInventoryTx,
+  type PaidOrderInventoryResult,
+  revalidateInventoryProductViews,
+} from '@/lib/product-inventory'
 import { prisma } from '@/lib/prisma'
 
 const LIQPAY_STATUS_API_URL = 'https://www.liqpay.ua/api/request'
@@ -64,27 +69,41 @@ export async function settleOrderFromLiqPayPayload(args: {
     updateData.paymentId = paymentId
   }
 
-  await prisma.order.update({
-    where: { id: existing.id },
-    data: updateData,
-  })
-
   let transitionedToPaid = false
+  let inventorySettlement: PaidOrderInventoryResult = {
+    applied: false,
+    affectedProductIds: [],
+    productSnapshots: [],
+  }
 
   if (mappedOrderStatus === 'PAID') {
-    const result = await prisma.order.updateMany({
-      where: {
-        id: existing.id,
-        status: {
-          not: 'PAID',
+    inventorySettlement = await prisma.$transaction(async (tx) => {
+      await tx.order.update({
+        where: { id: existing.id },
+        data: updateData,
+      })
+
+      const result = await tx.order.updateMany({
+        where: {
+          id: existing.id,
+          status: {
+            not: 'PAID',
+          },
         },
-      },
-      data: {
-        status: 'PAID',
-      },
+        data: {
+          status: 'PAID',
+        },
+      })
+      transitionedToPaid = result.count > 0
+
+      return applyPaidOrderInventoryTx(tx, existing.id)
     })
-    transitionedToPaid = result.count > 0
   } else if (mappedOrderStatus) {
+    await prisma.order.update({
+      where: { id: existing.id },
+      data: updateData,
+    })
+
     await prisma.order.updateMany({
       where: {
         id: existing.id,
@@ -96,6 +115,15 @@ export async function settleOrderFromLiqPayPayload(args: {
         status: mappedOrderStatus,
       },
     })
+  } else {
+    await prisma.order.update({
+      where: { id: existing.id },
+      data: updateData,
+    })
+  }
+
+  if (inventorySettlement.applied) {
+    revalidateInventoryProductViews(inventorySettlement.productSnapshots)
   }
 
   if (transitionedToPaid) {

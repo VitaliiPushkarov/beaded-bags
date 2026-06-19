@@ -13,7 +13,13 @@ import {
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Select } from '@/components/ui/select'
+import { isInventorySettledOrderStatus } from '@/lib/inventory-status'
 import { calcDiscountedPrice } from '@/lib/pricing'
+import {
+  applyPaidOrderInventoryTx,
+  type InventorySettlementProductSnapshot,
+  revalidateInventoryProductViews,
+} from '@/lib/product-inventory'
 import { toDateInputValue } from '@/lib/admin-finance'
 import { buildOrderFinancialSnapshot } from '@/lib/finance'
 import {
@@ -269,80 +275,91 @@ export default async function AdminOrdersPage() {
       const value = new Date(`${raw}T12:00:00`)
       return Number.isNaN(value.getTime()) ? new Date() : value
     })()
+    let inventoryProductSnapshots: InventorySettlementProductSnapshot[] = []
 
-    await prisma.order.create({
-      data: {
-        createdAt,
-        status: parsed.data.status ?? OrderStatus.PENDING,
-        subtotalUAH,
-        deliveryUAH: 0,
-        discountUAH,
-        totalUAH,
-        itemsCostUAH: financialSnapshot.itemsCostUAH,
-        paymentFeeUAH: financialSnapshot.paymentFeeUAH,
-        grossProfitUAH: financialSnapshot.grossProfitUAH,
-        customerName: parsed.data.customerName,
-        customerSurname: parsed.data.customerSurname,
-        customerPatronymic: null,
-        customerPhone,
-        customerEmail: null,
-        shippingMethod: 'NOVA_POSHTA',
-        shippingCountryCode: 'UA',
-        shippingCountryName: 'Ukraine',
-        shippingRegion: null,
-        shippingCity: 'Ручне замовлення',
-        shippingPostalCode: null,
-        shippingAddressLine1: sourceLabel,
-        shippingAddressLine2: null,
-        npCityRef: 'manual-city',
-        npCityName: 'Ручне замовлення',
-        npWarehouseRef: 'manual-point',
-        npWarehouseName: 'Не вказано',
-        paymentMethod: parsed.data.paymentMethod ?? PaymentMethod.BANK_TRANSFER,
-        paymentRaw: {
-          manualOrder: true,
-          source: sourceLabel,
-          lines: items.map((item) => ({
-            variantId: item.variant.id,
-            qty: item.qty,
-            unitPriceUAH: item.priceUAH,
-          })),
-        },
-        items: {
-          create: items.map((item, index) => {
-            const details = buildVariantSelectionLabel({
-              color: item.variant.color,
-              modelSize: (item.variant as any).modelSize,
-              pouchColor: (item.variant as any).pouchColor,
-            })
-
-            return {
-              productId: item.variant.product.id,
+    await prisma.$transaction(async (tx) => {
+      const created = await tx.order.create({
+        data: {
+          createdAt,
+          status: parsed.data.status ?? OrderStatus.PENDING,
+          subtotalUAH,
+          deliveryUAH: 0,
+          discountUAH,
+          totalUAH,
+          itemsCostUAH: financialSnapshot.itemsCostUAH,
+          paymentFeeUAH: financialSnapshot.paymentFeeUAH,
+          grossProfitUAH: financialSnapshot.grossProfitUAH,
+          customerName: parsed.data.customerName,
+          customerSurname: parsed.data.customerSurname,
+          customerPatronymic: null,
+          customerPhone,
+          customerEmail: null,
+          shippingMethod: 'NOVA_POSHTA',
+          shippingCountryCode: 'UA',
+          shippingCountryName: 'Ukraine',
+          shippingRegion: null,
+          shippingCity: 'Ручне замовлення',
+          shippingPostalCode: null,
+          shippingAddressLine1: sourceLabel,
+          shippingAddressLine2: null,
+          npCityRef: 'manual-city',
+          npCityName: 'Ручне замовлення',
+          npWarehouseRef: 'manual-point',
+          npWarehouseName: 'Не вказано',
+          paymentMethod: parsed.data.paymentMethod ?? PaymentMethod.BANK_TRANSFER,
+          paymentRaw: {
+            manualOrder: true,
+            source: sourceLabel,
+            lines: items.map((item) => ({
               variantId: item.variant.id,
-              name: details
-                ? `${item.variant.product.name} — ${details}`
-                : item.variant.product.name,
-              color: item.variant.color,
-              modelSize: (item.variant as any).modelSize ?? null,
-              pouchColor: (item.variant as any).pouchColor ?? null,
-              image: item.variant.images[0]?.url ?? item.variant.image,
-              priceUAH: item.priceUAH,
               qty: item.qty,
-              discountUAH: financialSnapshot.lines[index]?.discountUAH ?? 0,
-              lineRevenueUAH: financialSnapshot.lines[index]?.lineRevenueUAH ?? 0,
-              unitCostUAH: financialSnapshot.lines[index]?.unitCostUAH ?? 0,
-              totalCostUAH: financialSnapshot.lines[index]?.totalCostUAH ?? 0,
-              strapName: null,
-              addons: [],
-            }
-          }),
+              unitPriceUAH: item.priceUAH,
+            })),
+          },
+          items: {
+            create: items.map((item, index) => {
+              const details = buildVariantSelectionLabel({
+                color: item.variant.color,
+                modelSize: (item.variant as any).modelSize,
+                pouchColor: (item.variant as any).pouchColor,
+              })
+
+              return {
+                productId: item.variant.product.id,
+                variantId: item.variant.id,
+                name: details
+                  ? `${item.variant.product.name} — ${details}`
+                  : item.variant.product.name,
+                color: item.variant.color,
+                modelSize: (item.variant as any).modelSize ?? null,
+                pouchColor: (item.variant as any).pouchColor ?? null,
+                image: item.variant.images[0]?.url ?? item.variant.image,
+                priceUAH: item.priceUAH,
+                qty: item.qty,
+                discountUAH: financialSnapshot.lines[index]?.discountUAH ?? 0,
+                lineRevenueUAH: financialSnapshot.lines[index]?.lineRevenueUAH ?? 0,
+                unitCostUAH: financialSnapshot.lines[index]?.unitCostUAH ?? 0,
+                totalCostUAH: financialSnapshot.lines[index]?.totalCostUAH ?? 0,
+                strapName: null,
+                addons: [],
+              }
+            }),
+          },
         },
-      },
+      })
+
+      if (isInventorySettledOrderStatus(created.status)) {
+        const settlement = await applyPaidOrderInventoryTx(tx, created.id)
+        inventoryProductSnapshots = settlement.productSnapshots
+      }
     })
 
     revalidatePath('/admin/orders')
     revalidatePath('/admin/finance')
     revalidatePath('/admin')
+    if (inventoryProductSnapshots.length > 0) {
+      revalidateInventoryProductViews(inventoryProductSnapshots)
+    }
   }
 
   const [variantRows, orders] = await Promise.all([

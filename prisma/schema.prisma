@@ -340,6 +340,7 @@ model Order {
   paymentId            String?
   paymentStatus        String?
   paymentRaw           Json?
+  inventoryAppliedAt   DateTime?
   checkoutSessionKey   String?        @unique
   customerId           String?
   shortNumber          Int            @unique @default(autoincrement())

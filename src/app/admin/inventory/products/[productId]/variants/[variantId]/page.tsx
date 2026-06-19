@@ -7,6 +7,7 @@ import { ChevronDown, ChevronUp } from 'lucide-react'
 import ConfirmSubmitButton from '@/components/admin/ConfirmSubmitButton'
 import { formatUAH } from '@/lib/admin-finance'
 import { TYPE_LABELS } from '@/lib/labels'
+import { updateVariantInventoryQuantity } from '@/lib/product-inventory'
 import { getMaterialCategoryLabel } from '@/lib/material-categories'
 import { prisma } from '@/lib/prisma'
 
@@ -104,17 +105,10 @@ export default async function AdminInventoryVariantMaterialsPage({
       throw new Error('Не вдалося оновити запас варіанту')
     }
 
-    await prisma.productVariantInventory.upsert({
-      where: { variantId: parsed.data.variantId },
-      create: {
-        variantId: parsed.data.variantId,
-        finishedGoodsQty: parsed.data.finishedGoodsQty,
-        notes: parsed.data.notes || null,
-      },
-      update: {
-        finishedGoodsQty: parsed.data.finishedGoodsQty,
-        notes: parsed.data.notes || null,
-      },
+    await updateVariantInventoryQuantity({
+      variantId: parsed.data.variantId,
+      finishedGoodsQty: parsed.data.finishedGoodsQty,
+      notes: parsed.data.notes || null,
     })
 
     revalidatePath('/admin/inventory')

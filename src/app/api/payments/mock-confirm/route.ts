@@ -1,5 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { requireAdmin } from '@/lib/admin-auth'
+import {
+  applyPaidOrderInventoryTx,
+  revalidateInventoryProductViews,
+} from '@/lib/product-inventory'
 import { prisma } from '@/lib/prisma'
 
 export async function POST(req: NextRequest) {
@@ -16,9 +20,17 @@ export async function POST(req: NextRequest) {
       { ok: false, error: 'orderId required' },
       { status: 400 }
     )
-  await prisma.order.update({
-    where: { id: String(orderId) },
-    data: { status: 'PAID' },
+
+  const inventorySettlement = await prisma.$transaction(async (tx) => {
+    await tx.order.update({
+      where: { id: String(orderId) },
+      data: { status: 'PAID' },
+    })
+
+    return applyPaidOrderInventoryTx(tx, String(orderId))
   })
+
+  revalidateInventoryProductViews(inventorySettlement.productSnapshots)
+
   return NextResponse.json({ ok: true })
 }
