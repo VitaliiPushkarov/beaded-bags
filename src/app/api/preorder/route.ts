@@ -1,29 +1,30 @@
+import type { Prisma } from '@prisma/client'
 import { NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { isPreorderStatus, resolveAvailabilityStatus } from '@/lib/availability'
+import {
+  buildFallbackPreorderItems,
+  buildPreorderTelegramMessage,
+  normalizePreorderItems,
+  type PreorderItemInput,
+} from '@/lib/preorder'
 
 type Body = {
-  productId: string
+  productId?: string
   productSlug?: string | null
-  productName: string
-  variantId: string
+  productName?: string
+  variantId?: string
   variantColor?: string | null
   strapId?: string | null
   contactName?: string | null
   contact: string
   comment?: string | null
   source?: string | null
+  items?: PreorderItemInput[] | null
 }
 
 function clean(v: unknown) {
   return typeof v === 'string' ? v.trim() : ''
-}
-
-function escHtml(s: string) {
-  return s
-    .replaceAll('&', '&amp;')
-    .replaceAll('<', '&lt;')
-    .replaceAll('>', '&gt;')
 }
 
 async function sendTelegram(text: string) {
@@ -72,18 +73,29 @@ async function sendTelegram(text: string) {
 export async function POST(req: Request) {
   try {
     const raw = (await req.json()) as Partial<Body>
-
-    const productId = clean(raw.productId)
-    const productName = clean(raw.productName)
-    const variantId = clean(raw.variantId)
     const contact = clean(raw.contact)
+    const normalizedItems = normalizePreorderItems(raw.items)
+    const fallbackItems = buildFallbackPreorderItems({
+      productId: raw.productId ?? '',
+      productSlug: raw.productSlug ?? null,
+      productName: raw.productName ?? '',
+      variantId: raw.variantId ?? '',
+      variantColor: raw.variantColor ?? null,
+      strapId: raw.strapId ?? null,
+    })
+    const items = normalizedItems.length ? normalizedItems : fallbackItems
+    const primaryItem = items.find((item) => item.kind === 'main') ?? items[0]
 
-    if (!productId || !productName || !variantId || !contact) {
+    if (!primaryItem || !contact) {
       return NextResponse.json(
         { ok: false, error: 'Missing required fields' },
-        { status: 400 }
+        { status: 400 },
       )
     }
+
+    const productId = primaryItem.productId
+    const productName = primaryItem.productName
+    const variantId = primaryItem.variantId
 
     const variant = await prisma.productVariant.findFirst({
       where: { id: variantId, productId },
@@ -116,44 +128,41 @@ export async function POST(req: Request) {
     const lead = await prisma.preorderLead.create({
       data: {
         productId,
-        productSlug: clean(raw.productSlug) || null,
+        productSlug: primaryItem.productSlug,
         productName,
         variantId,
-        variantColor: clean(raw.variantColor) || null,
-        strapId: clean(raw.strapId) || null,
+        variantColor: primaryItem.variantColor,
+        strapId: primaryItem.strapId,
         contactName: clean(raw.contactName) || null,
         contact,
         comment: clean(raw.comment) || null,
+        items: items as Prisma.InputJsonValue,
         source: clean(raw.source) || 'product_page',
       },
     })
     // 2) Send to Telegram
-    const variantLabel = clean(raw.variantColor) || variantId
-    const strapId = clean(raw.strapId)
     const contactName = clean(raw.contactName)
     const comment = clean(raw.comment)
-    const productSlug = clean(raw.productSlug)
+    const productSlug = primaryItem.productSlug
     const urlLine = productSlug
       ? `https://gerdan.online/products/${productSlug}`
-      : ''
+      : null
 
-    const msg =
-      `🧾 <b>Нове передзамовлення</b>\n` +
-      `\n<b>Товар:</b> ${escHtml(productName)}` +
-      `\n<b>Варіант:</b> ${escHtml(variantLabel)}` +
-      (strapId ? `\n<b>StrapId:</b> ${escHtml(strapId)}` : '') +
-      `\n<b>Контакт:</b> ${escHtml(contact)}` +
-      (contactName ? `\n<b>Ім’я:</b> ${escHtml(contactName)}` : '') +
-      (comment ? `\n<b>Коментар:</b> ${escHtml(comment)}` : '') +
-      (urlLine ? `\n<b>URL:</b> ${escHtml(urlLine)}` : '') +
-      `\n\n<b>Lead ID:</b> ${escHtml(lead.id)}`
+    const msg = buildPreorderTelegramMessage({
+      leadId: lead.id,
+      items,
+      contact,
+      contactName,
+      comment,
+      url: urlLine,
+    })
 
     await sendTelegram(msg)
     return NextResponse.json({ ok: true, id: lead.id })
   } catch {
     return NextResponse.json(
       { ok: false, error: 'Server error' },
-      { status: 500 }
+      { status: 500 },
     )
   }
 }

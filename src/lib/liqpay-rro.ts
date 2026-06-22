@@ -1,3 +1,8 @@
+import {
+  buildLiqPayCatalogExternalCode,
+  resolveLiqPayGoodId,
+} from '@/lib/liqpay-catalog'
+
 type RroOrderItem = {
   name: string
   qty: number
@@ -77,6 +82,7 @@ export function buildLiqPayRroInfo(args: {
   strapsById: Map<string, StrapRroSource>
   pouchesById: Map<string, PouchRroSource>
   sizesById: Map<string, SizeRroSource>
+  mappingsByExternalCode?: ReadonlyMap<string, number>
   deliveryEmail?: string | null
 }) {
   const rroItems: RroItem[] = []
@@ -129,12 +135,18 @@ export function buildLiqPayRroInfo(args: {
       {
         label: item.name,
         liqpayGoodId: variant.liqpayGoodId,
+        entityType: 'VARIANT' as const,
+        entityId: variant.id,
+        catalogCode: buildLiqPayCatalogExternalCode('VARIANT', variant.id),
         rawTotal: baseUnitPrice * qty,
       },
       strap && strap.extraPriceUAH > 0
         ? {
             label: `${item.name} / Ремінець: ${strap.name}`,
             liqpayGoodId: strap.liqpayGoodId,
+            entityType: 'STRAP' as const,
+            entityId: strap.id,
+            catalogCode: buildLiqPayCatalogExternalCode('STRAP', strap.id),
             rawTotal: strap.extraPriceUAH * qty,
           }
         : null,
@@ -142,6 +154,9 @@ export function buildLiqPayRroInfo(args: {
         ? {
             label: `${item.name} / Мішечок: ${pouch.color}`,
             liqpayGoodId: pouch.liqpayGoodId,
+            entityType: 'POUCH' as const,
+            entityId: pouch.id,
+            catalogCode: buildLiqPayCatalogExternalCode('POUCH', pouch.id),
             rawTotal: pouch.extraPriceUAH * qty,
           }
         : null,
@@ -149,6 +164,9 @@ export function buildLiqPayRroInfo(args: {
         ? {
             label: `${item.name} / Розмір: ${size.size}`,
             liqpayGoodId: size.liqpayGoodId,
+            entityType: 'SIZE' as const,
+            entityId: size.id,
+            catalogCode: buildLiqPayCatalogExternalCode('SIZE', size.id),
             rawTotal: size.extraPriceUAH * qty,
           }
         : null,
@@ -168,14 +186,21 @@ export function buildLiqPayRroInfo(args: {
       )
       if (revenue <= 0) return
 
-      if (!component.liqpayGoodId) {
+      const resolvedGoodId = resolveLiqPayGoodId({
+        entityType: component.entityType,
+        entityId: component.entityId,
+        manualGoodId: component.liqpayGoodId,
+        mappingsByExternalCode: args.mappingsByExternalCode,
+      })
+
+      if (!resolvedGoodId) {
         throw new Error(
-          `Missing LiqPay good ID for fiscal item "${component.label}"`,
+          `Missing LiqPay good ID for fiscal item "${component.label}" (catalog code: ${component.catalogCode})`,
         )
       }
 
       rroItems.push({
-        id: component.liqpayGoodId,
+        id: resolvedGoodId,
         amount: qty,
         price: roundMoney(revenue / qty),
         cost: roundMoney(revenue),

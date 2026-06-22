@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { z } from 'zod'
 import { buildLiqPayPayload } from '@/lib/liqpay'
+import { buildLiqPayCatalogExternalCode } from '@/lib/liqpay-catalog'
 import { buildLiqPayRroInfo } from '@/lib/liqpay-rro'
 import { prisma } from '@/lib/prisma'
 
@@ -141,8 +142,14 @@ export async function POST(req: NextRequest) {
           .filter((id): id is string => typeof id === 'string' && id.length > 0),
       ),
     )
+    const catalogCodes = [
+      ...variantIds.map((id) => buildLiqPayCatalogExternalCode('VARIANT', id)),
+      ...strapIds.map((id) => buildLiqPayCatalogExternalCode('STRAP', id)),
+      ...sizeIds.map((id) => buildLiqPayCatalogExternalCode('SIZE', id)),
+      ...pouchIds.map((id) => buildLiqPayCatalogExternalCode('POUCH', id)),
+    ]
 
-    const [variants, straps, sizes, pouches] = await Promise.all([
+    const [variants, straps, sizes, pouches, catalogMappings] = await Promise.all([
       variantIds.length
         ? prisma.productVariant.findMany({
             where: { id: { in: variantIds } },
@@ -185,6 +192,19 @@ export async function POST(req: NextRequest) {
             },
           })
         : Promise.resolve([]),
+      catalogCodes.length
+        ? prisma.liqPayCatalogMapping.findMany({
+            where: {
+              externalCode: {
+                in: catalogCodes,
+              },
+            },
+            select: {
+              externalCode: true,
+              liqpayGoodId: true,
+            },
+          })
+        : Promise.resolve([]),
     ])
 
     const rroInfo = buildLiqPayRroInfo({
@@ -193,6 +213,9 @@ export async function POST(req: NextRequest) {
       strapsById: new Map(straps.map((strap) => [strap.id, strap])),
       sizesById: new Map(sizes.map((size) => [size.id, size])),
       pouchesById: new Map(pouches.map((pouch) => [pouch.id, pouch])),
+      mappingsByExternalCode: new Map(
+        catalogMappings.map((item) => [item.externalCode, item.liqpayGoodId]),
+      ),
       deliveryEmail: order.customerEmail ?? null,
     })
 

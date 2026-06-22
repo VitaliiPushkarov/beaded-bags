@@ -564,6 +564,7 @@ model PreorderLead {
   contactName  String?
   contact      String
   comment      String?
+  items        Json?
   source       String?
 
   @@index([createdAt])
@@ -602,6 +603,21 @@ model HomeHeroBannerSettings {
   instagramPosts Json?
   createdAt      DateTime @default(now())
   updatedAt      DateTime @updatedAt
+}
+
+model LiqPayCatalogMapping {
+  id          String   @id @default(cuid())
+  externalCode String  @unique
+  liqpayGoodId Int
+  itemName    String?
+  priceUAH    Int?
+  rawRow      Json?
+  syncedAt    DateTime @default(now())
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([liqpayGoodId])
+  @@index([syncedAt])
 }
 
 model Collection {

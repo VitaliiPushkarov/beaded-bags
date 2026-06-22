@@ -1,25 +1,36 @@
 import { useState } from 'react'
 import type { Product, ProductVariant } from '@prisma/client'
+import {
+  buildFallbackPreorderItems,
+  buildPreorderMailtoBody,
+  normalizePreorderItems,
+  type PreorderItemInput,
+} from '@/lib/preorder'
 
 export function usePreorder(params: {
   product: Product
   variant: ProductVariant | null
   strapId?: string
+  items?: PreorderItemInput[]
 }) {
-  const { product, variant, strapId } = params
+  const { product, variant, strapId, items = [] } = params
 
   const variantLabel = variant
-    ? [
-        variant.color?.trim() || null,
-        ((variant as any).modelSize as string | null | undefined)?.trim()
-          ? `Розмір: ${String((variant as any).modelSize).trim()}`
-          : null,
-        ((variant as any).pouchColor as string | null | undefined)?.trim()
-          ? `Мішечок: ${String((variant as any).pouchColor).trim()}`
-          : null,
-      ]
-        .filter((x): x is string => Boolean(x))
-        .join(' · ')
+    ? (() => {
+        const optionParts = [
+          variant.color?.trim() || null,
+          ((variant as any).modelSize as string | null | undefined)?.trim()
+            ? `Розмір: ${String((variant as any).modelSize).trim()}`
+            : null,
+          ((variant as any).pouchColor as string | null | undefined)?.trim()
+            ? `Мішечок: ${String((variant as any).pouchColor).trim()}`
+            : null,
+        ].filter((x): x is string => Boolean(x))
+
+        return optionParts.length
+          ? `${product.name} — ${optionParts.join(' · ')}`
+          : product.name
+      })()
     : ''
 
   const [preorderOpen, setPreorderOpen] = useState(false)
@@ -41,18 +52,34 @@ export function usePreorder(params: {
     e.preventDefault()
     if (!variant) return
 
-    const payload = {
+    const normalizedItems = normalizePreorderItems(items)
+    const fallbackItems = buildFallbackPreorderItems({
       productId: product.id,
       productSlug: product.slug,
       productName: product.name,
       variantId: variant.id,
+      variantLabel,
       variantColor: variant.color ?? null,
       strapId: strapId ?? null,
+    })
+    const payloadItems = normalizedItems.length ? normalizedItems : fallbackItems
+    const primaryItem =
+      payloadItems.find((item) => item.kind === 'main') ?? payloadItems[0]
+
+    if (!primaryItem) return
+
+    const payload = {
+      productId: primaryItem.productId,
+      productSlug: primaryItem.productSlug,
+      productName: primaryItem.productName,
+      variantId: primaryItem.variantId,
+      variantColor: primaryItem.variantColor,
+      strapId: primaryItem.strapId ?? strapId ?? null,
       contactName: leadName.trim(),
       contact: leadContact.trim(),
       comment: leadComment.trim() || null,
       source: 'product_page',
-      createdAt: new Date().toISOString(),
+      items: payloadItems,
     }
 
     if (!payload.contact) return
@@ -75,17 +102,18 @@ export function usePreorder(params: {
     } catch {
       setPreorderStatus('error')
 
-      const subject = encodeURIComponent(`Передзамовлення: ${product.name}`)
+      const subject = encodeURIComponent(
+        `Передзамовлення: ${primaryItem.productName}`,
+      )
       const body = encodeURIComponent(
-        `Хочу передзамовити товар.\n\n` +
-          `Товар: ${product.name}\n` +
-          `Варіант: ${variantLabel || variant.id}\n` +
-          `Сторінка: ${
-            typeof window !== 'undefined' ? window.location.href : ''
-          }\n\n` +
-          `Ім'я: ${leadName}\n` +
-          `Контакт (телефон/email): ${leadContact}\n` +
-          (leadComment ? `Коментар: ${leadComment}\n` : '')
+        buildPreorderMailtoBody({
+          items: payloadItems,
+          pageUrl:
+            typeof window !== 'undefined' ? window.location.href : undefined,
+          contactName: leadName.trim() || null,
+          contact: leadContact.trim(),
+          comment: leadComment.trim() || null,
+        }),
       )
 
       window.location.href = `mailto:hello@gerdan.online?subject=${subject}&body=${body}`

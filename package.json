@@ -14,6 +14,8 @@
     "import:gerdan:db": "node --import tsx scripts/imports/gerdan-import-db.ts",
     "import:materials:db": "node --import tsx scripts/imports/materials-import-db.ts",
     "import:materials:variants:db": "node --import tsx scripts/imports/variant-materials-import-db.ts",
+    "export:liqpay:catalog": "node --import tsx scripts/export-liqpay-catalog.ts",
+    "import:liqpay:mapping": "node --import tsx scripts/import-liqpay-catalog-mapping.ts",
     "test:imports": "node --import tsx --test src/lib/imports/*.test.ts",
     "test:orders": "node --import tsx --test src/lib/orders/*.test.ts",
     "db:probe": "node --import tsx scripts/db/probe-connection.ts"

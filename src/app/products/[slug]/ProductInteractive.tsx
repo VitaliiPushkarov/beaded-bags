@@ -11,6 +11,7 @@ import { usePreorder } from './usePreorder'
 import { ProductActions } from './ProductActions'
 import { AddonsSection } from './AddonsSection'
 import type { ProductWithVariants } from './productTypes'
+import type { PreorderItemInput } from '@/lib/preorder'
 import {
   calcLocalizedDiscountedPrice,
   convertOptionPriceFromUAH,
@@ -560,20 +561,6 @@ export function ProductInteractive({ p }: { p: ProductWithVariants }) {
   }, [selectedStrap])
 
   const {
-    preorderOpen,
-    preorderStatus,
-    leadName,
-    setLeadName,
-    leadContact,
-    setLeadContact,
-    leadComment,
-    setLeadComment,
-    openPreorder,
-    closePreorder,
-    submitPreorder,
-  } = usePreorder({ product: p, variant: v, strapId })
-
-  const {
     availableAddons,
     selectedAddonVariantIds,
     toggleAddon,
@@ -894,6 +881,140 @@ export function ProductInteractive({ p }: { p: ProductWithVariants }) {
     return merged.length ? merged : base
   }, [v, selectedStrap, selectedPouch, selectedSize])
 
+  const selectedAddonProducts = useMemo(
+    () =>
+      selectedAddonVariantIds
+        .map((addonVariantId) => {
+          const addonV = addonsByVariantId[addonVariantId]
+          if (!addonV) return null
+
+          const addonProductName = pickLocalizedText(
+            addonV.product.name,
+            (addonV.product as any).nameEn,
+            locale,
+          )
+          const addonColor = pickLocalizedText(
+            addonV.color,
+            (addonV as any).colorEn,
+            locale,
+          )
+          const name = `${addonProductName}${addonColor ? ` — ${addonColor}` : ''}`
+          const addonUsdPricing = calcLocalizedDiscountedPrice({
+            locale: 'en',
+            priceUAH: addonV.priceUAH ?? addonV.product.basePriceUAH ?? 0,
+            priceUSD:
+              (addonV as any).priceUSD ??
+              (addonV.product as any).basePriceUSD ??
+              null,
+            discountPercent: addonV.discountPercent,
+            discountUAH: addonV.discountUAH ?? 0,
+          })
+
+          return {
+            productId: addonV.product.id,
+            variantId: addonV.id,
+            productName: addonProductName,
+            name,
+            color: addonColor || null,
+            priceUAH: addonPrice(addonV),
+            priceUSD:
+              addonUsdPricing.currency === 'USD'
+                ? addonUsdPricing.finalPrice
+                : null,
+            image: addonImageUrl(addonV) || galleryImages[0],
+            slug: addonV.product.slug,
+          }
+        })
+        .filter(
+          (
+            addon,
+          ): addon is {
+            productId: string
+            variantId: string
+            productName: string
+            name: string
+            color: string | null
+            priceUAH: number
+            priceUSD: number | null
+            image: string
+            slug: string
+          } => Boolean(addon),
+        ),
+    [
+      addonImageUrl,
+      addonPrice,
+      addonsByVariantId,
+      galleryImages,
+      locale,
+      selectedAddonVariantIds,
+    ],
+  )
+
+  const preorderItems = useMemo<PreorderItemInput[]>(() => {
+    if (!v || !canSubmitSelection) return []
+
+    return [
+      {
+        kind: 'main',
+        productId: p.id,
+        productSlug: p.slug,
+        productName,
+        variantId: v.id,
+        variantLabel: viewContentName,
+        variantColor: selectedVariantColor || null,
+        modelSize: selectedSize?.size ?? null,
+        pouchColor: selectedPouch?.color ?? null,
+        strapId: selectedStrap?.id ?? strapId ?? null,
+        strapName: selectedStrap?.name ?? null,
+        priceUAH: finalPriceWithOptionsUAH,
+        qty: 1,
+        image: galleryImages[0] ?? null,
+      },
+      ...selectedAddonProducts.map((addon) => ({
+        kind: 'addon' as const,
+        productId: addon.productId,
+        productSlug: addon.slug,
+        productName: addon.productName,
+        variantId: addon.variantId,
+        variantLabel: addon.name,
+        variantColor: addon.color,
+        priceUAH: addon.priceUAH,
+        qty: 1,
+        image: addon.image,
+      })),
+    ]
+  }, [
+    canSubmitSelection,
+    finalPriceWithOptionsUAH,
+    galleryImages,
+    p.id,
+    p.slug,
+    productName,
+    selectedAddonProducts,
+    selectedPouch?.color,
+    selectedSize?.size,
+    selectedStrap?.id,
+    selectedStrap?.name,
+    selectedVariantColor,
+    strapId,
+    v,
+    viewContentName,
+  ])
+
+  const {
+    preorderOpen,
+    preorderStatus,
+    leadName,
+    setLeadName,
+    leadContact,
+    setLeadContact,
+    leadComment,
+    setLeadComment,
+    openPreorder,
+    closePreorder,
+    submitPreorder,
+  } = usePreorder({ product: p, variant: v, strapId, items: preorderItems })
+
   const handleAddToCart = () => {
     if (!v || !canSubmitSelection) return
 
@@ -915,47 +1036,19 @@ export function ProductInteractive({ p }: { p: ProductWithVariants }) {
       pouchId: selectedPouch?.id ?? null,
     })
 
-    selectedAddonVariantIds.forEach((addonVariantId) => {
-      const addonV = addonsByVariantId[addonVariantId]
-      if (!addonV) return
-
-      const addonName = pickLocalizedText(
-        addonV.product.name,
-        (addonV.product as any).nameEn,
-        locale,
-      )
-      const addonColor = pickLocalizedText(
-        addonV.color,
-        (addonV as any).colorEn,
-        locale,
-      )
-      const name = `${addonName}${addonColor ? ` — ${addonColor}` : ''}`
-      const addonUsdPricing = calcLocalizedDiscountedPrice({
-        locale: 'en',
-        priceUAH: addonV.priceUAH ?? addonV.product.basePriceUAH ?? 0,
-        priceUSD:
-          (addonV as any).priceUSD ??
-          (addonV.product as any).basePriceUSD ??
-          null,
-        discountPercent: addonV.discountPercent,
-        discountUAH: addonV.discountUAH ?? 0,
-      })
-
+    selectedAddonProducts.forEach((addon) => {
       add({
-        productId: addonV.product.id,
-        variantId: addonV.id,
-        name,
-        color: addonColor || null,
+        productId: addon.productId,
+        variantId: addon.variantId,
+        name: addon.name,
+        color: addon.color,
         modelSize: null,
         pouchColor: null,
-        priceUAH: addonPrice(addonV),
-        priceUSD:
-          addonUsdPricing.currency === 'USD'
-            ? addonUsdPricing.finalPrice
-            : null,
-        image: addonImageUrl(addonV) || galleryImages[0],
+        priceUAH: addon.priceUAH,
+        priceUSD: addon.priceUSD,
+        image: addon.image,
         qty: 1,
-        slug: addonV.product.slug,
+        slug: addon.slug,
         strapId: null,
         strapName: null,
         sizeId: null,

@@ -1251,7 +1251,7 @@ export default function ProductForm({
                     />
                   </label>
                   <label className="block text-sm font-medium ">
-                    LiqPay товар ID
+                    LiqPay товар ID (override)
                     <input
                       className="mt-1 w-full border rounded px-2 py-1 text-sm border-blue-300"
                       inputMode="numeric"
@@ -1414,7 +1414,7 @@ export default function ProductForm({
                             />
                             <input
                               className="w-full min-w-0 border rounded px-2 py-2 text-sm border-blue-300 text-center"
-                              placeholder="LiqPay ID"
+                              placeholder="LiqPay ID (override)"
                               inputMode="numeric"
                               value={strap.liqpayGoodId}
                               onChange={(e) => {
@@ -1553,7 +1553,7 @@ export default function ProductForm({
                             />
                             <input
                               className="w-full min-w-0 border rounded px-2 py-2 text-sm border-blue-300 text-center"
-                              placeholder="LiqPay ID"
+                              placeholder="LiqPay ID (override)"
                               inputMode="numeric"
                               value={pouch.liqpayGoodId}
                               onChange={(e) => {
@@ -1692,7 +1692,7 @@ export default function ProductForm({
                             />
                             <input
                               className="w-full min-w-0 border rounded px-2 py-2 text-sm border-blue-300 text-center"
-                              placeholder="LiqPay ID"
+                              placeholder="LiqPay ID (override)"
                               inputMode="numeric"
                               value={size.liqpayGoodId}
                               onChange={(e) => {
