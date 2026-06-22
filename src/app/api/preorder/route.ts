@@ -5,6 +5,8 @@ import { isPreorderStatus, resolveAvailabilityStatus } from '@/lib/availability'
 import {
   buildFallbackPreorderItems,
   buildPreorderTelegramMessage,
+  formatUaPhone,
+  isUaPhoneValid,
   normalizePreorderItems,
   type PreorderItemInput,
 } from '@/lib/preorder'
@@ -73,7 +75,7 @@ async function sendTelegram(text: string) {
 export async function POST(req: Request) {
   try {
     const raw = (await req.json()) as Partial<Body>
-    const contact = clean(raw.contact)
+    const rawContact = clean(raw.contact)
     const normalizedItems = normalizePreorderItems(raw.items)
     const fallbackItems = buildFallbackPreorderItems({
       productId: raw.productId ?? '',
@@ -86,12 +88,21 @@ export async function POST(req: Request) {
     const items = normalizedItems.length ? normalizedItems : fallbackItems
     const primaryItem = items.find((item) => item.kind === 'main') ?? items[0]
 
-    if (!primaryItem || !contact) {
+    if (!primaryItem || !rawContact) {
       return NextResponse.json(
         { ok: false, error: 'Missing required fields' },
         { status: 400 },
       )
     }
+
+    if (!isUaPhoneValid(rawContact)) {
+      return NextResponse.json(
+        { ok: false, error: 'Invalid phone number' },
+        { status: 400 },
+      )
+    }
+
+    const contact = formatUaPhone(rawContact)
 
     const productId = primaryItem.productId
     const productName = primaryItem.productName

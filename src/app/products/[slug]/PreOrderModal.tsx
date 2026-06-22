@@ -1,4 +1,12 @@
+import { useEffect, useState } from 'react'
+import { IMaskInput } from 'react-imask'
 import { useT } from '@/lib/i18n'
+import {
+  isUaPhoneValid,
+  UA_PHONE_MASK,
+  UA_PHONE_PATTERN,
+  UA_PHONE_PLACEHOLDER,
+} from '@/lib/preorder'
 
 export function PreorderModal(props: {
   open: boolean
@@ -15,6 +23,7 @@ export function PreorderModal(props: {
   onSubmit: (e: React.FormEvent) => void
 }) {
   const t = useT()
+  const [phoneTouched, setPhoneTouched] = useState(false)
   const {
     open,
     status,
@@ -30,7 +39,15 @@ export function PreorderModal(props: {
     onSubmit,
   } = props
 
+  useEffect(() => {
+    if (open) {
+      setPhoneTouched(false)
+    }
+  }, [open])
+
   if (!open) return null
+
+  const phoneValid = isUaPhoneValid(leadContact)
 
   return (
     <div className="fixed inset-0 z-60 flex items-center justify-center">
@@ -48,8 +65,8 @@ export function PreorderModal(props: {
             </div>
             <div className="mt-1 text-sm text-gray-600">
               {t(
-                'Залиште контакт — і ми Вам передзвонимо!',
-                'Leave your contact and we will get back to you.',
+                'Залиште номер телефону — і ми Вам передзвонимо!',
+                'Leave your phone number and we will get back to you.',
               )}
             </div>
             <div className="mt-2 text-xs text-gray-500">
@@ -84,14 +101,38 @@ export function PreorderModal(props: {
             <label className="block text-xs text-gray-600 mb-1">
               {t('Телефон', 'Phone')} <span className="text-red-500">*</span>
             </label>
-            <input
+            <IMaskInput
+              mask={UA_PHONE_MASK}
               type="tel"
+              name="phone"
               required
+              unmask={false}
               value={leadContact}
-              onChange={(e) => setLeadContact(e.target.value)}
-              className="w-full rounded-md border border-gray-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-black/10"
-              placeholder="+380"
+              inputMode="tel"
+              autoComplete="tel"
+              pattern={UA_PHONE_PATTERN}
+              title={t(
+                'Введіть номер у форматі +380 XX XXX XX XX',
+                'Enter phone number in +380 XX XXX XX XX format',
+              )}
+              onAccept={(value) => setLeadContact(String(value ?? ''))}
+              onBlur={() => setPhoneTouched(true)}
+              aria-invalid={phoneTouched && !phoneValid}
+              className={`w-full rounded-md border px-3 py-2 text-sm focus:outline-none focus:ring-2 ${
+                phoneTouched && !phoneValid
+                  ? 'border-rose-500 focus:ring-rose-500/10'
+                  : 'border-gray-200 focus:ring-black/10'
+              }`}
+              placeholder={UA_PHONE_PLACEHOLDER}
             />
+            {phoneTouched && !phoneValid && (
+              <p className="mt-1 text-xs text-rose-600">
+                {t(
+                  'Введіть номер у форматі +380 XX XXX XX XX',
+                  'Enter phone number in +380 XX XXX XX XX format',
+                )}
+              </p>
+            )}
           </div>
 
           <div>

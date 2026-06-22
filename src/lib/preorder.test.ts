@@ -5,6 +5,9 @@ import {
   buildFallbackPreorderItems,
   buildPreorderMailtoBody,
   buildPreorderTelegramMessage,
+  formatUaPhone,
+  isUaPhoneValid,
+  normalizeUaPhone,
   normalizePreorderItems,
 } from './preorder'
 
@@ -116,5 +119,14 @@ test('buildPreorderMailtoBody includes the full preorder item list', () => {
   assert.match(body, /Classic Mini — Червоний/)
   assert.match(body, /Доповнення: Брелок — Синій/)
   assert.match(body, /Сторінка: https:\/\/gerdan\.online\/products\/classic-mini/)
-  assert.match(body, /Контакт \(телефон\/email\): \+380501112233/)
+  assert.match(body, /Телефон: \+380501112233/)
+})
+
+test('ua preorder phone helpers normalize and format valid numbers', () => {
+  assert.equal(normalizeUaPhone('050 111 22 33'), '380501112233')
+  assert.equal(normalizeUaPhone('+380 50 111 22 33'), '380501112233')
+  assert.equal(normalizeUaPhone('501112233'), '380501112233')
+  assert.equal(formatUaPhone('0501112233'), '+380 50 111 22 33')
+  assert.equal(isUaPhoneValid('+380 50 111 22 33'), true)
+  assert.equal(isUaPhoneValid('hello world'), false)
 })

@@ -15,6 +15,11 @@ export type PreorderItemInput = {
   kind?: 'main' | 'addon'
 }
 
+export const UA_PHONE_MASK = '+{380} 00 000 00 00'
+export const UA_PHONE_PATTERN = '^\\+380 \\d{2} \\d{3} \\d{2} \\d{2}$'
+export const UA_PHONE_PLACEHOLDER = '+380 XX XXX XX XX'
+export const UA_PHONE_DEFAULT_PREFIX = '+380 '
+
 export type PreorderItem = {
   productId: string
   productSlug: string | null
@@ -80,6 +85,42 @@ function normalizePreorderItem(value: unknown): PreorderItem | null {
 
 function formatUAH(value: number) {
   return `${Math.round(value)} ₴`
+}
+
+export function normalizeUaPhone(value: unknown) {
+  let digits = String(value ?? '').replace(/\D/g, '')
+
+  if (digits.startsWith('80')) {
+    digits = `3${digits}`
+  } else if (digits.startsWith('0')) {
+    digits = `380${digits.slice(1)}`
+  } else if (!digits.startsWith('380') && digits.length <= 9) {
+    digits = `380${digits}`
+  }
+
+  if (digits.length > 12) {
+    digits = digits.slice(0, 12)
+  }
+
+  return digits
+}
+
+export function isUaPhoneValid(value: unknown) {
+  const digits = normalizeUaPhone(value)
+  return /^380\d{9}$/.test(digits)
+}
+
+export function formatUaPhone(value: unknown) {
+  const digits = normalizeUaPhone(value)
+
+  if (!isUaPhoneValid(digits)) {
+    return String(value ?? '').trim()
+  }
+
+  return `+${digits.slice(0, 3)} ${digits.slice(3, 5)} ${digits.slice(
+    5,
+    8,
+  )} ${digits.slice(8, 10)} ${digits.slice(10, 12)}`
 }
 
 function escHtml(value: string) {
@@ -207,7 +248,7 @@ export function buildPreorderMailtoBody(params: {
     lines.push(`Ім'я: ${params.contactName}`)
   }
 
-  lines.push(`Контакт (телефон/email): ${params.contact}`)
+  lines.push(`Телефон: ${params.contact}`)
 
   if (params.comment) {
     lines.push(`Коментар: ${params.comment}`)

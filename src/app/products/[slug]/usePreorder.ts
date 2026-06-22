@@ -3,6 +3,9 @@ import type { Product, ProductVariant } from '@prisma/client'
 import {
   buildFallbackPreorderItems,
   buildPreorderMailtoBody,
+  formatUaPhone,
+  isUaPhoneValid,
+  UA_PHONE_DEFAULT_PREFIX,
   normalizePreorderItems,
   type PreorderItemInput,
 } from '@/lib/preorder'
@@ -35,13 +38,16 @@ export function usePreorder(params: {
 
   const [preorderOpen, setPreorderOpen] = useState(false)
   const [leadName, setLeadName] = useState('')
-  const [leadContact, setLeadContact] = useState('')
+  const [leadContact, setLeadContact] = useState(UA_PHONE_DEFAULT_PREFIX)
   const [leadComment, setLeadComment] = useState('')
   const [preorderStatus, setPreorderStatus] = useState<
     'idle' | 'submitting' | 'success' | 'error'
   >('idle')
 
   const openPreorder = () => {
+    if (!leadContact.trim()) {
+      setLeadContact(UA_PHONE_DEFAULT_PREFIX)
+    }
     setPreorderStatus('idle')
     setPreorderOpen(true)
   }
@@ -68,6 +74,10 @@ export function usePreorder(params: {
 
     if (!primaryItem) return
 
+    if (!isUaPhoneValid(leadContact)) return
+
+    const formattedPhone = formatUaPhone(leadContact)
+
     const payload = {
       productId: primaryItem.productId,
       productSlug: primaryItem.productSlug,
@@ -76,7 +86,7 @@ export function usePreorder(params: {
       variantColor: primaryItem.variantColor,
       strapId: primaryItem.strapId ?? strapId ?? null,
       contactName: leadName.trim(),
-      contact: leadContact.trim(),
+      contact: formattedPhone,
       comment: leadComment.trim() || null,
       source: 'product_page',
       items: payloadItems,
@@ -111,7 +121,7 @@ export function usePreorder(params: {
           pageUrl:
             typeof window !== 'undefined' ? window.location.href : undefined,
           contactName: leadName.trim() || null,
-          contact: leadContact.trim(),
+          contact: formattedPhone,
           comment: leadComment.trim() || null,
         }),
       )
