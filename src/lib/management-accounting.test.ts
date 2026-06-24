@@ -3,6 +3,7 @@ import test from 'node:test'
 
 import {
   buildAverageLaborCostByVariantId,
+  calculateMaterialsCostFromUsages,
   buildManagedUnitCostUAH,
 } from '@/lib/management-accounting'
 
@@ -40,4 +41,52 @@ test('buildManagedUnitCostUAH prefers laborCostUAHOverride over manual profile l
   })
 
   assert.equal(unitCostUAH, 400)
+})
+
+test('calculateMaterialsCostFromUsages adds materials scoped to all variants', () => {
+  const materialsCostUAH = calculateMaterialsCostFromUsages(
+    [
+      {
+        quantity: 2,
+        variantColor: '',
+        notes: null,
+        material: {
+          unitCostUAH: 15,
+        },
+      },
+      {
+        quantity: 1,
+        variantColor: 'Рожевий',
+        notes: null,
+        material: {
+          unitCostUAH: 40,
+        },
+      },
+    ],
+    'Рожевий',
+  )
+
+  assert.equal(materialsCostUAH, 70)
+})
+
+test('calculateMaterialsCostFromUsages ignores legacy per-variant maps in notes', () => {
+  const materialsCostUAH = calculateMaterialsCostFromUsages(
+    [
+      {
+        quantity: 1,
+        variantColor: '',
+        notes: [
+          'excelImport=variant-materials-average',
+          'variantQtyMap={\"Рожевий\":3,\"Джинс\":0.5}',
+          'variantCostFactorMap={\"Рожевий\":2}',
+        ].join('\n'),
+        material: {
+          unitCostUAH: 25,
+        },
+      },
+    ],
+    'Рожевий',
+  )
+
+  assert.equal(materialsCostUAH, 25)
 })

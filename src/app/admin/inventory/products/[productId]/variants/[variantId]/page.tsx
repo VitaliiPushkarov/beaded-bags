@@ -57,6 +57,10 @@ function formatMaterialUnitPrice(value: number): string {
   })} ₴`
 }
 
+function normalizeVariantScope(value: string | null | undefined): string {
+  return value?.trim().toLocaleLowerCase('uk-UA') ?? ''
+}
+
 export default async function AdminInventoryVariantMaterialsPage({
   params,
   searchParams,
@@ -263,6 +267,7 @@ export default async function AdminInventoryVariantMaterialsPage({
 
   const variantColorRaw = variant.color?.trim() || ''
   const variantColor = variantColorRaw || 'Без кольору'
+  const normalizedVariantScope = normalizeVariantScope(variantColorRaw)
   const variantImageUrl =
     variant.images[0]?.url || variant.image || '/img/placeholder.png'
   const variantQty = variant.inventory?.finishedGoodsQty ?? 0
@@ -279,6 +284,14 @@ export default async function AdminInventoryVariantMaterialsPage({
         .map((item) => item.color?.trim() || '')
         .filter((value): value is string => Boolean(value)),
     ),
+  )
+  const currentVariantUsages = product.materialUsages.filter((usage) => {
+    const scopedColor = usage.variantColor?.trim()
+    if (!scopedColor) return false
+    return normalizeVariantScope(scopedColor) === normalizedVariantScope
+  })
+  const sharedUsages = product.materialUsages.filter(
+    (usage) => !usage.variantColor?.trim(),
   )
 
   return (
@@ -352,21 +365,31 @@ export default async function AdminInventoryVariantMaterialsPage({
               Матеріали на 1 одиницю товару
             </h2>
             <p className="mt-1 text-sm text-gray-600">
-              Уникаємо довгого скролу: спочатку введіть пошук, потім додайте
-              матеріал.
+              Показані лише матеріали цього варіанту. Спільні для всіх варіантів
+              сховані нижче, щоб не змішуватись в одному списку.
             </p>
           </div>
-          <div className="text-sm text-gray-500">
-            Додано:{' '}
-            <span className="font-medium text-gray-900">
-              {product.materialUsages.length}
-            </span>
+          <div className="text-sm text-gray-500 space-y-1 text-right">
+            <div>
+              Для цього варіанту:{' '}
+              <span className="font-medium text-gray-900">
+                {currentVariantUsages.length}
+              </span>
+            </div>
+            {sharedUsages.length > 0 ? (
+              <div>
+                Спільні для всіх:{' '}
+                <span className="font-medium text-gray-900">
+                  {sharedUsages.length}
+                </span>
+              </div>
+            ) : null}
           </div>
         </div>
 
-        {product.materialUsages.length === 0 ? (
+        {currentVariantUsages.length === 0 ? (
           <div className="mt-4 rounded border border-dashed p-4 text-sm text-gray-600">
-            Ще не додано жодного матеріалу.
+            Для цього варіанту ще не додано окремих матеріалів.
           </div>
         ) : (
           <div className="mt-4 overflow-x-auto">
@@ -381,7 +404,7 @@ export default async function AdminInventoryVariantMaterialsPage({
                 </tr>
               </thead>
               <tbody>
-                {product.materialUsages.map((usage) => (
+                {currentVariantUsages.map((usage) => (
                   <tr key={usage.id} className="border-t">
                     <td className="p-3">
                       <div className="font-medium">{usage.material.name}</div>
@@ -438,6 +461,95 @@ export default async function AdminInventoryVariantMaterialsPage({
             </table>
           </div>
         )}
+
+        {sharedUsages.length > 0 ? (
+          <details className="mt-4 overflow-hidden rounded border bg-slate-50">
+            <summary className="cursor-pointer list-none p-4">
+              <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+                <div>
+                  <div className="font-medium text-sm">
+                    Спільні матеріали для всіх варіантів
+                  </div>
+                  <p className="mt-1 text-xs text-gray-600">
+                    Ці матеріали приховані за замовчуванням, щоб не плутати їх з
+                    матеріалами поточного варіанту.
+                  </p>
+                </div>
+                <div className="text-xs text-gray-500">
+                  Записів:{' '}
+                  <span className="font-medium text-gray-900">
+                    {sharedUsages.length}
+                  </span>
+                </div>
+              </div>
+            </summary>
+            <div className="border-t bg-white">
+              <div className="overflow-x-auto">
+                <table className="min-w-full text-sm">
+                  <thead className="bg-gray-50">
+                    <tr>
+                      <th className="p-3 text-left">Матеріал</th>
+                      <th className="p-3 text-left">Застосовується до</th>
+                      <th className="p-3 text-right">Кількість</th>
+                      <th className="p-3 text-left">Нотатки</th>
+                      <th className="p-3 text-right">Дії</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {sharedUsages.map((usage) => (
+                      <tr key={usage.id} className="border-t">
+                        <td className="p-3">
+                          <div className="font-medium">{usage.material.name}</div>
+                          <div className="mt-1 text-xs text-gray-500">
+                            {getMaterialCategoryLabel(usage.material.category)}
+                            {usage.material.color ? ` · ${usage.material.color}` : ''}
+                          </div>
+                          <div className="mt-1 text-xs text-gray-500">
+                            Залишок: {formatQuantity(usage.material.stockQty)}{' '}
+                            {usage.material.unit}
+                          </div>
+                          <div className="mt-1 text-xs text-gray-500">
+                            Ціна за 1 од.:{' '}
+                            {formatMaterialUnitPrice(usage.material.unitCostUAH)}
+                          </div>
+                        </td>
+                        <td className="p-3">
+                          <span className="text-xs text-gray-500">Усі варіанти</span>
+                        </td>
+                        <td className="p-3 text-right">
+                          {formatQuantity(usage.quantity)} {usage.material.unit}
+                        </td>
+                        <td className="p-3">
+                          {usage.notes || '—'}
+                          <div className="mt-1 text-xs text-gray-500">
+                            Вартість на 1 товар:{' '}
+                            {formatUAH(
+                              Math.round(
+                                usage.quantity * usage.material.unitCostUAH,
+                              ),
+                            )}
+                          </div>
+                        </td>
+                        <td className="p-3 text-right">
+                          <form action={deleteProductMaterial}>
+                            <input type="hidden" name="id" value={usage.id} />
+                            <ConfirmSubmitButton
+                              confirmMessage={`Прибрати матеріал "${usage.material.name}" з цього товару?`}
+                              className="text-xs text-red-600 hover:underline"
+                            >
+                              Видалити
+                            </ConfirmSubmitButton>
+                          </form>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </details>
+        ) : null}
+
         <div className="mt-5 space-y-3 rounded border bg-slate-50 p-4">
           <form
             method="get"

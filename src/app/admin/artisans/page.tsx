@@ -131,23 +131,26 @@ export default async function AdminArtisansPage({ searchParams }: PageProps) {
       )
     }
 
+    const name = parsed.data.name
+
     try {
       await prisma.artisan.create({
         data: {
-          name: parsed.data.name,
+          name,
           isActive: true,
         },
       })
-
-      redirect(
-        `/admin/artisans?success=${encodeURIComponent(`Майстра «${parsed.data.name}» створено.`)}`,
-      )
     } catch (error) {
       console.error('[admin/artisans] createArtisan failed', error)
       redirect(
         `/admin/artisans?errorScope=create-artisan&error=${encodeURIComponent('Не вдалося створити майстра. Спробуйте ще раз.')}`,
       )
     }
+
+    revalidatePath('/admin/artisans')
+    redirect(
+      `/admin/artisans?success=${encodeURIComponent(`Майстра «${name}» створено.`)}`,
+    )
   }
 
   async function updateArtisan(formData: FormData) {
