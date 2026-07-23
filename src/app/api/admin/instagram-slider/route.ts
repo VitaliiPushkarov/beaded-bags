@@ -1,11 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { z } from 'zod'
-import { revalidatePath } from 'next/cache'
+import { revalidatePath, revalidateTag } from 'next/cache'
 
 import { requireAdmin } from '@/lib/admin-auth'
 import { prisma } from '@/lib/prisma'
 import {
   getInstagramSliderSettings,
+  HOME_CONFIG_CACHE_TAG,
   sanitizeInstagramPostsPayload,
 } from '@/lib/home-page-config'
 import {
@@ -102,6 +103,7 @@ export async function PUT(req: NextRequest) {
       },
     })
 
+    revalidateTag(HOME_CONFIG_CACHE_TAG, 'max')
     revalidatePath('/')
     revalidatePath('/admin/configuration')
 

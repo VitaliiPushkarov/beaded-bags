@@ -59,8 +59,11 @@ export async function generateMetadata(): Promise<Metadata> {
 export default async function Home() {
   const locale = await getRequestLocale()
   const siteUrl = getSiteUrl(locale)
-  const heroImages = await getHeroImagesSettings()
-  const instagram = await getInstagramSliderSettings()
+  // Independent fetches — run them concurrently rather than sequentially.
+  const [heroImages, instagram] = await Promise.all([
+    getHeroImagesSettings(),
+    getInstagramSliderSettings(),
+  ])
   const isEn = locale === 'en'
   const organizationJsonLd = {
     '@context': 'https://schema.org',

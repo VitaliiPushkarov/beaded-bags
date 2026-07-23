@@ -1,8 +1,13 @@
+import { unstable_cache } from 'next/cache'
+
 import { prisma } from '@/lib/prisma'
+import { HOME_CONFIG_CACHE_TAG } from '@/lib/home-page-config'
 import {
   isPrismaAvailabilityError,
   withPrismaRetry,
 } from '@/lib/prisma-resilience'
+
+const HOME_HERO_REVALIDATE_SECONDS = 300
 
 export type HomeHeroSlideDTO = {
   id: string
@@ -106,7 +111,7 @@ function mergeWithDefaults(input: {
   }
 }
 
-export async function getHomeHeroBannerSettings(): Promise<HomeHeroBannerSettingsDTO> {
+async function queryHomeHeroBannerSettings(): Promise<HomeHeroBannerSettingsDTO> {
   try {
     const row = await withPrismaRetry(
       () =>
@@ -136,3 +141,9 @@ export async function getHomeHeroBannerSettings(): Promise<HomeHeroBannerSetting
     throw error
   }
 }
+
+export const getHomeHeroBannerSettings = unstable_cache(
+  queryHomeHeroBannerSettings,
+  ['home-hero-banner-settings'],
+  { tags: [HOME_CONFIG_CACHE_TAG], revalidate: HOME_HERO_REVALIDATE_SECONDS },
+)

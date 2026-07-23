@@ -1,8 +1,18 @@
+import { unstable_cache } from 'next/cache'
+
 import { prisma } from '@/lib/prisma'
 import {
   isPrismaAvailabilityError,
   withPrismaRetry,
 } from '@/lib/prisma-resilience'
+
+// The home page is dynamically rendered (locale comes from the request host),
+// so it queried the singleton homeHeroBannerSettings row on every request —
+// three times, once per getter. These settings change only via the admin
+// panel, so we cache them under a shared tag; admin mutations bust it with
+// revalidateTag(HOME_CONFIG_CACHE_TAG, 'max').
+export const HOME_CONFIG_CACHE_TAG = 'home-config'
+const HOME_CONFIG_REVALIDATE_SECONDS = 300
 
 export type HeroImagesSettingsDTO = {
   leftImg: string
@@ -159,7 +169,7 @@ function normalizeInstagramPosts(input: unknown): InstagramPostDTO[] {
   return posts
 }
 
-export async function getHeroImagesSettings(): Promise<HeroImagesSettingsDTO> {
+async function queryHeroImagesSettings(): Promise<HeroImagesSettingsDTO> {
   try {
     const row = await withPrismaRetry(
       () =>
@@ -183,7 +193,7 @@ export async function getHeroImagesSettings(): Promise<HeroImagesSettingsDTO> {
   }
 }
 
-export async function getInstagramSliderSettings(): Promise<InstagramSliderSettingsDTO> {
+async function queryInstagramSliderSettings(): Promise<InstagramSliderSettingsDTO> {
   try {
     const row = await withPrismaRetry(
       () =>
@@ -214,6 +224,18 @@ export async function getInstagramSliderSettings(): Promise<InstagramSliderSetti
     throw error
   }
 }
+
+export const getHeroImagesSettings = unstable_cache(
+  queryHeroImagesSettings,
+  ['home-hero-images-settings'],
+  { tags: [HOME_CONFIG_CACHE_TAG], revalidate: HOME_CONFIG_REVALIDATE_SECONDS },
+)
+
+export const getInstagramSliderSettings = unstable_cache(
+  queryInstagramSliderSettings,
+  ['home-instagram-slider-settings'],
+  { tags: [HOME_CONFIG_CACHE_TAG], revalidate: HOME_CONFIG_REVALIDATE_SECONDS },
+)
 
 export function sanitizeHeroImagesPayload(input: HeroImagesSettingsDTO): HeroImagesSettingsDTO {
   return normalizeHeroImages(input)

@@ -1,9 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { z } from 'zod'
-import { revalidatePath } from 'next/cache'
+import { revalidatePath, revalidateTag } from 'next/cache'
 
 import { requireAdmin } from '@/lib/admin-auth'
 import { prisma } from '@/lib/prisma'
+import { HOME_CONFIG_CACHE_TAG } from '@/lib/home-page-config'
 import {
   getHomeHeroBannerSettings,
   HOME_HERO_BANNER_DEFAULTS,
@@ -129,6 +130,7 @@ export async function PUT(req: NextRequest) {
       },
     })
 
+    revalidateTag(HOME_CONFIG_CACHE_TAG, 'max')
     revalidatePath('/')
 
     return NextResponse.json(

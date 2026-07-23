@@ -1,3 +1,4 @@
+import { unstable_cache } from 'next/cache'
 import Image from 'next/image'
 import Link from 'next/link'
 import type { Product, ProductVariant } from '@prisma/client'
@@ -31,7 +32,7 @@ type NewArrivalsVariant = ProductVariant & {
 
 const NEW_ARRIVALS_VISIBLE_COUNT = 12
 
-async function getNewArrivals(): Promise<NewArrivalsVariant[]> {
+async function queryNewArrivals(): Promise<NewArrivalsVariant[]> {
   try {
     return await withPrismaRetry(
       () =>
@@ -80,6 +81,14 @@ async function getNewArrivals(): Promise<NewArrivalsVariant[]> {
     throw error
   }
 }
+
+// Catalog data changes rarely and the shop pages already tolerate 300s
+// staleness (revalidate = 300), so cache the query to keep it off the
+// home page's critical render path (it previously ran on every request).
+const getNewArrivals = unstable_cache(queryNewArrivals, ['home-new-arrivals'], {
+  tags: ['new-arrivals'],
+  revalidate: 300,
+})
 
 export default async function NewArrivals() {
   const locale = await getRequestLocale()
