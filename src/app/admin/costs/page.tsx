@@ -5,10 +5,7 @@ import { redirect } from 'next/navigation'
 import { z } from 'zod'
 
 import { formatUAH } from '@/lib/admin-finance'
-import {
-  calcGrossMarginPercent,
-  calcPaymentFeeUAH,
-} from '@/lib/finance'
+import { calcGrossMarginPercent, calcPaymentFeeUAH } from '@/lib/finance'
 import { ACTIVE_PRODUCT_TYPES, TYPE_LABELS } from '@/lib/labels'
 import {
   buildManagedUnitCostUAH,
@@ -99,15 +96,12 @@ type CostSortKey =
   | 'margin'
 type SortDirection = 'asc' | 'desc'
 
-const OptionalNonNegativeInt = z.preprocess(
-  (value) => {
-    if (value == null) return undefined
-    if (typeof value === 'string' && value.trim() === '') return undefined
-    const parsed = Number(value)
-    return Number.isFinite(parsed) ? parsed : value
-  },
-  z.number().int().min(0).optional(),
-)
+const OptionalNonNegativeInt = z.preprocess((value) => {
+  if (value == null) return undefined
+  if (typeof value === 'string' && value.trim() === '') return undefined
+  const parsed = Number(value)
+  return Number.isFinite(parsed) ? parsed : value
+}, z.number().int().min(0).optional())
 
 const CostAssemblySchema = z.object({
   productId: z.string().min(1),
@@ -129,7 +123,10 @@ function getVariantLabel(variant: VariantForCosts | null): string {
   return `Варіант ${variant.id.slice(-6)}`
 }
 
-function getVariantSalePrice(product: ProductForCosts, variant: VariantForCosts | null) {
+function getVariantSalePrice(
+  product: ProductForCosts,
+  variant: VariantForCosts | null,
+) {
   const { finalPriceUAH } = calcDiscountedPrice({
     basePriceUAH: variant?.priceUAH ?? product.basePriceUAH ?? 0,
     discountPercent: variant?.discountPercent,
@@ -162,7 +159,9 @@ function getValidCostSortKey(value?: string): CostSortKey {
     'margin',
   ]
 
-  return allowed.includes(value as CostSortKey) ? (value as CostSortKey) : 'catalog'
+  return allowed.includes(value as CostSortKey)
+    ? (value as CostSortKey)
+    : 'catalog'
 }
 
 function getValidSortDirection(
@@ -178,7 +177,10 @@ export default async function AdminCostsPage({ searchParams }: PageProps) {
   const type = getValidProductType(params.type)
   const costStatus = getValidCostStatus(params.costStatus)
   const sort = getValidCostSortKey(params.sort)
-  const dir = getValidSortDirection(params.dir, sort === 'catalog' ? 'asc' : 'desc')
+  const dir = getValidSortDirection(
+    params.dir,
+    sort === 'catalog' ? 'asc' : 'desc',
+  )
   const editProductId = params.editProductId?.trim() ?? ''
 
   function buildCostsHref(input?: { editProductId?: string }) {
@@ -301,7 +303,9 @@ export default async function AdminCostsPage({ searchParams }: PageProps) {
   })
   const averageLaborCostByVariantId = await getAverageLaborCostByVariantId(
     prisma,
-    products.flatMap((product) => product.variants.map((variant) => variant.id)),
+    products.flatMap((product) =>
+      product.variants.map((variant) => variant.id),
+    ),
   )
 
   const rows = products
@@ -364,7 +368,9 @@ export default async function AdminCostsPage({ searchParams }: PageProps) {
         }
         if (laborCostUAH <= 0) {
           readinessIssues.push(
-            variant ? 'Не задані активні ставки майстрів' : 'Не задана оплата роботи',
+            variant
+              ? 'Не задані активні ставки майстрів'
+              : 'Не задана оплата роботи',
           )
         }
         if (salePriceUAH > 0 && unitCostUAH >= salePriceUAH) {
@@ -422,7 +428,7 @@ export default async function AdminCostsPage({ searchParams }: PageProps) {
             direction *
               ((a.variant?.sortCatalog ?? 0) - (b.variant?.sortCatalog ?? 0)) ||
             b.product.createdAt.getTime() - a.product.createdAt.getTime()
-        )
+          )
       }
     })
   const readyRowsCount = rows.filter((row) => row.readiness === 'ready').length
@@ -530,12 +536,9 @@ export default async function AdminCostsPage({ searchParams }: PageProps) {
           {' · '}Повна калькуляція:{' '}
           <span className="font-medium text-green-700">{readyRowsCount}</span>
           {' · '}Потребує уваги:{' '}
-          <span className="font-medium text-amber-700">{attentionRowsCount}</span>
-        </div>
-        <div className="rounded border border-blue-100 bg-blue-50 p-4 text-xs text-blue-900">
-          Для замовлень використовується собівартість <b>без доставки</b>:
-          матеріали + пакування + робота + інші витрати. Доставка на 1 шт
-          показується окремо як повна планова собівартість.
+          <span className="font-medium text-amber-700">
+            {attentionRowsCount}
+          </span>
         </div>
 
         {rows.length === 0 ? (
@@ -602,17 +605,23 @@ export default async function AdminCostsPage({ searchParams }: PageProps) {
 
                     <div className="text-sm lg:text-right">
                       <div className="text-xs text-gray-500">Ціна продажу</div>
-                      <div className="font-medium">{formatUAH(salePriceUAH)}</div>
+                      <div className="font-medium">
+                        {formatUAH(salePriceUAH)}
+                      </div>
                     </div>
 
                     <div className="text-sm lg:text-right">
                       <div className="text-xs text-gray-500">Собівартість</div>
-                      <div className="font-medium">{formatUAH(unitCostUAH)}</div>
+                      <div className="font-medium">
+                        {formatUAH(unitCostUAH)}
+                      </div>
                     </div>
 
                     <div className="text-sm lg:text-right">
                       <div className="text-xs text-gray-500">Комісія</div>
-                      <div className="font-medium">{formatUAH(paymentFeeUAH)}</div>
+                      <div className="font-medium">
+                        {formatUAH(paymentFeeUAH)}
+                      </div>
                     </div>
 
                     <div className="text-sm lg:text-right">
@@ -646,13 +655,17 @@ export default async function AdminCostsPage({ searchParams }: PageProps) {
                       <div className="text-xs text-gray-500">
                         Матеріали (на варіант)
                       </div>
-                      <div className="mt-1 font-medium">{formatUAH(materialsCostUAH)}</div>
+                      <div className="mt-1 font-medium">
+                        {formatUAH(materialsCostUAH)}
+                      </div>
                     </div>
                     <div className="rounded border bg-gray-50 p-3">
                       <div className="text-xs text-gray-500">
                         Пакування (шаблон)
                       </div>
-                      <div className="mt-1 font-medium">{formatUAH(packagingCostUAH)}</div>
+                      <div className="mt-1 font-medium">
+                        {formatUAH(packagingCostUAH)}
+                      </div>
                     </div>
                     <div className="rounded border bg-gray-50 p-3">
                       <div className="text-xs text-gray-500">
@@ -660,7 +673,9 @@ export default async function AdminCostsPage({ searchParams }: PageProps) {
                           ? 'Середня робота по майстрам'
                           : 'Робота за 1 сумку'}
                       </div>
-                      <div className="mt-1 font-medium">{formatUAH(laborCostUAH)}</div>
+                      <div className="mt-1 font-medium">
+                        {formatUAH(laborCostUAH)}
+                      </div>
                     </div>
                     <div className="rounded border bg-gray-50 p-3">
                       <div className="text-xs text-gray-500">
@@ -674,7 +689,9 @@ export default async function AdminCostsPage({ searchParams }: PageProps) {
                       <div className="text-xs text-gray-500">
                         Інші витрати на 1 шт
                       </div>
-                      <div className="mt-1 font-medium">{formatUAH(otherCostUAH)}</div>
+                      <div className="mt-1 font-medium">
+                        {formatUAH(otherCostUAH)}
+                      </div>
                     </div>
                     <div className="rounded border bg-slate-100 p-3">
                       <div className="text-xs text-gray-500">
@@ -694,10 +711,15 @@ export default async function AdminCostsPage({ searchParams }: PageProps) {
                     >
                       Запасах
                     </Link>
-                    .{variant ? (
+                    .
+                    {variant ? (
                       <>
-                        {' '}Ставки майстрів для цього варіанта редагуються в{' '}
-                        <Link href="/admin/artisans" className="text-blue-600 hover:underline">
+                        {' '}
+                        Ставки майстрів для цього варіанта редагуються в{' '}
+                        <Link
+                          href="/admin/artisans"
+                          className="text-blue-600 hover:underline"
+                        >
                           Майстрах
                         </Link>
                         .

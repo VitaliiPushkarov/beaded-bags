@@ -88,7 +88,7 @@ export default function NovaPoshtaPicker() {
 
       try {
         setLoadingCities(true)
-        const params = new URLSearchParams({ query: q, limit: '20' })
+        const params = new URLSearchParams({ query: q, limit: '50' })
         params.set('warehouses', '1')
         const res = await fetch(
           `/api/nova-poshta/cities?${params.toString()}`,

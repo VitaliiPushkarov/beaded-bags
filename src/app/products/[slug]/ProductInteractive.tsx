@@ -44,6 +44,13 @@ const PreorderModal = dynamic(
 )
 
 const EMPTY_OPTION_KEY = '__empty__'
+type CustomizationGalleryTarget = 'pouch' | 'strap' | 'size'
+
+type SwatchOptionSource = {
+  images?: Array<{ url: string; sort?: number | null }>
+  mainImageUrl?: string | null
+  imageUrl?: string | null
+}
 
 function normalizeOptionValue(value: string | null | undefined): string {
   return (value || '').trim()
@@ -143,13 +150,7 @@ function buildVariantSelectionLabel(params: {
     : params.productName
 }
 
-function collectOptionImages(
-  option: {
-    images?: Array<{ url: string; sort?: number | null }>
-    mainImageUrl?: string | null
-    imageUrl?: string | null
-  } | null,
-): string[] {
+function collectOptionImages(option: SwatchOptionSource | null): string[] {
   if (!option) return []
 
   const fromList = (option.images ?? [])
@@ -165,6 +166,99 @@ function collectOptionImages(
 
   const one = (option.mainImageUrl || option.imageUrl || '').trim()
   return one ? [one] : []
+}
+
+const COLOR_SWATCH_RULES: Array<[RegExp, string]> = [
+  [/чорн|black|графіт|graphite|антрацит|anthracite/, '#111827'],
+  [/бі(л|л)|white|молоч|ivory/, '#F8F4EA'],
+  [/бордо|burgundy|вишн|cherry/, '#6D1024'],
+  [/черв|red/, '#C8202F'],
+  [/рож|pink|bubblegum/, '#F7A8C8'],
+  [/фіол|бузк|purple|violet|lilac/, '#8B5CF6'],
+  [/син|blue|navy/, '#2563EB'],
+  [/блак|небес|sky/, '#7DD3FC'],
+  [/зел|green|marsh/, '#3F7A4F'],
+  [/жовт|yellow|banana/, '#F4C430'],
+  [/помар|orange/, '#F97316'],
+  [/беж|beige|cream|крем|tan/, '#D8C3A5'],
+  [/корич|карам|brown|choco|шоколад/, '#7A4A2A'],
+  [/сір|gray|grey/, '#9CA3AF'],
+  [/сріб|silver|metal|метал/, '#C0C5CA'],
+  [/золот|gold/, '#D4AF37'],
+]
+
+function resolveOptionSwatchColor(label: string | null | undefined) {
+  const value = (label || '').trim()
+  if (!value) return null
+
+  const hex = value.match(/#(?:[0-9a-f]{3}|[0-9a-f]{6}|[0-9a-f]{8})\b/i)
+  if (hex) return hex[0]
+
+  const normalized = value.toLowerCase()
+  return (
+    COLOR_SWATCH_RULES.find(([pattern]) => pattern.test(normalized))?.[1] ??
+    null
+  )
+}
+
+function optionPreviewImage(option: SwatchOptionSource | null) {
+  return collectOptionImages(option)[0] ?? null
+}
+
+function ColorOptionButton(props: {
+  label: string
+  selected: boolean
+  color: string | null
+  imageUrl?: string | null
+  extraLabel?: string
+  onClick: () => void
+}) {
+  const title = `${props.label}${props.extraLabel || ''}`
+
+  return (
+    <button
+      type="button"
+      role="radio"
+      aria-checked={props.selected}
+      aria-label={title}
+      title={title}
+      onClick={props.onClick}
+      className={`relative grid h-12 w-12 place-items-center rounded-md border bg-white p-1 transition cursor-pointer ${
+        props.selected
+          ? 'border-black ring-2 ring-black/10'
+          : 'border-gray-300 hover:border-black'
+      }`}
+    >
+      <span className="relative h-full w-full overflow-hidden rounded-[4px] border border-black/10 bg-gray-200">
+        {props.color ? (
+          <span
+            className="absolute inset-0"
+            style={{ backgroundColor: props.color }}
+            aria-hidden
+          />
+        ) : props.imageUrl ? (
+          <Image
+            src={props.imageUrl}
+            alt=""
+            fill
+            className="object-cover"
+            sizes="28px"
+          />
+        ) : (
+          <span
+            className="absolute inset-0 bg-[linear-gradient(135deg,#f8fafc_0%,#d1d5db_100%)]"
+            aria-hidden
+          />
+        )}
+      </span>
+      {props.extraLabel ? (
+        <span
+          className="absolute -right-0.5 -top-0.5 h-2.5 w-2.5 rounded-full border border-white bg-black"
+          aria-hidden
+        />
+      ) : null}
+    </button>
+  )
 }
 
 function InstagramIcon({ className }: { className?: string }) {
@@ -231,6 +325,8 @@ export function ProductInteractive({ p }: { p: ProductWithVariants }) {
   const [selectedSizeId, setSelectedSizeId] = useState<string | undefined>()
   const [selectedPouchId, setSelectedPouchId] = useState<string | undefined>()
   const [strapId, setStrapId] = useState<string | undefined>()
+  const [activeCustomizationImage, setActiveCustomizationImage] =
+    useState<CustomizationGalleryTarget | null>(null)
   const [galleryReady, setGalleryReady] = useState(false)
   const selectedVariantIdRef = useRef<string | undefined>(undefined)
   const selectedColorKeyRef = useRef<string | undefined>(undefined)
@@ -414,6 +510,7 @@ export function ProductInteractive({ p }: { p: ProductWithVariants }) {
         setSelectedSizeId(undefined)
         setSelectedPouchId(undefined)
         setStrapId(undefined)
+        setActiveCustomizationImage(null)
       }
       if (selectedVariantIdRef.current !== nextVariant.id) {
         selectedVariantIdRef.current = nextVariant.id
@@ -578,7 +675,8 @@ export function ProductInteractive({ p }: { p: ProductWithVariants }) {
   const variantInStock = isInStockStatus(availabilityStatus)
   const variantPreorder = isPreorderStatus(availabilityStatus)
   const referencePriceUAH = v?.priceUAH ?? p.basePriceUAH ?? 0
-  const referencePriceUSD = (v as any)?.priceUSD ?? (p as any).basePriceUSD ?? null
+  const referencePriceUSD =
+    (v as any)?.priceUSD ?? (p as any).basePriceUSD ?? null
 
   const { basePrice, finalPrice, hasDiscount, discountPercent, currency } =
     calcLocalizedDiscountedPrice({
@@ -636,13 +734,9 @@ export function ProductInteractive({ p }: { p: ProductWithVariants }) {
   const basePriceWithOptionsUAH = basePriceUAH + extraTotalUAH
   const finalPriceWithOptionsUAH = finalPriceUAH + extraTotalUAH
   const basePriceWithOptionsUSD =
-    usdPricing.currency === 'USD'
-      ? usdPricing.basePrice + extraTotalUSD
-      : null
+    usdPricing.currency === 'USD' ? usdPricing.basePrice + extraTotalUSD : null
   const finalPriceWithOptionsUSD =
-    usdPricing.currency === 'USD'
-      ? usdPricing.finalPrice + extraTotalUSD
-      : null
+    usdPricing.currency === 'USD' ? usdPricing.finalPrice + extraTotalUSD : null
   const basePriceWithOptions =
     currency === 'USD'
       ? (basePriceWithOptionsUSD ?? basePriceWithOptionsUAH)
@@ -755,14 +849,14 @@ export function ProductInteractive({ p }: { p: ProductWithVariants }) {
   const isStepPouchDone = !requiresPouchSelection || Boolean(selectedPouchId)
   const isStepStrapDone = !requiresStrapSelection || Boolean(strapId)
 
-  const showSizeStepBlock = isStepColorDone && requiresSizeSelection
-  const showPouchStepBlock =
-    isStepColorDone && isStepSizeDone && requiresPouchSelection
+  const showPouchStepBlock = isStepColorDone && requiresPouchSelection
   const showStrapStepBlock =
+    isStepColorDone && isStepPouchDone && requiresStrapSelection
+  const showSizeStepBlock =
     isStepColorDone &&
-    isStepSizeDone &&
     isStepPouchDone &&
-    requiresStrapSelection
+    isStepStrapDone &&
+    requiresSizeSelection
 
   const isConfigurationComplete =
     isStepColorDone && isStepSizeDone && isStepPouchDone && isStepStrapDone
@@ -772,9 +866,9 @@ export function ProductInteractive({ p }: { p: ProductWithVariants }) {
 
   const stepIds = useMemo(() => {
     const ids = ['color']
-    if (requiresSizeSelection) ids.push('size')
     if (requiresPouchSelection) ids.push('pouch')
     if (requiresStrapSelection) ids.push('strap')
+    if (requiresSizeSelection) ids.push('size')
     return ids
   }, [requiresSizeSelection, requiresPouchSelection, requiresStrapSelection])
 
@@ -797,6 +891,17 @@ export function ProductInteractive({ p }: { p: ProductWithVariants }) {
     })
     return map
   }, [stepIds])
+
+  const selectedPouchStepLabel = selectedPouch?.color?.trim()
+    ? `${selectedPouch.color.trim()}${formatOptionExtraLabel(
+        selectedPouch.extraPriceUAH,
+      )}`
+    : t('Оберіть колір мішечка', 'Choose pouch color')
+  const selectedStrapStepLabel = selectedStrap?.name?.trim()
+    ? `${selectedStrap.name.trim()}${formatOptionExtraLabel(
+        selectedStrap.extraPriceUAH,
+      )}`
+    : t('Оберіть колір ремінця', 'Choose strap color')
 
   const viewContentName = buildVariantSelectionLabel({
     productName,
@@ -862,24 +967,41 @@ export function ProductInteractive({ p }: { p: ProductWithVariants }) {
 
     if (!base.length) base.push('/img/placeholder.png')
 
-    const strapFirst = collectOptionImages(selectedStrap)
-    const pouchSecond = collectOptionImages(selectedPouch)
-    const sizeThird = collectOptionImages(selectedSize)
+    const optionImagesByTarget: Record<CustomizationGalleryTarget, string[]> = {
+      pouch: collectOptionImages(selectedPouch),
+      strap: collectOptionImages(selectedStrap),
+      size: collectOptionImages(selectedSize),
+    }
+    const defaultOrder: CustomizationGalleryTarget[] = [
+      'pouch',
+      'strap',
+      'size',
+    ]
+    const orderedTargets = activeCustomizationImage
+      ? [
+          activeCustomizationImage,
+          ...defaultOrder.filter(
+            (target) => target !== activeCustomizationImage,
+          ),
+        ]
+      : defaultOrder
+    const optionImages = orderedTargets.flatMap(
+      (target) => optionImagesByTarget[target],
+    )
 
-    if (!strapFirst.length && !pouchSecond.length && !sizeThird.length)
-      return base
+    if (!optionImages.length) return base
 
     const merged: string[] = []
     const mergedSeen = new Set<string>()
 
-    for (const url of [...strapFirst, ...pouchSecond, ...sizeThird, ...base]) {
+    for (const url of [...optionImages, ...base]) {
       if (!url || mergedSeen.has(url)) continue
       mergedSeen.add(url)
       merged.push(url)
     }
 
     return merged.length ? merged : base
-  }, [v, selectedStrap, selectedPouch, selectedSize])
+  }, [v, selectedStrap, selectedPouch, selectedSize, activeCustomizationImage])
 
   const selectedAddonProducts = useMemo(
     () =>
@@ -1147,7 +1269,7 @@ export function ProductInteractive({ p }: { p: ProductWithVariants }) {
                   <div className="w-full rounded-xl border border-gray-200 p-3 md:p-4 mb-4 bg-white">
                     <div className="mb-3 flex items-center justify-between gap-3">
                       <div className="text-sm font-medium text-gray-900 uppercase tracking-wide">
-                        {t('Конструктор', 'Configurator')}
+                        {t('Кастомізація', 'Configurator')}
                       </div>
                       <div className="text-xs text-gray-600">
                         {t('Крок', 'Step')} {completedSteps} {t('з', 'of')}{' '}
@@ -1164,10 +1286,15 @@ export function ProductInteractive({ p }: { p: ProductWithVariants }) {
 
                     <div className="space-y-4">
                       <div>
-                        <div className="mb-2 text-xs uppercase tracking-wide text-gray-500">
+                        <div className="mb-2 text-sm uppercase tracking-wide text-gray-900">
                           {t('Крок', 'Step')} {stepNumberById.get('color')}:{' '}
-                          {t('Загальний колір', 'Base color')}
+                          {t('Колір', 'Color')}
                         </div>
+                        {selectedColorLabel ? (
+                          <div className="mt-1 mb-2 min-h-5 text-xs font-medium text-gray-500">
+                            {selectedColorLabel}
+                          </div>
+                        ) : null}
                         <div className="flex flex-wrap gap-2">
                           {colorOptions.map((option) => {
                             const isActive = selectedColorKey === option.key
@@ -1181,6 +1308,10 @@ export function ProductInteractive({ p }: { p: ProductWithVariants }) {
                                   if (isColorLockedByEntry)
                                     setIsColorLockedByEntry(false)
                                   setSelectedColorKey(option.key)
+                                  setSelectedSizeId(undefined)
+                                  setSelectedPouchId(undefined)
+                                  setStrapId(undefined)
+                                  setActiveCustomizationImage(null)
                                   const nextId =
                                     pickPreferredVariantForColorKey(
                                       option.key,
@@ -1188,40 +1319,163 @@ export function ProductInteractive({ p }: { p: ProductWithVariants }) {
                                   selectedVariantIdRef.current = nextId
                                   setSelectedVariantId(nextId)
                                 }}
-                                className={`inline-flex items-center gap-2 rounded-full border px-3 py-1.5 text-xs transition cursor-pointer ${
+                                aria-label={option.label}
+                                title={option.label}
+                                className={`relative grid h-12 w-12 place-items-center rounded-md border bg-white p-1 transition cursor-pointer ${
                                   isActive
-                                    ? 'border-black bg-black text-white'
+                                    ? 'border-black ring-2 ring-black/10'
                                     : outOfStock
-                                      ? 'border-gray-300 bg-white text-gray-500'
-                                      : 'border-gray-300 bg-white text-gray-900 hover:border-black'
+                                      ? 'border-gray-300 opacity-50'
+                                      : 'border-gray-300 hover:border-black'
                                 }`}
                               >
-                                {option.hex ? (
+                                <span
+                                  className="h-full w-full rounded-[4px] border border-black/10 bg-gray-200"
+                                  style={
+                                    option.hex
+                                      ? { backgroundColor: option.hex }
+                                      : undefined
+                                  }
+                                  aria-hidden
+                                />
+                                {outOfStock ? (
                                   <span
-                                    className="h-4 w-4 rounded-full border border-black/10"
-                                    style={{ backgroundColor: option.hex }}
                                     aria-hidden
+                                    className="absolute inset-1 rounded-[4px]"
+                                    style={{
+                                      background:
+                                        'linear-gradient(135deg, transparent 47%, rgba(0,0,0,0.35) 47%, rgba(0,0,0,0.35) 53%, transparent 53%)',
+                                    }}
                                   />
                                 ) : null}
-                                <span>{option.label}</span>
                               </button>
                             )
                           })}
                         </div>
-                        {isColorLockedByEntry && (
-                          <div className="mt-2 text-xs text-gray-500">
+                        {/* {isColorLockedByEntry && (
+                          <div className="mt-2 text-sm text-gray-900">
                             {t(
                               'Початковий колір із каталогу',
                               'Initial color from catalog',
                             )}
                             : {selectedColorLabel || '—'}
                           </div>
-                        )}
+                        )} */}
                       </div>
+
+                      {showPouchStepBlock && (
+                        <div>
+                          <div className="mb-2">
+                            <div className="text-sm uppercase tracking-wide text-gray-900">
+                              {t('Крок', 'Step')} {stepNumberById.get('pouch')}:{' '}
+                              {t('Колір мішечка', 'Pouch color')}
+                            </div>
+                            <div className="mt-1 min-h-5 text-sm font-medium text-gray-500">
+                              {selectedPouchStepLabel}
+                            </div>
+                          </div>
+                          <div
+                            role="radiogroup"
+                            aria-label={t('Колір мішечка', 'Pouch color')}
+                            className="flex flex-wrap gap-2"
+                          >
+                            {pouchOptions.map((pouch) => {
+                              const isActive = pouch.id === selectedPouchId
+                              const extra = Math.max(
+                                0,
+                                Number(pouch.extraPriceUAH ?? 0),
+                              )
+                              const extraLabel =
+                                extra > 0
+                                  ? formatOptionExtraLabel(pouch.extraPriceUAH)
+                                  : ''
+
+                              return (
+                                <ColorOptionButton
+                                  key={pouch.id}
+                                  label={pouch.color}
+                                  selected={isActive}
+                                  color={resolveOptionSwatchColor(pouch.color)}
+                                  imageUrl={optionPreviewImage(pouch)}
+                                  extraLabel={extraLabel}
+                                  onClick={() => {
+                                    setSelectedPouchId(pouch.id)
+                                    setActiveCustomizationImage('pouch')
+                                  }}
+                                />
+                              )
+                            })}
+                          </div>
+                          {!selectedPouchId && (
+                            <div className="mt-2 text-xs text-red-600">
+                              {t(
+                                'Оберіть колір мішечка, щоб продовжити.',
+                                'Choose pouch color to continue.',
+                              )}
+                            </div>
+                          )}
+                        </div>
+                      )}
+
+                      {showStrapStepBlock && (
+                        <div>
+                          <div className="mb-2">
+                            <div className="text-sm uppercase tracking-wide text-gray-900">
+                              {t('Крок', 'Step')} {stepNumberById.get('strap')}:{' '}
+                              {t('Колір ремінця', 'Strap color')}
+                            </div>
+                            {
+                              <div className="mt-1 min-h-5 text-xs font-medium text-gray-500">
+                                {selectedStrapStepLabel}
+                              </div>
+                            }
+                          </div>
+                          <div
+                            role="radiogroup"
+                            aria-label={t('Колір ремінця', 'Strap color')}
+                            className="flex flex-wrap gap-2"
+                          >
+                            {strapOptions.map((strap) => {
+                              const isActive = strap.id === strapId
+                              const extra = Math.max(
+                                0,
+                                Number(strap.extraPriceUAH ?? 0),
+                              )
+                              const extraLabel =
+                                extra > 0
+                                  ? formatOptionExtraLabel(strap.extraPriceUAH)
+                                  : ''
+
+                              return (
+                                <ColorOptionButton
+                                  key={strap.id}
+                                  label={strap.name}
+                                  selected={isActive}
+                                  color={resolveOptionSwatchColor(strap.name)}
+                                  imageUrl={optionPreviewImage(strap)}
+                                  extraLabel={extraLabel}
+                                  onClick={() => {
+                                    setStrapId(strap.id)
+                                    setActiveCustomizationImage('strap')
+                                  }}
+                                />
+                              )
+                            })}
+                          </div>
+                          {!strapId && (
+                            <div className="mt-2 text-xs text-red-600">
+                              {t(
+                                'Оберіть ремінець, щоб продовжити.',
+                                'Choose strap to continue.',
+                              )}
+                            </div>
+                          )}
+                        </div>
+                      )}
 
                       {showSizeStepBlock && (
                         <div>
-                          <div className="mb-2 text-xs uppercase tracking-wide text-gray-500">
+                          <div className="mb-2 text-sm uppercase tracking-wide text-gray-900">
                             {t('Крок', 'Step')} {stepNumberById.get('size')}:{' '}
                             {t('Розмір', 'Size')}
                           </div>
@@ -1237,7 +1491,10 @@ export function ProductInteractive({ p }: { p: ProductWithVariants }) {
                                 <button
                                   key={size.id}
                                   type="button"
-                                  onClick={() => setSelectedSizeId(size.id)}
+                                  onClick={() => {
+                                    setSelectedSizeId(size.id)
+                                    setActiveCustomizationImage('size')
+                                  }}
                                   className={`rounded-full border px-3 py-1.5 text-xs transition cursor-pointer ${
                                     isActive
                                       ? 'border-black bg-black text-white'
@@ -1262,109 +1519,9 @@ export function ProductInteractive({ p }: { p: ProductWithVariants }) {
                           )}
                         </div>
                       )}
-
-                      {showPouchStepBlock && (
-                        <div>
-                          <div className="mb-2 text-xs uppercase tracking-wide text-gray-500">
-                            {t('Крок', 'Step')} {stepNumberById.get('pouch')}:{' '}
-                            {t('Колір мішечка', 'Pouch color')}
-                          </div>
-                          <div className="flex flex-wrap gap-2">
-                            {pouchOptions.map((pouch) => {
-                              const isActive = pouch.id === selectedPouchId
-                              const extra = Math.max(
-                                0,
-                                Number(pouch.extraPriceUAH ?? 0),
-                              )
-
-                              return (
-                                <button
-                                  key={pouch.id}
-                                  type="button"
-                                  onClick={() => setSelectedPouchId(pouch.id)}
-                                  className={`rounded-full border px-3 py-1.5 text-xs transition cursor-pointer ${
-                                    isActive
-                                      ? 'border-black bg-black text-white'
-                                      : 'border-gray-300 bg-white text-gray-900 hover:border-black'
-                                  }`}
-                                >
-                                  {pouch.color}
-                                  {extra > 0
-                                    ? formatOptionExtraLabel(pouch.extraPriceUAH)
-                                    : ''}
-                                </button>
-                              )
-                            })}
-                          </div>
-                          {!selectedPouchId && (
-                            <div className="mt-2 text-xs text-red-600">
-                              {t(
-                                'Оберіть колір мішечка, щоб продовжити.',
-                                'Choose pouch color to continue.',
-                              )}
-                            </div>
-                          )}
-                        </div>
-                      )}
-
-                      {showStrapStepBlock && (
-                        <div>
-                          <div className="mb-2 text-xs uppercase tracking-wide text-gray-500">
-                            {t('Крок', 'Step')} {stepNumberById.get('strap')}:{' '}
-                            {t('Ремінець', 'Strap')}
-                          </div>
-                          <div className="flex flex-wrap gap-2">
-                            {strapOptions.map((strap) => {
-                              const isActive = strap.id === strapId
-                              const extra = Math.max(
-                                0,
-                                Number(strap.extraPriceUAH ?? 0),
-                              )
-
-                              return (
-                                <button
-                                  key={strap.id}
-                                  type="button"
-                                  onClick={() => setStrapId(strap.id)}
-                                  className={`flex items-center gap-2 rounded-full border px-3 py-1.5 text-xs transition cursor-pointer ${
-                                    isActive
-                                      ? 'border-black bg-black text-white'
-                                      : 'border-gray-300 bg-white text-gray-900 hover:border-black'
-                                  }`}
-                                >
-                                  {strap.imageUrl ? (
-                                    <span className="relative w-5 h-5 rounded-full overflow-hidden bg-gray-100">
-                                      <Image
-                                        src={strap.imageUrl}
-                                        alt={strap.name}
-                                        fill
-                                        className="object-cover"
-                                      />
-                                    </span>
-                                  ) : null}
-                                  <span>
-                                    {strap.name}
-                                    {extra > 0
-                                      ? formatOptionExtraLabel(strap.extraPriceUAH)
-                                      : ''}
-                                  </span>
-                                </button>
-                              )
-                            })}
-                          </div>
-                          {!strapId && (
-                            <div className="mt-2 text-xs text-red-600">
-                              {t(
-                                'Оберіть ремінець, щоб продовжити.',
-                                'Choose strap to continue.',
-                              )}
-                            </div>
-                          )}
-                        </div>
-                      )}
                     </div>
                   </div>
-
+                  {/*
                   <div className="mb-4 w-full rounded-lg border border-gray-100 bg-gray-50 px-3 py-2 text-xs text-gray-700">
                     <div className="font-medium text-gray-900 mb-1">
                       {t('Ваш вибір', 'Your selection')}:
@@ -1390,12 +1547,8 @@ export function ProductInteractive({ p }: { p: ProductWithVariants }) {
                         {t('Ремінець', 'Strap')}: {selectedStrap.name}
                       </div>
                     )}
-                    {/*  {!isConfigurationComplete && (
-                      <div className="mt-1 text-red-600">
-                        Завершіть кроки в конструкторі, щоб додати товар в кошик.
-                      </div>
-                    )} */}
-                  </div>
+                    {}
+                  </div> */}
                 </>
               ) : (
                 simpleSwatchEntries.length > 1 && (
@@ -1409,6 +1562,7 @@ export function ProductInteractive({ p }: { p: ProductWithVariants }) {
                       )}
                     </div>
                     <VariantSwatches
+                      size="large"
                       variants={simpleSwatchEntries.map((entry) => ({
                         id: entry.variant.id,
                         color:
@@ -1430,6 +1584,10 @@ export function ProductInteractive({ p }: { p: ProductWithVariants }) {
                         if (!entry) return
                         if (isColorLockedByEntry) setIsColorLockedByEntry(false)
                         setSelectedColorKey(entry.key)
+                        setSelectedSizeId(undefined)
+                        setSelectedPouchId(undefined)
+                        setStrapId(undefined)
+                        setActiveCustomizationImage(null)
                         selectedVariantIdRef.current = entry.variant.id
                         setSelectedVariantId(entry.variant.id)
                       }}

@@ -19,11 +19,22 @@ type Props = {
   variants: SwatchVariant[]
   value: string
   onChange: (variantId: string) => void
+  size?: 'compact' | 'large'
 }
 
-export default function VariantSwatches({ variants, value, onChange }: Props) {
+export default function VariantSwatches({
+  variants,
+  value,
+  onChange,
+  size = 'compact',
+}: Props) {
+  const isLarge = size === 'large'
+
   return (
-    <div role="radiogroup" className="flex gap-3 flex-wrap">
+    <div
+      role="radiogroup"
+      className={clsx('flex flex-wrap', isLarge ? 'gap-2' : 'gap-3')}
+    >
       {variants.map((v) => {
         const selected = v.id === value
         const availabilityStatus = resolveAvailabilityStatus({
@@ -51,36 +62,35 @@ export default function VariantSwatches({ variants, value, onChange }: Props) {
                 : ''
             }
             className={clsx(
-              'relative grid place-items-center w-5 h-5 md:w-6 md:h-6  rounded-full  transition bg-white',
+              'relative grid place-items-center rounded-md bg-white p-1 transition',
+              isLarge ? 'h-10 w-10' : 'h-7 w-10 md:h-8 md:w-12',
               'border',
               selected
-                ? 'border-black'
+                ? 'border-black ring-2 ring-black/10'
                 : preorder
-                  ? 'border-amber-500/70'
-                  : 'border-black/10',
+                  ? 'border-gray-200'
+                  : 'border-gray-300',
               outOfStock && 'opacity-40',
               'cursor-pointer hover:scale-[1.02]',
             )}
           >
-            {/* кружечок кольору */}
             <span
               aria-hidden
-              className="h-4 w-4  md:h-[18px] md:w-[18px] rounded-full ring-1 ring-black/5"
+              className="h-full w-full rounded-[4px] ring-1 ring-black/5"
               style={{ backgroundColor: v.hex ?? '#E5E5E5' }}
             />
             {outOfStock && (
               <span
                 aria-hidden
-                className="absolute inset-0 rounded-full"
+                className="absolute inset-1 rounded-[4px]"
                 style={{
                   background:
-                    'linear-gradient(135deg, transparent 46%, rgba(0,0,0,0.35) 46%, rgba(0,0,0,0.35) 54%, transparent 54%)',
+                    'linear-gradient(135deg, transparent 47%, rgba(0,0,0,0.35) 47%, rgba(0,0,0,0.35) 53%, transparent 53%)',
                 }}
               />
             )}
 
-            {/* focus */}
-            <span className="absolute inset-0 rounded-full ring-0 focus-visible:ring-2 focus-visible:ring-black/40" />
+            <span className="absolute inset-0 rounded-md ring-0 focus-visible:ring-2 focus-visible:ring-black/40" />
           </button>
         )
       })}

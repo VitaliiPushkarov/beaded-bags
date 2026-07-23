@@ -1,13 +1,13 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { npCall } from '@/lib/np'
+import {
+  buildNpCityQueryVariants,
+  dedupeCityOptions,
+  normalizeCityComparable,
+} from '@/lib/np-city-search'
 
 function norm(s: string) {
-  return s
-    .toLowerCase()
-    .normalize('NFC')
-    .replace(/[^\p{L}\p{N}\s-]/gu, ' ')
-    .replace(/\s+/g, ' ')
-    .trim()
+  return normalizeCityComparable(s)
 }
 
 function typeAbbr(t?: string) {
@@ -35,26 +35,51 @@ interface NovaPoshtaSettlement {
   Ref: string
 }
 
+function readPositiveInt(value: string | null, fallback: number) {
+  const n = Number(value)
+  return Number.isFinite(n) && n > 0 ? Math.floor(n) : fallback
+}
+
+function isUnsupportedSearchError(error: unknown) {
+  if (!(error instanceof Error)) return false
+  return /FindByString is not specified|invalid characters/i.test(error.message)
+}
+
 export async function GET(req: NextRequest) {
   try {
     const { searchParams } = new URL(req.url)
     const raw = searchParams.get('query') || ''
-    const page = Number(searchParams.get('page') || 1)
-    const limit = Math.min(Number(searchParams.get('limit') || 20), 50)
+    const page = readPositiveInt(searchParams.get('page'), 1)
+    const limit = Math.min(readPositiveInt(searchParams.get('limit'), 20), 50)
 
     const q = norm(raw)
     if (q.length < 2) return NextResponse.json({ data: [] })
 
-    const data = await npCall<NovaPoshtaSettlement[]>(
-      'AddressGeneral',
-      'getSettlements',
-      {
-        FindByString: raw,
-        Warehouse: 1,
-        Page: page,
-        Limit: limit,
+    const queryVariants = buildNpCityQueryVariants(raw)
+    if (!queryVariants.length) return NextResponse.json({ data: [] })
+
+    let data: NovaPoshtaSettlement[] = []
+
+    for (const query of queryVariants) {
+      try {
+        data = await npCall<NovaPoshtaSettlement[]>(
+          'AddressGeneral',
+          'getSettlements',
+          {
+            FindByString: query,
+            Warehouse: 1,
+            Page: page,
+            Limit: limit,
+          }
+        )
+
+        if (data.length) break
+      } catch (error) {
+        if (!isUnsupportedSearchError(error)) throw error
       }
-    )
+    }
+
+    const queryNorms = [q, ...queryVariants.map(norm)]
 
     const rows = data.map((c) => {
       const name = c.Description
@@ -81,27 +106,22 @@ export async function GET(req: NextRequest) {
       }
     })
 
-    const qn = q
     const score = (r: (typeof rows)[number]) => {
       let s = 0
-      if (r.nameN === qn) s += 30
-      if (r.nameN.startsWith(qn)) s += 20
-      if (r.nameN.includes(qn)) s += 10
+      for (const query of queryNorms) {
+        if (r.nameN === query) s = Math.max(s, 30)
+        if (r.nameN.startsWith(query)) s = Math.max(s, 20)
+        if (r.nameN.includes(query)) s = Math.max(s, 10)
+      }
       if (r.typeIsCity) s += 1
       return s
     }
 
     rows.sort((a, b) => score(b) - score(a))
 
-    const seen = new Set<string>()
-    const unique = rows.filter((r) => {
-      const key = `${r.area}|${r.name}`
-      if (seen.has(key)) return false
-      seen.add(key)
-      return true
-    })
+    const unique = dedupeCityOptions(rows)
 
-    return NextResponse.json({ data: unique.slice(0, 12) })
+    return NextResponse.json({ data: unique.slice(0, limit) })
   } catch (e: unknown) {
     const message = e instanceof Error ? e.message : 'Unknown error'
     console.error('NP getSettlements error:', message)
