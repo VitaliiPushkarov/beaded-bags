@@ -112,6 +112,7 @@ export default function OrdersTableClient({ orders }: Props) {
   const router = useRouter()
   const [savingId, setSavingId] = useState<string | null>(null)
   const [localOrders, setLocalOrders] = useState<Order[]>(orders)
+  const [statusError, setStatusError] = useState<string | null>(null)
 
   useEffect(() => {
     setLocalOrders(orders)
@@ -119,6 +120,8 @@ export default function OrdersTableClient({ orders }: Props) {
 
   const onStatusChange = async (id: string, status: OrderStatus) => {
     setSavingId(id)
+    setStatusError(null)
+    const shortRef = orders.find((o) => o.id === id)?.shortNumber ?? id.slice(0, 8)
     try {
       const res = await fetch(`/api/admin/orders/${id}/status`, {
         method: 'PATCH',
@@ -127,6 +130,7 @@ export default function OrdersTableClient({ orders }: Props) {
       })
       if (!res.ok) {
         console.error(await res.json())
+        setStatusError(`Не вдалося змінити статус замовлення #${shortRef}. Спробуйте ще раз.`)
         return
       }
       setLocalOrders((prev) =>
@@ -135,6 +139,7 @@ export default function OrdersTableClient({ orders }: Props) {
       router.refresh()
     } catch (err) {
       console.error(err)
+      setStatusError(`Не вдалося змінити статус замовлення #${shortRef}. Перевірте зʼєднання.`)
     } finally {
       setSavingId(null)
     }
@@ -142,6 +147,21 @@ export default function OrdersTableClient({ orders }: Props) {
 
   return (
     <div className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">
+      {statusError && (
+        <div
+          role="alert"
+          className="flex items-start justify-between gap-3 border-b border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700"
+        >
+          <span>{statusError}</span>
+          <button
+            type="button"
+            onClick={() => setStatusError(null)}
+            className="shrink-0 font-medium underline"
+          >
+            Закрити
+          </button>
+        </div>
+      )}
       <div className="md:hidden divide-y divide-slate-200">
         {localOrders.map((o) => {
           const items = getOrderItems(o)
