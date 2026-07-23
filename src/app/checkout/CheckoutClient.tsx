@@ -477,7 +477,20 @@ export default function CheckoutClient() {
 
       const json = await res.json()
       if (!res.ok) {
-        setError(t('Помилка створення замовлення', 'Failed to create order'))
+        const unavailable = json?.error?.code === 'ITEMS_UNAVAILABLE'
+          ? (json.error.items as string[] | undefined)
+          : undefined
+        if (unavailable && unavailable.length) {
+          const names = unavailable.join(', ')
+          setError(
+            t(
+              `На жаль, ці товари вже недоступні: ${names}. Оновіть кошик і спробуйте ще раз.`,
+              `Sorry, these items are no longer available: ${names}. Please update your cart and try again.`,
+            ),
+          )
+        } else {
+          setError(t('Помилка створення замовлення', 'Failed to create order'))
+        }
         console.error(json)
         return
       }

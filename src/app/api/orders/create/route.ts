@@ -11,6 +11,10 @@ import { calcDiscountUAH, resolvePromoCode } from '@/lib/promo'
 import { OrderCreateCheckoutBodySchema } from '@/lib/orders/create-order-schema'
 import { resolveCheckoutPaymentMethod } from '@/lib/orders/payment-methods'
 import { sendOrderTelegramNotification } from '@/lib/order-telegram'
+import {
+  isOutOfStockStatus,
+  resolveAvailabilityStatus,
+} from '@/lib/availability'
 
 function normalizeIdempotencyKey(value: string | undefined): string | null {
   const trimmed = String(value ?? '').trim()
@@ -129,9 +133,12 @@ export async function POST(req: NextRequest) {
           select: {
             id: true,
             color: true,
+            inStock: true,
+            availabilityStatus: true,
             product: {
               select: {
                 id: true,
+                status: true,
                 packagingTemplate: {
                   select: {
                     costUAH: true,
@@ -161,6 +168,48 @@ export async function POST(req: NextRequest) {
           },
         })
       : []
+    // Re-validate availability on the server. The cart is persisted in the
+    // browser (localStorage), so it can reference variants that have since sold
+    // out, been archived, or been deleted between adding to cart and checkout.
+    // Pricing is already re-checked above; here we ensure every line is still
+    // purchasable. IN_STOCK and PREORDER are both valid purchase paths — only
+    // OUT_OF_STOCK / archived / removed variants are rejected.
+    if (variantIds.length) {
+      const variantById = new Map(variants.map((variant) => [variant.id, variant]))
+      const unavailableItems: string[] = []
+
+      for (const item of data.items) {
+        if (!item.variantId) continue
+        const variant = variantById.get(item.variantId)
+
+        if (!variant || variant.product.status === 'ARCHIVED') {
+          unavailableItems.push(item.name)
+          continue
+        }
+
+        const status = resolveAvailabilityStatus({
+          availabilityStatus: variant.availabilityStatus,
+          inStock: variant.inStock,
+        })
+        if (isOutOfStockStatus(status)) {
+          unavailableItems.push(item.name)
+        }
+      }
+
+      if (unavailableItems.length) {
+        return NextResponse.json(
+          {
+            error: {
+              code: 'ITEMS_UNAVAILABLE',
+              items: unavailableItems,
+              _errors: ['Some items are no longer available'],
+            },
+          },
+          { status: 409 },
+        )
+      }
+    }
+
     const averageLaborCostByVariantId = await getAverageLaborCostByVariantId(
       prisma,
       variantIds,
