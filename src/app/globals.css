@@ -83,8 +83,7 @@
   /* Variable version */
   @font-face {
     font-family: 'Fixel Var';
-    src:
-      url('/fonts/fixel/FixelVariable/FixelVariable.ttf') format('ttf'),
+    src: url('/fonts/fixel/FixelVariable/FixelVariable.ttf')
       format('truetype');
     font-weight: 100 900;
     font-style: normal;

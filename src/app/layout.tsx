@@ -81,6 +81,18 @@ export default async function RootLayout({
     <html lang={locale}>
       <head>
         <link rel="icon" href="/favicon.ico" sizes="any" />
+        {/* Preload the primary body font so text swaps from the fallback
+            sooner and the swap flash is reduced. crossOrigin is required for
+            the preload to match the CSS @font-face fetch (avoids a double
+            download). Only the most-used weight is preloaded to avoid
+            competing with the LCP image. */}
+        <link
+          rel="preload"
+          href="/fonts/fixel/FixelText/FixelText-Regular.woff2"
+          as="font"
+          type="font/woff2"
+          crossOrigin="anonymous"
+        />
         {/* JSON-LD WebSite */}
         <script
           type="application/ld+json"
