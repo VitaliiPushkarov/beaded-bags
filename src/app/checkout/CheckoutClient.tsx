@@ -312,7 +312,6 @@ export default function CheckoutClient() {
   const submitOrder = async () => {
     if (submitLockRef.current || loading) return
 
-    submitLockRef.current = true
     setError(null)
     const fioValid = isNameValid(form.name) && isNameValid(form.surname)
     const phoneNorm = isUkraineShipping
@@ -418,6 +417,11 @@ export default function CheckoutClient() {
     })
     const idempotencyKey = getOrCreateCheckoutAttemptKey(fingerprint)
 
+    // Acquire the submit lock only once all synchronous validation has passed.
+    // Validation performs no awaits, so a rapid second click cannot slip through:
+    // it can only run after this invocation reaches `await fetch`, by which point
+    // the lock is already set. The `finally` below always releases it.
+    submitLockRef.current = true
     setLoading(true)
     try {
       const emailClean = form.email.trim()
@@ -961,6 +965,15 @@ export default function CheckoutClient() {
             </span>
           </div>
         )}
+
+        <div className="flex items-center justify-between text-sm text-gray-600">
+          <span>{t('Доставка', 'Shipping')}</span>
+          <span>
+            {isUkraineShipping
+              ? t('За тарифами Нової Пошти', 'Per Nova Poshta rates')
+              : t('Розраховується окремо', 'Calculated separately')}
+          </span>
+        </div>
 
         <div className="flex items-center justify-between">
           <span>{t('До сплати', 'Total')}</span>
