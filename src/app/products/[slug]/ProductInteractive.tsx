@@ -26,6 +26,24 @@ import {
   resolveAvailabilityStatus,
 } from '@/lib/availability'
 import { useLocale, useLocaleNumberFormat, useT } from '@/lib/i18n'
+import {
+  InstagramIcon,
+  ThreadsIcon,
+  TikTokIcon,
+} from '@/components/icons/SocialIcons'
+import {
+  availabilityRank,
+  buildVariantSelectionLabel,
+  choosePreferredVariant,
+  collectOptionImages,
+  getVariantIdFromHash,
+  getVariantIdFromLocation,
+  optionPreviewImage,
+  resolveOptionSwatchColor,
+  toOptionKey,
+  toOptionLabel,
+  type CustomizationGalleryTarget,
+} from './product-options'
 
 const ProductGallery = dynamic(() => import('@/components/ProductGallery'), {
   ssr: false,
@@ -43,72 +61,6 @@ const PreorderModal = dynamic(
   },
 )
 
-const EMPTY_OPTION_KEY = '__empty__'
-type CustomizationGalleryTarget = 'pouch' | 'strap' | 'size'
-
-type SwatchOptionSource = {
-  images?: Array<{ url: string; sort?: number | null }>
-  mainImageUrl?: string | null
-  imageUrl?: string | null
-}
-
-function normalizeOptionValue(value: string | null | undefined): string {
-  return (value || '').trim()
-}
-
-function toOptionKey(value: string | null | undefined): string {
-  const normalized = normalizeOptionValue(value)
-  return normalized || EMPTY_OPTION_KEY
-}
-
-function toOptionLabel(
-  value: string | null | undefined,
-  fallback: string,
-): string {
-  const normalized = normalizeOptionValue(value)
-  return normalized || fallback
-}
-
-function getVariantIdFromHash(hash: string): string | undefined {
-  const raw = hash.startsWith('#') ? hash.slice(1) : hash
-  const params = new URLSearchParams(raw)
-  return params.get('variant') || undefined
-}
-
-function getVariantIdFromLocation(loc: Location): string | undefined {
-  const fromQuery = new URLSearchParams(loc.search).get('variant')
-  return fromQuery || getVariantIdFromHash(loc.hash)
-}
-
-function availabilityRank(
-  variant: ProductWithVariants['variants'][number] | null | undefined,
-): number {
-  const status = resolveAvailabilityStatus({
-    availabilityStatus: (variant as any)?.availabilityStatus,
-    inStock: variant?.inStock,
-  })
-  if (status === 'IN_STOCK') return 0
-  if (status === 'PREORDER') return 1
-  return 2
-}
-
-function choosePreferredVariant(
-  variants: ProductWithVariants['variants'],
-): ProductWithVariants['variants'][number] | null {
-  if (!variants.length) return null
-
-  return [...variants].sort((a, b) => {
-    const rankDiff = availabilityRank(a) - availabilityRank(b)
-    if (rankDiff !== 0) return rankDiff
-
-    const sortA = typeof a.sortCatalog === 'number' ? a.sortCatalog : 0
-    const sortB = typeof b.sortCatalog === 'number' ? b.sortCatalog : 0
-    if (sortA !== sortB) return sortA - sortB
-
-    return a.id.localeCompare(b.id)
-  })[0]
-}
-
 function ProductGalleryFallback({ src }: { src: string }) {
   const t = useT()
   return (
@@ -125,84 +77,6 @@ function ProductGalleryFallback({ src }: { src: string }) {
       </div>
     </div>
   )
-}
-
-function buildVariantSelectionLabel(params: {
-  productName: string
-  color?: string | null
-  size?: string | null
-  pouchColor?: string | null
-  locale: 'uk' | 'en'
-}) {
-  const isEn = params.locale === 'en'
-  const parts = [
-    params.color?.trim(),
-    params.size?.trim()
-      ? `${isEn ? 'Size' : 'Розмір'}: ${params.size.trim()}`
-      : null,
-    params.pouchColor?.trim()
-      ? `${isEn ? 'Pouch' : 'Мішечок'}: ${params.pouchColor.trim()}`
-      : null,
-  ].filter((part): part is string => Boolean(part))
-
-  return parts.length
-    ? `${params.productName} — ${parts.join(' · ')}`
-    : params.productName
-}
-
-function collectOptionImages(option: SwatchOptionSource | null): string[] {
-  if (!option) return []
-
-  const fromList = (option.images ?? [])
-    .map((img) => ({
-      url: (img.url ?? '').trim(),
-      sort: typeof img.sort === 'number' ? img.sort : 0,
-    }))
-    .filter((img) => !!img.url)
-    .sort((a, b) => a.sort - b.sort)
-    .map((img) => img.url)
-
-  if (fromList.length) return fromList
-
-  const one = (option.mainImageUrl || option.imageUrl || '').trim()
-  return one ? [one] : []
-}
-
-const COLOR_SWATCH_RULES: Array<[RegExp, string]> = [
-  [/чорн|black|графіт|graphite|антрацит|anthracite/, '#111827'],
-  [/бі(л|л)|white|молоч|ivory/, '#F8F4EA'],
-  [/бордо|burgundy|вишн|cherry/, '#6D1024'],
-  [/черв|red/, '#C8202F'],
-  [/рож|pink|bubblegum/, '#F7A8C8'],
-  [/фіол|бузк|purple|violet|lilac/, '#8B5CF6'],
-  [/син|blue|navy/, '#2563EB'],
-  [/блак|небес|sky/, '#7DD3FC'],
-  [/зел|green|marsh/, '#3F7A4F'],
-  [/жовт|yellow|banana/, '#F4C430'],
-  [/помар|orange/, '#F97316'],
-  [/беж|beige|cream|крем|tan/, '#D8C3A5'],
-  [/корич|карам|brown|choco|шоколад/, '#7A4A2A'],
-  [/сір|gray|grey/, '#9CA3AF'],
-  [/сріб|silver|metal|метал/, '#C0C5CA'],
-  [/золот|gold/, '#D4AF37'],
-]
-
-function resolveOptionSwatchColor(label: string | null | undefined) {
-  const value = (label || '').trim()
-  if (!value) return null
-
-  const hex = value.match(/#(?:[0-9a-f]{3}|[0-9a-f]{6}|[0-9a-f]{8})\b/i)
-  if (hex) return hex[0]
-
-  const normalized = value.toLowerCase()
-  return (
-    COLOR_SWATCH_RULES.find(([pattern]) => pattern.test(normalized))?.[1] ??
-    null
-  )
-}
-
-function optionPreviewImage(option: SwatchOptionSource | null) {
-  return collectOptionImages(option)[0] ?? null
 }
 
 function ColorOptionButton(props: {
@@ -258,57 +132,6 @@ function ColorOptionButton(props: {
         />
       ) : null}
     </button>
-  )
-}
-
-function InstagramIcon({ className }: { className?: string }) {
-  return (
-    <svg viewBox="0 0 24 24" fill="none" className={className} aria-hidden>
-      <rect
-        x="3.5"
-        y="3.5"
-        width="17"
-        height="17"
-        rx="5.5"
-        stroke="currentColor"
-        strokeWidth="1.5"
-      />
-      <circle cx="12" cy="12" r="4" stroke="currentColor" strokeWidth="1.5" />
-      <circle cx="17" cy="7" r="1" fill="currentColor" />
-    </svg>
-  )
-}
-
-function TikTokIcon({ className }: { className?: string }) {
-  return (
-    <svg viewBox="0 0 24 24" fill="none" className={className} aria-hidden>
-      <path
-        d="M14 5v8.2a4.2 4.2 0 1 1-3-4"
-        stroke="currentColor"
-        strokeWidth="1.5"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-      />
-      <path
-        d="M14 5c1 .9 2.2 1.4 3.6 1.5"
-        stroke="currentColor"
-        strokeWidth="1.5"
-        strokeLinecap="round"
-      />
-    </svg>
-  )
-}
-
-function ThreadsIcon({ className }: { className?: string }) {
-  return (
-    <svg
-      viewBox="0 0 16 16"
-      fill="currentColor"
-      className={className}
-      aria-hidden
-    >
-      <path d="M6.321 6.016c-.27-.18-1.166-.802-1.166-.802.756-1.081 1.753-1.502 3.132-1.502.975 0 1.803.327 2.394.948s.928 1.509 1.005 2.644q.492.207.905.484c1.109.745 1.719 1.86 1.719 3.137 0 2.716-2.226 5.075-6.256 5.075C4.594 16 1 13.987 1 7.994 1 2.034 4.482 0 8.044 0 9.69 0 13.55.243 15 5.036l-1.36.353C12.516 1.974 10.163 1.43 8.006 1.43c-3.565 0-5.582 2.171-5.582 6.79 0 4.143 2.254 6.343 5.63 6.343 2.777 0 4.847-1.443 4.847-3.556 0-1.438-1.208-2.127-1.27-2.127-.236 1.234-.868 3.31-3.644 3.31-1.618 0-3.013-1.118-3.013-2.582 0-2.09 1.984-2.847 3.55-2.847.586 0 1.294.04 1.663.114 0-.637-.54-1.728-1.9-1.728-1.25 0-1.566.405-1.967.868ZM8.716 8.19c-2.04 0-2.304.87-2.304 1.416 0 .878 1.043 1.168 1.6 1.168 1.02 0 2.067-.282 2.232-2.423a6.2 6.2 0 0 0-1.528-.161" />
-    </svg>
   )
 }
 
