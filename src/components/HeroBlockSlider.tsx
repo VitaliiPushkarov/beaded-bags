@@ -145,6 +145,12 @@ export default function HeroBlockSlider({ slides, autoPlayMs = 9000 }: Props) {
 
   const translateIndex = hasLoop ? activeIndex + 1 : activeIndex
 
+  // Only the first *visible* slide is the LCP candidate. Previously
+  // `priority={index <= 1}` eagerly preloaded the off-screen clone and the
+  // second slide too, so up to 4 hero images (mobile + desktop) competed for
+  // bandwidth with the actual LCP image. Preload just the first real slide.
+  const priorityIndex = hasLoop ? 1 : 0
+
   const onTrackTransitionEnd = () => {
     if (!hasLoop) return
 
@@ -188,7 +194,8 @@ export default function HeroBlockSlider({ slides, autoPlayMs = 9000 }: Props) {
                     alt={slide.mobileAlt}
                     width={1200}
                     height={1800}
-                    priority={index <= 1}
+                    priority={index === priorityIndex}
+                    loading={index === priorityIndex ? undefined : 'lazy'}
                     className="h-full w-full object-contain"
                     sizes="100vw"
                     quality={60}
@@ -217,7 +224,8 @@ export default function HeroBlockSlider({ slides, autoPlayMs = 9000 }: Props) {
                     alt={slide.desktopAlt}
                     width={2880}
                     height={1440}
-                    priority={index <= 1}
+                    priority={index === priorityIndex}
+                    loading={index === priorityIndex ? undefined : 'lazy'}
                     className="h-full w-full object-contain"
                     sizes="(min-width: 768px) calc(100vw - 48px), 100vw"
                     quality={80}
