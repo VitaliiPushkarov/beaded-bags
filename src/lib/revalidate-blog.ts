@@ -1,5 +1,7 @@
-import { revalidatePath } from 'next/cache'
+import { revalidatePath, revalidateTag } from 'next/cache'
 import type { BlogPostStatus } from '@prisma/client'
+
+import { BLOG_CACHE_TAG } from '@/lib/blog'
 
 type BlogRevalidateSnapshot = {
   slug?: string | null
@@ -25,4 +27,11 @@ export function revalidateBlogCache({ before, after }: BlogRevalidateInput = {})
   for (const path of paths) {
     revalidatePath(path)
   }
+
+  // Bust the data-layer cache used by public blog reads (getBlogPosts /
+  // getBlogPostBySlug), so published changes are reflected immediately even
+  // though those routes are dynamically rendered. Called from Route Handlers,
+  // so revalidateTag (not updateTag); "max" is Next 16's drop-in for the old
+  // single-argument behavior.
+  revalidateTag(BLOG_CACHE_TAG, 'max')
 }

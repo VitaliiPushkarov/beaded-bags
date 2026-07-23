@@ -7,7 +7,10 @@ import Image from 'next/image'
 import { getRequestLocale } from '@/lib/server-locale'
 import { getLocaleAlternates, getSiteUrl, toAbsoluteUrl } from '@/lib/site-url'
 
-export const dynamic = 'force-dynamic'
+// The page is still rendered per-request (locale comes from the request host
+// via headers()), but we drop force-dynamic so the unstable_cache layer behind
+// getBlogPostBySlug can actually serve cached DB reads. force-dynamic sets
+// fetchCache: 'force-no-store', which bypasses unstable_cache entirely.
 
 type BlogPostPageProps = {
   params: Promise<{ slug: string }>

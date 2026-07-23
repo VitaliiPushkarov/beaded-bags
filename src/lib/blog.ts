@@ -1,6 +1,16 @@
+import { unstable_cache } from 'next/cache'
 import { BlogPostStatus } from '@prisma/client'
 
 import { prisma } from '@/lib/prisma'
+
+// Cache tag for published blog reads. Blog pages are dynamically rendered
+// (locale comes from the request host via headers()), so they cannot be
+// statically generated — but the underlying published content is the same for
+// every request and rarely changes. Caching the data layer under this tag
+// removes a per-request database hit; admin mutations bust it via
+// revalidateTag(BLOG_CACHE_TAG) in revalidate-blog.ts.
+export const BLOG_CACHE_TAG = 'blog-posts'
+const BLOG_CACHE_REVALIDATE_SECONDS = 300
 
 export type BlogSection = {
   heading: string
@@ -92,11 +102,7 @@ function mapBlogPost(row: BlogPostRow): BlogPost {
   }
 }
 
-export async function getBlogPosts(
-  options: BlogPostQueryOptions = {},
-): Promise<BlogPost[]> {
-  const includeUnpublished = options.includeUnpublished ?? false
-
+async function queryBlogPosts(includeUnpublished: boolean): Promise<BlogPost[]> {
   const rows = await prisma.blogPost.findMany({
     where: includeUnpublished
       ? undefined
@@ -129,12 +135,27 @@ export async function getBlogPosts(
   return rows.map(mapBlogPost)
 }
 
-export async function getBlogPostBySlug(
-  slug: string,
-  options: BlogPostQueryOptions = {},
-): Promise<BlogPost | null> {
-  const includeUnpublished = options.includeUnpublished ?? false
+const getCachedPublishedBlogPosts = unstable_cache(
+  () => queryBlogPosts(false),
+  ['blog-posts-published'],
+  { tags: [BLOG_CACHE_TAG], revalidate: BLOG_CACHE_REVALIDATE_SECONDS },
+)
 
+export async function getBlogPosts(
+  options: BlogPostQueryOptions = {},
+): Promise<BlogPost[]> {
+  const includeUnpublished = options.includeUnpublished ?? false
+  // Admin reads (unpublished drafts) must never be cached; public reads go
+  // through the tagged cache.
+  return includeUnpublished
+    ? queryBlogPosts(true)
+    : getCachedPublishedBlogPosts()
+}
+
+async function queryBlogPostBySlug(
+  slug: string,
+  includeUnpublished: boolean,
+): Promise<BlogPost | null> {
   const row = await prisma.blogPost.findFirst({
     where: includeUnpublished
       ? { slug }
@@ -165,4 +186,20 @@ export async function getBlogPostBySlug(
   })
 
   return row ? mapBlogPost(row) : null
+}
+
+const getCachedPublishedBlogPostBySlug = unstable_cache(
+  (slug: string) => queryBlogPostBySlug(slug, false),
+  ['blog-post-by-slug-published'],
+  { tags: [BLOG_CACHE_TAG], revalidate: BLOG_CACHE_REVALIDATE_SECONDS },
+)
+
+export async function getBlogPostBySlug(
+  slug: string,
+  options: BlogPostQueryOptions = {},
+): Promise<BlogPost | null> {
+  const includeUnpublished = options.includeUnpublished ?? false
+  return includeUnpublished
+    ? queryBlogPostBySlug(slug, true)
+    : getCachedPublishedBlogPostBySlug(slug)
 }
