@@ -92,12 +92,12 @@ export default function ProductsSlider() {
             ))}
 
             {/* Show catalog link */}
-            <a
+            <Link
               href="/shop"
               className="block w-full text-center py-3 mt-4 bg-black text-white rounded-md text-sm font-medium hover:bg-[#FF3D8C] transition"
             >
               Показати всі товари
-            </a>
+            </Link>
           </>
         )}
       </div>

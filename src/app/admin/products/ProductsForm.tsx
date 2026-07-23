@@ -352,7 +352,6 @@ export default function ProductForm({
       return { ...prev, variants: nextVariants }
     })
     // run once on mount
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
   const onVariantChange = (index: number, patch: Partial<VariantInput>) => {

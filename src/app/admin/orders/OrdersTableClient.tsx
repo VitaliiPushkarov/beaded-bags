@@ -212,8 +212,8 @@ export default function OrdersTableClient({ orders }: Props) {
                     {items.map((it, idx) => (
                       <div key={idx} className="flex items-start gap-3">
                         <div className="relative h-12 w-12 shrink-0 overflow-hidden rounded border bg-gray-50">
-                          {/* eslint-disable-next-line @next/next/no-img-element */}
                           {it.image ? (
+                            // eslint-disable-next-line @next/next/no-img-element -- admin thumbnail from arbitrary stored URL; next/image not warranted here
                             <img
                               src={it.image}
                               alt={it.name}
@@ -310,8 +310,8 @@ export default function OrdersTableClient({ orders }: Props) {
                         {items.map((it, idx) => (
                           <div key={idx} className="flex items-start gap-3">
                             <div className="relative h-12 w-12 shrink-0 overflow-hidden rounded border bg-gray-50">
-                              {/* eslint-disable-next-line @next/next/no-img-element */}
                               {it.image ? (
+                                // eslint-disable-next-line @next/next/no-img-element -- admin thumbnail from arbitrary stored URL; next/image not warranted here
                                 <img
                                   src={it.image}
                                   alt={it.name}

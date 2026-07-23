@@ -466,12 +466,12 @@ export default async function AdminProductsPage({ searchParams }: PageProps) {
           <button className="inline-flex items-center justify-center rounded bg-black px-4 py-2 text-sm text-white hover:bg-[#FF3D8C] cursor-pointer">
             Застосувати
           </button>
-          <a
+          <Link
             href="/admin/products"
             className="inline-flex items-center justify-center rounded border px-4 py-2 text-sm"
           >
             Скинути
-          </a>
+          </Link>
         </div>
       </form>
 

@@ -345,7 +345,7 @@ export default function OverviewDateRangePicker({
   }
 
   const handleApply = () => {
-    let nextPreset = preset
+    const nextPreset = preset
     let nextFrom = from
     let nextTo = to
     let nextComparePreset = comparePreset
