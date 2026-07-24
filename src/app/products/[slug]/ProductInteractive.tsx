@@ -97,13 +97,13 @@ function ColorOptionButton(props: {
       aria-label={title}
       title={title}
       onClick={props.onClick}
-      className={`relative grid h-12 w-12 place-items-center rounded-md border bg-white p-1 transition cursor-pointer ${
+      className={`relative grid h-10 w-10 place-items-center rounded-full border bg-white p-1 transition cursor-pointer ${
         props.selected
           ? 'border-black ring-2 ring-black/10'
           : 'border-gray-300 hover:border-black'
       }`}
     >
-      <span className="relative h-full w-full overflow-hidden rounded-[4px] border border-black/10 bg-gray-200">
+      <span className="relative h-full w-full overflow-hidden rounded-full border border-black/10 bg-gray-200">
         {props.color ? (
           <span
             className="absolute inset-0"
@@ -1144,7 +1144,7 @@ export function ProductInteractive({ p }: { p: ProductWithVariants }) {
                                 }}
                                 aria-label={option.label}
                                 title={option.label}
-                                className={`relative grid h-12 w-12 place-items-center rounded-md border bg-white p-1 transition cursor-pointer ${
+                                className={`relative grid h-10 w-10 place-items-center rounded-full border bg-white p-1 transition cursor-pointer ${
                                   isActive
                                     ? 'border-black ring-2 ring-black/10'
                                     : outOfStock
@@ -1153,7 +1153,7 @@ export function ProductInteractive({ p }: { p: ProductWithVariants }) {
                                 }`}
                               >
                                 <span
-                                  className="h-full w-full rounded-[4px] border border-black/10 bg-gray-200"
+                                  className="h-full w-full rounded-full border border-black/10 bg-gray-200"
                                   style={
                                     option.hex
                                       ? { backgroundColor: option.hex }
@@ -1164,7 +1164,7 @@ export function ProductInteractive({ p }: { p: ProductWithVariants }) {
                                 {outOfStock ? (
                                   <span
                                     aria-hidden
-                                    className="absolute inset-1 rounded-[4px]"
+                                    className="absolute inset-1 rounded-full"
                                     style={{
                                       background:
                                         'linear-gradient(135deg, transparent 47%, rgba(0,0,0,0.35) 47%, rgba(0,0,0,0.35) 53%, transparent 53%)',

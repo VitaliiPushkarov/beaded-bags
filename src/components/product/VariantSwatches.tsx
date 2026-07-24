@@ -63,7 +63,7 @@ export default function VariantSwatches({
             }
             className={clsx(
               'relative grid place-items-center rounded-full bg-white p-1 transition',
-              isLarge ? 'h-10 w-10' : 'h-8 w-8 md:h-9 md:w-9',
+              isLarge ? 'h-7 w-7' : 'h-7 w-7 md:h-8 md:w-8',
               'border',
               selected
                 ? 'border-black ring-2 ring-black/10'
