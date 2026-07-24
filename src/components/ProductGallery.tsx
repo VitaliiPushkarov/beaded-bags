@@ -17,6 +17,34 @@ type PhotoGalleryProps = {
   onReady?: () => void
 }
 
+// Nominal large edge (px) used for the dimensions we hand to PhotoSwipe. Only
+// the aspect ratio matters for avoiding distortion; this sets a sensible zoom
+// ceiling.
+const PHOTOSWIPE_MAX_EDGE = 2000
+
+// For dimension probing we only need the aspect ratio, so for Cloudinary
+// sources we fetch a tiny resized variant instead of the full-resolution
+// original. Non-Cloudinary URLs are probed as-is.
+function toProbeUrl(src: string): string {
+  const marker = '/image/upload/'
+  const uploadIdx = src.indexOf(marker)
+  if (!src.includes('res.cloudinary.com') || uploadIdx === -1) return src
+  const insertAt = uploadIdx + marker.length
+  return `${src.slice(0, insertAt)}w_120,c_limit,q_auto,f_auto/${src.slice(insertAt)}`
+}
+
+// Scale probed dimensions to a large nominal size while preserving aspect, so
+// PhotoSwipe renders the image at its real proportions (no stretching).
+function scaleToLargeAspect(width: number, height: number): { w: number; h: number } {
+  if (!width || !height || !Number.isFinite(width) || !Number.isFinite(height)) {
+    return { w: PHOTOSWIPE_MAX_EDGE, h: PHOTOSWIPE_MAX_EDGE }
+  }
+  if (width >= height) {
+    return { w: PHOTOSWIPE_MAX_EDGE, h: Math.round((height / width) * PHOTOSWIPE_MAX_EDGE) }
+  }
+  return { w: Math.round((width / height) * PHOTOSWIPE_MAX_EDGE), h: PHOTOSWIPE_MAX_EDGE }
+}
+
 export default function PhotoGallery({ images, onReady }: PhotoGalleryProps) {
   const t = useT()
   const placeholder = '/img/placeholder.png'
@@ -60,12 +88,9 @@ export default function PhotoGallery({ images, onReady }: PhotoGalleryProps) {
         inflightByUrlRef.current[src] = new Promise<void>((resolve) => {
           const img = new window.Image()
           img.decoding = 'async'
-          img.src = src
+          img.src = toProbeUrl(src)
           img.onload = () => {
-            const next = {
-              w: img.width || 1600,
-              h: img.height || 1600,
-            }
+            const next = scaleToLargeAspect(img.naturalWidth, img.naturalHeight)
             sizesByUrlRef.current[src] = next
             setSizesByUrl((prev) =>
               prev[src] ? prev : { ...prev, [src]: next },
@@ -73,7 +98,7 @@ export default function PhotoGallery({ images, onReady }: PhotoGalleryProps) {
             resolve()
           }
           img.onerror = () => {
-            const fallback = { w: 1600, h: 1600 }
+            const fallback = { w: PHOTOSWIPE_MAX_EDGE, h: PHOTOSWIPE_MAX_EDGE }
             sizesByUrlRef.current[src] = fallback
             setSizesByUrl((prev) =>
               prev[src] ? prev : { ...prev, [src]: fallback },
@@ -119,6 +144,14 @@ export default function PhotoGallery({ images, onReady }: PhotoGalleryProps) {
   useEffect(() => {
     preloadAround(activeIndex)
   }, [activeIndex, preloadAround])
+
+  useEffect(() => {
+    // Probe the real aspect ratio of every image up front (lightweight thanks
+    // to toProbeUrl). The PhotoSwipe lightbox lets you swipe through the whole
+    // set, so any image left at the square fallback would appear stretched.
+    list.forEach((src, idx) => ensureImageSize(src, idx === 0 ? 'now' : 'idle'))
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [listKey, ensureImageSize])
 
   useEffect(() => {
     onReady?.()
