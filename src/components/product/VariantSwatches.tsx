@@ -62,8 +62,8 @@ export default function VariantSwatches({
                 : ''
             }
             className={clsx(
-              'relative grid place-items-center rounded-md bg-white p-1 transition',
-              isLarge ? 'h-10 w-10' : 'h-7 w-10 md:h-8 md:w-12',
+              'relative grid place-items-center rounded-full bg-white p-1 transition',
+              isLarge ? 'h-10 w-10' : 'h-8 w-8 md:h-9 md:w-9',
               'border',
               selected
                 ? 'border-black ring-2 ring-black/10'
@@ -76,13 +76,13 @@ export default function VariantSwatches({
           >
             <span
               aria-hidden
-              className="h-full w-full rounded-[4px] ring-1 ring-black/5"
+              className="h-full w-full rounded-full ring-1 ring-black/5"
               style={{ backgroundColor: v.hex ?? '#E5E5E5' }}
             />
             {outOfStock && (
               <span
                 aria-hidden
-                className="absolute inset-1 rounded-[4px]"
+                className="absolute inset-1 rounded-full"
                 style={{
                   background:
                     'linear-gradient(135deg, transparent 47%, rgba(0,0,0,0.35) 47%, rgba(0,0,0,0.35) 53%, transparent 53%)',
@@ -90,7 +90,7 @@ export default function VariantSwatches({
               />
             )}
 
-            <span className="absolute inset-0 rounded-md ring-0 focus-visible:ring-2 focus-visible:ring-black/40" />
+            <span className="absolute inset-0 rounded-full ring-0 focus-visible:ring-2 focus-visible:ring-black/40" />
           </button>
         )
       })}
