@@ -1144,7 +1144,7 @@ export function ProductInteractive({ p }: { p: ProductWithVariants }) {
                                 }}
                                 aria-label={option.label}
                                 title={option.label}
-                                className={`relative grid h-10 w-10 place-items-center rounded-full border bg-white p-1 transition cursor-pointer ${
+                                className={`relative grid h-7 w-7 place-items-center rounded-full border bg-white p-1 transition cursor-pointer ${
                                   isActive
                                     ? 'border-black ring-2 ring-black/10'
                                     : outOfStock
