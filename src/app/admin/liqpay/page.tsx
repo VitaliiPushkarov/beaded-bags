@@ -4,6 +4,7 @@ import LiqPaySyncPanel, {
   type LiqPayImportState,
 } from '@/components/admin/LiqPaySyncPanel'
 import {
+  findUnmappedLiqPayEntities,
   generateLiqPayCatalogFileContent,
   importLiqPayMappingFromWorkbook,
 } from '@/lib/liqpay-catalog-sync'
@@ -52,12 +53,13 @@ export default async function AdminLiqPayPage() {
     }
   }
 
-  const [mappingCount, lastSynced] = await Promise.all([
+  const [mappingCount, lastSynced, unmapped] = await Promise.all([
     prisma.liqPayCatalogMapping.count(),
     prisma.liqPayCatalogMapping.findFirst({
       orderBy: { syncedAt: 'desc' },
       select: { syncedAt: true },
     }),
+    findUnmappedLiqPayEntities(),
   ])
 
   return (
@@ -66,6 +68,8 @@ export default async function AdminLiqPayPage() {
       importAction={importMappingAction}
       mappingCount={mappingCount}
       lastSyncedAt={lastSynced?.syncedAt ?? null}
+      unmappedItems={unmapped.items}
+      checkedCount={unmapped.checkedCount}
     />
   )
 }

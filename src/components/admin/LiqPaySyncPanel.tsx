@@ -2,6 +2,8 @@
 
 import { useActionState, useState } from 'react'
 
+import type { UnmappedLiqPayEntity } from '@/lib/liqpay-catalog-sync'
+
 export type LiqPayImportState =
   | { status: 'idle' }
   | { status: 'success'; imported: number; skipped: number; message: string }
@@ -15,6 +17,18 @@ type Props = {
   ) => Promise<LiqPayImportState>
   mappingCount: number
   lastSyncedAt: Date | null
+  unmappedItems: UnmappedLiqPayEntity[]
+  checkedCount: number
+}
+
+function groupByProduct(items: UnmappedLiqPayEntity[]) {
+  const map = new Map<string, UnmappedLiqPayEntity[]>()
+  for (const item of items) {
+    const list = map.get(item.productName) ?? []
+    list.push(item)
+    map.set(item.productName, list)
+  }
+  return Array.from(map, ([productName, entries]) => ({ productName, entries }))
 }
 
 function formatDateTime(value: Date | null): string {
@@ -30,7 +44,10 @@ export default function LiqPaySyncPanel({
   importAction,
   mappingCount,
   lastSyncedAt,
+  unmappedItems,
+  checkedCount,
 }: Props) {
+  const groupedUnmapped = groupByProduct(unmappedItems)
   const [downloading, setDownloading] = useState(false)
   const [downloadError, setDownloadError] = useState<string | null>(null)
   const [importState, formAction, importing] = useActionState<
@@ -71,6 +88,54 @@ export default function LiqPaySyncPanel({
           мішечки чи розміри.
         </p>
       </div>
+
+      {/* Missing-mapping report */}
+      {unmappedItems.length === 0 ? (
+        <div
+          className="rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-800"
+          role="status"
+        >
+          Усі позиції в наявності мають фіскальний ID LiqPay
+          {checkedCount > 0 ? ` (перевірено ${checkedCount}).` : '.'} Нових
+          товарів для додавання немає.
+        </div>
+      ) : (
+        <div
+          className="rounded-xl border border-amber-300 bg-amber-50 p-4 text-sm text-amber-900"
+          role="alert"
+        >
+          <p className="font-medium">
+            {unmappedItems.length}{' '}
+            {unmappedItems.length === 1 ? 'позиція' : 'позицій'} без LiqPay ID —
+            їх треба додати в каталог LiqPay, інакше оплата онлайн для цих
+            товарів не пройде.
+          </p>
+          <p className="mt-1 text-amber-800">
+            Виконайте кроки нижче (експорт → додавання в кабінеті → імпорт), щоб
+            присвоїти їм фіскальні ID.
+          </p>
+          <div className="mt-3 space-y-3">
+            {groupedUnmapped.map((group) => (
+              <div key={group.productName}>
+                <div className="font-medium">{group.productName}</div>
+                <ul className="mt-1 space-y-0.5">
+                  {group.entries.map((entry) => (
+                    <li
+                      key={entry.externalCode}
+                      className="flex flex-wrap items-baseline gap-x-2 text-amber-800"
+                    >
+                      <span>{entry.label}</span>
+                      <code className="rounded bg-amber-100 px-1 text-xs">
+                        {entry.externalCode}
+                      </code>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
 
       <ol className="space-y-1 rounded-xl border border-slate-200 bg-slate-50 p-4 text-sm text-slate-700">
         <li>1. Завантажте актуальний файл каталогу (кнопка нижче).</li>
