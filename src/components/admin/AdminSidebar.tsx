@@ -14,6 +14,7 @@ import {
   Factory,
   Home,
   Package,
+  Receipt,
   Settings2,
   ShoppingCart,
   UserRound,
@@ -76,6 +77,7 @@ const NAV_ITEMS: AdminNavItem[] = [
     icon: Factory,
   },
   { kind: 'link', href: '/admin/finance', label: 'Фінанси', icon: BarChart3 },
+  { kind: 'link', href: '/admin/liqpay', label: 'LiqPay ПРРО', icon: Receipt },
   {
     kind: 'link',
     href: '/admin/configuration',
