@@ -1,6 +1,8 @@
 import { revalidatePath } from 'next/cache'
+import { redirect } from 'next/navigation'
 import { z } from 'zod'
 
+import { withAdminMessage } from '@/lib/admin-feedback'
 import ConfirmSubmitButton from '@/components/admin/ConfirmSubmitButton'
 import { Button } from '@/components/ui/button'
 import {
@@ -49,7 +51,11 @@ export default async function AdminSuppliersPage() {
     })
 
     if (!parsed.success) {
-      throw new Error('Не вдалося створити постачальника')
+      redirect(
+        withAdminMessage('/admin/suppliers', {
+          error: 'Не вдалося створити постачальника. Перевірте поля.',
+        }),
+      )
     }
 
     await prisma.supplier.create({
@@ -65,6 +71,9 @@ export default async function AdminSuppliersPage() {
 
     revalidatePath('/admin/suppliers')
     revalidatePath('/admin/finance')
+    redirect(
+      withAdminMessage('/admin/suppliers', { success: 'Постачальника додано.' }),
+    )
   }
 
   async function deleteSupplier(formData: FormData) {

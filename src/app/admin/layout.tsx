@@ -1,6 +1,7 @@
-import type { ReactNode } from 'react'
+import { Suspense, type ReactNode } from 'react'
 import type { Metadata } from 'next'
 import AdminSidebar from '@/components/admin/AdminSidebar'
+import AdminToaster from '@/components/admin/AdminToaster'
 
 export const metadata: Metadata = {
   robots: {
@@ -30,6 +31,9 @@ export default function AdminLayout({ children }: { children: ReactNode }) {
           </main>
         </div>
       </div>
+      <Suspense fallback={null}>
+        <AdminToaster />
+      </Suspense>
     </div>
   )
 }

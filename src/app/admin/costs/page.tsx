@@ -5,6 +5,7 @@ import { redirect } from 'next/navigation'
 import { z } from 'zod'
 
 import { formatUAH } from '@/lib/admin-finance'
+import { withAdminMessage } from '@/lib/admin-feedback'
 import { calcGrossMarginPercent, calcPaymentFeeUAH } from '@/lib/finance'
 import { ACTIVE_PRODUCT_TYPES, TYPE_LABELS } from '@/lib/labels'
 import {
@@ -209,7 +210,11 @@ export default async function AdminCostsPage({ searchParams }: PageProps) {
     })
 
     if (!parsed.success) {
-      throw new Error('Не вдалося зберегти збірку собівартості')
+      redirect(
+        withAdminMessage('/admin/costs', {
+          error: 'Не вдалося зберегти собівартість. Перевірте поля.',
+        }),
+      )
     }
 
     const laborCostPayload =
@@ -240,10 +245,8 @@ export default async function AdminCostsPage({ searchParams }: PageProps) {
     revalidatePath('/admin')
 
     const returnTo = parsed.data.returnTo || '/admin/costs'
-    if (returnTo.startsWith('/admin/costs')) {
-      redirect(returnTo)
-    }
-    redirect('/admin/costs')
+    const target = returnTo.startsWith('/admin/costs') ? returnTo : '/admin/costs'
+    redirect(withAdminMessage(target, { success: 'Собівартість збережено.' }))
   }
 
   const products = await prisma.product.findMany({

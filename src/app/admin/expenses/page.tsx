@@ -1,8 +1,10 @@
 import { ExpenseCategory } from '@prisma/client'
 import Link from 'next/link'
 import { revalidatePath } from 'next/cache'
+import { redirect } from 'next/navigation'
 import { z } from 'zod'
 
+import { withAdminMessage } from '@/lib/admin-feedback'
 import ConfirmSubmitButton from '@/components/admin/ConfirmSubmitButton'
 import { Button, buttonVariants } from '@/components/ui/button'
 import {
@@ -113,7 +115,11 @@ export default async function AdminExpensesPage({ searchParams }: PageProps) {
     })
 
     if (!parsed.success) {
-      throw new Error('Не вдалося створити витрату')
+      redirect(
+        withAdminMessage('/admin/expenses', {
+          error: 'Не вдалося створити витрату. Перевірте поля.',
+        }),
+      )
     }
 
     await prisma.expense.create({
@@ -128,6 +134,7 @@ export default async function AdminExpensesPage({ searchParams }: PageProps) {
 
     revalidatePath('/admin/expenses')
     revalidatePath('/admin/finance')
+    redirect(withAdminMessage('/admin/expenses', { success: 'Витрату додано.' }))
   }
 
   async function deleteExpense(formData: FormData) {
