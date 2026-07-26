@@ -27,6 +27,8 @@ import {
   getAverageLaborCostByVariantId,
 } from '@/lib/management-accounting'
 import { prisma } from '@/lib/prisma'
+import AdminPagination from '@/components/admin/AdminPagination'
+import { resolvePagination } from '@/lib/admin-pagination'
 import OrdersTableClient from './OrdersTableClient'
 
 export const dynamic = 'force-dynamic'
@@ -113,7 +115,15 @@ const ManualItemsSchema = z
 
 type ManualItem = z.infer<typeof ManualItemsSchema>[number]
 
-export default async function AdminOrdersPage() {
+type AdminOrdersPageProps = {
+  searchParams: Promise<{ page?: string }>
+}
+
+export default async function AdminOrdersPage({
+  searchParams,
+}: AdminOrdersPageProps) {
+  const { page: pageParam } = await searchParams
+  const pagination = resolvePagination(pageParam, 50)
   async function createManualOrder(formData: FormData) {
     'use server'
 
@@ -362,7 +372,7 @@ export default async function AdminOrdersPage() {
     }
   }
 
-  const [variantRows, orders] = await Promise.all([
+  const [variantRows, orders, ordersTotal] = await Promise.all([
     prisma.productVariant.findMany({
       orderBy: [
         { product: { sortCatalog: 'asc' } },
@@ -393,11 +403,13 @@ export default async function AdminOrdersPage() {
     }),
     prisma.order.findMany({
       orderBy: { createdAt: 'desc' },
-      take: 100,
+      skip: pagination.skip,
+      take: pagination.take,
       include: {
         items: true,
       },
     }),
+    prisma.order.count(),
   ])
 
   const variantOptions = variantRows.map((variant) => {
@@ -532,7 +544,15 @@ export default async function AdminOrdersPage() {
           Поки немає замовлень або сталася помилка завантаження.
         </p>
       ) : (
-        <OrdersTableClient orders={orders} />
+        <>
+          <OrdersTableClient orders={orders} />
+          <AdminPagination
+            page={pagination.page}
+            pageSize={pagination.pageSize}
+            totalCount={ordersTotal}
+            buildHref={(page) => `/admin/orders?page=${page}`}
+          />
+        </>
       )}
     </div>
   )

@@ -1,5 +1,7 @@
 import { prisma } from '@/lib/prisma'
 import { ACTIVE_PRODUCT_TYPES, TYPE_LABELS } from '@/lib/labels'
+import { resolvePagination } from '@/lib/admin-pagination'
+import AdminPagination from '@/components/admin/AdminPagination'
 import Link from 'next/link'
 import type { Prisma, ProductType } from '@prisma/client'
 import ProductStatusSelect from '@/components/admin/ProductStatusSelect'
@@ -14,6 +16,7 @@ type PageProps = {
     stock?: string
     sort?: string
     dir?: string
+    page?: string
   }>
 }
 
@@ -320,7 +323,7 @@ export default async function AdminProductsPage({ searchParams }: PageProps) {
     })
   }
 
-  const rows = products.sort((a, b) => {
+  const sortedRows = products.sort((a, b) => {
     const direction = dir === 'asc' ? 1 : -1
 
     switch (sort) {
@@ -347,6 +350,25 @@ export default async function AdminProductsPage({ searchParams }: PageProps) {
         )
     }
   })
+
+  const pagination = resolvePagination(params.page, 50)
+  const rows = sortedRows.slice(
+    pagination.skip,
+    pagination.skip + pagination.take,
+  )
+
+  const buildProductsPageHref = (page: number) => {
+    const qs = new URLSearchParams()
+    if (query) qs.set('q', query)
+    if (params.type) qs.set('type', params.type)
+    if (params.status) qs.set('status', params.status)
+    if (params.stock) qs.set('stock', params.stock)
+    if (params.sort) qs.set('sort', params.sort)
+    if (params.dir) qs.set('dir', params.dir)
+    if (page > 1) qs.set('page', String(page))
+    const queryString = qs.toString()
+    return queryString ? `/admin/products?${queryString}` : '/admin/products'
+  }
 
   return (
     <div className="max-w-6xl mx-auto p-4 sm:p-6">
@@ -660,6 +682,13 @@ export default async function AdminProductsPage({ searchParams }: PageProps) {
           </div>
         </div>
       )}
+
+      <AdminPagination
+        page={pagination.page}
+        pageSize={pagination.pageSize}
+        totalCount={sortedRows.length}
+        buildHref={buildProductsPageHref}
+      />
     </div>
   )
 }
