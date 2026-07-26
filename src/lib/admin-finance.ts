@@ -224,10 +224,22 @@ export function buildFinanceProductResolver(
   }
 }
 
+// Orders created on/after this date go through the cost-snapshot pipeline
+// (migration 20260302130000_light_management_accounting), so their stored
+// itemsCostUAH / line costs are authoritative — including a legitimate 0.
+// Only older, pre-snapshot orders fall back to a live recompute; without this
+// cutoff a genuinely zero-cost modern order would be retroactively repriced at
+// today's material/labor costs.
+const ORDER_COST_SNAPSHOT_SINCE = new Date('2026-03-02T00:00:00.000Z')
+
 export function resolveOrderFinance(
   order: FinanceOrder,
   productResolver?: FinanceProductResolver,
 ) {
+  const hasAuthoritativeSnapshot =
+    order.createdAt instanceof Date &&
+    order.createdAt.getTime() >= ORDER_COST_SNAPSHOT_SINCE.getTime()
+
   const fallbackSnapshot = buildOrderFinancialSnapshot({
     subtotalUAH: order.subtotalUAH,
     discountUAH: order.discountUAH,
@@ -246,15 +258,21 @@ export function resolveOrderFinance(
     const fallbackLine = fallbackSnapshot.lines[index]
 
     const lineRevenueUAH =
-      item.lineRevenueUAH > 0 || fallbackLine.lineRevenueUAH === 0
+      hasAuthoritativeSnapshot ||
+      item.lineRevenueUAH > 0 ||
+      fallbackLine.lineRevenueUAH === 0
         ? item.lineRevenueUAH
         : fallbackLine.lineRevenueUAH
     const unitCostUAH =
-      item.unitCostUAH > 0 || fallbackLine.unitCostUAH === 0
+      hasAuthoritativeSnapshot ||
+      item.unitCostUAH > 0 ||
+      fallbackLine.unitCostUAH === 0
         ? item.unitCostUAH
         : fallbackLine.unitCostUAH
     const totalCostUAH =
-      item.totalCostUAH > 0 || fallbackLine.totalCostUAH === 0
+      hasAuthoritativeSnapshot ||
+      item.totalCostUAH > 0 ||
+      fallbackLine.totalCostUAH === 0
         ? item.totalCostUAH
         : fallbackLine.totalCostUAH
 
@@ -276,11 +294,15 @@ export function resolveOrderFinance(
   })
 
   const itemsCostUAH =
-    order.itemsCostUAH > 0 || fallbackSnapshot.itemsCostUAH === 0
+    hasAuthoritativeSnapshot ||
+    order.itemsCostUAH > 0 ||
+    fallbackSnapshot.itemsCostUAH === 0
       ? order.itemsCostUAH
       : fallbackSnapshot.itemsCostUAH
   const paymentFeeUAH =
-    order.paymentFeeUAH > 0 || fallbackSnapshot.paymentFeeUAH === 0
+    hasAuthoritativeSnapshot ||
+    order.paymentFeeUAH > 0 ||
+    fallbackSnapshot.paymentFeeUAH === 0
       ? order.paymentFeeUAH
       : fallbackSnapshot.paymentFeeUAH
   const grossProfitUAH = order.totalUAH - itemsCostUAH - paymentFeeUAH
