@@ -17,6 +17,7 @@ import {
 } from '@/lib/shop-taxonomy'
 import OverviewDateRangePicker from '@/components/admin/OverviewDateRangePicker'
 import OverviewCharts from '@/components/admin/OverviewCharts'
+import AdminNeedsAttention from '@/components/admin/AdminNeedsAttention'
 
 export const dynamic = 'force-dynamic'
 
@@ -39,6 +40,8 @@ type PerformanceSummary = {
   netSalesUAH: number
   ordersCount: number
   productsSoldQty: number
+  itemsCostUAH: number
+  grossProfitUAH: number
 }
 
 type DateRange = {
@@ -246,6 +249,8 @@ function aggregatePerformance(
     subtotalUAH: number
     deliveryUAH: number
     totalUAH: number
+    itemsCostUAH: number
+    grossProfitUAH: number
     items: Array<{ qty: number }>
   }>,
 ): PerformanceSummary {
@@ -254,6 +259,8 @@ function aggregatePerformance(
       acc.totalSalesUAH += Math.max(0, order.subtotalUAH + order.deliveryUAH)
       acc.netSalesUAH += Math.max(0, order.totalUAH)
       acc.ordersCount += 1
+      acc.itemsCostUAH += Math.max(0, order.itemsCostUAH)
+      acc.grossProfitUAH += order.grossProfitUAH
       acc.productsSoldQty += order.items.reduce(
         (sum, item) => sum + Math.max(0, item.qty),
         0,
@@ -265,6 +272,8 @@ function aggregatePerformance(
       netSalesUAH: 0,
       ordersCount: 0,
       productsSoldQty: 0,
+      itemsCostUAH: 0,
+      grossProfitUAH: 0,
     },
   )
 }
@@ -371,6 +380,8 @@ export default async function AdminDashboard({ searchParams }: PageProps) {
       subtotalUAH: true,
       deliveryUAH: true,
       totalUAH: true,
+      itemsCostUAH: true,
+      grossProfitUAH: true,
       items: {
         select: {
           productId: true,
@@ -567,6 +578,44 @@ export default async function AdminDashboard({ searchParams }: PageProps) {
       ),
       href: `/admin/finance?${rangeQuery}`,
     },
+    {
+      title: 'Валовий прибуток',
+      value: formatUAH(currentPerformance.grossProfitUAH),
+      change: calcChangePercent(
+        currentPerformance.grossProfitUAH,
+        previousPerformance.grossProfitUAH,
+      ),
+      href: `/admin/finance?${rangeQuery}`,
+    },
+    {
+      title: 'Валова маржа',
+      value: `${
+        currentPerformance.netSalesUAH > 0
+          ? Math.round(
+              (currentPerformance.grossProfitUAH /
+                currentPerformance.netSalesUAH) *
+                100,
+            )
+          : 0
+      }%`,
+      change: calcChangePercent(
+        currentPerformance.netSalesUAH > 0
+          ? Math.round(
+              (currentPerformance.grossProfitUAH /
+                currentPerformance.netSalesUAH) *
+                100,
+            )
+          : 0,
+        previousPerformance.netSalesUAH > 0
+          ? Math.round(
+              (previousPerformance.grossProfitUAH /
+                previousPerformance.netSalesUAH) *
+                100,
+            )
+          : 0,
+      ),
+      href: `/admin/finance?${rangeQuery}`,
+    },
   ]
 
   return (
@@ -577,6 +626,8 @@ export default async function AdminDashboard({ searchParams }: PageProps) {
           Аналітика продажів за вибраний проміжок часу.
         </p>
       </div>
+
+      <AdminNeedsAttention />
 
       <OverviewDateRangePicker
         initialPreset={preset}
