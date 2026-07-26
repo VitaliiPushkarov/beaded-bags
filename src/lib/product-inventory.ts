@@ -7,6 +7,7 @@ import {
   isInventorySettledOrderStatus,
   normalizeInventoryQuantity,
 } from '@/lib/inventory-status'
+import { shouldUsageApplyToVariant } from '@/lib/management-accounting'
 import { prisma } from '@/lib/prisma'
 import { revalidateProductCache } from '@/lib/revalidate-products'
 
@@ -321,6 +322,65 @@ export async function reversePaidOrderInventoryTx(
     applied: true,
     affectedProductIds: productIds,
     productSnapshots: await loadProductSnapshots(tx, productIds),
+  }
+}
+
+export type ProductionInventoryResult = {
+  productSnapshots: InventorySettlementProductSnapshot[]
+  materialsConsumed: Array<{ materialId: string; deductedQty: number }>
+}
+
+// Record the inventory side of a finished-goods production run: add the
+// produced units to the variant's finished-goods stock (creating the tracking
+// row if it did not exist yet) and consume the raw materials that go into that
+// variant, deducting them from Material.stockQty. Material stock may go
+// negative so that under-logged material purchases surface as a shortage
+// rather than silently clamping.
+export async function applyProductionInventoryTx(
+  tx: InventoryDbClient,
+  input: {
+    productId: string
+    variantId: string
+    variantColor: string | null
+    qty: number
+  },
+): Promise<ProductionInventoryResult> {
+  const qty = normalizeInventoryQuantity(input.qty)
+  if (qty <= 0) {
+    return { productSnapshots: [], materialsConsumed: [] }
+  }
+
+  // 1) Produce finished goods.
+  await tx.productVariantInventory.upsert({
+    where: { variantId: input.variantId },
+    create: { variantId: input.variantId, finishedGoodsQty: qty },
+    update: { finishedGoodsQty: { increment: qty } },
+  })
+  await syncVariantAvailabilityForCurrentInventory(tx, input.variantId)
+  await syncProductInStockFromVariants(tx, input.productId)
+
+  // 2) Consume the materials that go into this variant.
+  const usages = await tx.productMaterial.findMany({
+    where: { productId: input.productId },
+    select: { materialId: true, quantity: true, variantColor: true },
+  })
+
+  const materialsConsumed: ProductionInventoryResult['materialsConsumed'] = []
+  for (const usage of usages) {
+    if (!shouldUsageApplyToVariant(usage, input.variantColor)) continue
+    const deductedQty = Math.max(0, usage.quantity) * qty
+    if (deductedQty <= 0) continue
+
+    await tx.material.update({
+      where: { id: usage.materialId },
+      data: { stockQty: { decrement: deductedQty } },
+    })
+    materialsConsumed.push({ materialId: usage.materialId, deductedQty })
+  }
+
+  return {
+    productSnapshots: await loadProductSnapshots(tx, [input.productId]),
+    materialsConsumed,
   }
 }
 

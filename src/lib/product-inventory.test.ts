@@ -3,6 +3,7 @@ import { test } from 'node:test'
 
 import {
   applyPaidOrderInventoryTx,
+  applyProductionInventoryTx,
   reversePaidOrderInventoryTx,
 } from './product-inventory'
 
@@ -24,8 +25,22 @@ type OrderRow = {
   items: Array<{ variantId: string; qty: number }>
 }
 
-function makeTx(variants: VariantRow[], order: OrderRow) {
+type MaterialRow = { id: string; stockQty: number }
+type ProductMaterialRow = {
+  productId: string
+  materialId: string
+  quantity: number
+  variantColor: string
+}
+
+function makeTx(
+  variants: VariantRow[],
+  order: OrderRow,
+  opts: { materials?: MaterialRow[]; productMaterials?: ProductMaterialRow[] } = {},
+) {
   const variantsById = new Map(variants.map((v) => [v.id, v]))
+  const materialsById = new Map((opts.materials ?? []).map((m) => [m.id, m]))
+  const productMaterials = opts.productMaterials ?? []
 
   return {
     order: {
@@ -101,6 +116,46 @@ function makeTx(variants: VariantRow[], order: OrderRow) {
         const v = variantsById.get(where.variantId)
         if (!v || v.finishedGoodsQty == null) return
         v.finishedGoodsQty += data.finishedGoodsQty.increment
+      },
+      upsert: async ({
+        where,
+        create,
+        update,
+      }: {
+        where: { variantId: string }
+        create: { finishedGoodsQty: number }
+        update: { finishedGoodsQty: { increment: number } }
+      }) => {
+        const v = variantsById.get(where.variantId)
+        if (!v) return
+        if (v.finishedGoodsQty == null) {
+          v.finishedGoodsQty = create.finishedGoodsQty
+        } else {
+          v.finishedGoodsQty += update.finishedGoodsQty.increment
+        }
+      },
+    },
+    productMaterial: {
+      findMany: async ({ where }: { where: { productId: string } }) =>
+        productMaterials
+          .filter((pm) => pm.productId === where.productId)
+          .map((pm) => ({
+            materialId: pm.materialId,
+            quantity: pm.quantity,
+            variantColor: pm.variantColor,
+          })),
+    },
+    material: {
+      update: async ({
+        where,
+        data,
+      }: {
+        where: { id: string }
+        data: { stockQty: { decrement: number } }
+      }) => {
+        const m = materialsById.get(where.id)
+        if (!m) return
+        m.stockQty -= data.stockQty.decrement
       },
     },
     product: {
@@ -244,4 +299,67 @@ test('untracked variants (no inventory row) are skipped both ways', async () => 
   await applyPaidOrderInventoryTx(tx as never, 'o1')
   assert.equal(variants[0].finishedGoodsQty, null)
   assert.ok(order.inventoryAppliedAt instanceof Date)
+})
+
+test('production adds finished goods and consumes matching materials', async () => {
+  const variants: VariantRow[] = [
+    {
+      id: 'v1',
+      productId: 'p1',
+      inStock: false,
+      availabilityStatus: 'PREORDER',
+      finishedGoodsQty: 1,
+    },
+  ]
+  const materials: MaterialRow[] = [
+    { id: 'm-beads', stockQty: 100 },
+    { id: 'm-clasp', stockQty: 50 },
+    { id: 'm-redonly', stockQty: 30 },
+  ]
+  const productMaterials: ProductMaterialRow[] = [
+    { productId: 'p1', materialId: 'm-beads', quantity: 3, variantColor: '' }, // all variants
+    { productId: 'p1', materialId: 'm-clasp', quantity: 1, variantColor: 'Blue' }, // this variant
+    { productId: 'p1', materialId: 'm-redonly', quantity: 5, variantColor: 'Red' }, // other variant
+  ]
+  const tx = makeTx(variants, { id: 'o0', status: 'PAID', inventoryAppliedAt: null, items: [] }, {
+    materials,
+    productMaterials,
+  })
+
+  const result = await applyProductionInventoryTx(tx as never, {
+    productId: 'p1',
+    variantId: 'v1',
+    variantColor: 'Blue',
+    qty: 4,
+  })
+
+  // 4 units produced on top of the existing 1
+  assert.equal(variants[0].finishedGoodsQty, 5)
+  // beads (all): 100 - 3*4 = 88 ; clasp (Blue): 50 - 1*4 = 46 ; red-only: untouched
+  assert.equal(materials[0].stockQty, 88)
+  assert.equal(materials[1].stockQty, 46)
+  assert.equal(materials[2].stockQty, 30)
+  assert.equal(result.materialsConsumed.length, 2)
+})
+
+test('production starts tracking an untracked variant', async () => {
+  const variants: VariantRow[] = [
+    {
+      id: 'v1',
+      productId: 'p1',
+      inStock: false,
+      availabilityStatus: 'PREORDER',
+      finishedGoodsQty: null,
+    },
+  ]
+  const tx = makeTx(variants, { id: 'o0', status: 'PAID', inventoryAppliedAt: null, items: [] })
+
+  await applyProductionInventoryTx(tx as never, {
+    productId: 'p1',
+    variantId: 'v1',
+    variantColor: null,
+    qty: 3,
+  })
+
+  assert.equal(variants[0].finishedGoodsQty, 3)
 })

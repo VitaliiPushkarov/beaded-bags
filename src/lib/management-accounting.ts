@@ -125,7 +125,7 @@ function normalizeVariantKey(value: string): string {
     .replace(/\s+/g, ' ')
 }
 
-function shouldUsageApplyToVariant(
+export function shouldUsageApplyToVariant(
   usage: { variantColor?: string | null },
   variantColor?: string | null,
 ): boolean {

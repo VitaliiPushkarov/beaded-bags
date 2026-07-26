@@ -28,6 +28,11 @@ import {
 } from '@/components/ui/table'
 import { endOfDay, formatDate, formatUAH, startOfDay, toDateInputValue } from '@/lib/admin-finance'
 import { prisma } from '@/lib/prisma'
+import {
+  applyProductionInventoryTx,
+  type InventorySettlementProductSnapshot,
+  revalidateInventoryProductViews,
+} from '@/lib/product-inventory'
 
 export const dynamic = 'force-dynamic'
 
@@ -221,6 +226,8 @@ export default async function AdminProductionPage({ searchParams }: PageProps) {
       )
     }
 
+    let productionSnapshots: InventorySettlementProductSnapshot[] = []
+
     try {
       await prisma.$transaction(async (tx) => {
         const artisan = await tx.artisan.findUnique({
@@ -242,6 +249,7 @@ export default async function AdminProductionPage({ searchParams }: PageProps) {
             select: {
               id: true,
               productId: true,
+              color: true,
             },
           })
 
@@ -281,6 +289,16 @@ export default async function AdminProductionPage({ searchParams }: PageProps) {
             },
           })
 
+          // Add the produced units to finished-goods stock and consume the
+          // variant's materials from Material.stockQty.
+          const production = await applyProductionInventoryTx(tx, {
+            productId: variant.productId,
+            variantId: variant.id,
+            variantColor: variant.color,
+            qty,
+          })
+          productionSnapshots = production.productSnapshots
+
           return
         }
 
@@ -316,6 +334,10 @@ export default async function AdminProductionPage({ searchParams }: PageProps) {
     }
 
     revalidatePath('/admin/production')
+    revalidatePath('/admin/inventory/materials')
+    if (productionSnapshots.length > 0) {
+      revalidateInventoryProductViews(productionSnapshots)
+    }
     redirect(withQueryMessage(returnTo, { success: 'Запис виробництва додано.' }))
   }
 
