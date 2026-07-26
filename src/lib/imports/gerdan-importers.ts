@@ -250,21 +250,20 @@ async function applyCosts(
 ) {
   await prisma.$transaction(async (tx) => {
     for (const record of records) {
+      // materialsCostUAH / packagingCostUAH are no longer persisted: COGS is
+      // computed live from material usages + the packaging template. Only the
+      // profile-level labor/shipping/other/notes are stored.
       await tx.productCostProfile.upsert({
         where: { productId: record.productId },
         create: {
           productId: record.productId,
-          materialsCostUAH: record.materialsCostUAH,
           laborCostUAH: record.laborCostUAH,
-          packagingCostUAH: record.packagingCostUAH,
           shippingCostUAH: record.shippingCostUAH,
           otherCostUAH: record.otherCostUAH,
           notes: record.notes,
         },
         update: {
-          materialsCostUAH: record.materialsCostUAH,
           laborCostUAH: record.laborCostUAH,
-          packagingCostUAH: record.packagingCostUAH,
           shippingCostUAH: record.shippingCostUAH,
           otherCostUAH: record.otherCostUAH,
           notes: record.notes,

@@ -1,0 +1,274 @@
+{
+  "exportedAt": "2026-07-26T15:30:22.187Z",
+  "note": "Values dropped by the drop-dead-erp-models migration. Restore manually if ever needed.",
+  "productionBatch": [
+    {
+      "id": "cmmkucabe0001k104kkwp5q9h",
+      "productId": "beaded-bag-with-circles",
+      "producedAt": "2026-03-10T00:00:00.000Z",
+      "qty": 1,
+      "laborTotalUAH": 350,
+      "laborPerUnitUAH": 350,
+      "materialsTotalUAH": 0,
+      "packagingTotalUAH": 69,
+      "notes": null,
+      "createdAt": "2026-03-10T16:45:06.746Z",
+      "updatedAt": "2026-03-10T16:45:06.746Z"
+    }
+  ],
+  "productionBatchMaterial": [],
+  "productCostProfileDroppedColumns": [
+    {
+      "id": "cmml5t7mg0001l804gvecxn7g",
+      "productId": "cmml5t7mc0000l8045xssm5yb",
+      "materialsCostUAH": 0,
+      "packagingCostUAH": 0
+    },
+    {
+      "id": "cmm9qagdi0005xq3o2wmt28a9",
+      "productId": "cmlmbioma0000lb04ki91b37g",
+      "materialsCostUAH": 576,
+      "packagingCostUAH": 95
+    },
+    {
+      "id": "cmm9qr2l00017xqp0uw58yw17",
+      "productId": "beaded-bag-electric",
+      "materialsCostUAH": 123,
+      "packagingCostUAH": 66
+    },
+    {
+      "id": "cmm9qt9ce002axqp086xcyirb",
+      "productId": "beaded-bag-glassy",
+      "materialsCostUAH": 683,
+      "packagingCostUAH": 95
+    },
+    {
+      "id": "cmm9qag770001xq3ox5m3b6d1",
+      "productId": "metallic-case",
+      "materialsCostUAH": 210,
+      "packagingCostUAH": 66
+    },
+    {
+      "id": "cmm9qwsrg003oxqp0ztmp6oz5",
+      "productId": "tote-bag",
+      "materialsCostUAH": 399,
+      "packagingCostUAH": 95
+    },
+    {
+      "id": "cmm9qyi8f004jxqp0dzyyrm6u",
+      "productId": "shopper-lazy",
+      "materialsCostUAH": 197,
+      "packagingCostUAH": 0
+    },
+    {
+      "id": "cmm9qtv2v002ixqp0papn2pb5",
+      "productId": "gerdan-black-red",
+      "materialsCostUAH": 0,
+      "packagingCostUAH": 52
+    },
+    {
+      "id": "cmm9r0soi0055xqp0fawkts3g",
+      "productId": "gerdan-black",
+      "materialsCostUAH": 750,
+      "packagingCostUAH": 52
+    },
+    {
+      "id": "cmm9qvn2y0039xqp0fop4f6lr",
+      "productId": "gerdan-white",
+      "materialsCostUAH": 0,
+      "packagingCostUAH": 52
+    },
+    {
+      "id": "cmm9r2lwm005ixqp0t3hrq5ae",
+      "productId": "bananka-waffle",
+      "materialsCostUAH": 296,
+      "packagingCostUAH": 69
+    },
+    {
+      "id": "cmm9r3v8e005xxqp0r4eo1uwu",
+      "productId": "heart-bag",
+      "materialsCostUAH": 353,
+      "packagingCostUAH": 42
+    },
+    {
+      "id": "cmm9r559e0064xqp066b6gc1c",
+      "productId": "shopper-daily",
+      "materialsCostUAH": 300,
+      "packagingCostUAH": 64
+    },
+    {
+      "id": "cmmcc7ar80000xqqwo9cn6hxw",
+      "productId": "brown-brelok",
+      "materialsCostUAH": 0,
+      "packagingCostUAH": 0
+    },
+    {
+      "id": "cmm9r7a4p006hxqp0hmjd1f1i",
+      "productId": "cozy-bag",
+      "materialsCostUAH": 251,
+      "packagingCostUAH": 69
+    },
+    {
+      "id": "cmmdfanfx0000l4043nxd2ihq",
+      "productId": "hat-shahy",
+      "materialsCostUAH": 0,
+      "packagingCostUAH": 0
+    },
+    {
+      "id": "cmm9r62ol0069xqp0cj461m1h",
+      "productId": "candy-bag",
+      "materialsCostUAH": 378,
+      "packagingCostUAH": 95
+    },
+    {
+      "id": "cmm9quph7002lxqp09vwzq2mj",
+      "productId": "beaded-bag-blue",
+      "materialsCostUAH": 469,
+      "packagingCostUAH": 95
+    },
+    {
+      "id": "cmm9qq3qt000mxqp0tdj247ik",
+      "productId": "gerdan-classic-mini",
+      "materialsCostUAH": 560,
+      "packagingCostUAH": 66
+    },
+    {
+      "id": "cmm9qzbgo004mxqp0030fkzdo",
+      "productId": "beaded-bag-yellow",
+      "materialsCostUAH": 497,
+      "packagingCostUAH": 95
+    },
+    {
+      "id": "cmmi77bs60000l204rrdnivvo",
+      "productId": "moon-brelok",
+      "materialsCostUAH": 0,
+      "packagingCostUAH": 0
+    },
+    {
+      "id": "cmmi77nxd0002l2046p4l2zip",
+      "productId": "bubblegum-bag-brelok",
+      "materialsCostUAH": 0,
+      "packagingCostUAH": 0
+    },
+    {
+      "id": "cmmi79gji0005l204trhnf1rs",
+      "productId": "pink-wallet-brelok",
+      "materialsCostUAH": 0,
+      "packagingCostUAH": 0
+    },
+    {
+      "id": "cmmi79rbw0008l204wj5if2lp",
+      "productId": "pink-brelok",
+      "materialsCostUAH": 0,
+      "packagingCostUAH": 0
+    },
+    {
+      "id": "cmmi7cz4t000cl2041u4ufwdo",
+      "productId": "flower-brelok",
+      "materialsCostUAH": 0,
+      "packagingCostUAH": 0
+    },
+    {
+      "id": "cmmi7ad47000al204rf257r3m",
+      "productId": "blue-brelok",
+      "materialsCostUAH": 0,
+      "packagingCostUAH": 0
+    },
+    {
+      "id": "cmm9qaget0007xq3o2gwajbz4",
+      "productId": "cmltra0n00000ju04kujt7nha",
+      "materialsCostUAH": 402,
+      "packagingCostUAH": 66
+    },
+    {
+      "id": "cmm9qp9dq0008xqp0bqw8eosq",
+      "productId": "beaded-bag-with-circles",
+      "materialsCostUAH": 0,
+      "packagingCostUAH": 69
+    },
+    {
+      "id": "cmn4m2q120001kv04niisfsc8",
+      "productId": "cmmyroceu000dlb04ej871b6g",
+      "materialsCostUAH": 0,
+      "packagingCostUAH": 0
+    },
+    {
+      "id": "cmm9qag9z0003xq3opuwk151s",
+      "productId": "chepchik",
+      "materialsCostUAH": 106,
+      "packagingCostUAH": 66
+    },
+    {
+      "id": "cmnsvkypu0001ky050zvu6lsq",
+      "productId": "cmnsue8cd0000ii04j9b4h24g",
+      "materialsCostUAH": 0,
+      "packagingCostUAH": 0
+    },
+    {
+      "id": "cmm9qv98l002vxqp0ckqbgdjp",
+      "productId": "mitenki-smugasti",
+      "materialsCostUAH": 110,
+      "packagingCostUAH": 53
+    },
+    {
+      "id": "cmm9qy25h0043xqp0r1z3mx9m",
+      "productId": "scarf-smugasti",
+      "materialsCostUAH": 214,
+      "packagingCostUAH": 52
+    },
+    {
+      "id": "cmnswg49p0008ie04l09mksed",
+      "productId": "bant-black-brelok",
+      "materialsCostUAH": 0,
+      "packagingCostUAH": 0
+    },
+    {
+      "id": "cmnswg7sx0009l504tjwcw3wy",
+      "productId": "rezynka-smugasta",
+      "materialsCostUAH": 0,
+      "packagingCostUAH": 0
+    },
+    {
+      "id": "cmnswguau000fkw0468mc28q9",
+      "productId": "rezynka-shahy",
+      "materialsCostUAH": 0,
+      "packagingCostUAH": 0
+    },
+    {
+      "id": "cmm9qs5ne0021xqp0ic1y00m2",
+      "productId": "heart-earmuffs",
+      "materialsCostUAH": 86,
+      "packagingCostUAH": 52
+    },
+    {
+      "id": "cmnywcsxj0007l504fdieotjj",
+      "productId": "cmnyw1qj00000i604jut3s1y2",
+      "materialsCostUAH": 0,
+      "packagingCostUAH": 0
+    },
+    {
+      "id": "cmnzzz9bp0001l204p71pstbc",
+      "productId": "cmn9awlai0000l504ng3tu25a",
+      "materialsCostUAH": 0,
+      "packagingCostUAH": 0
+    },
+    {
+      "id": "cmmkuigrv0001kz04mni7w20d",
+      "productId": "cmmkuigrv0000kz044yhhp1f5",
+      "materialsCostUAH": 0,
+      "packagingCostUAH": 0
+    },
+    {
+      "id": "cmp7jsl3c0008lb048v20k177",
+      "productId": "cmp7j64h50000ky04hqr929rq",
+      "materialsCostUAH": 0,
+      "packagingCostUAH": 0
+    },
+    {
+      "id": "cmqcv72es000tlh04d73mwwa7",
+      "productId": "cmpfhygau0000jy0457we0b6o",
+      "materialsCostUAH": 0,
+      "packagingCostUAH": 0
+    }
+  ]
+}

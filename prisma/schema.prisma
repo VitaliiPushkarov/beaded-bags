@@ -38,7 +38,6 @@ model Product {
   inventory           ProductInventory?
   materialUsages      ProductMaterial[]
   variants            ProductVariant[]
-  productionBatches   ProductionBatch[]
   artisanProductions  ArtisanProduction[]
   adminProductions    AdminProduction[]
 
@@ -52,9 +51,7 @@ model Product {
 model ProductCostProfile {
   id               String   @id @default(cuid())
   productId        String   @unique
-  materialsCostUAH Int      @default(0)
   laborCostUAH     Int      @default(0)
-  packagingCostUAH Int      @default(0)
   shippingCostUAH  Int      @default(0)
   otherCostUAH     Int      @default(0)
   notes            String?
@@ -85,7 +82,6 @@ model Material {
   category      MaterialCategory          @default(HARDWARE)
   color         String                    @default("")
   productUsages ProductMaterial[]
-  batchUsages   ProductionBatchMaterial[]
 
   @@unique([name, category, color])
   @@index([category])
@@ -106,40 +102,6 @@ model PackagingTemplate {
   createdAt        DateTime  @default(now())
   updatedAt        DateTime  @updatedAt
   products         Product[]
-}
-
-model ProductionBatch {
-  id                String                    @id @default(cuid())
-  productId         String
-  producedAt        DateTime
-  qty               Int
-  laborTotalUAH     Int                       @default(0)
-  laborPerUnitUAH   Int                       @default(0)
-  materialsTotalUAH Int                       @default(0)
-  packagingTotalUAH Int                       @default(0)
-  notes             String?
-  createdAt         DateTime                  @default(now())
-  updatedAt         DateTime                  @updatedAt
-  product           Product                   @relation(fields: [productId], references: [id], onDelete: Cascade)
-  materials         ProductionBatchMaterial[]
-
-  @@index([producedAt])
-  @@index([productId, producedAt])
-}
-
-model ProductionBatchMaterial {
-  id           String          @id @default(cuid())
-  batchId      String
-  materialId   String
-  qtyUsed      Float
-  unitCostUAH  Int             @default(0)
-  totalCostUAH Int             @default(0)
-  createdAt    DateTime        @default(now())
-  batch        ProductionBatch @relation(fields: [batchId], references: [id], onDelete: Cascade)
-  material     Material        @relation(fields: [materialId], references: [id])
-
-  @@index([batchId])
-  @@index([materialId])
 }
 
 model ProductMaterial {
