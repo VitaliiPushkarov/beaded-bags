@@ -113,6 +113,53 @@ export default function OrdersTableClient({ orders }: Props) {
   const [savingId, setSavingId] = useState<string | null>(null)
   const [localOrders, setLocalOrders] = useState<Order[]>(orders)
   const [statusError, setStatusError] = useState<string | null>(null)
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set())
+  const [bulkStatus, setBulkStatus] = useState<OrderStatus | ''>('')
+  const [bulkBusy, setBulkBusy] = useState(false)
+
+  const allVisibleSelected =
+    localOrders.length > 0 && localOrders.every((o) => selectedIds.has(o.id))
+
+  const toggleAll = () =>
+    setSelectedIds(
+      allVisibleSelected ? new Set() : new Set(localOrders.map((o) => o.id)),
+    )
+
+  const toggleOne = (id: string) =>
+    setSelectedIds((prev) => {
+      const next = new Set(prev)
+      if (next.has(id)) next.delete(id)
+      else next.add(id)
+      return next
+    })
+
+  const applyBulkStatus = async () => {
+    if (!bulkStatus || selectedIds.size === 0 || bulkBusy) return
+    setBulkBusy(true)
+    setStatusError(null)
+    try {
+      const res = await fetch('/api/admin/orders/bulk-status', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          ids: Array.from(selectedIds),
+          status: bulkStatus,
+        }),
+      })
+      if (!res.ok) {
+        setStatusError('Не вдалося змінити статус для обраних замовлень.')
+        return
+      }
+      setSelectedIds(new Set())
+      setBulkStatus('')
+      router.refresh()
+    } catch (err) {
+      console.error(err)
+      setStatusError('Помилка мережі під час масової зміни статусу.')
+    } finally {
+      setBulkBusy(false)
+    }
+  }
 
   useEffect(() => {
     setLocalOrders(orders)
@@ -277,9 +324,49 @@ export default function OrdersTableClient({ orders }: Props) {
       </div>
 
       <div className="hidden md:block">
+        {selectedIds.size > 0 && (
+          <div className="flex flex-wrap items-center gap-3 border-b border-slate-200 bg-slate-50 px-4 py-3 text-sm">
+            <span className="font-medium">Обрано: {selectedIds.size}</span>
+            <select
+              className="h-8 rounded-md border border-slate-300 px-2 text-xs"
+              value={bulkStatus}
+              onChange={(e) => setBulkStatus(e.target.value as OrderStatus)}
+            >
+              <option value="">Змінити статус на…</option>
+              {(Object.keys(STATUS_LABELS) as OrderStatus[]).map((s) => (
+                <option key={s} value={s}>
+                  {STATUS_LABELS[s]}
+                </option>
+              ))}
+            </select>
+            <button
+              type="button"
+              onClick={applyBulkStatus}
+              disabled={!bulkStatus || bulkBusy}
+              className="inline-flex h-8 items-center rounded-md bg-black px-3 text-xs text-white transition hover:bg-[#FF3D8C] disabled:opacity-60"
+            >
+              {bulkBusy ? 'Застосовуємо…' : 'Застосувати'}
+            </button>
+            <button
+              type="button"
+              onClick={() => setSelectedIds(new Set())}
+              className="text-xs text-slate-500 underline"
+            >
+              Зняти виділення
+            </button>
+          </div>
+        )}
         <Table>
           <TableHeader>
             <TableRow className="hover:bg-transparent">
+              <TableHead className="w-8">
+                <input
+                  type="checkbox"
+                  checked={allVisibleSelected}
+                  onChange={toggleAll}
+                  aria-label="Обрати всі"
+                />
+              </TableHead>
               <TableHead>ID</TableHead>
               <TableHead>Клієнт</TableHead>
               <TableHead>Телефон</TableHead>
@@ -293,6 +380,14 @@ export default function OrdersTableClient({ orders }: Props) {
           <TableBody>
             {localOrders.map((o) => (
               <TableRow key={o.id}>
+                <TableCell className="w-8">
+                  <input
+                    type="checkbox"
+                    checked={selectedIds.has(o.id)}
+                    onChange={() => toggleOne(o.id)}
+                    aria-label={`Обрати замовлення ${o.shortNumber ?? o.id.slice(0, 8)}`}
+                  />
+                </TableCell>
                 <TableCell>{o.id.slice(0, 8)}…</TableCell>
                 <TableCell>
                   {o.customerSurname} {o.customerName}

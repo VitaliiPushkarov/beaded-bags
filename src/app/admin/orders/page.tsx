@@ -434,11 +434,21 @@ export default async function AdminOrdersPage({
 
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="mb-1 text-2xl font-semibold">Замовлення</h1>
-        <p className="text-sm text-gray-600">
-          Створюйте ручні замовлення для месенджерів, ярмарків і офлайн-продажів.
-        </p>
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        <div>
+          <h1 className="mb-1 text-2xl font-semibold">Замовлення</h1>
+          <p className="text-sm text-gray-600">
+            Створюйте ручні замовлення для месенджерів, ярмарків і
+            офлайн-продажів.
+          </p>
+        </div>
+        <a
+          href="/api/admin/orders/export"
+          className="inline-flex h-10 items-center justify-center rounded border border-slate-300 px-4 text-sm transition hover:border-black"
+          download
+        >
+          Експорт CSV
+        </a>
       </div>
 
       <Card className="overflow-hidden">
