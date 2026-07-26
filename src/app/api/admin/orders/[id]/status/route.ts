@@ -8,6 +8,7 @@ import {
   applyPaidOrderInventoryTx,
   type InventorySettlementProductSnapshot,
   revalidateInventoryProductViews,
+  reversePaidOrderInventoryTx,
 } from '@/lib/product-inventory'
 import { prisma } from '@/lib/prisma'
 
@@ -41,6 +42,10 @@ export async function PATCH(req: NextRequest, { params }: PageProps) {
       if (isInventorySettledOrderStatus(next.status)) {
         const settlement = await applyPaidOrderInventoryTx(tx, next.id)
         inventoryProductSnapshots = settlement.productSnapshots
+      } else {
+        // Leaving a settled state (e.g. PAID -> CANCELLED) restores stock.
+        const reversal = await reversePaidOrderInventoryTx(tx, next.id)
+        inventoryProductSnapshots = reversal.productSnapshots
       }
 
       return next

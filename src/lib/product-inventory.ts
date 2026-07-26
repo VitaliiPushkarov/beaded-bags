@@ -128,45 +128,39 @@ async function syncVariantAvailabilityForCurrentInventory(
   }
 }
 
-async function decrementVariantInventoryOnSale(
+// Apply an exact signed change to a tracked variant's finished-goods stock.
+// deltaQty is negative for a sale (settlement) and positive for a reversal, so
+// the two are perfectly symmetric — a settled-then-cancelled order nets to
+// zero. Only variants that already have an inventory row are moved; untracked
+// (made-to-order / preorder) variants have no finished-goods stock and are
+// skipped. Stock is allowed to go negative so oversells stay visible instead
+// of being silently clamped.
+async function applyVariantInventoryDelta(
   tx: InventoryDbClient,
   variantId: string,
-  qty: number,
+  deltaQty: number,
 ) {
   const variant = await loadVariantInventoryState(tx, variantId)
   if (!variant) {
     console.warn(
-      `[inventory] Paid order item references missing variant "${variantId}"`,
+      `[inventory] Order item references missing variant "${variantId}"`,
     )
     return null
   }
 
-  const safeQty = normalizeInventoryQuantity(qty)
-  if (safeQty <= 0) return variant.productId
+  if (!variant.inventory) {
+    // Untracked variant — no finished-goods stock to move.
+    return variant.productId
+  }
 
-  const decremented = await tx.productVariantInventory.updateMany({
-    where: {
-      variantId,
-      finishedGoodsQty: {
-        gte: safeQty,
-      },
-    },
-    data: {
-      finishedGoodsQty: {
-        decrement: safeQty,
-      },
-    },
-  })
-
-  if (decremented.count === 0) {
-    await tx.productVariantInventory.upsert({
+  const safeDelta = Math.trunc(Number(deltaQty) || 0)
+  if (safeDelta !== 0) {
+    await tx.productVariantInventory.update({
       where: { variantId },
-      create: {
-        variantId,
-        finishedGoodsQty: 0,
-      },
-      update: {
-        finishedGoodsQty: 0,
+      data: {
+        finishedGoodsQty: {
+          increment: safeDelta,
+        },
       },
     })
   }
@@ -233,7 +227,80 @@ export async function applyPaidOrderInventoryTx(
   const affectedProductIds = new Set<string>()
 
   for (const item of groupedItems) {
-    const productId = await decrementVariantInventoryOnSale(
+    const productId = await applyVariantInventoryDelta(
+      tx,
+      item.variantId,
+      -item.qty,
+    )
+
+    if (productId) {
+      affectedProductIds.add(productId)
+    }
+  }
+
+  const productIds = Array.from(affectedProductIds)
+
+  for (const productId of productIds) {
+    await syncProductInStockFromVariants(tx, productId)
+  }
+
+  return {
+    applied: true,
+    affectedProductIds: productIds,
+    productSnapshots: await loadProductSnapshots(tx, productIds),
+  }
+}
+
+// Undo a previously-applied settlement: restore finished-goods stock and clear
+// inventoryAppliedAt so the order can be settled again later. Only runs when
+// inventory was applied and the order is no longer in a settled state
+// (e.g. PAID/FULFILLED -> CANCELLED/FAILED/PENDING). Idempotent.
+export async function reversePaidOrderInventoryTx(
+  tx: InventoryDbClient,
+  orderId: string,
+): Promise<PaidOrderInventoryResult> {
+  const order = await tx.order.findUnique({
+    where: { id: orderId },
+    select: {
+      id: true,
+      status: true,
+      inventoryAppliedAt: true,
+      items: {
+        select: {
+          variantId: true,
+          qty: true,
+        },
+      },
+    },
+  })
+
+  const notApplied: PaidOrderInventoryResult = {
+    applied: false,
+    affectedProductIds: [],
+    productSnapshots: [],
+  }
+
+  if (!order || !order.inventoryAppliedAt) return notApplied
+  // Still in a settled state — nothing to reverse.
+  if (isInventorySettledOrderStatus(order.status)) return notApplied
+
+  const cleared = await tx.order.updateMany({
+    where: {
+      id: order.id,
+      inventoryAppliedAt: { not: null },
+    },
+    data: {
+      inventoryAppliedAt: null,
+    },
+  })
+
+  if (cleared.count === 0) return notApplied
+
+  const groupedItems = groupOrderVariantQuantities(order.items)
+  const affectedProductIds = new Set<string>()
+
+  for (const item of groupedItems) {
+    const productId = await applyVariantInventoryDelta(
       tx,
       item.variantId,
       item.qty,
