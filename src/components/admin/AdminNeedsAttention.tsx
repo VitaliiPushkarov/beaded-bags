@@ -1,3 +1,4 @@
+import { unstable_cache } from 'next/cache'
 import Link from 'next/link'
 
 import { findUnmappedLiqPayEntities } from '@/lib/liqpay-catalog-sync'
@@ -7,6 +8,34 @@ import { prisma } from '@/lib/prisma'
 // (negative counts mean oversold and are included).
 const LOW_STOCK_THRESHOLD = 2
 
+// The dashboard is force-dynamic, but this overview panel runs several
+// aggregation queries on every load. Cache the counts for a short window —
+// up to 60s of staleness is fine for an at-a-glance signal (the edit pages
+// it links to are always live).
+const getNeedsAttentionCounts = unstable_cache(
+  async () => {
+    const [lowStockCount, missingCostCount, unmapped] = await Promise.all([
+      prisma.productVariantInventory.count({
+        where: {
+          finishedGoodsQty: { lte: LOW_STOCK_THRESHOLD },
+          variant: { product: { status: 'PUBLISHED' } },
+        },
+      }),
+      prisma.product.count({
+        where: { status: 'PUBLISHED', costProfile: null },
+      }),
+      findUnmappedLiqPayEntities(),
+    ])
+    return {
+      lowStockCount,
+      missingCostCount,
+      missingLiqPayCount: unmapped.items.length,
+    }
+  },
+  ['admin-needs-attention-counts'],
+  { revalidate: 60 },
+)
+
 type AttentionCard = {
   label: string
   count: number
@@ -15,18 +44,8 @@ type AttentionCard = {
 }
 
 export default async function AdminNeedsAttention() {
-  const [lowStockCount, missingCostCount, unmapped] = await Promise.all([
-    prisma.productVariantInventory.count({
-      where: {
-        finishedGoodsQty: { lte: LOW_STOCK_THRESHOLD },
-        variant: { product: { status: 'PUBLISHED' } },
-      },
-    }),
-    prisma.product.count({
-      where: { status: 'PUBLISHED', costProfile: null },
-    }),
-    findUnmappedLiqPayEntities(),
-  ])
+  const { lowStockCount, missingCostCount, missingLiqPayCount } =
+    await getNeedsAttentionCounts()
 
   const cards: AttentionCard[] = [
     {
@@ -43,7 +62,7 @@ export default async function AdminNeedsAttention() {
     },
     {
       label: 'Без LiqPay ID',
-      count: unmapped.items.length,
+      count: missingLiqPayCount,
       href: '/admin/liqpay',
       hint: 'Позиції, які зламають онлайн-оплату',
     },
