@@ -1,6 +1,7 @@
 import './globals.css'
 import { Analytics } from '@vercel/analytics/next'
 import Header from '../components/Header'
+import ScrollToTop from '@/components/ScrollToTop'
 import CartDrawer from '@/components/cart/CartDrawer'
 import Footer from '@/components/Footer'
 import { SpeedInsights } from '@vercel/speed-insights/next'
@@ -123,6 +124,7 @@ j=d.createElement(s),dl=l!='dataLayer'?'&l='+l:'';j.async=true;j.src=
           </noscript>
 
           <SpeedInsights />
+          <ScrollToTop />
           <Header />
           <main className="max-w-full mx-auto">{children}</main>
           <Analytics />
