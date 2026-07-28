@@ -177,7 +177,7 @@ export default function HeroBlockSlider({ slides, autoPlayMs = 9000 }: Props) {
         >
           <div className="md:hidden overflow-hidden aspect-[2/3]">
             <div
-              className={`flex ease-in-out ${
+              className={`flex h-full ease-in-out ${
                 isTransitionEnabled ? 'transition-transform duration-700' : ''
               }`}
               style={{ transform: `translateX(-${translateIndex * 100}%)` }}
@@ -187,7 +187,7 @@ export default function HeroBlockSlider({ slides, autoPlayMs = 9000 }: Props) {
                 <Link
                   key={`${slide.id}-mobile-${index}`}
                   href={slide.linkHref}
-                  className="block w-full shrink-0"
+                  className="block h-full w-full shrink-0"
                 >
                   <Image
                     src={slide.mobileImage}
@@ -196,7 +196,7 @@ export default function HeroBlockSlider({ slides, autoPlayMs = 9000 }: Props) {
                     height={1800}
                     priority={index === priorityIndex}
                     loading={index === priorityIndex ? undefined : 'lazy'}
-                    className="h-full w-full object-contain"
+                    className="h-full w-full object-cover"
                     sizes="100vw"
                     quality={60}
                   />
@@ -207,7 +207,7 @@ export default function HeroBlockSlider({ slides, autoPlayMs = 9000 }: Props) {
 
           <div className="hidden md:block overflow-hidden aspect-[2/1]">
             <div
-              className={`flex ease-in-out ${
+              className={`flex h-full ease-in-out ${
                 isTransitionEnabled ? 'transition-transform duration-700' : ''
               }`}
               style={{ transform: `translateX(-${translateIndex * 100}%)` }}
@@ -217,7 +217,7 @@ export default function HeroBlockSlider({ slides, autoPlayMs = 9000 }: Props) {
                 <Link
                   key={`${slide.id}-desktop-${index}`}
                   href={slide.linkHref}
-                  className="block w-full shrink-0"
+                  className="block h-full w-full shrink-0"
                 >
                   <Image
                     src={slide.desktopImage}
@@ -226,7 +226,7 @@ export default function HeroBlockSlider({ slides, autoPlayMs = 9000 }: Props) {
                     height={1440}
                     priority={index === priorityIndex}
                     loading={index === priorityIndex ? undefined : 'lazy'}
-                    className="h-full w-full object-contain"
+                    className="h-full w-full object-cover"
                     sizes="(min-width: 768px) calc(100vw - 48px), 100vw"
                     quality={80}
                   />
