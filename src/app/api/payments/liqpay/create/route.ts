@@ -77,6 +77,7 @@ export async function POST(req: NextRequest) {
         totalUAH: true,
         status: true,
         paymentMethod: true,
+        paymentRaw: true,
         customerEmail: true,
         customerPhone: true,
         items: {
@@ -219,6 +220,16 @@ export async function POST(req: NextRequest) {
       deliveryEmail: order.customerEmail ?? null,
     })
 
+    // PrivatBank "Оплата частинами": if the order was placed as an installment
+    // checkout, restrict the LiqPay page to the paypart flow.
+    const installments =
+      order.paymentRaw &&
+      typeof order.paymentRaw === 'object' &&
+      !Array.isArray(order.paymentRaw)
+        ? (order.paymentRaw as { installments?: unknown }).installments
+        : undefined
+    const paytypes = installments === 'paypart' ? 'paypart' : undefined
+
     const { data, signature } = buildLiqPayPayload({
       publicKey,
       privateKey,
@@ -233,6 +244,7 @@ export async function POST(req: NextRequest) {
         phone: order.customerPhone ?? undefined,
       },
       rroInfo,
+      paytypes,
     })
 
     await prisma.order.update({

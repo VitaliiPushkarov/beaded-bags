@@ -13,6 +13,9 @@ export interface LiqPayBasePayload {
   // LiqPay API technical flag for non-live mode
   sandbox?: 1
   language?: string
+  // Comma-separated LiqPay payment methods to offer on the checkout page,
+  // e.g. "paypart" for PrivatBank "Оплата частинами" (payment in installments).
+  paytypes?: string
   sender_email?: string
   sender_phone?: string
   rro_info?: {
@@ -48,6 +51,7 @@ export function buildLiqPayPayload(args: {
   mode?: 'live' | 'development'
   customer?: { name?: string; email?: string; phone?: string }
   rroInfo?: LiqPayBasePayload['rro_info']
+  paytypes?: string
 }): { data: string; signature: string } {
   const payload: LiqPayBasePayload = {
     public_key: args.publicKey,
@@ -66,6 +70,7 @@ export function buildLiqPayPayload(args: {
     payload.sandbox = 1
   }
 
+  if (args.paytypes) payload.paytypes = args.paytypes
   if (args.customer?.email) payload.sender_email = args.customer.email
   if (args.customer?.phone) payload.sender_phone = args.customer.phone
   if (args.rroInfo) payload.rro_info = args.rroInfo

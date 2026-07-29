@@ -20,7 +20,7 @@ type CheckoutAttemptItem = {
 export function buildCheckoutAttemptFingerprint(args: {
   items: CheckoutAttemptItem[]
   amountUAH: number
-  paymentMethod: 'LIQPAY' | 'BANK_TRANSFER'
+  paymentMethod: 'LIQPAY' | 'LIQPAY_PAYPART' | 'BANK_TRANSFER'
   customerPhone: string
   shippingMethod?: 'nova_poshta' | 'international_address'
   cityRef?: string

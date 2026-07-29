@@ -5,7 +5,7 @@ import {
   getCheckoutCountryByCode,
 } from '@/lib/checkout-countries'
 
-type UIPaymentMethod = 'BANK_TRANSFER' | 'LIQPAY'
+type UIPaymentMethod = 'BANK_TRANSFER' | 'LIQPAY' | 'LIQPAY_PAYPART'
 
 type NPDelivery = {
   areaRef?: string

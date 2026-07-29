@@ -62,5 +62,7 @@ export const OrderCreateCheckoutBodySchema = z.object({
     NovaPoshtaShippingSchema,
     InternationalAddressShippingSchema,
   ]),
-  paymentMethod: z.enum(['LIQPAY', 'BANK_TRANSFER']).optional(),
+  paymentMethod: z
+    .enum(['LIQPAY', 'LIQPAY_PAYPART', 'BANK_TRANSFER'])
+    .optional(),
 })

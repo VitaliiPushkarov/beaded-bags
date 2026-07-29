@@ -9,7 +9,10 @@ import {
 } from '@/lib/management-accounting'
 import { calcDiscountUAH, resolvePromoCode } from '@/lib/promo'
 import { OrderCreateCheckoutBodySchema } from '@/lib/orders/create-order-schema'
-import { resolveCheckoutPaymentMethod } from '@/lib/orders/payment-methods'
+import {
+  resolveCheckoutPaymentMethod,
+  resolveInstallmentPaytype,
+} from '@/lib/orders/payment-methods'
 import { sendOrderTelegramNotification } from '@/lib/order-telegram'
 import {
   isOutOfStockStatus,
@@ -55,6 +58,10 @@ export async function POST(req: NextRequest) {
     }
 
     const paymentMethod = resolveCheckoutPaymentMethod(
+      data.paymentMethod,
+      data.shipping.method,
+    )
+    const installmentPaytype = resolveInstallmentPaytype(
       data.paymentMethod,
       data.shipping.method,
     )
@@ -309,6 +316,12 @@ export async function POST(req: NextRequest) {
           paymentMethod,
           paymentId: null,
           paymentStatus: null,
+          // Carry the installment intent so the LiqPay create step can request
+          // the "paypart" paytype. Consumed before payment; the callback later
+          // overwrites paymentRaw with LiqPay's response.
+          paymentRaw: installmentPaytype
+            ? { installments: installmentPaytype }
+            : undefined,
           checkoutSessionKey: idempotencyKey,
 
           items: {

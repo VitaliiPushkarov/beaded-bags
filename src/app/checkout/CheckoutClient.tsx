@@ -234,6 +234,14 @@ export default function CheckoutClient() {
     co.paymentMethod,
     shippingMethod,
   )
+  // The raw UI choice sent to the server (which resolves it): keeps
+  // installments distinct from a plain LiqPay order for the order record and
+  // the idempotency fingerprint.
+  const requestedPaymentMethod = onlinePaymentAvailable
+    ? co.paymentMethod
+    : 'BANK_TRANSFER'
+  const isInstallmentSelected =
+    onlinePaymentAvailable && co.paymentMethod === 'LIQPAY_PAYPART'
 
   useEffect(() => {
     if (!onlinePaymentAvailable && co.paymentMethod !== 'BANK_TRANSFER') {
@@ -402,7 +410,7 @@ export default function CheckoutClient() {
     const fingerprint = buildCheckoutAttemptFingerprint({
       items,
       amountUAH: total,
-      paymentMethod: selectedPaymentMethod,
+      paymentMethod: requestedPaymentMethod,
       customerPhone: phoneNorm,
       shippingMethod,
       cityRef: isUkraineShipping ? co.np.cityRef : undefined,
@@ -471,7 +479,7 @@ export default function CheckoutClient() {
           amountUAH: total,
           promoCode: appliedPromoCode,
           idempotencyKey,
-          paymentMethod: selectedPaymentMethod,
+          paymentMethod: requestedPaymentMethod,
         }),
       })
 
@@ -830,7 +838,7 @@ export default function CheckoutClient() {
                     type="radio"
                     name="payment"
                     className="mt-1 w-4 h-4"
-                    checked={selectedPaymentMethod === 'LIQPAY'}
+                    checked={co.paymentMethod === 'LIQPAY'}
                     onChange={() => co.setPaymentMethod('LIQPAY')}
                   />
                   <div>
@@ -863,13 +871,37 @@ export default function CheckoutClient() {
               )}
             </label>
 
+            {/* Оплата частинами (PrivatBank paypart via LiqPay) */}
+            {onlinePaymentAvailable && (
+              <label className="flex items-start gap-3 cursor-pointer">
+                <input
+                  type="radio"
+                  name="payment"
+                  className="mt-1 w-4 h-4"
+                  checked={co.paymentMethod === 'LIQPAY_PAYPART'}
+                  onChange={() => co.setPaymentMethod('LIQPAY_PAYPART')}
+                />
+                <div>
+                  <p className="font-medium uppercase">
+                    {t('Оплата частинами', 'Payment in installments')}
+                  </p>
+                  <p className="text-gray-600">
+                    {t(
+                      'Розстрочка від ПриватБанку («Оплата частинами») для карток ПриватБанку.',
+                      'Interest-free installments from PrivatBank (paypart) for PrivatBank cards.',
+                    )}
+                  </p>
+                </div>
+              </label>
+            )}
+
             {/* Оплата по реквізитам */}
             <label className="flex items-start gap-3 cursor-pointer select-none">
               <input
                 type="radio"
                 name="payment"
                 className="mt-1 w-4 h-4"
-                checked={selectedPaymentMethod === 'BANK_TRANSFER'}
+                checked={co.paymentMethod === 'BANK_TRANSFER'}
                 onChange={() => co.setPaymentMethod('BANK_TRANSFER')}
               />
 
