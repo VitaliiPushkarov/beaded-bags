@@ -1,8 +1,11 @@
 import Link from 'next/link'
 import { revalidatePath } from 'next/cache'
-import { notFound } from 'next/navigation'
+import { notFound, redirect } from 'next/navigation'
 import { MaterialCategory, Prisma } from '@prisma/client'
 import { z } from 'zod'
+
+import { withAdminMessage } from '@/lib/admin-feedback'
+import { buildNextMaterialUnitCostUAH } from '@/lib/material-costing'
 
 import ConfirmSubmitButton from '@/components/admin/ConfirmSubmitButton'
 import { Badge } from '@/components/ui/badge'
@@ -65,6 +68,12 @@ const UpdateMaterialSchema = z.object({
   stockQty: z.coerce.number().min(0).default(0),
   unitCostUAH: z.coerce.number().min(0).default(0),
   notes: z.string().trim().optional(),
+})
+
+const RestockMaterialSchema = z.object({
+  id: z.string().min(1),
+  incomingQty: z.coerce.number().positive(),
+  incomingUnitCostUAH: z.coerce.number().min(0).default(0),
 })
 
 function formatQuantity(value: number): string {
@@ -158,6 +167,66 @@ export default async function AdminInventoryMaterialsCategoryPage({
         `/admin/inventory/materials/${materialCategoryToSlug(item)}`,
       )
     }
+  }
+
+  async function restockMaterial(formData: FormData) {
+    'use server'
+
+    const parsed = RestockMaterialSchema.safeParse({
+      id: formData.get('id'),
+      incomingQty: formData.get('incomingQty'),
+      incomingUnitCostUAH: formData.get('incomingUnitCostUAH'),
+    })
+
+    if (!parsed.success) {
+      redirect(
+        withAdminMessage(pagePath, {
+          error: 'Вкажіть коректну кількість поповнення.',
+        }),
+      )
+    }
+
+    const material = await prisma.material.findUnique({
+      where: { id: parsed.data.id },
+      select: { stockQty: true, unitCostUAH: true, name: true },
+    })
+
+    if (!material) {
+      redirect(withAdminMessage(pagePath, { error: 'Матеріал не знайдено.' }))
+    }
+
+    // Add the incoming quantity and blend the unit cost (weighted average),
+    // so restocking is a single entry instead of hand-computing the new
+    // total and cost.
+    const nextUnitCostUAH = buildNextMaterialUnitCostUAH({
+      currentStockQty: material.stockQty,
+      currentUnitCostUAH: material.unitCostUAH,
+      incomingStockQty: parsed.data.incomingQty,
+      incomingUnitCostUAH: parsed.data.incomingUnitCostUAH,
+    })
+
+    await prisma.material.update({
+      where: { id: parsed.data.id },
+      data: {
+        stockQty: { increment: parsed.data.incomingQty },
+        unitCostUAH: nextUnitCostUAH,
+      },
+    })
+
+    revalidatePath('/admin/inventory/materials')
+    revalidatePath('/admin/costs')
+    revalidatePath('/admin/finance')
+    for (const item of MATERIAL_CATEGORIES) {
+      revalidatePath(
+        `/admin/inventory/materials/${materialCategoryToSlug(item)}`,
+      )
+    }
+
+    redirect(
+      withAdminMessage(pagePath, {
+        success: `Поповнено «${material.name}»: +${parsed.data.incomingQty}.`,
+      }),
+    )
   }
 
   async function deleteMaterial(formData: FormData) {
@@ -478,30 +547,64 @@ export default async function AdminInventoryMaterialsCategoryPage({
                       </TableCell> */}
 
                       <TableCell className="text-right">
-                        <div className="inline-flex items-center gap-3">
-                          <form id={formId} action={updateMaterial}>
-                            <input
-                              type="hidden"
-                              name="id"
-                              value={material.id}
-                            />
-                            <Button type="submit" size="sm">
-                              Зберегти
-                            </Button>
-                          </form>
+                        <div className="flex flex-col items-end gap-2">
+                          <div className="inline-flex items-center gap-3">
+                            <form id={formId} action={updateMaterial}>
+                              <input
+                                type="hidden"
+                                name="id"
+                                value={material.id}
+                              />
+                              <Button type="submit" size="sm">
+                                Зберегти
+                              </Button>
+                            </form>
 
-                          <form action={deleteMaterial}>
-                            <input
-                              type="hidden"
-                              name="id"
-                              value={material.id}
+                            <form action={deleteMaterial}>
+                              <input
+                                type="hidden"
+                                name="id"
+                                value={material.id}
+                              />
+                              <ConfirmSubmitButton
+                                confirmMessage={`Видалити матеріал "${material.name}"? Це також прибере його з усіх товарів.`}
+                                className="text-xs text-red-600 hover:underline"
+                              >
+                                Видалити
+                              </ConfirmSubmitButton>
+                            </form>
+                          </div>
+
+                          {/* Receive stock: adds to quantity and blends the
+                              unit cost (weighted average) in one step. */}
+                          <form
+                            action={restockMaterial}
+                            className="inline-flex items-center gap-1"
+                            title="Поповнення додає кількість і перераховує середню собівартість"
+                          >
+                            <input type="hidden" name="id" value={material.id} />
+                            <Input
+                              name="incomingQty"
+                              type="number"
+                              min="0"
+                              step="0.001"
+                              required
+                              placeholder="+к-сть"
+                              aria-label="Кількість поповнення"
+                              className="w-20 text-right"
                             />
-                            <ConfirmSubmitButton
-                              confirmMessage={`Видалити матеріал "${material.name}"? Це також прибере його з усіх товарів.`}
-                              className="text-xs text-red-600 hover:underline"
-                            >
-                              Видалити
-                            </ConfirmSubmitButton>
+                            <Input
+                              name="incomingUnitCostUAH"
+                              type="number"
+                              min="0"
+                              step="0.001"
+                              placeholder="ціна/од"
+                              aria-label="Ціна за одиницю"
+                              className="w-24 text-right"
+                            />
+                            <Button type="submit" size="sm" variant="secondary">
+                              Поповнити
+                            </Button>
                           </form>
                         </div>
                       </TableCell>

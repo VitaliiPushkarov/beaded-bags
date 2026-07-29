@@ -23,6 +23,7 @@ import {
   TableRow,
 } from '@/components/ui/table'
 import { formatUAH } from '@/lib/admin-finance'
+import { buildNextMaterialUnitCostUAH } from '@/lib/material-costing'
 import ConfirmSubmitButton from '@/components/admin/ConfirmSubmitButton'
 import { TYPE_LABELS } from '@/lib/labels'
 import { DEFAULT_PACKAGING_TEMPLATE_PRESETS } from '@/lib/management-accounting'
@@ -147,35 +148,6 @@ function toMaterialMatchKey(input: {
     input.category,
     normalizeMaterialInput(input.color).toLowerCase(),
   ].join('::')
-}
-
-function buildNextMaterialUnitCostUAH(input: {
-  currentStockQty: number
-  currentUnitCostUAH: number
-  incomingStockQty: number
-  incomingUnitCostUAH: number
-}): number {
-  const currentStockQty = Math.max(0, input.currentStockQty)
-  const currentUnitCostUAH = Math.max(0, input.currentUnitCostUAH)
-  const incomingStockQty = Math.max(0, input.incomingStockQty)
-  const incomingUnitCostUAH = Math.max(0, input.incomingUnitCostUAH)
-
-  if (incomingStockQty > 0 && incomingUnitCostUAH > 0) {
-    const nextStockQty = currentStockQty + incomingStockQty
-    if (nextStockQty > 0) {
-      return (
-        (currentStockQty * currentUnitCostUAH +
-          incomingStockQty * incomingUnitCostUAH) /
-        nextStockQty
-      )
-    }
-  }
-
-  if (incomingStockQty === 0 && incomingUnitCostUAH > 0) {
-    return incomingUnitCostUAH
-  }
-
-  return currentUnitCostUAH
 }
 
 export default async function InventoryPageView({
