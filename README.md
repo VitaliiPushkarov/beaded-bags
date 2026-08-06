@@ -27,6 +27,10 @@ npm run dev
 - `npm run start` — запуск production build
 - `npm run db:probe` — перевірка доступу до БД
 - `npm run test:email` — тести шаблонів листів покупцю
+- `npm run test:admin` — перевірка, що роут збереження товару чистить усі
+  дочірні таблиці варіанта перед видаленням
+- `npm run check:variant-delete` — перевіряє видалення варіанта на реальній БД
+  у транзакції, яка завжди відкочується (нічого не зберігається)
 - `npm run preview:email` — згенерувати HTML-прев'ю листів у `.preview/`
 - `npm run export:liqpay:catalog` — згенерувати каталог ПРРО/LiqPay з локальної БД
 - `npm run import:liqpay:mapping -- --file=...` — імпортувати мапінг `externalCode -> goodId` з файлу каталогу LiqPay

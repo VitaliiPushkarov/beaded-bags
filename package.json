@@ -22,7 +22,8 @@
     "test:admin": "node --import tsx --test src/lib/variant-delete-cascade.test.ts",
     "preview:email": "node --import tsx scripts/preview-order-email.ts",
     "test:inventory": "node --import tsx --test src/lib/product-inventory.test.ts src/lib/inventory-status.test.ts src/lib/material-costing.test.ts",
-    "db:probe": "node --import tsx scripts/db/probe-connection.ts"
+    "db:probe": "node --import tsx scripts/db/probe-connection.ts",
+    "check:variant-delete": "node --import tsx scripts/check-variant-delete.ts"
   },
   "dependencies": {
     "@neondatabase/serverless": "^1.0.2",
