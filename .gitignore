@@ -43,3 +43,6 @@ next-env.d.ts
 /src/generated/prisma
 beaded-bags/db/staging/*.json
 beaded-bags/db/reports/*.json
+
+# email previews (npm run preview:email)
+.preview/

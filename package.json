@@ -18,6 +18,8 @@
     "import:liqpay:mapping": "node --import tsx scripts/import-liqpay-catalog-mapping.ts",
     "test:imports": "node --import tsx --test src/lib/imports/*.test.ts",
     "test:orders": "node --import tsx --test src/lib/orders/*.test.ts",
+    "test:email": "node --import tsx --test src/lib/order-email-template.test.ts",
+    "preview:email": "node --import tsx scripts/preview-order-email.ts",
     "test:inventory": "node --import tsx --test src/lib/product-inventory.test.ts src/lib/inventory-status.test.ts src/lib/material-costing.test.ts",
     "db:probe": "node --import tsx scripts/db/probe-connection.ts"
   },
