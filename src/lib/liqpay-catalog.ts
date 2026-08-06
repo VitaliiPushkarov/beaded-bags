@@ -1,3 +1,5 @@
+import { calcDiscountedPrice } from '@/lib/pricing'
+
 export type LiqPayCatalogEntityType =
   | 'VARIANT'
   | 'STRAP'
@@ -32,6 +34,7 @@ type ProductCatalogSource = {
     modelSize: string | null
     pouchColor: string | null
     priceUAH: number | null
+    discountPercent: number | null
     discountUAH: number | null
     straps: Array<{
       id: string
@@ -173,11 +176,17 @@ export function buildLiqPayCatalogRows(products: ProductCatalogSource[]) {
         modelSize: variant.modelSize,
         pouchColor: variant.pouchColor,
       })
-      const basePrice = Math.max(
-        0,
-        Number(variant.priceUAH ?? product.basePriceUAH ?? 0) -
-          Number(variant.discountUAH ?? 0),
-      )
+      // The fiscal catalogue must register the price the shop actually charges,
+      // otherwise the ПРРО receipt disagrees with the order. Use the same
+      // calculation as the storefront and checkout repricing: discountUAH is a
+      // legacy field whose values <= 100 mean percent, and discountPercent is
+      // the modern one — subtracting discountUAH raw registered discounted items
+      // at full price.
+      const { finalPriceUAH: basePrice } = calcDiscountedPrice({
+        basePriceUAH: variant.priceUAH ?? product.basePriceUAH ?? 0,
+        discountPercent: variant.discountPercent,
+        discountUAH: variant.discountUAH,
+      })
 
       pushRow({
         entityType: 'VARIANT',

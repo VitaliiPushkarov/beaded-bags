@@ -36,6 +36,7 @@ export async function generateLiqPayCatalogFileContent(): Promise<string> {
           modelSize: true,
           pouchColor: true,
           priceUAH: true,
+          discountPercent: true,
           discountUAH: true,
           straps: {
             orderBy: { sort: 'asc' },
