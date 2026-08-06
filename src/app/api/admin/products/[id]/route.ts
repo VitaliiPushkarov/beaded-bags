@@ -542,41 +542,12 @@ export async function PATCH(
   }
 }
 
-// --------- DELETE: видалення товару ---------
-export async function DELETE(
-  req: NextRequest,
-  { params }: { params: Promise<{ id: string }> },
-) {
-  const unauthorized = await requireAdmin(req)
-  if (unauthorized) return unauthorized
-
-  try {
-    const { id } = await params
-    const existing = await prisma.product.findUnique({
-      where: { id },
-      select: { slug: true, type: true, group: true, status: true },
-    })
-
-    if (!existing) {
-      return NextResponse.json({ error: 'Product not found' }, { status: 404 })
-    }
-
-    await prisma.product.delete({ where: { id } })
-
-    revalidateProductCache({
-      reason: 'delete',
-      before: existing,
-    })
-
-    return NextResponse.json({ ok: true }, { status: 200 })
-  } catch (err) {
-    console.error('Delete product error:', err)
-    return NextResponse.json(
-      { error: 'Internal Server Error' },
-      { status: 500 },
-    )
-  }
-}
+// Товари не видаляються — використовуйте статус ARCHIVED (/admin/products).
+// Архівування ховає товар із вітрини (запити фронтенду беруть лише PUBLISHED)
+// і блокує нові замовлення, але зберігає залишки, собівартість та історію
+// виробництва/виплат майстриням. Жорстке видалення каскадом знесло б
+// ProductVariantInventory, ArtisanRate та ArtisanProduction, а рядки замовлень
+// лишилися б із посиланнями на неіснуючий товар (OrderItem не має FK).
 
 // --------- GET: один товар ---------
 export async function GET(
