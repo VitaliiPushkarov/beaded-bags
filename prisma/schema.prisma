@@ -304,6 +304,8 @@ model Order {
   paymentRaw           Json?
   inventoryAppliedAt   DateTime?
   checkoutSessionKey   String?        @unique
+  // Promo code actually applied to this order, for auditing and reporting.
+  promoCode            String?
   customerId           String?
   shortNumber          Int            @unique @default(autoincrement())
   grossProfitUAH       Int            @default(0)
@@ -565,6 +567,29 @@ model HomeHeroBannerSettings {
   instagramPosts Json?
   createdAt      DateTime @default(now())
   updatedAt      DateTime @updatedAt
+}
+
+model PromoCode {
+  id              String    @id @default(cuid())
+  // Stored uppercase; codes are compared case-insensitively.
+  code            String    @unique
+  discountPercent Int
+  isActive        Boolean   @default(true)
+  startsAt        DateTime?
+  endsAt          DateTime?
+  minOrderUAH     Int       @default(0)
+  // null means unlimited.
+  usageLimit      Int?
+  usedCount       Int       @default(0)
+  // When true this is the code offered to the customer after a successful
+  // order. Only one code is used for that at a time — the most recent wins.
+  showAfterOrder  Boolean   @default(false)
+  note            String?
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+
+  @@index([isActive, endsAt])
+  @@index([showAfterOrder, isActive])
 }
 
 model LiqPayCatalogMapping {

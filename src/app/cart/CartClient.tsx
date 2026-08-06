@@ -4,13 +4,8 @@ import Link from 'next/link'
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { useCart } from '../store/cart'
 import { pushMetaInitiateCheckout } from '@/lib/analytics/datalayer'
-import {
-  PROMO_STORAGE_KEY,
-  getPromoDiscountPct,
-  resolvePromoCode,
-  emitPromoChanged,
-  calcDiscountUAH,
-} from '@/lib/promo'
+import { normalizePromoInput } from '@/lib/promo'
+import { usePromoDiscount } from '@/lib/usePromo'
 import { useLocale, useLocaleNumberFormat, useT } from '@/lib/i18n'
 import {
   getCartItemUnitPrice,
@@ -76,34 +71,23 @@ export default function CartPage() {
   const checkoutFiredRef = useRef(false)
 
   const [promoInput, setPromoInput] = useState('')
-  const [appliedPromo, setAppliedPromo] = useState<string | null>(null)
   const [promoTouched, setPromoTouched] = useState(false)
-
-  useEffect(() => {
-    try {
-      const saved = window.localStorage.getItem(PROMO_STORAGE_KEY)
-      if (saved) {
-        setAppliedPromo(saved)
-        setPromoInput(saved)
-      }
-    } catch {}
-  }, [])
-
-  const normalizedPromoInput = promoInput.trim().toUpperCase()
-  const validPromoInput = resolvePromoCode(normalizedPromoInput)
-  const appliedPromoCode = resolvePromoCode(appliedPromo)
-  const isPromoValid = validPromoInput !== null
-  const isPromoApplied = appliedPromoCode !== null
 
   const subtotalUAH = useMemo(() => total(), [total, items])
 
-  const discountUAH = useMemo(() => {
-    return calcDiscountUAH(subtotalUAH, appliedPromoCode)
-  }, [subtotalUAH, appliedPromoCode])
+  // Rules live on the server; this just reflects the verdict for the code the
+  // shopper has stored, re-checked whenever the subtotal changes.
+  const promo = usePromoDiscount({ subtotalUAH, locale })
 
-  const discountPct = useMemo(() => {
-    return getPromoDiscountPct(appliedPromoCode)
-  }, [appliedPromoCode])
+  useEffect(() => {
+    if (promo.storedCode) setPromoInput(promo.storedCode)
+  }, [promo.storedCode])
+
+  const normalizedPromoInput = normalizePromoInput(promoInput)
+  const isPromoValid = normalizedPromoInput.length > 0
+  const isPromoApplied = promo.applied !== null
+  const discountUAH = promo.discountUAH
+  const discountPct = promo.discountPercent
 
   const displayCurrency = useMemo(
     () => resolveCartDisplayCurrency({ items, locale }),
@@ -130,21 +114,15 @@ export default function CartPage() {
 
   const applyPromo = () => {
     setPromoTouched(true)
-    if (!validPromoInput) return
-
-    setAppliedPromo(validPromoInput)
-    try {
-      window.localStorage.setItem(PROMO_STORAGE_KEY, validPromoInput)
-      emitPromoChanged()
-    } catch {}
+    if (!normalizedPromoInput) return
+    // Storing it triggers validation; the server decides whether it holds.
+    promo.apply(normalizedPromoInput)
   }
 
   const removePromo = () => {
-    setAppliedPromo(null)
-    try {
-      window.localStorage.removeItem(PROMO_STORAGE_KEY)
-      emitPromoChanged()
-    } catch {}
+    setPromoTouched(false)
+    setPromoInput('')
+    promo.remove()
   }
 
   return (
@@ -378,7 +356,7 @@ export default function CartPage() {
             {isPromoApplied && (
               <p className="mt-2 text-xs text-green-700">
                 {t('Промокод застосовано', 'Promo code applied')}:{' '}
-                <span className="font-medium">{appliedPromoCode}</span>
+                <span className="font-medium">{promo.applied?.code}</span>
               </p>
             )}
           </div>
@@ -396,8 +374,8 @@ export default function CartPage() {
           <div className="w-full">
             <Link
               href={
-                appliedPromoCode
-                  ? `/checkout?promo=${encodeURIComponent(appliedPromoCode)}`
+                promo.applied?.code
+                  ? `/checkout?promo=${encodeURIComponent(promo.applied?.code)}`
                   : '/checkout'
               }
               onClick={() => {

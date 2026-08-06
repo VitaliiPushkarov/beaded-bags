@@ -7,7 +7,7 @@ import {
   buildManagedUnitCostUAH,
   getAverageLaborCostByVariantId,
 } from '@/lib/management-accounting'
-import { calcDiscountUAH, resolvePromoCode } from '@/lib/promo'
+import { recordPromoRedemption, resolvePromoCode } from '@/lib/promo-server'
 import { OrderCreateCheckoutBodySchema } from '@/lib/orders/create-order-schema'
 import {
   repriceOrderLines,
@@ -322,8 +322,13 @@ export async function POST(req: NextRequest) {
     const subtotal = repriced.subtotalUAH
     // Доставка поки 0 — Нова пошта оплачується отримувачем.
     const deliveryUAH = 0
-    const appliedPromoCode = resolvePromoCode(data.promoCode)
-    const discountUAH = calcDiscountUAH(subtotal, appliedPromoCode)
+    // Promo rules are enforced here against the repriced subtotal, so an
+    // expired, exhausted or below-minimum code cannot be forced through by the
+    // client. An invalid code is not an error: the order proceeds at full
+    // price, and the amount check below tells the shopper the total changed.
+    const promoEvaluation = await resolvePromoCode(data.promoCode, subtotal)
+    const appliedPromoCode = promoEvaluation.ok ? promoEvaluation.code : null
+    const discountUAH = promoEvaluation.ok ? promoEvaluation.discountUAH : 0
     const totalUAH = Math.max(0, subtotal + deliveryUAH - discountUAH)
 
     // The client tells us what it displayed; if that disagrees with the server
@@ -427,13 +432,15 @@ export async function POST(req: NextRequest) {
 
     let created
     try {
-      created = await prisma.order.create({
+      created = await prisma.$transaction(async (tx) => {
+        const order = await tx.order.create({
         data: {
           status: 'PENDING',
           subtotalUAH: subtotal,
           deliveryUAH,
           discountUAH,
           totalUAH,
+          promoCode: appliedPromoCode,
           itemsCostUAH: financialSnapshot.itemsCostUAH,
           paymentFeeUAH: financialSnapshot.paymentFeeUAH,
           grossProfitUAH: financialSnapshot.grossProfitUAH,
@@ -483,6 +490,15 @@ export async function POST(req: NextRequest) {
         include: {
           items: true,
         },
+        })
+
+        // Counted in the same transaction as the order, so the redemption
+        // tally can never drift from the orders that actually used the code.
+        if (appliedPromoCode) {
+          await recordPromoRedemption(tx, appliedPromoCode)
+        }
+
+        return order
       })
     } catch (error: unknown) {
       if (

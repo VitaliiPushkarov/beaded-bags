@@ -7,8 +7,7 @@ import { useCart } from '@/app/store/cart'
 import { useUI } from '@/app/store/ui'
 import { useIsMounted } from '@/lib/useIsMounted'
 import { pushMetaInitiateCheckout } from '@/lib/analytics/datalayer'
-import { usePromo } from '@/lib/usePromo'
-import { resolvePromoCode, calcDiscountUAH, getPromoDiscountPct } from '@/lib/promo'
+import { usePromoDiscount } from '@/lib/usePromo'
 import { useLocale, useLocaleNumberFormat, useT } from '@/lib/i18n'
 import {
   getCartItemUnitPrice,
@@ -30,23 +29,15 @@ export default function CartDrawer() {
   const isMounted = useIsMounted()
   const checkoutFiredRef = useRef(false)
 
-  const promo = usePromo()
-  const appliedPromoCode = resolvePromoCode(promo)
-
   const subtotalUAH = useMemo(
     () => (isMounted ? total() : 0),
     [isMounted, items, total],
   )
 
-  const discountUAH = useMemo(
-    () => calcDiscountUAH(subtotalUAH, appliedPromoCode),
-    [subtotalUAH, appliedPromoCode],
-  )
-
-  const discountPct = useMemo(
-    () => getPromoDiscountPct(appliedPromoCode),
-    [appliedPromoCode],
-  )
+  const promo = usePromoDiscount({ subtotalUAH, locale })
+  const appliedPromoCode = promo.applied?.code ?? null
+  const discountUAH = promo.discountUAH
+  const discountPct = promo.discountPercent
 
   const displayCurrency = useMemo(
     () => resolveCartDisplayCurrency({ items, locale }),

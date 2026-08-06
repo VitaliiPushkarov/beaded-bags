@@ -14,8 +14,7 @@ import { useCart } from '../store/cart'
 import { useCheckout } from '@/stores/checkout'
 import { IMaskInput } from 'react-imask'
 
-import { usePromo } from '@/lib/usePromo'
-import { calcDiscountUAH, getPromoDiscountPct, resolvePromoCode } from '@/lib/promo'
+import { usePromoDiscount } from '@/lib/usePromo'
 import { useLocale, useLocaleNumberFormat, useT } from '@/lib/i18n'
 import { buildCheckoutAttemptFingerprint } from '@/lib/orders/checkout-attempt'
 import {
@@ -217,8 +216,6 @@ export default function CheckoutClient() {
   const cart = useCart()
   const co = useCheckout()
 
-  const promo = usePromo()
-  const appliedPromoCode = resolvePromoCode(promo)
   const selectedCountry = useMemo(
     () => getCheckoutCountryByCode(co.shippingCountryCode),
     [co.shippingCountryCode],
@@ -255,15 +252,12 @@ export default function CheckoutClient() {
     [cart.items],
   )
 
-  const discountUAH = useMemo(
-    () => calcDiscountUAH(subtotalUAH, appliedPromoCode),
-    [subtotalUAH, appliedPromoCode],
-  )
-
-  const discountPct = useMemo(
-    () => getPromoDiscountPct(appliedPromoCode),
-    [appliedPromoCode],
-  )
+  // Server-validated against the current subtotal, so an expired or
+  // below-minimum code stops applying here exactly as it will at order time.
+  const promo = usePromoDiscount({ subtotalUAH, locale })
+  const appliedPromoCode = promo.applied?.code ?? null
+  const discountUAH = promo.discountUAH
+  const discountPct = promo.discountPercent
 
   const finalTotalUAH = useMemo(
     () => Math.max(0, subtotalUAH - discountUAH),
@@ -406,7 +400,6 @@ export default function CheckoutClient() {
     const subtotal = items.reduce((s, it) => s + it.priceUAH * it.qty, 0)
     const shipping = 0 // TODO: розрахунок тарифу
 
-    const discountUAH = calcDiscountUAH(subtotal, appliedPromoCode)
     const total = Math.max(0, subtotal - discountUAH) + shipping
     const fingerprint = buildCheckoutAttemptFingerprint({
       items,

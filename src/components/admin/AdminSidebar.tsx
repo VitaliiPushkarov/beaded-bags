@@ -17,6 +17,7 @@ import {
   Receipt,
   Settings2,
   ShoppingCart,
+  TicketPercent,
   UserRound,
   Wallet,
 } from 'lucide-react'
@@ -78,6 +79,7 @@ const NAV_ITEMS: AdminNavItem[] = [
   },
   { kind: 'link', href: '/admin/finance', label: 'Фінанси', icon: BarChart3 },
   { kind: 'link', href: '/admin/liqpay', label: 'LiqPay ПРРО', icon: Receipt },
+  { kind: 'link', href: '/admin/promo', label: 'Промокоди', icon: TicketPercent },
   {
     kind: 'link',
     href: '/admin/configuration',

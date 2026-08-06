@@ -1,45 +1,65 @@
-export const PROMO_CODE = 'SPECIAL'
-export const BONUS_PROMO_CODE = 'GERDAN10'
-export const PROMO_STORAGE_KEY = 'gerdan_promo_code'
-export const DISCOUNT_PCT = 10 as const
-export const PROMO_CODES = [PROMO_CODE, BONUS_PROMO_CODE] as const
+// Client-side promo storage only. Codes are no longer known to the front end —
+// they live in the PromoCode table and are validated by /api/promo/validate,
+// with the order route re-checking them against the repriced subtotal.
 
-type PromoCode = (typeof PROMO_CODES)[number]
+export const PROMO_STORAGE_KEY = 'gerdan_promo_code'
+export const PROMO_CHANGED_EVENT = 'gerdan_promo_changed'
+
+export function normalizePromoInput(value: string | null | undefined): string {
+  return String(value ?? '')
+    .trim()
+    .toUpperCase()
+}
 
 export function readPromoFromStorage(): string | null {
   try {
-    return window.localStorage.getItem(PROMO_STORAGE_KEY)
+    const stored = window.localStorage.getItem(PROMO_STORAGE_KEY)
+    return stored ? normalizePromoInput(stored) || null : null
   } catch {
     return null
   }
 }
 
-export function resolvePromoCode(code: string | null | undefined): PromoCode | null {
-  const normalized = code?.trim().toUpperCase()
-  if (!normalized) return null
-
-  return (PROMO_CODES as readonly string[]).includes(normalized)
-    ? (normalized as PromoCode)
-    : null
-}
-
-export function isPromoApplied(code: string | null | undefined) {
-  return resolvePromoCode(code) !== null
-}
-
-export function getPromoDiscountPct(code: string | null | undefined) {
-  return isPromoApplied(code) ? DISCOUNT_PCT : 0
-}
-
-export function calcDiscountUAH(
-  subtotalUAH: number,
-  promoCode: string | null | undefined,
-) {
-  const discountPct = getPromoDiscountPct(promoCode)
-  if (!discountPct) return 0
-  return Math.round((subtotalUAH * discountPct) / 100)
+export function writePromoToStorage(code: string | null) {
+  try {
+    if (code) {
+      window.localStorage.setItem(PROMO_STORAGE_KEY, normalizePromoInput(code))
+    } else {
+      window.localStorage.removeItem(PROMO_STORAGE_KEY)
+    }
+  } catch {}
 }
 
 export function emitPromoChanged() {
-  window.dispatchEvent(new Event('gerdan_promo_changed'))
+  window.dispatchEvent(new Event(PROMO_CHANGED_EVENT))
+}
+
+export type PromoValidationResponse =
+  | {
+      valid: true
+      code: string
+      discountPercent: number
+      discountUAH: number
+    }
+  | { valid: false; reason?: string; message?: string }
+
+export async function validatePromoCode(input: {
+  code: string
+  subtotalUAH: number
+  locale: 'uk' | 'en'
+  signal?: AbortSignal
+}): Promise<PromoValidationResponse> {
+  const res = await fetch('/api/promo/validate', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      code: input.code,
+      subtotalUAH: input.subtotalUAH,
+      locale: input.locale,
+    }),
+    signal: input.signal,
+  })
+
+  if (!res.ok) return { valid: false }
+  return (await res.json()) as PromoValidationResponse
 }
