@@ -131,6 +131,7 @@ export default function CheckoutClient() {
   const sp = useSearchParams()
   const paymentResult = sp.get('payment')
   const clearCart = useCart((s) => s.clear)
+  const applyServerPrices = useCart((s) => s.applyServerPrices)
 
   const [form, setForm] = useState<CheckoutFormState>(() =>
     loadCheckoutFormDraft(),
@@ -485,6 +486,40 @@ export default function CheckoutClient() {
 
       const json = await res.json()
       if (!res.ok) {
+        // The server reprices every line from the catalogue. A cart kept in
+        // localStorage can be months old, so this is a normal thing to hit.
+        if (json?.error?.code === 'PRICE_CHANGED') {
+          const changedLines =
+            (json.error.lines as
+              | Array<{ index: number; name: string; priceUAH: number }>
+              | undefined) ?? []
+
+          // Correct the cart in place so the summary next to this message shows
+          // the real total, then ask for an explicit re-confirmation rather than
+          // charging a number the shopper never agreed to.
+          applyServerPrices(
+            changedLines.map((line) => ({
+              index: line.index,
+              priceUAH: line.priceUAH,
+            })),
+          )
+
+          const names = changedLines.map((line) => line.name).join(', ')
+          setError(
+            names
+              ? t(
+                  `Ціни оновилися: ${names}. Ми оновили кошик — перевірте суму й підтвердіть замовлення ще раз.`,
+                  `Prices have changed: ${names}. We have updated your cart — please check the total and confirm again.`,
+                )
+              : t(
+                  'Вартість замовлення оновилася. Перевірте суму й підтвердіть ще раз.',
+                  'The order total has changed. Please check the total and confirm again.',
+                ),
+          )
+          console.error(json)
+          return
+        }
+
         const unavailable = json?.error?.code === 'ITEMS_UNAVAILABLE'
           ? (json.error.items as string[] | undefined)
           : undefined

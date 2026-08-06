@@ -49,6 +49,7 @@ type CartState = {
     pouchId?: string | null,
   ) => void
   clear: () => void
+  applyServerPrices: (updates: Array<{ index: number; priceUAH: number }>) => void
   total: () => number
 }
 
@@ -113,6 +114,28 @@ export const useCart = create<CartState>()(
           ),
         })),
       clear: () => set({ items: [] }),
+      // Correct stale cart prices from the server's repricing response. Indexes
+      // refer to positions in the cart as it was submitted. The stored USD price
+      // is dropped along with it: it was computed from the same stale UAH figure,
+      // and showing a stale USD total would just move the problem.
+      applyServerPrices: (updates) =>
+        set((s) => {
+          if (!updates.length) return s
+
+          const priceByIndex = new Map(
+            updates.map((update) => [update.index, update.priceUAH]),
+          )
+
+          return {
+            items: s.items.map((item, index) => {
+              const nextPrice = priceByIndex.get(index)
+              if (nextPrice === undefined || nextPrice === item.priceUAH) {
+                return item
+              }
+              return { ...item, priceUAH: nextPrice, priceUSD: null }
+            }),
+          }
+        }),
       total: () => get().items.reduce((sum, i) => sum + i.priceUAH * i.qty, 0),
     }),
     { name: 'cart-v1' }

@@ -10,6 +10,10 @@ import {
 import { calcDiscountUAH, resolvePromoCode } from '@/lib/promo'
 import { OrderCreateCheckoutBodySchema } from '@/lib/orders/create-order-schema'
 import {
+  repriceOrderLines,
+  type RepriceCatalogVariant,
+} from '@/lib/orders/reprice'
+import {
   resolveCheckoutPaymentMethod,
   resolveInstallmentPaytype,
 } from '@/lib/orders/payment-methods'
@@ -25,6 +29,45 @@ function normalizeIdempotencyKey(value: string | undefined): string | null {
   return trimmed.length > 0 ? trimmed : null
 }
 
+type PricedVariantRow = {
+  id: string
+  priceUAH: number | null
+  discountPercent: number | null
+  discountUAH: number | null
+  product: { basePriceUAH: number | null }
+  straps: Array<{ id: string; extraPriceUAH: number }>
+  sizes: Array<{ id: string; extraPriceUAH: number }>
+  pouches: Array<{ id: string; extraPriceUAH: number }>
+}
+
+// Option surcharges are keyed per variant, so an option id from a different
+// variant simply will not resolve and the line is refused.
+function buildRepriceCatalog(
+  variants: PricedVariantRow[],
+): Map<string, RepriceCatalogVariant> {
+  return new Map(
+    variants.map((variant) => [
+      variant.id,
+      {
+        id: variant.id,
+        priceUAH: variant.priceUAH,
+        discountPercent: variant.discountPercent,
+        discountUAH: variant.discountUAH,
+        productBasePriceUAH: variant.product.basePriceUAH,
+        strapExtraById: new Map(
+          variant.straps.map((strap) => [strap.id, strap.extraPriceUAH]),
+        ),
+        sizeExtraById: new Map(
+          variant.sizes.map((size) => [size.id, size.extraPriceUAH]),
+        ),
+        pouchExtraById: new Map(
+          variant.pouches.map((pouch) => [pouch.id, pouch.extraPriceUAH]),
+        ),
+      },
+    ]),
+  )
+}
+
 export async function POST(req: NextRequest) {
   try {
     const json = await req.json()
@@ -38,25 +81,6 @@ export async function POST(req: NextRequest) {
     }
 
     const data = parsed.data
-
-    // перерахунок суми на бекенді
-    const subtotal = data.items.reduce(
-      (sum, item) => sum + item.priceUAH * item.qty,
-      0,
-    )
-
-    // поки доставка 0
-    const deliveryUAH = 0
-    const appliedPromoCode = resolvePromoCode(data.promoCode)
-    const discountUAH = calcDiscountUAH(subtotal, appliedPromoCode)
-    const totalUAH = Math.max(0, subtotal + deliveryUAH - discountUAH)
-
-    if (Math.round(totalUAH) !== Math.round(data.amountUAH)) {
-      return NextResponse.json(
-        { error: { _errors: ['amountUAH mismatch'] } },
-        { status: 400 },
-      )
-    }
 
     const paymentMethod = resolveCheckoutPaymentMethod(
       data.paymentMethod,
@@ -143,10 +167,19 @@ export async function POST(req: NextRequest) {
             color: true,
             inStock: true,
             availabilityStatus: true,
+            // Pricing inputs — the order total is recomputed from these rather
+            // than trusted from the cart.
+            priceUAH: true,
+            discountPercent: true,
+            discountUAH: true,
+            straps: { select: { id: true, extraPriceUAH: true } },
+            sizes: { select: { id: true, extraPriceUAH: true } },
+            pouches: { select: { id: true, extraPriceUAH: true } },
             product: {
               select: {
                 id: true,
                 status: true,
+                basePriceUAH: true,
                 packagingTemplate: {
                   select: {
                     costUAH: true,
@@ -179,9 +212,8 @@ export async function POST(req: NextRequest) {
     // Re-validate availability on the server. The cart is persisted in the
     // browser (localStorage), so it can reference variants that have since sold
     // out, been archived, or been deleted between adding to cart and checkout.
-    // Pricing is already re-checked above; here we ensure every line is still
-    // purchasable. IN_STOCK and PREORDER are both valid purchase paths — only
-    // OUT_OF_STOCK / archived / removed variants are rejected.
+    // IN_STOCK and PREORDER are both valid purchase paths — only OUT_OF_STOCK /
+    // archived / removed variants are rejected. Pricing is re-checked below.
     if (variantIds.length) {
       const variantById = new Map(variants.map((variant) => [variant.id, variant]))
       const unavailableItems: string[] = []
@@ -217,6 +249,105 @@ export async function POST(req: NextRequest) {
         )
       }
     }
+
+    // Recompute every line from the catalogue. The cart is client-side, so its
+    // prices are both forgeable and liable to be months out of date. Only the
+    // chosen ids and quantities are taken from the request; the money is ours.
+    const repriced = repriceOrderLines(
+      data.items.map((item) => ({
+        name: item.name,
+        variantId: item.variantId,
+        strapId: item.strapId,
+        sizeId: item.sizeId,
+        pouchId: item.pouchId,
+        qty: item.qty,
+        priceUAH: item.priceUAH,
+      })),
+      buildRepriceCatalog(variants),
+    )
+
+    if (repriced.issues.length) {
+      console.warn(
+        'Order rejected by repricing:',
+        JSON.stringify(repriced.issues),
+      )
+
+      // A line referencing a variant or option that no longer exists cannot be
+      // bought at all — that is the same situation as an out-of-stock item.
+      const unbuyable = repriced.issues.filter(
+        (issue) => issue.code !== 'PRICE_CHANGED',
+      )
+
+      if (unbuyable.length) {
+        return NextResponse.json(
+          {
+            error: {
+              code: 'ITEMS_UNAVAILABLE',
+              items: unbuyable.map((issue) => issue.name),
+              _errors: ['Some items are no longer available'],
+            },
+          },
+          { status: 409 },
+        )
+      }
+
+      // Pure price drift. Never silently charge a total the shopper did not
+      // agree to — but do hand back the current prices, keyed by the position
+      // in the submitted cart, so the checkout can correct itself and ask for
+      // confirmation instead of dead-ending on a cart that still shows the
+      // stale number.
+      return NextResponse.json(
+        {
+          error: {
+            code: 'PRICE_CHANGED',
+            items: repriced.issues.map((issue) => issue.name),
+            lines: repriced.issues.flatMap((issue) =>
+              issue.code === 'PRICE_CHANGED'
+                ? [
+                    {
+                      index: issue.index,
+                      name: issue.name,
+                      priceUAH: issue.actualUAH,
+                    },
+                  ]
+                : [],
+            ),
+            _errors: ['Cart pricing is out of date'],
+          },
+        },
+        { status: 409 },
+      )
+    }
+
+    const subtotal = repriced.subtotalUAH
+    // Доставка поки 0 — Нова пошта оплачується отримувачем.
+    const deliveryUAH = 0
+    const appliedPromoCode = resolvePromoCode(data.promoCode)
+    const discountUAH = calcDiscountUAH(subtotal, appliedPromoCode)
+    const totalUAH = Math.max(0, subtotal + deliveryUAH - discountUAH)
+
+    // The client tells us what it displayed; if that disagrees with the server
+    // total the shopper was shown a different number than we would charge.
+    if (Math.round(totalUAH) !== Math.round(data.amountUAH)) {
+      console.warn(
+        `Order rejected: amount mismatch (client ${Math.round(data.amountUAH)} vs server ${totalUAH})`,
+      )
+
+      return NextResponse.json(
+        {
+          error: {
+            code: 'PRICE_CHANGED',
+            items: [],
+            _errors: ['amountUAH mismatch'],
+          },
+        },
+        { status: 409 },
+      )
+    }
+
+    const unitPriceByItemIndex = new Map(
+      repriced.lines.map((line) => [line.index, line.unitPriceUAH]),
+    )
 
     const averageLaborCostByVariantId = await getAverageLaborCostByVariantId(
       prisma,
@@ -254,9 +385,9 @@ export async function POST(req: NextRequest) {
       discountUAH,
       totalUAH,
       paymentMethod,
-      lines: data.items.map((item) => ({
+      lines: data.items.map((item, index) => ({
         qty: item.qty,
-        priceUAH: item.priceUAH,
+        priceUAH: unitPriceByItemIndex.get(index) ?? 0,
         unitCostUAH:
           (item.variantId ? costByVariantId.get(item.variantId) : undefined) ??
           (item.productId ? (costByProductId.get(item.productId) ?? 0) : 0),
@@ -337,7 +468,8 @@ export async function POST(req: NextRequest) {
               modelSize: it.modelSize ?? null,
               pouchColor: it.pouchColor ?? null,
               image: it.image ?? null,
-              priceUAH: it.priceUAH,
+              // Server price, not the one the browser submitted.
+              priceUAH: unitPriceByItemIndex.get(index) ?? 0,
               qty: it.qty,
               discountUAH: financialSnapshot.lines[index]?.discountUAH ?? 0,
               lineRevenueUAH: financialSnapshot.lines[index]?.lineRevenueUAH ?? 0,
