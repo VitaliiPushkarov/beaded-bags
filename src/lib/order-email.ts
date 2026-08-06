@@ -24,6 +24,14 @@ type SmtpConfig = {
   replyTo: string | null
 }
 
+// Customer emails are off unless explicitly switched on, so having SMTP
+// credentials in the environment is not by itself enough to start mailing
+// customers. Set ORDER_EMAILS_ENABLED=true to enable them.
+export function areOrderEmailsEnabled(): boolean {
+  const raw = process.env.ORDER_EMAILS_ENABLED?.trim().toLowerCase()
+  return raw === 'true' || raw === '1'
+}
+
 function readSmtpConfig(): SmtpConfig | null {
   const host = process.env.SMTP_HOST?.trim()
   const user = process.env.SMTP_USER?.trim()
@@ -118,6 +126,11 @@ export async function sendOrderCustomerEmail(args: {
   orderId: string
   kind: OrderEmailKind
 }): Promise<{ sent: boolean; reason?: string }> {
+  if (!areOrderEmailsEnabled()) {
+    console.info('Order email skipped: ORDER_EMAILS_ENABLED is not set')
+    return { sent: false, reason: 'disabled' }
+  }
+
   const config = readSmtpConfig()
   if (!config) {
     console.warn(
