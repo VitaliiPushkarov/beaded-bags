@@ -13,6 +13,7 @@ import {
   resolveCheckoutPaymentMethod,
   resolveInstallmentPaytype,
 } from '@/lib/orders/payment-methods'
+import { sendOrderCustomerEmailSafe } from '@/lib/order-email'
 import { sendOrderTelegramNotification } from '@/lib/order-telegram'
 import {
   isOutOfStockStatus,
@@ -386,6 +387,15 @@ export async function POST(req: NextRequest) {
           e,
         )
       }
+
+      // Bank transfer: checkout promises the customer we will send payment
+      // details, so this email is what makes good on that promise. LiqPay
+      // orders are confirmed from the payment callback instead, once the money
+      // has actually arrived.
+      await sendOrderCustomerEmailSafe({
+        orderId: created.id,
+        kind: 'AWAITING_PAYMENT',
+      })
     }
 
     return NextResponse.json(

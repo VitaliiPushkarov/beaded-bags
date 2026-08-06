@@ -5,6 +5,7 @@ import {
   mapLiqPayOrderStatus,
   type LiqPayStatusPayload,
 } from '@/lib/liqpay-payment-status'
+import { sendOrderCustomerEmailSafe } from '@/lib/order-email'
 import { sendOrderTelegramNotification } from '@/lib/order-telegram'
 import {
   applyPaidOrderInventoryTx,
@@ -132,6 +133,10 @@ export async function settleOrderFromLiqPayPayload(args: {
     } catch (error) {
       console.error('LiqPay settlement Telegram error:', error)
     }
+
+    // Guarded by the same PENDING -> PAID transition as the Telegram message,
+    // so a repeated callback or a status refresh cannot email the customer twice.
+    await sendOrderCustomerEmailSafe({ orderId: existing.id, kind: 'PAID' })
   }
 
   return loadOrderSettlementSnapshot(existing.id)
