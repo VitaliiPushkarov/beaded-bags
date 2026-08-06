@@ -19,6 +19,7 @@
     "test:imports": "node --import tsx --test src/lib/imports/*.test.ts",
     "test:orders": "node --import tsx --test src/lib/orders/*.test.ts",
     "test:email": "node --import tsx --test src/lib/order-email-template.test.ts",
+    "test:admin": "node --import tsx --test src/lib/variant-delete-cascade.test.ts",
     "preview:email": "node --import tsx scripts/preview-order-email.ts",
     "test:inventory": "node --import tsx --test src/lib/product-inventory.test.ts src/lib/inventory-status.test.ts src/lib/material-costing.test.ts",
     "db:probe": "node --import tsx scripts/db/probe-connection.ts"

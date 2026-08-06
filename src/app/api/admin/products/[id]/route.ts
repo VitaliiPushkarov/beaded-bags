@@ -480,6 +480,13 @@ export async function PATCH(
         const toDeleteIds = toDelete.map((x) => x.id)
 
         if (toDeleteIds.length) {
+          // Children of ProductVariant that are NOT declared onDelete: Cascade
+          // have to be removed by hand first, otherwise the variant delete trips
+          // the foreign key. Inventory/pouches/sizes cascade in the schema and
+          // are deliberately not repeated here — see the coverage test in
+          // variant-delete-cascade.test.ts, which fails if a new child relation
+          // is added without being cascaded or listed below.
+
           // remove addon relations where these variants participate
           await tx.productVariantAddon.deleteMany({
             where: {
@@ -488,6 +495,9 @@ export async function PATCH(
                 { addonVariantId: { in: toDeleteIds } },
               ],
             },
+          })
+          await tx.productVariantImage.deleteMany({
+            where: { variantId: { in: toDeleteIds } },
           })
           await tx.productVariantStrap.deleteMany({
             where: { variantId: { in: toDeleteIds } },
