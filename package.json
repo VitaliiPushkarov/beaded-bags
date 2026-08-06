@@ -18,6 +18,7 @@
     "import:liqpay:mapping": "node --import tsx scripts/import-liqpay-catalog-mapping.ts",
     "test:imports": "node --import tsx --test src/lib/imports/*.test.ts",
     "test:orders": "node --import tsx --test src/lib/orders/*.test.ts",
+    "test:payments": "node --import tsx --test src/lib/liqpay-payment-status.test.ts src/lib/liqpay-catalog.test.ts",
     "test:email": "node --import tsx --test src/lib/order-email-template.test.ts",
     "test:admin": "node --import tsx --test src/lib/variant-delete-cascade.test.ts src/app/admin/products/product-form-shared.test.ts",
     "preview:email": "node --import tsx scripts/preview-order-email.ts",

@@ -3,6 +3,8 @@ export type LiqPayStatusPayload = {
   err_code?: unknown
   err_description?: unknown
   result?: unknown
+  amount?: unknown
+  currency?: unknown
   [key: string]: unknown
 }
 
@@ -45,6 +47,52 @@ function isCancellationSignal(payload: LiqPayStatusPayload): boolean {
   }
 
   return false
+}
+
+export type LiqPayAmountCheck =
+  | { status: 'ok' }
+  | { status: 'unverifiable'; reason: string }
+  | {
+      status: 'mismatch'
+      paidAmountUAH: number
+      paidCurrency: string
+      expectedUAH: number
+    }
+
+// A valid signature proves LiqPay sent the callback; it does not prove the
+// amount charged is the amount we asked for. Verify that separately before an
+// order is treated as paid.
+//
+// When the payload carries no amount at all we cannot check it — that is
+// reported as unverifiable rather than as a mismatch, so a missing optional
+// field never blocks a genuine payment.
+export function verifyLiqPayPaidAmount(
+  payload: LiqPayStatusPayload,
+  expectedTotalUAH: number,
+): LiqPayAmountCheck {
+  const rawAmount = Number(payload.amount)
+  if (!Number.isFinite(rawAmount)) {
+    return { status: 'unverifiable', reason: 'missing amount' }
+  }
+
+  const currency = toLower(payload.currency)
+  if (!currency) {
+    return { status: 'unverifiable', reason: 'missing currency' }
+  }
+
+  const paidAmountUAH = Math.round(rawAmount)
+  const expected = Math.round(Number(expectedTotalUAH) || 0)
+
+  if (currency !== 'uah' || paidAmountUAH !== expected) {
+    return {
+      status: 'mismatch',
+      paidAmountUAH,
+      paidCurrency: currency,
+      expectedUAH: expected,
+    }
+  }
+
+  return { status: 'ok' }
 }
 
 export function mapLiqPayOrderStatus(

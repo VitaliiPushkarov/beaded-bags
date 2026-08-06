@@ -3,6 +3,7 @@ import type { OrderStatus, Prisma } from '@prisma/client'
 import { liqpayEncode, liqpaySign } from '@/lib/liqpay'
 import {
   mapLiqPayOrderStatus,
+  verifyLiqPayPaidAmount,
   type LiqPayStatusPayload,
 } from '@/lib/liqpay-payment-status'
 import { sendOrderCustomerEmailSafe } from '@/lib/order-email'
@@ -43,6 +44,7 @@ export async function loadOrderSettlementSnapshot(orderId: string) {
       status: true,
       paymentStatus: true,
       paymentMethod: true,
+      totalUAH: true,
     },
   })
 }
@@ -55,10 +57,32 @@ export async function settleOrderFromLiqPayPayload(args: {
   if (!existing) return null
 
   const paymentStatus = toTrimmedString(args.payload.status) || null
-  const mappedOrderStatus = mapLiqPayOrderStatus({
+  let mappedOrderStatus = mapLiqPayOrderStatus({
     ...args.payload,
     status: paymentStatus,
   })
+
+  // The signature proves the callback came from LiqPay, not that the amount
+  // charged is the amount we asked for. Refuse to book a payment that does not
+  // match the order total: the payload is still recorded, but the order is left
+  // unsettled for a human to look at rather than marked paid.
+  if (mappedOrderStatus === 'PAID') {
+    const amountCheck = verifyLiqPayPaidAmount(args.payload, existing.totalUAH)
+
+    if (amountCheck.status === 'mismatch') {
+      console.error(
+        `LiqPay settlement refused for order #${existing.shortNumber} (${existing.id}): ` +
+          `paid ${amountCheck.paidAmountUAH} ${amountCheck.paidCurrency.toUpperCase()}, ` +
+          `expected ${amountCheck.expectedUAH} UAH. Order left unsettled for review.`,
+      )
+      mappedOrderStatus = null
+    } else if (amountCheck.status === 'unverifiable') {
+      // Do not block a genuine payment over an optional field.
+      console.warn(
+        `LiqPay settlement amount not verified for order #${existing.shortNumber}: ${amountCheck.reason}`,
+      )
+    }
+  }
 
   const updateData: Prisma.OrderUpdateInput = {
     paymentStatus,
