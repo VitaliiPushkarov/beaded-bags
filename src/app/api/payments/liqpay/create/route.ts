@@ -2,7 +2,8 @@ import { NextRequest, NextResponse } from 'next/server'
 import { z } from 'zod'
 import { buildLiqPayPayload } from '@/lib/liqpay'
 import { buildLiqPayCatalogExternalCode } from '@/lib/liqpay-catalog'
-import { buildLiqPayRroInfo } from '@/lib/liqpay-rro'
+import { buildLiqPayRroInfo, LiqPayFiscalConfigError } from '@/lib/liqpay-rro'
+import { sendLiqPayFiscalAlert } from '@/lib/order-telegram'
 import { prisma } from '@/lib/prisma'
 
 export const runtime = 'nodejs'
@@ -208,17 +209,48 @@ export async function POST(req: NextRequest) {
         : Promise.resolve([]),
     ])
 
-    const rroInfo = buildLiqPayRroInfo({
-      items: order.items,
-      variantsById: new Map(variants.map((variant) => [variant.id, variant])),
-      strapsById: new Map(straps.map((strap) => [strap.id, strap])),
-      sizesById: new Map(sizes.map((size) => [size.id, size])),
-      pouchesById: new Map(pouches.map((pouch) => [pouch.id, pouch])),
-      mappingsByExternalCode: new Map(
-        catalogMappings.map((item) => [item.externalCode, item.liqpayGoodId]),
-      ),
-      deliveryEmail: order.customerEmail ?? null,
-    })
+    let rroInfo
+    try {
+      rroInfo = buildLiqPayRroInfo({
+        items: order.items,
+        variantsById: new Map(variants.map((variant) => [variant.id, variant])),
+        strapsById: new Map(straps.map((strap) => [strap.id, strap])),
+        sizesById: new Map(sizes.map((size) => [size.id, size])),
+        pouchesById: new Map(pouches.map((pouch) => [pouch.id, pouch])),
+        mappingsByExternalCode: new Map(
+          catalogMappings.map((item) => [item.externalCode, item.liqpayGoodId]),
+        ),
+        deliveryEmail: order.customerEmail ?? null,
+      })
+    } catch (error) {
+      if (error instanceof LiqPayFiscalConfigError) {
+        // The shop, not the customer, is misconfigured: this item has no LiqPay
+        // good ID, so no fiscal receipt can be issued and the payment cannot be
+        // created. The order already exists, so alert the shop and let checkout
+        // offer a way forward instead of dead-ending on a generic error.
+        console.error(
+          `LiqPay fiscal config missing for order #${order.shortNumber}: ${error.message}`,
+        )
+
+        await sendLiqPayFiscalAlert({
+          orderShortNumber: order.shortNumber,
+          itemLabel: error.itemLabel,
+          catalogCode: error.catalogCode,
+        })
+
+        return NextResponse.json(
+          {
+            error: {
+              code: 'FISCAL_NOT_CONFIGURED',
+              orderNumber: order.shortNumber,
+            },
+          },
+          { status: 503 },
+        )
+      }
+
+      throw error
+    }
 
     // PrivatBank "Оплата частинами": if the order was placed as an installment
     // checkout, restrict the LiqPay page to the paypart flow.

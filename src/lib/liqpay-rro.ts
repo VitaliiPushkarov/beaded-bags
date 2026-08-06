@@ -48,6 +48,25 @@ type RroItem = {
   cost: number
 }
 
+// Raised when the fiscal catalogue is not configured for something in the cart.
+// This is a shop configuration problem, not a customer problem: the payment
+// cannot be created until the item has a LiqPay good ID. Typed so the payment
+// route can tell it apart from a genuine LiqPay failure, alert the shop, and
+// give the customer a way forward instead of a dead end.
+export class LiqPayFiscalConfigError extends Error {
+  readonly itemLabel: string
+  readonly catalogCode: string
+
+  constructor(args: { itemLabel: string; catalogCode: string }) {
+    super(
+      `Missing LiqPay good ID for fiscal item "${args.itemLabel}" (catalog code: ${args.catalogCode})`,
+    )
+    this.name = 'LiqPayFiscalConfigError'
+    this.itemLabel = args.itemLabel
+    this.catalogCode = args.catalogCode
+  }
+}
+
 function roundMoney(value: number) {
   if (!Number.isFinite(value)) return 0
   return Math.round(value * 100) / 100
@@ -194,9 +213,10 @@ export function buildLiqPayRroInfo(args: {
       })
 
       if (!resolvedGoodId) {
-        throw new Error(
-          `Missing LiqPay good ID for fiscal item "${component.label}" (catalog code: ${component.catalogCode})`,
-        )
+        throw new LiqPayFiscalConfigError({
+          itemLabel: component.label,
+          catalogCode: component.catalogCode,
+        })
       }
 
       rroItems.push({

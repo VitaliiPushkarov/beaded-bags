@@ -291,6 +291,30 @@ async function sendTelegramMediaGroups(groups: TelegramMediaGroupItem[][]) {
   return firstMessageId
 }
 
+// A customer just failed to pay by card because an item has no LiqPay good ID.
+// Without this the shop would never learn: the order sits unpaid and the buyer
+// simply leaves. Never throws — alerting must not add a second failure on top
+// of the one being reported.
+export async function sendLiqPayFiscalAlert(args: {
+  orderShortNumber: number
+  itemLabel: string
+  catalogCode: string
+}) {
+  try {
+    await sendTelegramMessage(
+      `⚠️ <b>Онлайн-оплату заблоковано</b>\n` +
+        `\nЗамовлення <b>#${escHtml(String(args.orderShortNumber))}</b> не може бути оплачене карткою: ` +
+        `у позиції немає LiqPay ID, тому фіскальний чек не створюється.\n` +
+        `\n<b>Позиція:</b> ${escHtml(args.itemLabel)}` +
+        `\n<b>Код каталогу:</b> ${escHtml(args.catalogCode)}\n` +
+        `\nДодайте LiqPay ID у <b>/admin/liqpay</b> та звʼяжіться з клієнтом — ` +
+        `замовлення вже створене й очікує на оплату.`,
+    )
+  } catch (error) {
+    console.error('Telegram: fiscal alert failed (non-blocking):', error)
+  }
+}
+
 export async function sendOrderTelegramNotification(orderId: string) {
   const order = await prisma.order.findUnique({
     where: { id: orderId },

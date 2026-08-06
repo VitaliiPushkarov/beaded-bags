@@ -551,6 +551,24 @@ export default function CheckoutClient() {
           const payJson = await payRes.json()
           if (!payRes.ok) {
             console.error(payJson)
+
+            // The order exists but card payment cannot be issued for it (an item
+            // has no fiscal ID). The shop has been alerted; tell the customer
+            // their order is safe rather than leaving them on a dead error.
+            if (payJson?.error?.code === 'FISCAL_NOT_CONFIGURED') {
+              const orderNumber = payJson.error.orderNumber as number | undefined
+              clearCart()
+              clearCheckoutFormDraft()
+              clearCheckoutAttemptKey()
+              setError(
+                t(
+                  `Замовлення${orderNumber ? ` №${orderNumber}` : ''} прийнято, але оплата карткою зараз недоступна для цього товару. Ми вже отримали сповіщення й найближчим часом надішлемо реквізити для оплати.`,
+                  `Your order${orderNumber ? ` #${orderNumber}` : ''} has been placed, but card payment is unavailable for this item right now. We have been notified and will send you payment details shortly.`,
+                ),
+              )
+              return
+            }
+
             setError(t('Помилка створення платежу', 'Failed to create payment'))
             return
           }
