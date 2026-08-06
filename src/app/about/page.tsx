@@ -39,16 +39,19 @@ export default async function AboutPage() {
         'Створюючи сучасні аксесуари, ми не просто прикрашаємо — ми відроджуємо традицію носити силу, жіночність і тепло у деталях, що не старіють із часом.',
         'Кожна сумка — маленька колекція, що буде гріти душу та залишить свій яскравий слід у спогадах цього покоління.',
       ]
+  // Текст і логотипи на цій сторінці білі, тому фон має лишатися темним навіть
+  // поки фонове зображення вантажиться (або якщо воно не завантажиться взагалі).
   return (
     <div className="relative lg:h-[2445px] 2xl:h-full">
       {/* Фон */}
-      <div className="pointer-events-none absolute inset-0 -z-10">
+      <div className="pointer-events-none absolute inset-0 -z-10 bg-[#2b3639]">
         <div className="relative block h-full w-full md:hidden">
           <Image
             src="/img/about-bg-m.png"
             alt="GERDAN background texture mobile"
             fill
             quality={80}
+            sizes="100vw"
             className="object-cover"
           />
         </div>
