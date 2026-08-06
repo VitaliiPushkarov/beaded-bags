@@ -27,19 +27,13 @@ test('a variant with no options falls back to its position', () => {
   assert.equal(describeVariant({ ...blank, color: '   ' }, 2), 'Варіант #3')
 })
 
-test('removing a saved variant warns about what the save will destroy', () => {
+test('removing a saved variant asks for confirmation and names the variant', () => {
   const message = buildVariantRemovalConfirmation(
     { id: 'variant-1', color: 'чорний', modelSize: 'M', pouchColor: '' },
     0,
   )
 
-  assert.match(message, /чорний \/ M/)
-  // The consequences that are not obvious from the UI.
-  assert.match(message, /залишки на складі/)
-  assert.match(message, /ставки майстринь/)
-  assert.match(message, /історія виробництва/)
-  // Deletion happens on save, so it is still recoverable until then.
-  assert.match(message, /не збережено/)
+  assert.equal(message, 'Видалити варіант «чорний / M»?')
 })
 
 test('removing an unsaved variant does not cry wolf', () => {
@@ -49,14 +43,11 @@ test('removing an unsaved variant does not cry wolf', () => {
   )
 
   assert.match(message, /новий/)
+  // Nothing exists in the database yet, so the prompt is only about the form.
   assert.match(message, /Введені дані буде втрачено/)
-  // Nothing exists in the database yet, so none of these apply.
-  assert.doesNotMatch(message, /залишки на складі/)
-  assert.doesNotMatch(message, /ставки майстринь/)
-  assert.doesNotMatch(message, /історія виробництва/)
 })
 
 test('an empty id is treated as unsaved, not as a database row', () => {
   const message = buildVariantRemovalConfirmation({ id: '', ...blank }, 0)
-  assert.doesNotMatch(message, /залишки на складі/)
+  assert.match(message, /Введені дані буде втрачено/)
 })

@@ -173,11 +173,10 @@ export function describeVariant(
 }
 
 // Removing a variant only edits form state; the row is deleted when the product
-// is saved. A variant that already has an id exists in the database, and
-// ProductVariantInventory, ArtisanRate and ArtisanProduction all cascade off
-// ProductVariant — so saving takes the stock count, the pay rates and the
-// production/payment history with it. A variant without an id was only ever
-// added in this form, so nothing is at stake beyond the fields just typed.
+// is saved. A variant that already has an id exists in the database, so saving
+// also drops its stock count, artisan pay rates and production history — those
+// all cascade off ProductVariant. A variant without an id was only ever added
+// in this form, so nothing is at stake beyond the fields just typed.
 export function buildVariantRemovalConfirmation(
   variant: Pick<VariantInput, 'id' | 'color' | 'modelSize' | 'pouchColor'>,
   index: number,
@@ -188,13 +187,7 @@ export function buildVariantRemovalConfirmation(
     return `Видалити «${label}»? Введені дані буде втрачено.`
   }
 
-  return (
-    `Видалити варіант «${label}»?\n\n` +
-    'Після збереження товару варіант буде видалено назавжди. Разом із ним ' +
-    'зникнуть залишки на складі, ставки майстринь та історія виробництва ' +
-    'для цього варіанта.\n\n' +
-    'Поки товар не збережено, дію ще можна скасувати — просто не зберігайте зміни.'
-  )
+  return `Видалити варіант «${label}»?`
 }
 
 export const GROUP_OPTIONS: ProductGroup[] = ['BEADS', 'WEAVING']
