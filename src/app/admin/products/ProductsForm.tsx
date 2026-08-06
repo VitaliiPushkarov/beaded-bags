@@ -14,6 +14,7 @@ import {
   GROUP_OPTIONS,
   STATUS_OPTIONS,
   TYPE_OPTIONS,
+  buildVariantRemovalConfirmation,
   normalizeImages,
   type AddonVariantOption,
   type ProductFormValues,
@@ -350,6 +351,11 @@ export default function ProductForm({
   }
 
   const removeVariant = (index: number) => {
+    const variant = values.variants[index]
+    if (!variant) return
+
+    if (!window.confirm(buildVariantRemovalConfirmation(variant, index))) return
+
     setValues((prev) => ({
       ...prev,
       variants: prev.variants.filter((_, i) => i !== index),
