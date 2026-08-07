@@ -367,10 +367,16 @@ function ThumbnailGallery({
                 height={sizesByUrl[src]?.h ?? 1600}
               >
                 {({ ref, open }) => (
-                  <div
+                  // Product photos are portrait (2:3). The carousel gets away with a
+                    // full-width slide because it shows two per view, which
+                    // happens to match; a single full-width slide does not, and
+                    // object-cover cropped half the bag away. Giving the box the
+                    // photo's own ratio and centring it makes the image fill it
+                    // exactly, nothing cropped.
+                    <div
                     ref={ref as (node: HTMLDivElement | null) => void}
                     onClick={open}
-                    className="relative h-[420px] md:h-[580px] w-full cursor-zoom-in overflow-hidden rounded bg-white"
+                    className="relative mx-auto aspect-[2/3] h-[420px] md:h-[580px] cursor-zoom-in overflow-hidden rounded bg-white"
                   >
                     <Image
                       src={src || placeholder}
