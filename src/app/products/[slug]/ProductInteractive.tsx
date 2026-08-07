@@ -113,13 +113,13 @@ function ColorOptionButton(props: {
       aria-label={title}
       title={title}
       onClick={props.onClick}
-      className={`relative grid h-10 w-10 place-items-center rounded-full border bg-white p-1 transition cursor-pointer ${
+      className={`relative grid h-10 w-10 place-items-center rounded-md border bg-white p-1 transition cursor-pointer ${
         props.selected
           ? 'border-black ring-2 ring-black/10'
           : 'border-gray-300 hover:border-black'
       }`}
     >
-      <span className="relative h-full w-full overflow-hidden rounded-full border border-black/10 bg-gray-200">
+      <span className="relative h-full w-full overflow-hidden rounded-md border border-black/10 bg-gray-200">
         {props.color ? (
           <span
             className="absolute inset-0"
@@ -742,12 +742,12 @@ export function ProductInteractive({ p }: { p: ProductWithVariants }) {
     ? `${selectedPouch.color.trim()}${formatOptionExtraLabel(
         selectedPouch.extraPriceUAH,
       )}`
-    : t('Оберіть колір мішечка', 'Choose pouch color')
+    : t('Мішечок', 'Choose pouch')
   const selectedStrapStepLabel = selectedStrap?.name?.trim()
     ? `${selectedStrap.name.trim()}${formatOptionExtraLabel(
         strapExtraPriceUAH(selectedStrap),
       )}`
-    : t('Оберіть колір ремінця', 'Choose strap color')
+    : t('Ремінець', 'Choose strap')
 
   const viewContentName = buildVariantSelectionLabel({
     productName,
@@ -1229,7 +1229,7 @@ export function ProductInteractive({ p }: { p: ProductWithVariants }) {
                           <div className="mb-2">
                             <div className="text-sm uppercase tracking-wide text-gray-900">
                               {t('Крок', 'Step')} {stepNumberById.get('pouch')}:{' '}
-                              {t('Колір мішечка', 'Pouch color')}
+                              {t('Мішечок', 'Pouch')}
                             </div>
                             <div className="mt-1 min-h-5 text-sm font-medium text-gray-500">
                               {selectedPouchStepLabel}
@@ -1237,7 +1237,7 @@ export function ProductInteractive({ p }: { p: ProductWithVariants }) {
                           </div>
                           <div
                             role="radiogroup"
-                            aria-label={t('Колір мішечка', 'Pouch color')}
+                            aria-label={t('Мішечок', 'Pouch')}
                             className="flex flex-wrap gap-2"
                           >
                             {pouchOptions.map((pouch) => {
@@ -1270,8 +1270,8 @@ export function ProductInteractive({ p }: { p: ProductWithVariants }) {
                           {!selectedPouchId && (
                             <div className="mt-2 text-xs text-red-600">
                               {t(
-                                'Оберіть колір мішечка, щоб продовжити.',
-                                'Choose pouch color to continue.',
+                                'Оберіть мішечок, щоб продовжити.',
+                                'Choose pouch to continue.',
                               )}
                             </div>
                           )}
@@ -1283,7 +1283,7 @@ export function ProductInteractive({ p }: { p: ProductWithVariants }) {
                           <div className="mb-2">
                             <div className="text-sm uppercase tracking-wide text-gray-900">
                               {t('Крок', 'Step')} {stepNumberById.get('strap')}:{' '}
-                              {t('Колір ремінця', 'Strap color')}
+                              {t('Ремінець', 'Strap')}
                             </div>
                             {
                               <div className="mt-1 min-h-5 text-xs font-medium text-gray-500">
@@ -1293,7 +1293,7 @@ export function ProductInteractive({ p }: { p: ProductWithVariants }) {
                           </div>
                           <div
                             role="radiogroup"
-                            aria-label={t('Колір ремінця', 'Strap color')}
+                            aria-label={t('Ремінець', 'Strap')}
                             className="flex flex-wrap gap-2"
                           >
                             {strapOptions.map((strap) => {
@@ -1303,9 +1303,7 @@ export function ProductInteractive({ p }: { p: ProductWithVariants }) {
                                 strapExtraPriceUAH(strap),
                               )
                               const extraLabel =
-                                extra > 0
-                                  ? formatOptionExtraLabel(extra)
-                                  : ''
+                                extra > 0 ? formatOptionExtraLabel(extra) : ''
 
                               return (
                                 <ColorOptionButton
