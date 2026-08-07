@@ -344,9 +344,18 @@ export default function CartPage() {
               )}
             </div>
 
+            {/* The server says why a code was refused (expired, used up, below
+                its minimum). Shown whether the shopper just typed it or it was
+                already stored, so a code that stops working never just
+                silently drops the discount. */}
+            {!isPromoApplied && !promo.checking && promo.message && (
+              <p className="mt-2 text-xs text-rose-600">{promo.message}</p>
+            )}
+
             {promoTouched &&
               promoInput.trim() &&
               !isPromoApplied &&
+              !promo.message &&
               !isPromoValid && (
                 <p className="mt-2 text-xs text-rose-600">
                   {t('Невірний промокод', 'Invalid promo code')}
