@@ -40,14 +40,28 @@ function toProbeUrl(src: string): string {
 
 // Scale probed dimensions to a large nominal size while preserving aspect, so
 // PhotoSwipe renders the image at its real proportions (no stretching).
-function scaleToLargeAspect(width: number, height: number): { w: number; h: number } {
-  if (!width || !height || !Number.isFinite(width) || !Number.isFinite(height)) {
+function scaleToLargeAspect(
+  width: number,
+  height: number,
+): { w: number; h: number } {
+  if (
+    !width ||
+    !height ||
+    !Number.isFinite(width) ||
+    !Number.isFinite(height)
+  ) {
     return { w: PHOTOSWIPE_MAX_EDGE, h: PHOTOSWIPE_MAX_EDGE }
   }
   if (width >= height) {
-    return { w: PHOTOSWIPE_MAX_EDGE, h: Math.round((height / width) * PHOTOSWIPE_MAX_EDGE) }
+    return {
+      w: PHOTOSWIPE_MAX_EDGE,
+      h: Math.round((height / width) * PHOTOSWIPE_MAX_EDGE),
+    }
   }
-  return { w: Math.round((width / height) * PHOTOSWIPE_MAX_EDGE), h: PHOTOSWIPE_MAX_EDGE }
+  return {
+    w: Math.round((width / height) * PHOTOSWIPE_MAX_EDGE),
+    h: PHOTOSWIPE_MAX_EDGE,
+  }
 }
 
 export default function PhotoGallery({
@@ -371,15 +385,15 @@ function ThumbnailGallery({
               >
                 {({ ref, open }) => (
                   // Product photos are portrait (2:3). The carousel gets away with a
-                    // full-width slide because it shows two per view, which
-                    // happens to match; a single full-width slide does not, and
-                    // object-cover cropped half the bag away. Giving the box the
-                    // photo's own ratio and centring it makes the image fill it
-                    // exactly, nothing cropped.
-                    <div
+                  // full-width slide because it shows two per view, which
+                  // happens to match; a single full-width slide does not, and
+                  // object-cover cropped half the bag away. Giving the box the
+                  // photo's own ratio and centring it makes the image fill it
+                  // exactly, nothing cropped.
+                  <div
                     ref={ref as (node: HTMLDivElement | null) => void}
                     onClick={open}
-                    className="relative mx-auto aspect-[2/3] h-[320px] md:h-[580px] cursor-zoom-in overflow-hidden rounded bg-white"
+                    className="relative mx-auto aspect-[1/2] md:aspect-[2/3] h-[320px] md:h-[580px] cursor-zoom-in overflow-hidden rounded bg-white"
                   >
                     <Image
                       src={src || placeholder}
@@ -403,39 +417,39 @@ function ThumbnailGallery({
           // Wrapper, not the Swiper itself: Tailwind's `hidden` and Swiper's own
           // `.swiper { display: block }` have equal specificity and Swiper wins.
           <div className="hidden md:block">
-          <Swiper
-            modules={[Thumbs]}
-            onSwiper={setThumbsSwiper}
-            watchSlidesProgress
-            slidesPerView={4}
-            spaceBetween={8}
-            breakpoints={{ 640: { slidesPerView: 6, spaceBetween: 10 } }}
-            className="mt-3 w-full"
-          >
-            {list.map((src, i) => (
-              <SwiperSlide key={`thumb-${i}`}>
-                <button
-                  type="button"
-                  onClick={() => mainSwiper?.slideTo(i)}
-                  aria-label={`${t('Фото', 'Photo')} ${i + 1}`}
-                  className={`relative block h-16 w-full overflow-hidden rounded border transition md:h-20 ${
-                    i === activeIndex
-                      ? 'border-[#FF3D8C]'
-                      : 'border-transparent hover:border-gray-300'
-                  }`}
-                >
-                  <Image
-                    src={src || placeholder}
-                    alt=""
-                    fill
-                    className="object-cover"
-                    sizes="120px"
-                    quality={60}
-                  />
-                </button>
-              </SwiperSlide>
-            ))}
-          </Swiper>
+            <Swiper
+              modules={[Thumbs]}
+              onSwiper={setThumbsSwiper}
+              watchSlidesProgress
+              slidesPerView={4}
+              spaceBetween={8}
+              breakpoints={{ 640: { slidesPerView: 6, spaceBetween: 10 } }}
+              className="mt-3 w-full"
+            >
+              {list.map((src, i) => (
+                <SwiperSlide key={`thumb-${i}`}>
+                  <button
+                    type="button"
+                    onClick={() => mainSwiper?.slideTo(i)}
+                    aria-label={`${t('Фото', 'Photo')} ${i + 1}`}
+                    className={`relative block h-16 w-full overflow-hidden rounded border transition md:h-20 ${
+                      i === activeIndex
+                        ? 'border-[#FF3D8C]'
+                        : 'border-transparent hover:border-gray-300'
+                    }`}
+                  >
+                    <Image
+                      src={src || placeholder}
+                      alt=""
+                      fill
+                      className="object-cover"
+                      sizes="120px"
+                      quality={60}
+                    />
+                  </button>
+                </SwiperSlide>
+              ))}
+            </Swiper>
           </div>
         )}
 

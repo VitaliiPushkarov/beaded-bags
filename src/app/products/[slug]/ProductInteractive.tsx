@@ -1037,7 +1037,7 @@ export function ProductInteractive({ p }: { p: ProductWithVariants }) {
 
   return (
     <>
-      <section className="mx-auto flex flex-col items-center md:items-stretch md:flex-row md:justify-between gap-4 md:gap-10 mb-[60px] pb-24 md:pb-0">
+      <section className="mx-auto flex flex-col items-center md:items-stretch md:flex-row md:justify-between md:gap-10 mb-[60px] pb-24 md:pb-0">
         {/* Only products with the configurator pin their image, and only on
             mobile: the shopper needs to see the bag change while scrolling a
             long list of options. The header is 65px and sticky, hence
@@ -1050,7 +1050,7 @@ export function ProductInteractive({ p }: { p: ProductWithVariants }) {
         <div
           className={`w-full md:w-[66%] ${
             isPouchStrapMode
-              ? 'sticky top-[65px] z-20 self-start bg-white h-[374px] md:relative md:top-auto md:z-auto md:self-auto md:h-[672px]'
+              ? 'sticky top-[65px] z-20 self-start bg-white h-[370px] md:relative md:top-auto md:z-auto md:self-auto md:h-[672px]'
               : 'relative h-[472px] md:h-[580px]'
           }`}
         >
@@ -1330,14 +1330,14 @@ export function ProductInteractive({ p }: { p: ProductWithVariants }) {
                               )
                             })}
                           </div>
-                          {!strapId && (
+                          {/*   {!strapId && (
                             <div className="mt-2 text-xs text-red-600">
                               {t(
                                 'Оберіть ремінець, щоб продовжити.',
                                 'Choose strap to continue.',
                               )}
                             </div>
-                          )}
+                          )} */}
                         </div>
                       )}
 
