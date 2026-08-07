@@ -69,6 +69,7 @@ export default async function AdminProductEditPage({ params }: PageProps) {
           },
           pouches: {
             orderBy: { sort: 'asc' },
+            include: { straps: { orderBy: { sort: 'asc' } } },
           },
           sizes: {
             orderBy: { sort: 'asc' },
@@ -371,6 +372,7 @@ export default async function AdminProductEditPage({ params }: PageProps) {
             sort: String(s.sort ?? 0),
             imageUrl: s.imageUrl ?? '',
           })) ?? [],
+        pouchStrapCustomization: Boolean((v as any).pouchStrapCustomization),
         pouches:
           (v as any).pouches?.map((pouch: any) => ({
             id: pouch.id,
@@ -379,6 +381,14 @@ export default async function AdminProductEditPage({ params }: PageProps) {
             extraPriceUAH: String(pouch.extraPriceUAH ?? 0),
             sort: String(pouch.sort ?? 0),
             imageUrl: pouch.imageUrl ?? '',
+            straps:
+              pouch.straps?.map((strap: any) => ({
+                id: strap.id,
+                name: strap.name ?? '',
+                hex: strap.hex ?? '',
+                sort: String(strap.sort ?? 0),
+                mainImageUrl: strap.mainImageUrl ?? '',
+              })) ?? [],
           })) ?? [],
         sizes:
           (v as any).sizes?.map((size: any) => ({

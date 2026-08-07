@@ -9,6 +9,7 @@ import type {
   ProductType,
 } from '@prisma/client'
 import { isInStockStatus, resolveAvailabilityStatus } from '@/lib/availability'
+import VariantPouchesEditor from './VariantPouchesEditor'
 import {
   AVAILABILITY_OPTIONS,
   GROUP_OPTIONS,
@@ -96,6 +97,9 @@ export default function ProductForm({
                 sort: String(s.sort ?? ''),
                 imageUrl: (s as any).imageUrl ?? '',
               })),
+              pouchStrapCustomization: Boolean(
+                (v as any).pouchStrapCustomization,
+              ),
               pouches: ((v as any).pouches || []).map((pouch: any) => ({
                 id: pouch.id,
                 color: pouch.color || '',
@@ -103,6 +107,13 @@ export default function ProductForm({
                 extraPriceUAH: String(pouch.extraPriceUAH ?? ''),
                 sort: String(pouch.sort ?? ''),
                 imageUrl: pouch.imageUrl ?? '',
+                straps: (pouch.straps || []).map((strap: any) => ({
+                  id: strap.id,
+                  name: strap.name || '',
+                  hex: strap.hex ?? '',
+                  sort: String(strap.sort ?? ''),
+                  mainImageUrl: strap.mainImageUrl ?? '',
+                })),
               })),
               sizes: ((v as any).sizes || []).map((size: any) => ({
                 id: size.id,
@@ -153,6 +164,7 @@ export default function ProductForm({
               inStock: true,
               sku: '',
               liqpayGoodId: '',
+              pouchStrapCustomization: false,
               addons: [],
               straps: [],
               pouches: [],
@@ -418,18 +430,36 @@ export default function ProductForm({
                 imageUrl: s.imageUrl?.trim() || null,
               }))
               .filter((s) => s.name.length > 0),
+            pouchStrapCustomization: Boolean(v.pouchStrapCustomization),
             pouches: (v.pouches || [])
               .map((pouch, idx) => ({
                 id: pouch.id,
                 color: pouch.color.trim(),
-                liqpayGoodId: pouch.liqpayGoodId
-                  ? Number(pouch.liqpayGoodId)
-                  : null,
-                extraPriceUAH: pouch.extraPriceUAH
-                  ? Math.max(0, Number(pouch.extraPriceUAH))
-                  : 0,
+                // In customisation mode the pouch is free and carries no fiscal
+                // item, so neither field is sent regardless of stale form state.
+                liqpayGoodId: v.pouchStrapCustomization
+                  ? null
+                  : pouch.liqpayGoodId
+                    ? Number(pouch.liqpayGoodId)
+                    : null,
+                extraPriceUAH: v.pouchStrapCustomization
+                  ? 0
+                  : pouch.extraPriceUAH
+                    ? Math.max(0, Number(pouch.extraPriceUAH))
+                    : 0,
                 sort: pouch.sort ? Number(pouch.sort) : idx,
                 imageUrl: pouch.imageUrl?.trim() || null,
+                straps: v.pouchStrapCustomization
+                  ? (pouch.straps || [])
+                      .map((strap, strapIdx) => ({
+                        id: strap.id,
+                        name: strap.name.trim(),
+                        hex: strap.hex?.trim() || null,
+                        sort: strap.sort ? Number(strap.sort) : strapIdx,
+                        mainImageUrl: strap.mainImageUrl?.trim() || null,
+                      }))
+                      .filter((strap) => strap.name.length > 0)
+                  : [],
               }))
               .filter((pouch) => pouch.color.length > 0),
             sizes: (v.sizes || [])
@@ -1350,144 +1380,35 @@ export default function ProductForm({
                     )}
                   </div>
 
-                  <div className="border border-blue-100 rounded-lg p-3">
-                    <div className="flex items-center justify-between gap-2 mb-3">
-                      <div>
-                        <div className="text-lg font-medium">Мішечки</div>
-                        <div className="text-xs text-gray-500">
-                          Кольори мішечків для цього варіанту.
-                        </div>
+                  <label className="flex items-start gap-3 rounded-lg border border-blue-100 p-3 cursor-pointer">
+                    <input
+                      type="checkbox"
+                      className="mt-1 w-4 h-4"
+                      checked={Boolean(v.pouchStrapCustomization)}
+                      onChange={(e) =>
+                        onVariantChange(index, {
+                          pouchStrapCustomization: e.target.checked,
+                        })
+                      }
+                    />
+                    <div>
+                      <div className="text-lg font-medium">
+                        Кастомізація: мішечок + ремінець
                       </div>
-                      <button
-                        type="button"
-                        className="text-sm px-3 py-1 rounded border border-blue-700 hover:text-blue-700 bg-blue-700 hover:bg-white text-white cursor-pointer"
-                        onClick={() => {
-                          const next = [
-                            ...(v.pouches || []),
-                            {
-                              color: '',
-                              liqpayGoodId: '',
-                              extraPriceUAH: '',
-                              imageUrl: '',
-                              sort: String((v.pouches || []).length),
-                            },
-                          ]
-                          setVariantPouches(index, next)
-                        }}
-                      >
-                        Додати мішечок
-                      </button>
+                      <div className="text-xs text-gray-500">
+                        Покупець обирає колір → мішечок → ремінець. Ремінці
+                        задаються всередині кожного мішечка. Ця кастомізація не
+                        змінює ціну й не потребує LiqPay ID. Ремінці з блоку
+                        «Ремінці» вище для цього варіанту не використовуються.
+                      </div>
                     </div>
+                  </label>
 
-                    {(v.pouches || []).length === 0 ? (
-                      <div className="text-sm text-gray-500">
-                        Ще немає мішечків
-                      </div>
-                    ) : (
-                      <div className="space-y-3">
-                        <div className="hidden sm:grid gap-2 sm:grid-cols-[minmax(0,1fr)_130px_minmax(0,1fr)_110px_70px] px-1 text-[11px] uppercase tracking-wide text-gray-500">
-                          <div>Колір</div>
-                          <div>LiqPay ID</div>
-                          <div>Фото (URL)</div>
-                          <div>Націнка</div>
-                          <div>Позиція</div>
-                        </div>
-                        {(v.pouches || []).map((pouch, pouchIndex) => (
-                          <div
-                            key={pouch.id || `pouch-${pouchIndex}`}
-                            className="grid gap-2 sm:grid-cols-[minmax(0,1fr)_130px_minmax(0,1fr)_110px_70px]"
-                          >
-                            <input
-                              className="w-full min-w-0 border rounded px-2 py-2 text-sm border-blue-300"
-                              placeholder="Колір мішечка"
-                              value={pouch.color}
-                              onChange={(e) => {
-                                const next = [...(v.pouches || [])]
-                                next[pouchIndex] = {
-                                  ...next[pouchIndex],
-                                  color: e.target.value,
-                                }
-                                setVariantPouches(index, next)
-                              }}
-                            />
-                            <input
-                              className="w-full min-w-0 border rounded px-2 py-2 text-sm border-blue-300 text-center"
-                              placeholder="LiqPay ID (override)"
-                              inputMode="numeric"
-                              value={pouch.liqpayGoodId}
-                              onChange={(e) => {
-                                const next = [...(v.pouches || [])]
-                                next[pouchIndex] = {
-                                  ...next[pouchIndex],
-                                  liqpayGoodId: e.target.value.replace(
-                                    /[^\d]/g,
-                                    '',
-                                  ),
-                                }
-                                setVariantPouches(index, next)
-                              }}
-                            />
-                            <input
-                              className="w-full min-w-0 border rounded px-2 py-2 text-sm border-blue-300"
-                              placeholder="URL фото мішечка"
-                              value={pouch.imageUrl || ''}
-                              onChange={(e) => {
-                                const next = [...(v.pouches || [])]
-                                next[pouchIndex] = {
-                                  ...next[pouchIndex],
-                                  imageUrl: e.target.value,
-                                }
-                                setVariantPouches(index, next)
-                              }}
-                            />
-                            <input
-                              className="w-full min-w-0 border rounded px-2 py-2 text-sm border-blue-300 text-center"
-                              placeholder="Націнка, грн"
-                              inputMode="numeric"
-                              value={pouch.extraPriceUAH}
-                              onChange={(e) => {
-                                const next = [...(v.pouches || [])]
-                                next[pouchIndex] = {
-                                  ...next[pouchIndex],
-                                  extraPriceUAH: e.target.value.replace(
-                                    /[^\d]/g,
-                                    '',
-                                  ),
-                                }
-                                setVariantPouches(index, next)
-                              }}
-                            />
-                            <input
-                              className="w-full min-w-0 border rounded px-2 py-2 text-sm border-blue-300 text-center"
-                              placeholder="Sort"
-                              inputMode="numeric"
-                              value={pouch.sort}
-                              onChange={(e) => {
-                                const next = [...(v.pouches || [])]
-                                next[pouchIndex] = {
-                                  ...next[pouchIndex],
-                                  sort: e.target.value.replace(/[^\d]/g, ''),
-                                }
-                                setVariantPouches(index, next)
-                              }}
-                            />
-                            <button
-                              type="button"
-                              className="text-sm px-3 py-2 rounded border border-blue-700 text-blue-700 hover:bg-blue-700 hover:text-white cursor-pointer sm:col-span-5 sm:justify-self-end"
-                              onClick={() => {
-                                const next = (v.pouches || []).filter(
-                                  (_, i) => i !== pouchIndex,
-                                )
-                                setVariantPouches(index, next)
-                              }}
-                            >
-                              Видалити
-                            </button>
-                          </div>
-                        ))}
-                      </div>
-                    )}
-                  </div>
+                  <VariantPouchesEditor
+                    pouches={v.pouches || []}
+                    customizationMode={Boolean(v.pouchStrapCustomization)}
+                    onChange={(next) => setVariantPouches(index, next)}
+                  />
 
                   <div className="border border-blue-100 rounded-lg p-3">
                     <div className="flex items-center justify-between gap-2 mb-3">

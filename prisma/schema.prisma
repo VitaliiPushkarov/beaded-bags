@@ -144,6 +144,9 @@ model ProductVariant {
   showInNewArrivals     Boolean                  @default(false)
   sortNewArrivals       Int                      @default(0)
   availabilityStatus    AvailabilityStatus       @default(IN_STOCK)
+  // Opt-in per variant: run the colour -> pouch -> strap configurator, where
+  // straps are read from the selected pouch. Off means today's behaviour.
+  pouchStrapCustomization Boolean                @default(false)
   product               Product                  @relation(fields: [productId], references: [id])
   usedAsAddonOnVariants ProductVariantAddon[]    @relation("AddonVariantOnBag")
   addonsOnVariant       ProductVariantAddon[]    @relation("BagVariantAddons")
@@ -216,6 +219,7 @@ model ProductVariantPouch {
   sort          Int                        @default(0)
   variant       ProductVariant             @relation(fields: [variantId], references: [id], onDelete: Cascade)
   images        ProductVariantPouchImage[]
+  straps        ProductVariantPouchStrap[]
 
   @@index([variantId, sort])
 }
@@ -226,6 +230,37 @@ model ProductVariantPouchImage {
   url     String
   sort    Int                 @default(0)
   pouch   ProductVariantPouch @relation(fields: [pouchId], references: [id], onDelete: Cascade)
+}
+
+// Straps offered for one specific pouch, used by variants with
+// pouchStrapCustomization enabled. Deliberately has neither extraPriceUAH nor
+// liqpayGoodId: this customisation never changes the price, so it produces no
+// fiscal component and needs no ПРРО good ID. Keeping it separate from
+// ProductVariantStrap leaves the existing paid straps (and their fiscal IDs)
+// untouched, and gives the pouch+strap combination photo an obvious home.
+model ProductVariantPouchStrap {
+  id           String                          @id @default(cuid())
+  pouchId      String
+  name         String
+  hex          String?
+  sort         Int                             @default(0)
+  mainImageUrl String?
+  createdAt    DateTime                        @default(now())
+  updatedAt    DateTime                        @updatedAt
+  pouch        ProductVariantPouch             @relation(fields: [pouchId], references: [id], onDelete: Cascade)
+  images       ProductVariantPouchStrapImage[]
+
+  @@index([pouchId, sort])
+}
+
+model ProductVariantPouchStrapImage {
+  id           String                   @id @default(cuid())
+  pouchStrapId String
+  url          String
+  sort         Int                      @default(0)
+  pouchStrap   ProductVariantPouchStrap @relation(fields: [pouchStrapId], references: [id], onDelete: Cascade)
+
+  @@index([pouchStrapId, sort])
 }
 
 model ProductVariantSize {
@@ -326,6 +361,9 @@ model OrderItem {
   strapId        String?
   sizeId         String?
   pouchId        String?
+  // Set instead of strapId when the line came from the pouch+strap
+  // configurator. Kept separate because it points at a different table.
+  pouchStrapId   String?
   name           String
   color          String?
   modelSize      String?

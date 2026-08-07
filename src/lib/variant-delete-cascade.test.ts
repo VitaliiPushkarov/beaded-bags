@@ -101,6 +101,22 @@ test('ProductVariantImage specifically is cleaned up before the variant', () => 
   )
 })
 
+test('pouch children cascade, so deleting a variant reaches them too', () => {
+  // ProductVariantPouch cascades off the variant, so anything hanging off a
+  // pouch is only safe if it cascades in turn. A new child added here without
+  // a cascade would break variant deletion from two levels down, where the
+  // route's delete list would not think to look.
+  const blocking = findBlockingRelations('ProductVariantPouch')
+
+  assert.deepEqual(
+    blocking,
+    [],
+    `These models point at ProductVariantPouch without onDelete: Cascade, so ` +
+      `deleting a variant will fail once a pouch exists: ` +
+      blocking.map((relation) => relation.model).join(', '),
+  )
+})
+
 test('the relations we believe cascade really do cascade', () => {
   // If one of these ever loses its cascade, the route would need a new
   // deleteMany — the first test would catch it, this one names the culprit.

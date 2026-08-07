@@ -77,6 +77,18 @@ export type VariantStrapInput = {
   imageUrl?: string
 }
 
+// A strap offered for one specific pouch. No price and no LiqPay ID by design:
+// the pouch+strap configurator never changes the total, so it produces no
+// fiscal component.
+export type VariantPouchStrapInput = {
+  id?: string
+  name: string
+  hex?: string
+  sort: string
+  mainImageUrl?: string
+  images?: string[]
+}
+
 export type VariantPouchInput = {
   id?: string
   color: string
@@ -84,6 +96,8 @@ export type VariantPouchInput = {
   extraPriceUAH: string
   sort: string
   imageUrl?: string
+  images?: string[]
+  straps?: VariantPouchStrapInput[]
 }
 
 export type VariantSizeInput = {
@@ -114,6 +128,9 @@ export type VariantInput = {
   inStock: boolean
   sku: string
   liqpayGoodId: string
+  // Opt-in: run the colour -> pouch -> strap configurator for this variant,
+  // with straps read from the selected pouch.
+  pouchStrapCustomization?: boolean
   addons?: VariantAddonLinkInput[]
   straps?: VariantStrapInput[]
   pouches?: VariantPouchInput[]

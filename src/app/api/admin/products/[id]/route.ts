@@ -39,6 +39,15 @@ const StrapSchema = z.object({
   imageUrl: ImagePath.optional().nullable(),
 })
 
+// Straps offered for one pouch. No price and no fiscal id by design.
+const PouchStrapSchema = z.object({
+  id: z.string().optional(),
+  name: z.string().trim().min(1),
+  hex: z.string().trim().optional().nullable(),
+  sort: z.coerce.number().int().optional().default(0),
+  mainImageUrl: ImagePath.optional().nullable(),
+})
+
 const PouchSchema = z.object({
   id: z.string().optional(),
   color: z.string().trim().min(1),
@@ -46,6 +55,7 @@ const PouchSchema = z.object({
   extraPriceUAH: z.coerce.number().int().min(0).optional().default(0),
   sort: z.coerce.number().int().optional().default(0),
   imageUrl: ImagePath.optional().nullable(),
+  straps: z.array(PouchStrapSchema).optional().default([]),
 })
 
 const SizeSchema = z.object({
@@ -86,6 +96,7 @@ const VariantSchema = z.object({
   sku: z.string().trim().optional().nullable(),
   liqpayGoodId: NullableIntSchema.optional(),
   shippingNote: z.string().trim().optional().nullable(),
+  pouchStrapCustomization: z.coerce.boolean().optional().default(false),
   straps: z.array(StrapSchema).optional().default([]),
   pouches: z.array(PouchSchema).optional().default([]),
   sizes: z.array(SizeSchema).optional().default([]),
@@ -242,6 +253,7 @@ export async function PATCH(
                 sku: v.sku ?? null,
                 liqpayGoodId: v.liqpayGoodId ?? null,
                 shippingNote: v.shippingNote ?? null,
+                pouchStrapCustomization: v.pouchStrapCustomization,
               },
             })
 
@@ -348,6 +360,56 @@ export async function PATCH(
               }
             }
 
+            // Straps belong to the pouch, so they are reconciled per pouch.
+            // Pouches removed below take their straps with them via cascade.
+            for (let i = 0; i < pouches.length; i++) {
+              const pouchId = keepPouchIds[i]
+              if (!pouchId) continue
+
+              const incoming = v.pouchStrapCustomization
+                ? (pouches[i].straps ?? [])
+                : []
+              const keepPouchStrapIds: string[] = []
+
+              for (let j = 0; j < incoming.length; j++) {
+                const strap = incoming[j]
+                const strapData = {
+                  name: strap.name,
+                  hex: strap.hex ?? null,
+                  sort: strap.sort ?? j,
+                  mainImageUrl: strap.mainImageUrl ?? null,
+                }
+
+                if (strap.id) {
+                  const updatedStrap =
+                    await tx.productVariantPouchStrap.updateMany({
+                      where: { id: strap.id, pouchId },
+                      data: strapData,
+                    })
+
+                  if (updatedStrap.count > 0) {
+                    keepPouchStrapIds.push(strap.id)
+                    continue
+                  }
+                }
+
+                const createdStrap = await tx.productVariantPouchStrap.create({
+                  data: { pouchId, ...strapData },
+                  select: { id: true },
+                })
+                keepPouchStrapIds.push(createdStrap.id)
+              }
+
+              await tx.productVariantPouchStrap.deleteMany({
+                where: {
+                  pouchId,
+                  ...(keepPouchStrapIds.length
+                    ? { id: { notIn: keepPouchStrapIds } }
+                    : {}),
+                },
+              })
+            }
+
             await tx.productVariantPouch.deleteMany({
               where: {
                 variantId: v.id,
@@ -441,6 +503,7 @@ export async function PATCH(
                     imageUrl: s.imageUrl ?? null,
                   })),
                 },
+                pouchStrapCustomization: v.pouchStrapCustomization,
                 pouches: {
                   create: (v.pouches ?? []).map((pouch, i) => ({
                     color: pouch.color,
@@ -448,6 +511,16 @@ export async function PATCH(
                     extraPriceUAH: pouch.extraPriceUAH ?? 0,
                     sort: pouch.sort ?? i,
                     imageUrl: pouch.imageUrl ?? null,
+                    straps: v.pouchStrapCustomization
+                      ? {
+                          create: (pouch.straps ?? []).map((strap, j) => ({
+                            name: strap.name,
+                            hex: strap.hex ?? null,
+                            sort: strap.sort ?? j,
+                            mainImageUrl: strap.mainImageUrl ?? null,
+                          })),
+                        }
+                      : undefined,
                   })),
                 },
                 sizes: {
