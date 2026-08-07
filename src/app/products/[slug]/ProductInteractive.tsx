@@ -1038,15 +1038,20 @@ export function ProductInteractive({ p }: { p: ProductWithVariants }) {
   return (
     <>
       <section className="mx-auto flex flex-col items-center md:items-stretch md:flex-row md:justify-between gap-4 md:gap-10 mb-[60px] pb-24 md:pb-0">
-        {/* On mobile the image pins under the header while the configurator
-            scrolls beneath it, so the shopper sees the product change as they
-            pick options. The header is 65px and sticky, hence top-[65px].
-            Desktop keeps the normal two-column flow. */}
+        {/* Only products with the configurator pin their image, and only on
+            mobile: the shopper needs to see the bag change while scrolling a
+            long list of options. The header is 65px and sticky, hence
+            top-[65px].
+
+            Above md this must return to `relative`, not `static` — the two
+            gallery layers below are `absolute inset-0` and would escape the
+            column without a positioned ancestor. `top-auto` and `self-auto`
+            undo the sticky offset and the flex alignment on desktop. */}
         <div
-          className={`sticky top-[65px] z-20 w-full self-start bg-white md:static md:z-auto md:w-[66%] ${
+          className={`w-full md:w-[66%] ${
             isPouchStrapMode
-              ? 'h-[374px] md:h-[672px]'
-              : 'h-[472px] md:h-[580px]'
+              ? 'sticky top-[65px] z-20 self-start bg-white h-[374px] md:relative md:top-auto md:z-auto md:self-auto md:h-[672px]'
+              : 'relative h-[472px] md:h-[580px]'
           }`}
         >
           <div
