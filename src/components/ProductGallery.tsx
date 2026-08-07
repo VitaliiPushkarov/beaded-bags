@@ -186,6 +186,7 @@ export default function PhotoGallery({
     return (
       <ThumbnailGallery
         key={listKey}
+        mobileBullets={mobileBullets}
         list={list}
         sizesByUrl={sizesByUrl}
         placeholder={placeholder}
@@ -329,7 +330,9 @@ function ThumbnailGallery({
   activeIndex,
   onActiveIndexChange,
   hasMultipleImages,
+  mobileBullets,
 }: {
+  mobileBullets: boolean[]
   list: string[]
   sizesByUrl: Partial<Record<string, { w: number; h: number }>>
   placeholder: string
@@ -376,7 +379,7 @@ function ThumbnailGallery({
                     <div
                     ref={ref as (node: HTMLDivElement | null) => void}
                     onClick={open}
-                    className="relative mx-auto aspect-[2/3] h-[420px] md:h-[580px] cursor-zoom-in overflow-hidden rounded bg-white"
+                    className="relative mx-auto aspect-[2/3] h-[320px] md:h-[580px] cursor-zoom-in overflow-hidden rounded bg-white"
                   >
                     <Image
                       src={src || placeholder}
@@ -397,6 +400,9 @@ function ThumbnailGallery({
         </Swiper>
 
         {hasMultipleImages && (
+          // Wrapper, not the Swiper itself: Tailwind's `hidden` and Swiper's own
+          // `.swiper { display: block }` have equal specificity and Swiper wins.
+          <div className="hidden md:block">
           <Swiper
             modules={[Thumbs]}
             onSwiper={setThumbsSwiper}
@@ -430,6 +436,30 @@ function ThumbnailGallery({
               </SwiperSlide>
             ))}
           </Swiper>
+          </div>
+        )}
+
+        {hasMultipleImages && (
+          // Mobile gets the same swipe-plus-dots affordance as the rest of the
+          // catalogue rather than a thumbnail strip.
+          <div className="relative z-[2] mt-2 mb-2 md:hidden">
+            <div className="mb-2 flex items-center justify-end pr-0.5 text-[11px] text-gray-500">
+              <span>
+                {activeIndex + 1} / {list.length}
+              </span>
+            </div>
+            <div className="flex items-center justify-center gap-2">
+              {mobileBullets.map((isActive, index) => (
+                <span
+                  key={`thumb-mobile-bullet-${index}`}
+                  className={`h-2.5 w-2.5 rounded-full transition ${
+                    isActive ? 'bg-pink-300' : 'bg-gray-300'
+                  }`}
+                  aria-hidden
+                />
+              ))}
+            </div>
+          </div>
         )}
       </Gallery>
     </div>

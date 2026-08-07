@@ -1037,12 +1037,16 @@ export function ProductInteractive({ p }: { p: ProductWithVariants }) {
 
   return (
     <>
-      <section className="mx-auto flex flex-col items-center md:items-stretch md:flex-row md:justify-between gap-4 md:gap-10 mb-[60px] ">
+      <section className="mx-auto flex flex-col items-center md:items-stretch md:flex-row md:justify-between gap-4 md:gap-10 mb-[60px] pb-24 md:pb-0">
+        {/* On mobile the image pins under the header while the configurator
+            scrolls beneath it, so the shopper sees the product change as they
+            pick options. The header is 65px and sticky, hence top-[65px].
+            Desktop keeps the normal two-column flow. */}
         <div
-          className={`relative w-full md:w-[66%] ${
+          className={`sticky top-[65px] z-20 w-full self-start bg-white md:static md:z-auto md:w-[66%] ${
             isPouchStrapMode
-              ? 'h-[496px] md:h-[672px]'
-              : 'h-[420px] md:h-[580px]'
+              ? 'h-[374px] md:h-[672px]'
+              : 'h-[472px] md:h-[580px]'
           }`}
         >
           <div
@@ -1468,14 +1472,19 @@ export function ProductInteractive({ p }: { p: ProductWithVariants }) {
             </>
           )}
 
-          <ProductActions
-            availabilityStatus={availabilityStatus}
-            canSubmit={canSubmitSelection}
-            onAddToCart={handleAddToCart}
-            onPreorder={() => {
-              if (variantPreorder && canSubmitSelection) openPreorder()
-            }}
-          />
+          {/* Pinned to the bottom of the viewport on mobile so the primary
+              action stays reachable while scrolling a long configurator.
+              Inline in the column on desktop, where it is already visible. */}
+          <div className="fixed inset-x-0 bottom-0 z-30 border-t border-gray-200 bg-white px-4 pb-[max(0.75rem,env(safe-area-inset-bottom))] pt-2 md:static md:z-auto md:border-0 md:bg-transparent md:p-0">
+            <ProductActions
+              availabilityStatus={availabilityStatus}
+              canSubmit={canSubmitSelection}
+              onAddToCart={handleAddToCart}
+              onPreorder={() => {
+                if (variantPreorder && canSubmitSelection) openPreorder()
+              }}
+            />
+          </div>
 
           {preorderOpen && variantPreorder && (
             <PreorderModal
