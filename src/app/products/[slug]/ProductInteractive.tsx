@@ -113,7 +113,7 @@ function ColorOptionButton(props: {
       aria-label={title}
       title={title}
       onClick={props.onClick}
-      className={`relative grid h-10 w-10 place-items-center rounded-md border bg-white p-1 transition cursor-pointer ${
+      className={`relative grid h-[60px] w-[60px] place-items-center rounded-md border bg-white p-1 transition cursor-pointer ${
         props.selected
           ? 'border-black ring-2 ring-black/10'
           : 'border-gray-300 hover:border-black'
@@ -132,7 +132,7 @@ function ColorOptionButton(props: {
             alt=""
             fill
             className="object-cover"
-            sizes="28px"
+            sizes="60px"
           />
         ) : (
           <span
@@ -443,13 +443,16 @@ export function ProductInteractive({ p }: { p: ProductWithVariants }) {
       return
     }
 
-    if (pouchOptions.length === 1) {
+    // In pouch+strap mode the strap list hangs off the chosen pouch, so a pouch
+    // has to be resolved for the strap step to have anything to show on the
+    // first render. Default to the first one; the shopper can still change it.
+    if (isPouchStrapMode || pouchOptions.length === 1) {
       setSelectedPouchId(pouchOptions[0].id)
       return
     }
 
     setSelectedPouchId(undefined)
-  }, [pouchOptions, selectedPouchId])
+  }, [isPouchStrapMode, pouchOptions, selectedPouchId])
 
   useEffect(() => {
     if (!strapOptions.length) {
@@ -695,14 +698,11 @@ export function ProductInteractive({ p }: { p: ProductWithVariants }) {
   const isStepPouchDone = !requiresPouchSelection || Boolean(selectedPouchId)
   const isStepStrapDone = !requiresStrapSelection || Boolean(strapId)
 
-  const showPouchStepBlock = isStepColorDone && requiresPouchSelection
-  const showStrapStepBlock =
-    isStepColorDone && isStepPouchDone && requiresStrapSelection
-  const showSizeStepBlock =
-    isStepColorDone &&
-    isStepPouchDone &&
-    isStepStrapDone &&
-    requiresSizeSelection
+  // Every step is rendered from the first paint rather than unlocking one at a
+  // time, so the shopper can see up front what the product is configurable in.
+  const showPouchStepBlock = requiresPouchSelection
+  const showStrapStepBlock = requiresStrapSelection
+  const showSizeStepBlock = requiresSizeSelection
 
   const isConfigurationComplete =
     isStepColorDone && isStepSizeDone && isStepPouchDone && isStepStrapDone
@@ -1152,7 +1152,7 @@ export function ProductInteractive({ p }: { p: ProductWithVariants }) {
                           {t('Колір', 'Color')}
                         </div>
                         {selectedColorLabel ? (
-                          <div className="mt-1 mb-2 min-h-5 text-xs font-medium text-gray-500">
+                          <div className="mt-1 mb-2 min-h-5 text-sm font-medium text-gray-500">
                             {selectedColorLabel}
                           </div>
                         ) : null}
@@ -1182,7 +1182,7 @@ export function ProductInteractive({ p }: { p: ProductWithVariants }) {
                                 }}
                                 aria-label={option.label}
                                 title={option.label}
-                                className={`relative grid h-7 w-7 place-items-center rounded-full border bg-white p-1 transition cursor-pointer ${
+                                className={`relative grid h-[42px] w-[42px] place-items-center rounded-full border bg-white p-1 transition cursor-pointer ${
                                   isActive
                                     ? 'border-black ring-2 ring-black/10'
                                     : outOfStock
@@ -1286,7 +1286,7 @@ export function ProductInteractive({ p }: { p: ProductWithVariants }) {
                               {t('Ремінець', 'Strap')}
                             </div>
                             {
-                              <div className="mt-1 min-h-5 text-xs font-medium text-gray-500">
+                              <div className="mt-1 min-h-5 text-sm font-medium text-gray-500">
                                 {selectedStrapStepLabel}
                               </div>
                             }
