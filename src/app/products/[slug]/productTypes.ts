@@ -4,6 +4,7 @@ import type {
   ProductVariantImage,
   ProductVariantStrap,
   ProductVariantPouch,
+  ProductVariantPouchStrap,
   ProductVariantSize,
   ProductVariantAddon,
 } from '@prisma/client'
@@ -17,9 +18,16 @@ export type StrapWithImages = ProductVariantStrap & {
   extraPriceUAH?: number | null
 }
 
+// A strap offered for one pouch. No price and no fiscal id by design — see
+// ProductVariantPouchStrap in the schema.
+export type PouchStrapWithImages = ProductVariantPouchStrap & {
+  images?: OptionImageUI[]
+}
+
 export type PouchWithImages = ProductVariantPouch & {
   images?: OptionImageUI[]
   extraPriceUAH?: number | null
+  straps?: PouchStrapWithImages[]
 }
 
 export type SizeWithImages = ProductVariantSize & {

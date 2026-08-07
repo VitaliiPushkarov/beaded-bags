@@ -22,6 +22,9 @@ type CartItem = {
   priceUSD?: number | null
   qty: number
   strapId: string | null
+  // Set instead of strapId when the line came from the pouch+strap
+  // configurator: the id points at a different table.
+  pouchStrapId?: string | null
   strapName: string | null
   sizeId: string | null
   pouchId: string | null
@@ -68,6 +71,8 @@ export const useCart = create<CartState>()(
               x.productId === item.productId &&
               x.variantId === item.variantId &&
               normalizeStrapId(x.strapId) === normalizeStrapId(item.strapId) &&
+              normalizeStrapId(x.pouchStrapId) ===
+                normalizeStrapId(item.pouchStrapId) &&
               normalizeSizeId(x.sizeId) === normalizeSizeId(item.sizeId) &&
               normalizePouchId(x.pouchId) === normalizePouchId(item.pouchId)
           )

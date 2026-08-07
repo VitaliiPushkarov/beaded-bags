@@ -4,17 +4,22 @@ import Image from 'next/image'
 import { Gallery, Item } from 'react-photoswipe-gallery'
 
 import { Swiper, SwiperSlide } from 'swiper/react'
-import { Navigation } from 'swiper/modules'
+import { Navigation, Thumbs } from 'swiper/modules'
 import type { Swiper as SwiperType } from 'swiper'
 
 import 'swiper/css'
 import 'swiper/css/navigation'
+import 'swiper/css/thumbs'
 import 'photoswipe/dist/photoswipe.css'
 import { useT } from '@/lib/i18n'
 
 type PhotoGalleryProps = {
   images: string[]
   onReady?: () => void
+  // 'thumbnails' shows one large image with a strip of thumbs beneath, used by
+  // customisable variants where the lead image changes as options are picked.
+  // Everything else keeps the carousel it has always had.
+  layout?: 'carousel' | 'thumbnails'
 }
 
 // Nominal large edge (px) used for the dimensions we hand to PhotoSwipe. Only
@@ -45,7 +50,11 @@ function scaleToLargeAspect(width: number, height: number): { w: number; h: numb
   return { w: Math.round((width / height) * PHOTOSWIPE_MAX_EDGE), h: PHOTOSWIPE_MAX_EDGE }
 }
 
-export default function PhotoGallery({ images, onReady }: PhotoGalleryProps) {
+export default function PhotoGallery({
+  images,
+  onReady,
+  layout = 'carousel',
+}: PhotoGalleryProps) {
   const t = useT()
   const placeholder = '/img/placeholder.png'
   const list = useMemo(() => (images.length ? images : [placeholder]), [images])
@@ -169,6 +178,24 @@ export default function PhotoGallery({ images, onReady }: PhotoGalleryProps) {
     return [false, true, false]
   }, [activeIndex, hasMultipleImages, list.length])
 
+  if (layout === 'thumbnails') {
+    // Keyed on the image list: selecting an option rebuilds it, and the two
+    // Swipers must be torn down together. Without the remount the main Swiper
+    // keeps pointing at a destroyed thumbs instance and throws on the next
+    // render, so the swiper handles live in a child whose state resets with it.
+    return (
+      <ThumbnailGallery
+        key={listKey}
+        list={list}
+        sizesByUrl={sizesByUrl}
+        placeholder={placeholder}
+        activeIndex={activeIndex}
+        onActiveIndexChange={setActiveIndex}
+        hasMultipleImages={hasMultipleImages}
+      />
+    )
+  }
+
   return (
     <div className="relative w-full">
       <Gallery>
@@ -290,6 +317,114 @@ export default function PhotoGallery({ images, onReady }: PhotoGalleryProps) {
             </svg>
           </button>
         </div>
+      </Gallery>
+    </div>
+  )
+}
+
+function ThumbnailGallery({
+  list,
+  sizesByUrl,
+  placeholder,
+  activeIndex,
+  onActiveIndexChange,
+  hasMultipleImages,
+}: {
+  list: string[]
+  sizesByUrl: Partial<Record<string, { w: number; h: number }>>
+  placeholder: string
+  activeIndex: number
+  onActiveIndexChange: (index: number) => void
+  hasMultipleImages: boolean
+}) {
+  const t = useT()
+  const [thumbsSwiper, setThumbsSwiper] = useState<SwiperType | null>(null)
+  const [mainSwiper, setMainSwiper] = useState<SwiperType | null>(null)
+
+  return (
+    <div className="relative w-full">
+      <Gallery>
+        <Swiper
+          modules={[Navigation, Thumbs]}
+          onSwiper={setMainSwiper}
+          onSlideChange={(swiper: SwiperType) => {
+            onActiveIndexChange(swiper.realIndex ?? swiper.activeIndex ?? 0)
+          }}
+          thumbs={{
+            swiper:
+              thumbsSwiper && !thumbsSwiper.destroyed ? thumbsSwiper : null,
+          }}
+          slidesPerView={1}
+          spaceBetween={0}
+          className="w-full rounded overflow-hidden"
+        >
+          {list.map((src, i) => (
+            <SwiperSlide key={`main-slide-${i}`}>
+              <Item
+                original={src}
+                thumbnail={src}
+                width={sizesByUrl[src]?.w ?? 1600}
+                height={sizesByUrl[src]?.h ?? 1600}
+              >
+                {({ ref, open }) => (
+                  <div
+                    ref={ref as (node: HTMLDivElement | null) => void}
+                    onClick={open}
+                    className="relative h-[420px] md:h-[580px] w-full cursor-zoom-in overflow-hidden rounded bg-white"
+                  >
+                    <Image
+                      src={src || placeholder}
+                      alt={t('Фото товару', 'Product image')}
+                      fill
+                      className="object-cover"
+                      priority={i === 0}
+                      loading={i === 0 ? 'eager' : 'lazy'}
+                      sizes="(min-width: 1024px) 66vw, 100vw"
+                      quality={80}
+                      fetchPriority={i === 0 ? 'high' : 'auto'}
+                    />
+                  </div>
+                )}
+              </Item>
+            </SwiperSlide>
+          ))}
+        </Swiper>
+
+        {hasMultipleImages && (
+          <Swiper
+            modules={[Thumbs]}
+            onSwiper={setThumbsSwiper}
+            watchSlidesProgress
+            slidesPerView={4}
+            spaceBetween={8}
+            breakpoints={{ 640: { slidesPerView: 6, spaceBetween: 10 } }}
+            className="mt-3 w-full"
+          >
+            {list.map((src, i) => (
+              <SwiperSlide key={`thumb-${i}`}>
+                <button
+                  type="button"
+                  onClick={() => mainSwiper?.slideTo(i)}
+                  aria-label={`${t('Фото', 'Photo')} ${i + 1}`}
+                  className={`relative block h-16 w-full overflow-hidden rounded border transition md:h-20 ${
+                    i === activeIndex
+                      ? 'border-[#FF3D8C]'
+                      : 'border-transparent hover:border-gray-300'
+                  }`}
+                >
+                  <Image
+                    src={src || placeholder}
+                    alt=""
+                    fill
+                    className="object-cover"
+                    sizes="120px"
+                    quality={60}
+                  />
+                </button>
+              </SwiperSlide>
+            ))}
+          </Swiper>
+        )}
       </Gallery>
     </div>
   )

@@ -13,6 +13,7 @@ export type RepriceLineInput = {
   name: string
   variantId?: string | null
   strapId?: string | null
+  pouchStrapId?: string | null
   sizeId?: string | null
   pouchId?: string | null
   qty: number
@@ -29,6 +30,10 @@ export type RepriceCatalogVariant = {
   strapExtraById: Map<string, number>
   sizeExtraById: Map<string, number>
   pouchExtraById: Map<string, number>
+  // Pouch strap id -> the pouch it belongs to. These never carry a surcharge,
+  // but the pairing still has to be real: a strap from a different pouch is not
+  // what the shopper configured.
+  pouchIdByPouchStrapId: Map<string, string>
 }
 
 export type RepriceIssue =
@@ -37,7 +42,7 @@ export type RepriceIssue =
       code: 'UNKNOWN_OPTION'
       index: number
       name: string
-      option: 'strap' | 'size' | 'pouch'
+      option: 'strap' | 'size' | 'pouch' | 'pouchStrap'
     }
   | {
       code: 'PRICE_CHANGED'
@@ -160,6 +165,24 @@ export function repriceOrderLines(
         option: 'pouch',
       })
       return
+    }
+
+    // Free, so it cannot move the price — but it must belong to the pouch that
+    // was actually chosen on this line.
+    const pouchStrapId = String(line.pouchStrapId ?? '').trim()
+    if (pouchStrapId) {
+      const owningPouchId = variant.pouchIdByPouchStrapId.get(pouchStrapId)
+      const chosenPouchId = String(line.pouchId ?? '').trim()
+
+      if (!owningPouchId || owningPouchId !== chosenPouchId) {
+        issues.push({
+          code: 'UNKNOWN_OPTION',
+          index,
+          name: line.name,
+          option: 'pouchStrap',
+        })
+        return
+      }
     }
 
     const unitPriceUAH = computeVariantUnitPriceUAH({

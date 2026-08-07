@@ -34,9 +34,20 @@ const PRODUCT_PAGE_INCLUDE = {
         },
       },
       pouches: {
+        orderBy: { sort: 'asc' },
         include: {
           images: {
             orderBy: { sort: 'asc' },
+          },
+          // Straps offered for this specific pouch — only used by variants
+          // with pouchStrapCustomization enabled.
+          straps: {
+            orderBy: { sort: 'asc' },
+            include: {
+              images: {
+                orderBy: { sort: 'asc' },
+              },
+            },
           },
         },
       },

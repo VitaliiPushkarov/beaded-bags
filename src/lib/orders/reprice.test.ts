@@ -20,6 +20,7 @@ function buildVariant(
     strapExtraById: new Map(),
     sizeExtraById: new Map(),
     pouchExtraById: new Map(),
+    pouchIdByPouchStrapId: new Map(),
     ...overrides,
   }
 }
@@ -264,4 +265,52 @@ test('a multi-line cart sums correctly', () => {
 
   assert.deepEqual(result.issues, [])
   assert.equal(result.subtotalUAH, 4000 + 900)
+})
+
+test('a pouch strap is free but must belong to the chosen pouch', () => {
+  const variant = buildVariant({
+    priceUAH: 2000,
+    pouchExtraById: new Map([['pouch-1', 0]]),
+    pouchIdByPouchStrapId: new Map([['ps-1', 'pouch-1']]),
+  })
+
+  // Correct pairing: no surcharge, no issue.
+  const ok = repriceOrderLines(
+    [buildLine({ pouchId: 'pouch-1', pouchStrapId: 'ps-1', priceUAH: 2000 })],
+    catalogOf(variant),
+  )
+  assert.deepEqual(ok.issues, [])
+  assert.equal(ok.subtotalUAH, 2000)
+})
+
+test('a pouch strap from a different pouch is refused', () => {
+  const variant = buildVariant({
+    priceUAH: 2000,
+    pouchExtraById: new Map([
+      ['pouch-1', 0],
+      ['pouch-2', 0],
+    ]),
+    pouchIdByPouchStrapId: new Map([
+      ['ps-1', 'pouch-1'],
+      ['ps-2', 'pouch-2'],
+    ]),
+  })
+
+  const result = repriceOrderLines(
+    // Strap belongs to pouch-2 but pouch-1 was chosen.
+    [buildLine({ pouchId: 'pouch-1', pouchStrapId: 'ps-2', priceUAH: 2000 })],
+    catalogOf(variant),
+  )
+
+  assert.deepEqual(result.issues, [
+    { code: 'UNKNOWN_OPTION', index: 0, name: 'Сумка', option: 'pouchStrap' },
+  ])
+})
+
+test('an unknown pouch strap id is refused', () => {
+  const result = repriceOrderLines(
+    [buildLine({ pouchStrapId: 'ps-gone', priceUAH: 2000 })],
+    catalogOf(buildVariant({ priceUAH: 2000 })),
+  )
+  assert.equal(result.issues[0]?.code, 'UNKNOWN_OPTION')
 })

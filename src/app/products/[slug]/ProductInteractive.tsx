@@ -10,7 +10,11 @@ import { useProductAddons } from './useProductAddons'
 import { usePreorder } from './usePreorder'
 import { ProductActions } from './ProductActions'
 import { AddonsSection } from './AddonsSection'
-import type { ProductWithVariants } from './productTypes'
+import type {
+  PouchStrapWithImages,
+  ProductWithVariants,
+  StrapWithImages,
+} from './productTypes'
 import type { PreorderItemInput } from '@/lib/preorder'
 import {
   calcLocalizedDiscountedPrice,
@@ -44,6 +48,18 @@ import {
   toOptionLabel,
   type CustomizationGalleryTarget,
 } from './product-options'
+
+// Classic straps carry a surcharge; pouch straps have no price field at all,
+// so anything reading a strap price has to tolerate its absence.
+function strapExtraPriceUAH(
+  strap: StrapWithImages | PouchStrapWithImages | null | undefined,
+): number {
+  const raw = Number(
+    (strap as { extraPriceUAH?: number | null } | null | undefined)
+      ?.extraPriceUAH ?? 0,
+  )
+  return Number.isFinite(raw) ? Math.max(0, Math.round(raw)) : 0
+}
 
 const ProductGallery = dynamic(() => import('@/components/ProductGallery'), {
   ssr: false,
@@ -282,15 +298,22 @@ export function ProductInteractive({ p }: { p: ProductWithVariants }) {
     [v],
   )
 
-  const strapOptions = useMemo(
-    () =>
-      [...(v?.straps || [])].sort((a, b) => {
-        const sa = typeof a.sort === 'number' ? a.sort : 0
-        const sb = typeof b.sort === 'number' ? b.sort : 0
-        return sa - sb
-      }),
-    [v],
-  )
+  // Opt-in per variant: colour -> pouch -> strap, with straps belonging to the
+  // chosen pouch. Variants without the flag keep their own strap list.
+  const isPouchStrapMode = Boolean(v?.pouchStrapCustomization)
+
+  const strapOptions = useMemo(() => {
+    const source = isPouchStrapMode
+      ? (pouchOptions.find((pouch) => pouch.id === selectedPouchId)?.straps ??
+        [])
+      : (v?.straps ?? [])
+
+    return [...source].sort((a, b) => {
+      const sa = typeof a.sort === 'number' ? a.sort : 0
+      const sb = typeof b.sort === 'number' ? b.sort : 0
+      return sa - sb
+    })
+  }, [isPouchStrapMode, pouchOptions, selectedPouchId, v])
 
   const selectedSize = useMemo(
     () => sizeOptions.find((size) => size.id === selectedSizeId) ?? null,
@@ -475,7 +498,7 @@ export function ProductInteractive({ p }: { p: ProductWithVariants }) {
   }, [selectedPouch])
 
   const selectedStrapExtraPriceUAH = useMemo(() => {
-    const raw = Number(selectedStrap?.extraPriceUAH ?? 0)
+    const raw = Number(strapExtraPriceUAH(selectedStrap))
     if (!Number.isFinite(raw)) return 0
     return Math.max(0, Math.round(raw))
   }, [selectedStrap])
@@ -544,7 +567,7 @@ export function ProductInteractive({ p }: { p: ProductWithVariants }) {
     }) ?? 0
   const selectedStrapExtraPriceUSD =
     convertOptionPriceFromUAH({
-      extraPriceUAH: selectedStrap?.extraPriceUAH,
+      extraPriceUAH: strapExtraPriceUAH(selectedStrap),
       targetCurrency: 'USD',
       referencePriceUAH,
       referencePriceUSD,
@@ -609,15 +632,15 @@ export function ProductInteractive({ p }: { p: ProductWithVariants }) {
     (option) => option.key === selectedColorKey,
   )?.label
 
+  // Decided per variant: one variant with options no longer drags its
+  // siblings into the stepped flow.
   const hasAdvancedConfigurator = useMemo(
     () =>
-      p.variants.some(
-        (variant) =>
-          (variant.straps?.length ?? 0) > 0 ||
-          (variant.pouches?.length ?? 0) > 0 ||
-          (variant.sizes?.length ?? 0) > 0,
-      ),
-    [p.variants],
+      Boolean(v?.pouchStrapCustomization) ||
+      (v?.straps?.length ?? 0) > 0 ||
+      (v?.pouches?.length ?? 0) > 0 ||
+      (v?.sizes?.length ?? 0) > 0,
+    [v],
   )
 
   const simpleSwatchEntries = useMemo(() => {
@@ -722,7 +745,7 @@ export function ProductInteractive({ p }: { p: ProductWithVariants }) {
     : t('Оберіть колір мішечка', 'Choose pouch color')
   const selectedStrapStepLabel = selectedStrap?.name?.trim()
     ? `${selectedStrap.name.trim()}${formatOptionExtraLabel(
-        selectedStrap.extraPriceUAH,
+        strapExtraPriceUAH(selectedStrap),
       )}`
     : t('Оберіть колір ремінця', 'Choose strap color')
 
@@ -795,11 +818,11 @@ export function ProductInteractive({ p }: { p: ProductWithVariants }) {
       strap: collectOptionImages(selectedStrap),
       size: collectOptionImages(selectedSize),
     }
-    const defaultOrder: CustomizationGalleryTarget[] = [
-      'pouch',
-      'strap',
-      'size',
-    ]
+    // A pouch strap's photo already shows the pouch, so once a strap is chosen
+    // it is the more specific image and should lead.
+    const defaultOrder: CustomizationGalleryTarget[] = isPouchStrapMode
+      ? ['strap', 'pouch', 'size']
+      : ['pouch', 'strap', 'size']
     const orderedTargets = activeCustomizationImage
       ? [
           activeCustomizationImage,
@@ -824,7 +847,14 @@ export function ProductInteractive({ p }: { p: ProductWithVariants }) {
     }
 
     return merged.length ? merged : base
-  }, [v, selectedStrap, selectedPouch, selectedSize, activeCustomizationImage])
+  }, [
+    v,
+    selectedStrap,
+    selectedPouch,
+    selectedSize,
+    activeCustomizationImage,
+    isPouchStrapMode,
+  ])
 
   const selectedAddonProducts = useMemo(
     () =>
@@ -975,7 +1005,8 @@ export function ProductInteractive({ p }: { p: ProductWithVariants }) {
       image: galleryImages[0],
       qty: 1,
       slug: p.slug,
-      strapId: selectedStrap?.id ?? null,
+      strapId: isPouchStrapMode ? null : (selectedStrap?.id ?? null),
+      pouchStrapId: isPouchStrapMode ? (selectedStrap?.id ?? null) : null,
       strapName: selectedStrap?.name ?? null,
       sizeId: selectedSize?.id ?? null,
       pouchId: selectedPouch?.id ?? null,
@@ -1007,7 +1038,13 @@ export function ProductInteractive({ p }: { p: ProductWithVariants }) {
   return (
     <>
       <section className="mx-auto flex flex-col items-center md:items-stretch md:flex-row md:justify-between gap-4 md:gap-10 mb-[60px] ">
-        <div className="relative w-full md:w-[66%] h-[420px] md:h-[580px]">
+        <div
+          className={`relative w-full md:w-[66%] ${
+            isPouchStrapMode
+              ? 'h-[496px] md:h-[672px]'
+              : 'h-[420px] md:h-[580px]'
+          }`}
+        >
           <div
             className={`absolute inset-0 transition-opacity duration-300 ${
               galleryReady ? 'opacity-0 pointer-events-none' : 'opacity-100'
@@ -1021,6 +1058,7 @@ export function ProductInteractive({ p }: { p: ProductWithVariants }) {
             }`}
           >
             <ProductGallery
+              layout={isPouchStrapMode ? 'thumbnails' : 'carousel'}
               images={galleryImages}
               onReady={() => setGalleryReady(true)}
             />
@@ -1262,11 +1300,11 @@ export function ProductInteractive({ p }: { p: ProductWithVariants }) {
                               const isActive = strap.id === strapId
                               const extra = Math.max(
                                 0,
-                                Number(strap.extraPriceUAH ?? 0),
+                                strapExtraPriceUAH(strap),
                               )
                               const extraLabel =
                                 extra > 0
-                                  ? formatOptionExtraLabel(strap.extraPriceUAH)
+                                  ? formatOptionExtraLabel(extra)
                                   : ''
 
                               return (

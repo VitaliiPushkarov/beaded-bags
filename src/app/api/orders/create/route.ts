@@ -37,7 +37,11 @@ type PricedVariantRow = {
   product: { basePriceUAH: number | null }
   straps: Array<{ id: string; extraPriceUAH: number }>
   sizes: Array<{ id: string; extraPriceUAH: number }>
-  pouches: Array<{ id: string; extraPriceUAH: number }>
+  pouches: Array<{
+    id: string
+    extraPriceUAH: number
+    straps: Array<{ id: string }>
+  }>
 }
 
 // Option surcharges are keyed per variant, so an option id from a different
@@ -62,6 +66,11 @@ function buildRepriceCatalog(
         ),
         pouchExtraById: new Map(
           variant.pouches.map((pouch) => [pouch.id, pouch.extraPriceUAH]),
+        ),
+        pouchIdByPouchStrapId: new Map(
+          variant.pouches.flatMap((pouch) =>
+            pouch.straps.map((strap) => [strap.id, pouch.id] as const),
+          ),
         ),
       },
     ]),
@@ -174,7 +183,13 @@ export async function POST(req: NextRequest) {
             discountUAH: true,
             straps: { select: { id: true, extraPriceUAH: true } },
             sizes: { select: { id: true, extraPriceUAH: true } },
-            pouches: { select: { id: true, extraPriceUAH: true } },
+            pouches: {
+              select: {
+                id: true,
+                extraPriceUAH: true,
+                straps: { select: { id: true } },
+              },
+            },
             product: {
               select: {
                 id: true,
@@ -258,6 +273,7 @@ export async function POST(req: NextRequest) {
         name: item.name,
         variantId: item.variantId,
         strapId: item.strapId,
+        pouchStrapId: item.pouchStrapId,
         sizeId: item.sizeId,
         pouchId: item.pouchId,
         qty: item.qty,
@@ -468,6 +484,7 @@ export async function POST(req: NextRequest) {
               productId: it.productId ?? null,
               variantId: it.variantId ?? null,
               strapId: it.strapId ?? null,
+              pouchStrapId: it.pouchStrapId ?? null,
               sizeId: it.sizeId ?? null,
               pouchId: it.pouchId ?? null,
               name: it.name,

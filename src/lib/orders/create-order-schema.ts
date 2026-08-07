@@ -13,6 +13,7 @@ const OrderItemSchema = z.object({
   productId: z.string().optional().nullable(),
   variantId: z.string().optional().nullable(),
   strapId: z.string().optional().nullable(),
+  pouchStrapId: z.string().optional().nullable(),
   sizeId: z.string().optional().nullable(),
   pouchId: z.string().optional().nullable(),
   name: z.string().min(1),
