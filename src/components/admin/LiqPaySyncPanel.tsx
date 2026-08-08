@@ -2,11 +2,22 @@
 
 import { useActionState, useState } from 'react'
 
-import type { UnmappedLiqPayEntity } from '@/lib/liqpay-catalog-sync'
+import type {
+  LiqPayCorrectedGoodId,
+  LiqPayUnmatchedGood,
+  UnmappedLiqPayEntity,
+} from '@/lib/liqpay-catalog-sync'
 
 export type LiqPayImportState =
   | { status: 'idle' }
-  | { status: 'success'; imported: number; skipped: number; message: string }
+  | {
+      status: 'success'
+      imported: number
+      skipped: number
+      unmatched: LiqPayUnmatchedGood[]
+      corrected: LiqPayCorrectedGoodId[]
+      message: string
+    }
   | { status: 'error'; message: string }
 
 type Props = {
@@ -82,10 +93,11 @@ export default function LiqPaySyncPanel({
       <div>
         <h1 className="mb-1 text-2xl font-semibold">Синхронізація з LiqPay</h1>
         <p className="text-sm text-gray-600">
-          Каталог для фіскалізації чеків (ПРРО). Ціни на чеку беруться з
-          замовлення, тож зміна ціни/акції не потребує повторної синхронізації —
-          оновлюйте каталог лише коли додаєте нові товари, варіанти, ремінці,
-          мішечки чи розміри.
+          Каталог для фіскалізації чеків (ПРРО). У чек іде та сума, яку списано з
+          картки — зі знижкою чи промокодом, — тому в кабінеті ПРРО товари мають
+          дозволяти вільну ціну (<span className="whitespace-nowrap">editable_price</span>{' '}
+          = T). Оновлюйте каталог, коли додаєте нові товари, варіанти, ремінці,
+          мішечки чи розміри, а також після зміни цін.
         </p>
       </div>
 
@@ -180,13 +192,15 @@ export default function LiqPaySyncPanel({
           <h2 className="text-lg font-medium">2. Імпорт відповідностей</h2>
           <p className="mt-1 text-sm text-gray-600">
             Завантажте експорт каталогу з LiqPay (xlsx або csv), щоб оновити
-            відповідності товарів до фіскальних ID.
+            відповідності товарів до фіскальних ID. Кабінет ПРРО віддає окремий
+            файл на кожну категорію — можна вибрати всі одразу.
           </p>
           <form action={formAction} className="mt-4 space-y-3">
             <input
               type="file"
               name="file"
               accept=".xlsx,.xls,.csv"
+              multiple
               required
               className="block w-full text-sm text-slate-700 file:mr-3 file:rounded file:border-0 file:bg-slate-900 file:px-3 file:py-2 file:text-sm file:text-white hover:file:bg-slate-700"
             />
@@ -199,9 +213,51 @@ export default function LiqPaySyncPanel({
             </button>
           </form>
           {importState.status === 'success' && (
-            <p className="mt-3 text-sm text-emerald-700" role="status">
-              {importState.message}
-            </p>
+            <>
+              <p className="mt-3 text-sm text-emerald-700" role="status">
+                {importState.message}
+              </p>
+              {importState.corrected.length > 0 && (
+                <div className="mt-3 rounded-lg border border-sky-300 bg-sky-50 p-3 text-sm text-sky-900">
+                  <p className="font-medium">
+                    Виправлено фіскальні ID, які вказували не на той товар:
+                  </p>
+                  <ul className="mt-2 space-y-0.5">
+                    {importState.corrected.map((item) => (
+                      <li key={item.label}>
+                        {item.label}:{' '}
+                        <code className="rounded bg-sky-100 px-1 text-xs line-through">
+                          {item.previousGoodId}
+                        </code>{' '}
+                        →{' '}
+                        <code className="rounded bg-sky-100 px-1 text-xs">
+                          {item.liqpayGoodId}
+                        </code>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              )}
+              {importState.unmatched.length > 0 && (
+                <div className="mt-3 rounded-lg border border-amber-300 bg-amber-50 p-3 text-sm text-amber-900">
+                  <p className="font-medium">
+                    Ці товари з ПРРО не вдалося звʼязати автоматично — впишіть їх
+                    LiqPay ID у картці товару вручну:
+                  </p>
+                  <ul className="mt-2 space-y-0.5">
+                    {importState.unmatched.map((good) => (
+                      <li key={good.liqpayGoodId}>
+                        <code className="rounded bg-amber-100 px-1 text-xs">
+                          {good.liqpayGoodId}
+                        </code>{' '}
+                        {good.itemName}
+                        {good.priceUAH !== null ? ` — ${good.priceUAH} ₴` : ''}
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              )}
+            </>
           )}
           {importState.status === 'error' && (
             <p className="mt-3 text-sm text-rose-600" role="alert">

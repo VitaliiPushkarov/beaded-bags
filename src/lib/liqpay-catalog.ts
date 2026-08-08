@@ -84,6 +84,27 @@ export function normalizeLiqPayCatalogCode(code: string | null | undefined) {
   return sanitizeLiqPayCatalogValue(code).toLowerCase()
 }
 
+// Item names are compared across two systems that punctuate differently: the
+// ПРРО cabinet holds names typed by hand or created by an older import, and ours
+// are generated. Apostrophes alone appear as ' ʼ ’ ` and the separator drifts
+// between "-", "—" and "/". Reducing both sides to letters, digits and single
+// spaces makes the comparison about the words rather than the typography.
+export function normalizeLiqPayItemName(name: string | null | undefined) {
+  return sanitizeLiqPayCatalogValue(name)
+    .toLowerCase()
+    .replace(/['ʼ’`´]/g, '')
+    .replace(/[^\p{L}\p{N}]+/gu, ' ')
+    .trim()
+}
+
+const ENTITY_PREFIX_PATTERN = /^(vrn|stp|pch|siz)-/
+
+export function looksLikeLiqPayCatalogExternalCode(
+  code: string | null | undefined,
+) {
+  return ENTITY_PREFIX_PATTERN.test(normalizeLiqPayCatalogCode(code))
+}
+
 export function buildLiqPayCatalogExternalCode(
   entityType: LiqPayCatalogEntityType,
   entityId: string,

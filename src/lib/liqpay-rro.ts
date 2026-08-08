@@ -67,9 +67,53 @@ export class LiqPayFiscalConfigError extends Error {
   }
 }
 
+// Raised when the fiscal lines do not add up to the amount being charged.
+// Distinct from LiqPayFiscalConfigError: nothing is missing from the catalogue,
+// the arithmetic itself disagrees, which points at the discount allocation
+// rather than at shop data.
+export class LiqPayFiscalTotalError extends Error {
+  readonly fiscalTotalUAH: number
+  readonly expectedTotalUAH: number
+
+  constructor(args: { fiscalTotalUAH: number; expectedTotalUAH: number }) {
+    super(
+      `Fiscal receipt total ${args.fiscalTotalUAH} does not match the charged amount ${args.expectedTotalUAH}`,
+    )
+    this.name = 'LiqPayFiscalTotalError'
+    this.fiscalTotalUAH = args.fiscalTotalUAH
+    this.expectedTotalUAH = args.expectedTotalUAH
+  }
+}
+
 function roundMoney(value: number) {
   if (!Number.isFinite(value)) return 0
   return Math.round(value * 100) / 100
+}
+
+// LiqPay defines a fiscal line as "number of units * unit cost", so `cost` must
+// equal `price * amount` to the kopiyka. Dividing the discounted line revenue by
+// the quantity does not always give a whole number of kopiykas — 7 units of
+// 1599 UAH less 10% is 1439.142857… per unit — and the rounded price then no
+// longer multiplies back to the amount actually charged. A receipt whose total
+// disagrees with the payment is rejected, so instead of rounding, the units are
+// split across two lines of the same good: the remainder kopiykas go to the
+// dearer line. 7 x 1439.142857… becomes 5 x 1439.14 + 2 x 1439.15 = 10074.00,
+// which is exact.
+function splitFiscalUnits(revenueUAH: number, qty: number) {
+  const revenueKop = Math.round(revenueUAH * 100)
+  const baseKop = Math.floor(revenueKop / qty)
+  const dearUnits = revenueKop - baseKop * qty
+  const cheapUnits = qty - dearUnits
+
+  const lines: Array<{ amount: number; priceKop: number }> = []
+  if (cheapUnits > 0) lines.push({ amount: cheapUnits, priceKop: baseKop })
+  if (dearUnits > 0) lines.push({ amount: dearUnits, priceKop: baseKop + 1 })
+
+  return lines.map((line) => ({
+    amount: line.amount,
+    price: line.priceKop / 100,
+    cost: (line.priceKop * line.amount) / 100,
+  }))
 }
 
 function allocateDiscounts(rawTotals: number[], totalDiscount: number) {
@@ -103,6 +147,10 @@ export function buildLiqPayRroInfo(args: {
   sizesById: Map<string, SizeRroSource>
   mappingsByExternalCode?: ReadonlyMap<string, number>
   deliveryEmail?: string | null
+  // The amount the customer is actually charged. The fiscal receipt has to add
+  // up to it exactly, so it is checked here rather than discovered later as a
+  // silent fiscalization failure.
+  expectedTotalUAH?: number
 }) {
   const rroItems: RroItem[] = []
 
@@ -219,12 +267,14 @@ export function buildLiqPayRroInfo(args: {
         })
       }
 
-      rroItems.push({
-        id: resolvedGoodId,
-        amount: qty,
-        price: roundMoney(revenue / qty),
-        cost: roundMoney(revenue),
-      })
+      for (const unit of splitFiscalUnits(revenue, qty)) {
+        rroItems.push({
+          id: resolvedGoodId,
+          amount: unit.amount,
+          price: unit.price,
+          cost: unit.cost,
+        })
+      }
     })
 
     const componentsTotal = roundMoney(
@@ -244,6 +294,24 @@ export function buildLiqPayRroInfo(args: {
 
   if (rroItems.length === 0) {
     throw new Error('No fiscal items available for LiqPay RRO')
+  }
+
+  // The receipt must total the payment. If it does not, LiqPay refuses the
+  // fiscalization after the money has already been taken — the order is paid but
+  // no receipt exists, which is the worst outcome available. Refusing here turns
+  // that into a payment that never starts, which the checkout can explain.
+  const fiscalTotal = roundMoney(
+    rroItems.reduce((sum, item) => sum + item.cost, 0),
+  )
+
+  if (
+    args.expectedTotalUAH !== undefined &&
+    fiscalTotal !== roundMoney(args.expectedTotalUAH)
+  ) {
+    throw new LiqPayFiscalTotalError({
+      fiscalTotalUAH: fiscalTotal,
+      expectedTotalUAH: roundMoney(args.expectedTotalUAH),
+    })
   }
 
   return {

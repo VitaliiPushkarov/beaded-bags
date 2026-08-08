@@ -2,8 +2,15 @@ import { NextRequest, NextResponse } from 'next/server'
 import { z } from 'zod'
 import { buildLiqPayPayload } from '@/lib/liqpay'
 import { buildLiqPayCatalogExternalCode } from '@/lib/liqpay-catalog'
-import { buildLiqPayRroInfo, LiqPayFiscalConfigError } from '@/lib/liqpay-rro'
-import { sendLiqPayFiscalAlert } from '@/lib/order-telegram'
+import {
+  buildLiqPayRroInfo,
+  LiqPayFiscalConfigError,
+  LiqPayFiscalTotalError,
+} from '@/lib/liqpay-rro'
+import {
+  sendLiqPayFiscalAlert,
+  sendLiqPayFiscalTotalAlert,
+} from '@/lib/order-telegram'
 import { prisma } from '@/lib/prisma'
 
 export const runtime = 'nodejs'
@@ -76,6 +83,7 @@ export async function POST(req: NextRequest) {
         id: true,
         shortNumber: true,
         totalUAH: true,
+        deliveryUAH: true,
         status: true,
         paymentMethod: true,
         paymentRaw: true,
@@ -221,8 +229,38 @@ export async function POST(req: NextRequest) {
           catalogMappings.map((item) => [item.externalCode, item.liqpayGoodId]),
         ),
         deliveryEmail: order.customerEmail ?? null,
+        // The fiscal lines cover goods only. Delivery is 0 today (Nova Poshta is
+        // paid by the recipient); if it ever becomes a charge it needs its own
+        // catalogue good, so it is excluded here rather than silently breaking
+        // every card payment on the day it is switched on.
+        expectedTotalUAH: order.totalUAH - order.deliveryUAH,
       })
     } catch (error) {
+      if (error instanceof LiqPayFiscalTotalError) {
+        // The receipt would not add up to the amount about to be charged, so
+        // LiqPay would take the money and then refuse to fiscalize it. Stop
+        // before the payment rather than after.
+        console.error(
+          `LiqPay fiscal total mismatch for order #${order.shortNumber}: ${error.message}`,
+        )
+
+        await sendLiqPayFiscalTotalAlert({
+          orderShortNumber: order.shortNumber,
+          fiscalTotalUAH: error.fiscalTotalUAH,
+          expectedTotalUAH: error.expectedTotalUAH,
+        })
+
+        return NextResponse.json(
+          {
+            error: {
+              code: 'FISCAL_NOT_CONFIGURED',
+              orderNumber: order.shortNumber,
+            },
+          },
+          { status: 503 },
+        )
+      }
+
       if (error instanceof LiqPayFiscalConfigError) {
         // The shop, not the customer, is misconfigured: this item has no LiqPay
         // good ID, so no fiscal receipt can be issued and the payment cannot be

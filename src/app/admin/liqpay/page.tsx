@@ -1,13 +1,20 @@
 import { revalidatePath } from 'next/cache'
 
+import LiqPayFiscalAudit, {
+  type FiscalRecheckState,
+} from '@/components/admin/LiqPayFiscalAudit'
 import LiqPaySyncPanel, {
   type LiqPayImportState,
 } from '@/components/admin/LiqPaySyncPanel'
 import {
   findUnmappedLiqPayEntities,
   generateLiqPayCatalogFileContent,
-  importLiqPayMappingFromWorkbook,
+  importLiqPayMappingFromWorkbooks,
 } from '@/lib/liqpay-catalog-sync'
+import {
+  loadLiqPayFiscalAudit,
+  recheckLiqPayFiscalStatuses,
+} from '@/lib/liqpay-fiscal-audit'
 import { prisma } from '@/lib/prisma'
 
 export const dynamic = 'force-dynamic'
@@ -25,23 +32,42 @@ export default async function AdminLiqPayPage() {
     formData: FormData,
   ): Promise<LiqPayImportState> {
     'use server'
-    const file = formData.get('file')
-    if (!(file instanceof File) || file.size === 0) {
+    // The ПРРО cabinet exports one file per category, so a sync is normally
+    // several files at once rather than one.
+    const files = formData
+      .getAll('file')
+      .filter((entry): entry is File => entry instanceof File && entry.size > 0)
+
+    if (files.length === 0) {
       return {
         status: 'error',
-        message: 'Оберіть файл каталогу, експортований з LiqPay.',
+        message: 'Оберіть файл(и) каталогу, експортовані з LiqPay.',
       }
     }
 
     try {
-      const buffer = await file.arrayBuffer()
-      const result = await importLiqPayMappingFromWorkbook(buffer)
+      // All files in one batch, so an item claimed from one category cannot be
+      // quietly re-claimed from another.
+      const { imported, skipped, unmatched, corrected } =
+        await importLiqPayMappingFromWorkbooks(
+          await Promise.all(files.map((file) => file.arrayBuffer())),
+        )
+
       revalidatePath('/admin/liqpay')
       return {
         status: 'success',
-        imported: result.imported,
-        skipped: result.skipped,
-        message: `Оновлено відповідностей: ${result.imported}. Пропущено рядків: ${result.skipped}.`,
+        imported,
+        skipped,
+        unmatched,
+        corrected,
+        message:
+          `Файлів: ${files.length}. Звʼязано товарів: ${imported}.` +
+          (corrected.length
+            ? ` Виправлено хибних ID: ${corrected.length}.`
+            : '') +
+          (unmatched.length
+            ? ` Не вдалося звʼязати: ${unmatched.length} — їх треба вказати вручну.`
+            : ' Усі рядки звʼязано.'),
       }
     } catch (error) {
       console.error('[liqpay:mapping] admin import failed', error)
@@ -53,23 +79,55 @@ export default async function AdminLiqPayPage() {
     }
   }
 
-  const [mappingCount, lastSynced, unmapped] = await Promise.all([
+  async function recheckFiscalAction(): Promise<FiscalRecheckState> {
+    'use server'
+    try {
+      const result = await recheckLiqPayFiscalStatuses({ alert: false })
+      revalidatePath('/admin/liqpay')
+
+      if (result.checked === 0) {
+        return {
+          status: 'success',
+          message: 'Усі оплачені замовлення вже мають фіскальний чек.',
+        }
+      }
+
+      return {
+        status: 'success',
+        message:
+          `Перевірено ${result.checked}. ` +
+          `Зʼявився чек: ${result.fiscalized}. Досі без чека: ${result.stillFailing}.`,
+      }
+    } catch (error) {
+      console.error('[liqpay:fiscal] recheck failed', error)
+      return {
+        status: 'error',
+        message: 'Не вдалося звернутися до LiqPay. Спробуйте ще раз.',
+      }
+    }
+  }
+
+  const [mappingCount, lastSynced, unmapped, fiscalRows] = await Promise.all([
     prisma.liqPayCatalogMapping.count(),
     prisma.liqPayCatalogMapping.findFirst({
       orderBy: { syncedAt: 'desc' },
       select: { syncedAt: true },
     }),
     findUnmappedLiqPayEntities(),
+    loadLiqPayFiscalAudit(),
   ])
 
   return (
-    <LiqPaySyncPanel
-      downloadAction={downloadCatalogAction}
-      importAction={importMappingAction}
-      mappingCount={mappingCount}
-      lastSyncedAt={lastSynced?.syncedAt ?? null}
-      unmappedItems={unmapped.items}
-      checkedCount={unmapped.checkedCount}
-    />
+    <div className="space-y-6">
+      <LiqPaySyncPanel
+        downloadAction={downloadCatalogAction}
+        importAction={importMappingAction}
+        mappingCount={mappingCount}
+        lastSyncedAt={lastSynced?.syncedAt ?? null}
+        unmappedItems={unmapped.items}
+        checkedCount={unmapped.checkedCount}
+      />
+      <LiqPayFiscalAudit rows={fiscalRows} recheckAction={recheckFiscalAction} />
+    </div>
   )
 }

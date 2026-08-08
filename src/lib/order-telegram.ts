@@ -315,6 +315,63 @@ export async function sendLiqPayFiscalAlert(args: {
   }
 }
 
+// The fiscal lines did not add up to the amount about to be charged. Payment is
+// refused rather than taken without a receipt, so this is the only trace the
+// shop gets — it has to name the numbers, because the cause is in the discount
+// arithmetic and not in any item's setup.
+export async function sendLiqPayFiscalTotalAlert(args: {
+  orderShortNumber: number
+  fiscalTotalUAH: number
+  expectedTotalUAH: number
+}) {
+  try {
+    await sendTelegramMessage(
+      `⚠️ <b>Онлайн-оплату заблоковано</b>\n` +
+        `\nЗамовлення <b>#${escHtml(String(args.orderShortNumber))}</b>: сума фіскального чека ` +
+        `не збігається із сумою до сплати, тому ПРРО відхилив би чек уже після списання коштів.\n` +
+        `\n<b>Сума чека:</b> ${escHtml(String(args.fiscalTotalUAH))} грн` +
+        `\n<b>До сплати:</b> ${escHtml(String(args.expectedTotalUAH))} грн\n` +
+        `\nЗамовлення створене й очікує на оплату — звʼяжіться з клієнтом.`,
+    )
+  } catch (error) {
+    console.error('Telegram: fiscal total alert failed (non-blocking):', error)
+  }
+}
+
+// Payments went through but LiqPay issued no fiscal receipt for them. The money
+// is already taken, so nothing can be undone automatically — the point is that
+// the shop finds out the same day instead of at the next tax reconciliation.
+// One message covers the whole batch: the useful signal is the list, and
+// re-checks run often enough that per-order messages would just repeat.
+export async function sendLiqPayFiscalReceiptAlert(args: {
+  orders: Array<{ shortNumber: number; totalUAH: number }>
+  errorDescription: string | null
+}) {
+  if (args.orders.length === 0) return
+
+  try {
+    const list = args.orders
+      .map(
+        (order) =>
+          `• <b>#${escHtml(String(order.shortNumber))}</b> — ${escHtml(String(order.totalUAH))} грн`,
+      )
+      .join('\n')
+
+    await sendTelegramMessage(
+      `🧾 <b>Чек ПРРО не створено</b>\n` +
+        `\nОплачено, але без фіскального чека — ${escHtml(String(args.orders.length))} замовл.:\n` +
+        `${list}\n` +
+        (args.errorDescription
+          ? `\n<b>LiqPay:</b> ${escHtml(args.errorDescription)}\n`
+          : '') +
+        `\nПеревірте <b>/admin/liqpay</b> — ціни в каталозі ПРРО мають збігатися ` +
+        `з тим, що списано, інакше чек не створюється.`,
+    )
+  } catch (error) {
+    console.error('Telegram: fiscal receipt alert failed (non-blocking):', error)
+  }
+}
+
 export async function sendOrderTelegramNotification(orderId: string) {
   const order = await prisma.order.findUnique({
     where: { id: orderId },
