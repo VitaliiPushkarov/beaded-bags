@@ -1053,6 +1053,13 @@ export function ProductInteractive({ p }: { p: ProductWithVariants }) {
             long list of options. The header is 65px and sticky, hence
             top-[65px].
 
+            Both heights are the sum of what ProductGallery's 'thumbnails'
+            layout puts inside, since the layers below are absolute and cannot
+            size this box: mobile 270 (square photo) + 50 (counter and dots),
+            desktop 580 (photo) + 12 + 80 (thumb strip). Change a height there
+            and the matching number here has to move with it, or the pinned box
+            keeps dead space or clips.
+
             Above md this must return to `relative`, not `static` — the two
             gallery layers below are `absolute inset-0` and would escape the
             column without a positioned ancestor. `top-auto` and `self-auto`
@@ -1060,7 +1067,7 @@ export function ProductInteractive({ p }: { p: ProductWithVariants }) {
         <div
           className={`w-full md:w-[66%] ${
             isPouchStrapMode
-              ? 'sticky top-[65px] z-20 self-start bg-white h-[370px] md:relative md:top-auto md:z-auto md:self-auto md:h-[672px]'
+              ? 'sticky top-[65px] z-20 self-start bg-white h-[320px] md:relative md:top-auto md:z-auto md:self-auto md:h-[672px]'
               : 'relative h-[472px] md:h-[580px]'
           }`}
         >

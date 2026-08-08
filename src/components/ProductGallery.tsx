@@ -393,7 +393,7 @@ function ThumbnailGallery({
                   <div
                     ref={ref as (node: HTMLDivElement | null) => void}
                     onClick={open}
-                    className="relative mx-auto aspect-[1/2] md:aspect-[2/3] h-[320px] md:h-[580px] cursor-zoom-in overflow-hidden rounded bg-white"
+                    className="relative mx-auto aspect-[1/1] md:aspect-[2/3] h-[270px] md:h-[580px] cursor-zoom-in overflow-hidden rounded bg-white"
                   >
                     <Image
                       src={src || placeholder}
