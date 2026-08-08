@@ -171,6 +171,33 @@ export function buildLiqPayOptionName(input: {
   )}`
 }
 
+// The article the ПРРО cabinet keys a good on. The cabinet matches an imported
+// row to an existing good by this value, so it has to be the same article the
+// shop already uses — the variant SKU. Writing our internal `vrn-<id>` code here
+// instead matched nothing, so every upload created a second copy of every good
+// and buried the human-readable article under a cuid.
+//
+// Options carry no SKU of their own, so they get a stable article derived from
+// the parent's, in the same shape the cabinet already holds ("1005-strap-003").
+export function buildLiqPayCatalogArticle(input: {
+  parentSku: string | null | undefined
+  entityType: LiqPayCatalogEntityType
+  entityId: string
+}) {
+  const parent = sanitizeLiqPayCatalogValue(input.parentSku)
+  if (input.entityType === 'VARIANT') return parent
+
+  const suffix = ENTITY_PREFIX[input.entityType]
+  // Letters and digits only before taking the tail, so an id like "strap-chain"
+  // yields "pchain" rather than the "-chain" that reads as a broken article.
+  const tail = sanitizeLiqPayCatalogValue(input.entityId)
+    .toLowerCase()
+    .replace(/[^a-z0-9]/g, '')
+    .slice(-6)
+
+  return parent ? `${parent}-${suffix}-${tail}` : `${suffix}-${tail}`
+}
+
 export function buildLiqPayCatalogRows(products: ProductCatalogSource[]) {
   const rows: LiqPayCatalogExportRow[] = []
   const seen = new Set<string>()
@@ -216,11 +243,18 @@ export function buildLiqPayCatalogRows(products: ProductCatalogSource[]) {
         itemName: baseName,
         price: basePrice,
         unitName: 'Штука',
-        vndcode: buildLiqPayCatalogExternalCode('VARIANT', variant.id),
+        vndcode: buildLiqPayCatalogArticle({
+          parentSku: variant.sku,
+          entityType: 'VARIANT',
+          entityId: variant.id,
+        }),
         codifier: '',
         taxList: 'А',
         categoryName,
-        barcode: sanitizeLiqPayCatalogValue(variant.sku),
+        // No real barcodes exist for these goods. The SKU used to be written
+        // here, which is what swapped the article and barcode columns in the
+        // cabinet.
+        barcode: '',
         editablePrice: 'T',
         weightProduct: 'F',
       })
@@ -240,7 +274,11 @@ export function buildLiqPayCatalogRows(products: ProductCatalogSource[]) {
           }),
           price: extra,
           unitName: 'Штука',
-          vndcode: buildLiqPayCatalogExternalCode('STRAP', strap.id),
+          vndcode: buildLiqPayCatalogArticle({
+            parentSku: variant.sku,
+            entityType: 'STRAP',
+            entityId: strap.id,
+          }),
           codifier: '',
           taxList: 'А',
           categoryName: 'Опції / Ремінці',
@@ -265,7 +303,11 @@ export function buildLiqPayCatalogRows(products: ProductCatalogSource[]) {
           }),
           price: extra,
           unitName: 'Штука',
-          vndcode: buildLiqPayCatalogExternalCode('POUCH', pouch.id),
+          vndcode: buildLiqPayCatalogArticle({
+            parentSku: variant.sku,
+            entityType: 'POUCH',
+            entityId: pouch.id,
+          }),
           codifier: '',
           taxList: 'А',
           categoryName: 'Опції / Мішечки',
@@ -290,7 +332,11 @@ export function buildLiqPayCatalogRows(products: ProductCatalogSource[]) {
           }),
           price: extra,
           unitName: 'Штука',
-          vndcode: buildLiqPayCatalogExternalCode('SIZE', size.id),
+          vndcode: buildLiqPayCatalogArticle({
+            parentSku: variant.sku,
+            entityType: 'SIZE',
+            entityId: size.id,
+          }),
           codifier: '',
           taxList: 'А',
           categoryName: 'Опції / Розміри',

@@ -53,6 +53,11 @@ export default async function AdminLiqPayPage() {
           await Promise.all(files.map((file) => file.arrayBuffer())),
         )
 
+      const duplicateCount = unmatched.filter(
+        (good) => good.reason === 'duplicate',
+      ).length
+      const unknownCount = unmatched.length - duplicateCount
+
       revalidatePath('/admin/liqpay')
       return {
         status: 'success',
@@ -65,9 +70,13 @@ export default async function AdminLiqPayPage() {
           (corrected.length
             ? ` Виправлено хибних ID: ${corrected.length}.`
             : '') +
-          (unmatched.length
-            ? ` Не вдалося звʼязати: ${unmatched.length} — їх треба вказати вручну.`
-            : ' Усі рядки звʼязано.'),
+          (duplicateCount
+            ? ` Дублікатів у ПРРО: ${duplicateCount} — їх треба видалити в кабінеті.`
+            : '') +
+          (unknownCount
+            ? ` Без відповідника в магазині: ${unknownCount}.`
+            : '') +
+          (unmatched.length === 0 ? ' Усі рядки звʼязано.' : ''),
       }
     } catch (error) {
       console.error('[liqpay:mapping] admin import failed', error)

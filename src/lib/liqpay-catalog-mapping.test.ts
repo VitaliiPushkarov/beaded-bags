@@ -8,7 +8,10 @@ import {
   readLiqPayWorkbook,
   type CatalogIndex,
 } from './liqpay-catalog-sync'
-import { normalizeLiqPayItemName } from './liqpay-catalog'
+import {
+  buildLiqPayCatalogRows,
+  normalizeLiqPayItemName,
+} from './liqpay-catalog'
 
 function index(
   entries: Array<{ name: string; code: string; price: number; sku?: string }>,
@@ -87,8 +90,8 @@ test('a SKU reused by two goods maps neither of them', () => {
     [[29080368, 'name']],
   )
   assert.deepEqual(
-    plan.unmatched.map((good) => good.liqpayGoodId),
-    [29079199],
+    plan.unmatched.map((good) => [good.liqpayGoodId, good.reason]),
+    [[29079199, 'unknown']],
   )
 })
 
@@ -115,8 +118,8 @@ test('a SKU never steals an entity a name already claimed', () => {
     [[27778494, 'vrn-flower-yellow']],
   )
   assert.deepEqual(
-    plan.unmatched.map((good) => good.liqpayGoodId),
-    [28066730],
+    plan.unmatched.map((good) => [good.liqpayGoodId, good.reason]),
+    [[28066730, 'unknown']],
   )
 })
 
@@ -194,8 +197,8 @@ test('two categories reaching the same item map it once, not twice', () => {
   assert.equal(plan.resolved.length, 1)
   assert.equal(plan.resolved[0]?.liqpayGoodId, 27778527)
   assert.deepEqual(
-    plan.unmatched.map((good) => good.liqpayGoodId),
-    [28390170],
+    plan.unmatched.map((good) => [good.liqpayGoodId, good.reason]),
+    [[28390170, 'unknown']],
   )
 })
 
@@ -208,4 +211,76 @@ test('rows without a good ID are skipped, not mapped', () => {
   assert.equal(plan.skipped, 1)
   assert.equal(plan.resolved.length, 0)
   assert.equal(plan.unmatched.length, 0)
+})
+
+test('a good carrying our code beats a same-named duplicate listed before it', () => {
+  // Uploading our export made the cabinet create a second "Tote - Рожевий
+  // лимонад" carrying vrn-…, next to the hand-made one. Row order must not
+  // decide which of the two the shop ends up fiscalizing against.
+  const plan = planLiqPayMappingRows(
+    [
+      row(27778574, "Сумка в'язана велика Tote - Рожевий лимонад", 2490, '3543203'),
+      row(29280287, "Сумка в'язана велика Tote - Рожевий лимонад", 2490, 'vrn-tote-pink'),
+    ],
+    index([
+      {
+        name: "Сумка в'язана велика Tote - Рожевий лимонад",
+        code: 'vrn-tote-pink',
+        price: 2490,
+        sku: '3543203',
+      },
+    ]),
+  )
+
+  assert.deepEqual(
+    plan.resolved.map((entry) => [entry.liqpayGoodId, entry.matchedBy]),
+    [[29280287, 'code']],
+  )
+  // The older copy is reported as a duplicate to delete, not as something to
+  // type into the product form.
+  assert.deepEqual(
+    plan.unmatched.map((good) => [good.liqpayGoodId, good.reason, good.duplicateOfGoodId]),
+    [[27778574, 'duplicate', 29280287]],
+  )
+})
+
+test('the export writes the article to vndcode and leaves the barcode empty', () => {
+  // vndcode is what the cabinet matches an imported row against. Writing our
+  // internal code there matched nothing, so every upload duplicated every good
+  // and pushed the shop article into the barcode column.
+  const rows = buildLiqPayCatalogRows([
+    {
+      slug: 'tote',
+      name: "Сумка в'язана велика Tote",
+      type: 'BAG',
+      basePriceUAH: 2490,
+      variants: [
+        {
+          id: 'cmp7jcue1000mky04go8hkfdm',
+          sku: '3543203',
+          color: 'Рожевий лимонад',
+          modelSize: null,
+          pouchColor: null,
+          priceUAH: 2490,
+          discountPercent: 0,
+          discountUAH: 0,
+          straps: [{ id: 'strap-abc123', name: 'Ланцюжок', extraPriceUAH: 420 }],
+          pouches: [],
+          sizes: [],
+        },
+      ],
+    },
+  ])
+
+  const variantRow = rows.find((r) => r.entityType === 'VARIANT')!
+  assert.equal(variantRow.vndcode, '3543203')
+  assert.equal(variantRow.barcode, '')
+
+  // An option has no SKU of its own, so it derives a stable one from the parent.
+  const strapRow = rows.find((r) => r.entityType === 'STRAP')!
+  assert.equal(strapRow.vndcode, '3543203-stp-abc123')
+  assert.equal(strapRow.barcode, '')
+
+  // The external code is still carried internally for mapping.
+  assert.equal(variantRow.externalCode, 'vrn-cmp7jcue1000mky04go8hkfdm')
 })

@@ -53,8 +53,13 @@ test('buildLiqPayCatalogRows generates stable external codes for variants and op
       buildLiqPayCatalogExternalCode('SIZE', 'size-xl'),
     ].sort(),
   )
-  assert.match(serializeLiqPayCatalogRows(rows), /vrn-variant-red/)
-  assert.match(serializeLiqPayCatalogRows(rows), /stp-strap-chain/)
+  // The external code identifies the row for us, but it must not reach the file:
+  // the cabinet keys goods on vndcode, so writing our code there stopped it
+  // recognising the goods it already had and duplicated every one of them.
+  const serialized = serializeLiqPayCatalogRows(rows)
+  assert.doesNotMatch(serialized, /vrn-variant-red/)
+  assert.match(serialized, /\^CM-RED\^/)
+  assert.match(serialized, /\^CM-RED-stp-pchain\^/)
 })
 
 test('resolveLiqPayGoodId prefers manual override and falls back to synced mapping', () => {

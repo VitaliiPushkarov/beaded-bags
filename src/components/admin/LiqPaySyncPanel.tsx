@@ -66,6 +66,15 @@ export default function LiqPaySyncPanel({
     FormData
   >(importAction, { status: 'idle' })
 
+  const duplicates =
+    importState.status === 'success'
+      ? importState.unmatched.filter((good) => good.reason === 'duplicate')
+      : []
+  const unknowns =
+    importState.status === 'success'
+      ? importState.unmatched.filter((good) => good.reason !== 'duplicate')
+      : []
+
   async function handleDownload() {
     setDownloading(true)
     setDownloadError(null)
@@ -238,14 +247,42 @@ export default function LiqPaySyncPanel({
                   </ul>
                 </div>
               )}
-              {importState.unmatched.length > 0 && (
-                <div className="mt-3 rounded-lg border border-amber-300 bg-amber-50 p-3 text-sm text-amber-900">
+              {duplicates.length > 0 && (
+                <div className="mt-3 rounded-lg border border-rose-300 bg-rose-50 p-3 text-sm text-rose-900">
                   <p className="font-medium">
-                    Ці товари з ПРРО не вдалося звʼязати автоматично — впишіть їх
-                    LiqPay ID у картці товару вручну:
+                    Дублікати в каталозі ПРРО — {duplicates.length}. Цей товар у
+                    нас уже звʼязано з іншим ID, тому зайву копію треба{' '}
+                    <b>видалити в кабінеті ПРРО</b> (не вписувати в картку
+                    товару):
                   </p>
                   <ul className="mt-2 space-y-0.5">
-                    {importState.unmatched.map((good) => (
+                    {duplicates.map((good) => (
+                      <li key={good.liqpayGoodId}>
+                        <code className="rounded bg-rose-100 px-1 text-xs">
+                          {good.liqpayGoodId}
+                        </code>{' '}
+                        {good.itemName}
+                        {good.priceUAH !== null ? ` — ${good.priceUAH} ₴` : ''}
+                        {good.duplicateOfGoodId !== null ? (
+                          <span className="text-rose-700">
+                            {' '}
+                            (залишаємо {good.duplicateOfGoodId})
+                          </span>
+                        ) : null}
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              )}
+              {unknowns.length > 0 && (
+                <div className="mt-3 rounded-lg border border-amber-300 bg-amber-50 p-3 text-sm text-amber-900">
+                  <p className="font-medium">
+                    Не знайшли відповідника в магазині — {unknowns.length}.
+                    Впишіть LiqPay ID у картці товару вручну або видаліть товар у
+                    кабінеті, якщо його вже не продаєте:
+                  </p>
+                  <ul className="mt-2 space-y-0.5">
+                    {unknowns.map((good) => (
                       <li key={good.liqpayGoodId}>
                         <code className="rounded bg-amber-100 px-1 text-xs">
                           {good.liqpayGoodId}

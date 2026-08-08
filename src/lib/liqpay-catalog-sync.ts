@@ -21,9 +21,18 @@ import {
 
 // --- Export: build the ^-delimited catalog file from the current DB ---------
 
+// Every variant the shop could sell, not just the ones sellable this minute.
+//
+// The catalogue used to be limited to published, in-stock items — 102 of 161.
+// A ПРРО good is only a price-list entry, so listing an out-of-stock variant
+// costs nothing, while leaving it out is expensive: its fiscal ID disappears
+// from the cabinet, the manual override on the variant keeps pointing at a good
+// that no longer exists, and because the override outranks the catalogue mapping
+// no later sync can heal it. Stock changes daily; the fiscal catalogue should
+// not churn with it.
 export async function generateLiqPayCatalogFileContent(): Promise<string> {
   const products = await prisma.product.findMany({
-    where: { status: 'PUBLISHED', inStock: true },
+    where: { status: { not: 'ARCHIVED' } },
     orderBy: [{ sortCatalog: 'asc' }, { createdAt: 'desc' }],
     select: {
       slug: true,
@@ -32,7 +41,6 @@ export async function generateLiqPayCatalogFileContent(): Promise<string> {
       basePriceUAH: true,
       variants: {
         orderBy: [{ sortCatalog: 'asc' }, { id: 'asc' }],
-        where: { inStock: true },
         select: {
           id: true,
           sku: true,
@@ -297,25 +305,6 @@ async function buildCatalogIndex(): Promise<CatalogIndex> {
   return { byName, bySku, entities }
 }
 
-// The confident half: the code we wrote ourselves, or an exact name. Both are
-// unambiguous, so they are resolved before anything is guessed from a SKU.
-function resolveExactly(
-  index: CatalogIndex,
-  row: { vndcode: string; itemName: string },
-): { externalCode: string; matchedBy: 'code' | 'name' } | null {
-  if (looksLikeLiqPayCatalogExternalCode(row.vndcode)) {
-    return {
-      externalCode: normalizeLiqPayCatalogCode(row.vndcode),
-      matchedBy: 'code',
-    }
-  }
-
-  const byName = index.byName.get(normalizeLiqPayItemName(row.itemName))
-  if (byName) return { externalCode: byName.externalCode, matchedBy: 'name' }
-
-  return null
-}
-
 export type LiqPayCorrectedGoodId = {
   label: string
   previousGoodId: number
@@ -325,12 +314,9 @@ export type LiqPayCorrectedGoodId = {
 
 // A fiscal ID typed into the product form wins over the catalogue mapping when a
 // receipt is built, so a wrong one keeps printing the wrong product no matter
-// how often the catalogue is re-synced. Two of them are wrong today: "Жовтий"
-// carries the ID of "Світло-блакитний", "Чорничний" carries "Персиковий".
-//
-// Only an exact name match is trusted to overwrite one. A SKU match is a guess
-// corroborated by uniqueness alone, and a guess must not silently rewrite a
-// value a human entered deliberately.
+// how often the catalogue is re-synced — and it goes stale the moment a good is
+// replaced or removed in the cabinet. Keeping it in step with the catalogue on
+// every import is what stops the override quietly outliving the good it names.
 async function correctContradictedGoodIds(
   index: CatalogIndex,
   resolved: LiqPayMappingPlanEntry[],
@@ -338,7 +324,10 @@ async function correctContradictedGoodIds(
   const corrected: LiqPayCorrectedGoodId[] = []
 
   for (const entry of resolved) {
-    if (entry.matchedBy !== 'name') continue
+    // Our own code and an exact name both identify an item outright. A SKU match
+    // is only unambiguous by elimination, which is not enough to overwrite a
+    // number a human typed on purpose.
+    if (entry.matchedBy === 'sku') continue
 
     const entity = index.entities.get(entry.externalCode)
     if (!entity?.liqpayGoodId) continue
@@ -372,6 +361,12 @@ export type LiqPayUnmatchedGood = {
   itemName: string
   priceUAH: number | null
   vndcode: string
+  // 'duplicate': our item was already identified by a more reliable match, so
+  // this good is a second copy of it in the ПРРО catalogue and should be deleted
+  // there, not typed into the product form.
+  // 'unknown': nothing in the shop corresponds to it at all.
+  reason: 'duplicate' | 'unknown'
+  duplicateOfGoodId: number | null
 }
 
 export type LiqPayMappingImportResult = {
@@ -538,27 +533,33 @@ export function planLiqPayMappingRows(
     vndcodeUses.set(row.vndcode, (vndcodeUses.get(row.vndcode) ?? 0) + 1)
   }
 
-  const claimed = new Set<string>()
-  const pendingSku: ParsedRow[] = []
+  const claimed = new Map<string, number>()
+
+  const reject = (row: ParsedRow, duplicateOfGoodId: number | null) => {
+    unmatched.push({
+      liqpayGoodId: row.liqpayGoodId,
+      itemName: row.itemName,
+      priceUAH: row.priceUAH,
+      vndcode: row.vndcode,
+      reason: duplicateOfGoodId === null ? 'unknown' : 'duplicate',
+      duplicateOfGoodId,
+    })
+  }
 
   const claim = (
     row: ParsedRow,
     externalCode: string,
     matchedBy: 'code' | 'name' | 'sku',
   ) => {
-    if (claimed.has(externalCode)) {
-      // Someone already owns this entity. Whichever good arrives second is not
-      // identifiable, so record it rather than overwrite a better match.
-      unmatched.push({
-        liqpayGoodId: row.liqpayGoodId,
-        itemName: row.itemName,
-        priceUAH: row.priceUAH,
-        vndcode: row.vndcode,
-      })
+    const owner = claimed.get(externalCode)
+    if (owner !== undefined) {
+      // A more reliable match already identified this item, so this good is a
+      // second copy of it in the ПРРО catalogue rather than something new.
+      reject(row, owner)
       return
     }
 
-    claimed.add(externalCode)
+    claimed.set(externalCode, row.liqpayGoodId)
     counts[matchedBy] += 1
     resolved.push({
       externalCode,
@@ -570,9 +571,24 @@ export function planLiqPayMappingRows(
     })
   }
 
+  // Strictly by falling confidence, not in file order. Uploading our export into
+  // the cabinet creates goods carrying our own code alongside the hand-made ones
+  // that share their name, so both reach the same item — and the coded one has
+  // to win whichever happens to be listed first.
+  const pendingName: ParsedRow[] = []
+  const pendingSku: ParsedRow[] = []
+
   for (const row of parsed) {
-    const exact = resolveExactly(index, row)
-    if (exact) claim(row, exact.externalCode, exact.matchedBy)
+    if (looksLikeLiqPayCatalogExternalCode(row.vndcode)) {
+      claim(row, normalizeLiqPayCatalogCode(row.vndcode), 'code')
+    } else {
+      pendingName.push(row)
+    }
+  }
+
+  for (const row of pendingName) {
+    const byName = index.byName.get(normalizeLiqPayItemName(row.itemName))
+    if (byName) claim(row, byName.externalCode, 'name')
     else pendingSku.push(row)
   }
 
@@ -589,17 +605,16 @@ export function planLiqPayMappingRows(
     const candidates = row.vndcode ? index.bySku.get(row.vndcode) : undefined
     const candidate = candidates?.length === 1 ? candidates[0] : undefined
 
+    // A collision here is not evidence of a duplicate. Reaching an item that a
+    // name already identified only means this good's SKU is stale on our side —
+    // it is still its own product, and reporting it as a copy to delete would be
+    // worse than admitting we could not place it.
     if (
       !candidate ||
       vndcodeUses.get(row.vndcode) !== 1 ||
       claimed.has(candidate.externalCode)
     ) {
-      unmatched.push({
-        liqpayGoodId: row.liqpayGoodId,
-        itemName: row.itemName,
-        priceUAH: row.priceUAH,
-        vndcode: row.vndcode,
-      })
+      reject(row, null)
       continue
     }
 
