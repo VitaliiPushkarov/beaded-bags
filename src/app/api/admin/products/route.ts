@@ -43,6 +43,7 @@ const StrapSchema = z.object({
 const PouchSchema = z.object({
   id: z.string().optional(),
   color: z.string().trim().min(1),
+  hex: z.string().trim().optional().nullable(),
   liqpayGoodId: NullableIntSchema.optional(),
   extraPriceUAH: z.coerce.number().int().min(0).optional().default(0),
   sort: z.coerce.number().int().optional().default(0),
@@ -271,6 +272,7 @@ export async function POST(req: NextRequest) {
               pouches: {
                 create: (v.pouches ?? []).map((pouch, pouchIdx) => ({
                   color: pouch.color,
+                  hex: pouch.hex || null,
                   liqpayGoodId: pouch.liqpayGoodId ?? null,
                   extraPriceUAH: pouch.extraPriceUAH ?? 0,
                   sort: pouch.sort ?? pouchIdx,

@@ -103,6 +103,7 @@ export default function ProductForm({
               pouches: ((v as any).pouches || []).map((pouch: any) => ({
                 id: pouch.id,
                 color: pouch.color || '',
+                hex: pouch.hex ?? '',
                 liqpayGoodId: String(pouch.liqpayGoodId ?? ''),
                 extraPriceUAH: String(pouch.extraPriceUAH ?? ''),
                 sort: String(pouch.sort ?? ''),
@@ -435,6 +436,8 @@ export default function ProductForm({
               .map((pouch, idx) => ({
                 id: pouch.id,
                 color: pouch.color.trim(),
+                // Empty means "derive the swatch from the colour name".
+                hex: pouch.hex?.trim() || null,
                 // In customisation mode the pouch is free and carries no fiscal
                 // item, so neither field is sent regardless of stale form state.
                 liqpayGoodId: v.pouchStrapCustomization

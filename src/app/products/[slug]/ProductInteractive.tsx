@@ -43,7 +43,7 @@ import {
   getVariantIdFromHash,
   getVariantIdFromLocation,
   optionPreviewImage,
-  resolveOptionSwatchColor,
+  resolveOptionColor,
   toOptionKey,
   toOptionLabel,
   type CustomizationGalleryTarget,
@@ -59,6 +59,16 @@ function strapExtraPriceUAH(
       ?.extraPriceUAH ?? 0,
   )
   return Number.isFinite(raw) ? Math.max(0, Math.round(raw)) : 0
+}
+
+// The mirror case: only pouch straps have a picked swatch colour, so classic
+// straps always fall through to the colour derived from their name.
+function strapHex(
+  strap: StrapWithImages | PouchStrapWithImages | null | undefined,
+): string | null {
+  return 'hex' in (strap ?? {})
+    ? ((strap as PouchStrapWithImages).hex ?? null)
+    : null
 }
 
 const ProductGallery = dynamic(() => import('@/components/ProductGallery'), {
@@ -1265,7 +1275,10 @@ export function ProductInteractive({ p }: { p: ProductWithVariants }) {
                                   key={pouch.id}
                                   label={pouch.color}
                                   selected={isActive}
-                                  color={resolveOptionSwatchColor(pouch.color)}
+                                  color={resolveOptionColor(
+                                    pouch.hex,
+                                    pouch.color,
+                                  )}
                                   imageUrl={optionPreviewImage(pouch)}
                                   extraLabel={extraLabel}
                                   onClick={() => {
@@ -1319,7 +1332,10 @@ export function ProductInteractive({ p }: { p: ProductWithVariants }) {
                                   key={strap.id}
                                   label={strap.name}
                                   selected={isActive}
-                                  color={resolveOptionSwatchColor(strap.name)}
+                                  color={resolveOptionColor(
+                                    strapHex(strap),
+                                    strap.name,
+                                  )}
                                   imageUrl={optionPreviewImage(strap)}
                                   extraLabel={extraLabel}
                                   onClick={() => {

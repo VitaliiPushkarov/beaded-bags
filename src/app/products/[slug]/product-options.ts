@@ -145,6 +145,30 @@ export function resolveOptionSwatchColor(label: string | null | undefined) {
   )
 }
 
+// Accepts what the admin colour picker stores (`#rrggbb`) plus the shorthand and
+// missing-`#` forms hand-typed values arrive in. Anything else is rejected so a
+// stray string can't become an invalid `background-color`.
+function normalizeStoredHex(value: string | null | undefined) {
+  const raw = (value || '').trim()
+  if (!raw) return null
+
+  const body = raw.startsWith('#') ? raw.slice(1) : raw
+  return /^(?:[0-9a-f]{3}|[0-9a-f]{6}|[0-9a-f]{8})$/i.test(body)
+    ? `#${body.toLowerCase()}`
+    : null
+}
+
+// The colour an option's swatch should use: the hex the admin picked for this
+// exact option first, and only then the guess derived from its label. Without
+// the hex branch a picked colour is silently replaced by whatever
+// COLOR_SWATCH_RULES matches the name, which makes the picker look broken.
+export function resolveOptionColor(
+  hex: string | null | undefined,
+  label: string | null | undefined,
+) {
+  return normalizeStoredHex(hex) ?? resolveOptionSwatchColor(label)
+}
+
 export function optionPreviewImage(option: SwatchOptionSource | null) {
   return collectOptionImages(option)[0] ?? null
 }

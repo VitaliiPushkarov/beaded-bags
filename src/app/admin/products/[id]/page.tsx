@@ -377,6 +377,7 @@ export default async function AdminProductEditPage({ params }: PageProps) {
           (v as any).pouches?.map((pouch: any) => ({
             id: pouch.id,
             color: pouch.color ?? '',
+            hex: pouch.hex ?? '',
             liqpayGoodId: pouch.liqpayGoodId?.toString() ?? '',
             extraPriceUAH: String(pouch.extraPriceUAH ?? 0),
             sort: String(pouch.sort ?? 0),

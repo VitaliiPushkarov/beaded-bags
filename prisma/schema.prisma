@@ -212,6 +212,9 @@ model ProductVariantPouch {
   id            String                     @id @default(cuid())
   variantId     String
   color         String
+  // Swatch colour picked in admin. Optional: pouches saved before the picker
+  // existed fall back to the colour guessed from `color`.
+  hex           String?
   liqpayGoodId  Int?
   imageUrl      String?
   mainImageUrl  String?

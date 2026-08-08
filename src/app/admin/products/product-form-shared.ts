@@ -92,6 +92,7 @@ export type VariantPouchStrapInput = {
 export type VariantPouchInput = {
   id?: string
   color: string
+  hex?: string
   liqpayGoodId: string
   extraPriceUAH: string
   sort: string

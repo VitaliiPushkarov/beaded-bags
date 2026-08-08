@@ -1,5 +1,7 @@
 'use client'
 
+import { resolveOptionSwatchColor } from '@/app/products/[slug]/product-options'
+
 import type {
   VariantPouchInput,
   VariantPouchStrapInput,
@@ -8,6 +10,53 @@ import type {
 const inputClass =
   'w-full min-w-0 border rounded px-2 py-2 text-sm border-blue-300'
 const digitsOnly = (value: string) => value.replace(/[^\d]/g, '')
+
+// One swatch cell, shared by pouches and their straps.
+//
+// Two things make this more than a bare `type="color"`. First, when no hex is
+// stored the shop derives the swatch from the label, so the picker shows that
+// derived colour instead of an arbitrary black — what admin sees is what the
+// customer gets. Second, a colour input has no empty state and can never go
+// back to one, so without the reset button a single accidental pick would lock
+// the option out of the label-derived colour for good.
+function ColorCell({
+  value,
+  label,
+  onChange,
+  ariaLabel,
+}: {
+  value: string
+  label: string
+  onChange: (next: string) => void
+  ariaLabel: string
+}) {
+  const stored = value.trim()
+  const derived = resolveOptionSwatchColor(label)
+  const shown = stored || derived || '#e5e7eb'
+
+  return (
+    <div className="flex min-w-0 items-center gap-1">
+      <input
+        className={`${inputClass} h-[38px] flex-1 p-1`}
+        type="color"
+        value={shown}
+        onChange={(e) => onChange(e.target.value)}
+        aria-label={ariaLabel}
+        title={stored ? stored : `${shown} — авто за назвою`}
+      />
+      <button
+        type="button"
+        className="shrink-0 rounded border border-blue-300 px-1.5 py-1 text-xs text-gray-500 hover:border-blue-700 hover:text-blue-700 disabled:cursor-default disabled:opacity-30 cursor-pointer"
+        onClick={() => onChange('')}
+        disabled={!stored}
+        title="Скинути на авто (колір за назвою)"
+        aria-label="Скинути колір на авто"
+      >
+        ✕
+      </button>
+    </div>
+  )
+}
 
 // Extracted from ProductsForm so the pouch -> strap nesting stays readable.
 // When `customizationMode` is on, straps become editable inside each pouch and
@@ -37,6 +86,7 @@ export default function VariantPouchesEditor({
       ...pouches,
       {
         color: '',
+        hex: '',
         liqpayGoodId: '',
         // Forced to 0 in customisation mode; the field is hidden there.
         extraPriceUAH: customizationMode ? '0' : '',
@@ -79,8 +129,8 @@ export default function VariantPouchesEditor({
               <div
                 className={
                   customizationMode
-                    ? 'grid gap-2 sm:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_70px]'
-                    : 'grid gap-2 sm:grid-cols-[minmax(0,1fr)_130px_minmax(0,1fr)_110px_70px]'
+                    ? 'grid gap-2 sm:grid-cols-[minmax(0,1fr)_110px_minmax(0,1fr)_70px]'
+                    : 'grid gap-2 sm:grid-cols-[minmax(0,1fr)_110px_130px_minmax(0,1fr)_110px_70px]'
                 }
               >
                 <input
@@ -90,6 +140,13 @@ export default function VariantPouchesEditor({
                   onChange={(e) =>
                     patchPouch(pouchIndex, { color: e.target.value })
                   }
+                />
+
+                <ColorCell
+                  value={pouch.hex || ''}
+                  label={pouch.color}
+                  onChange={(hex) => patchPouch(pouchIndex, { hex })}
+                  ariaLabel="Колір мішечка"
                 />
 
                 {!customizationMode && (
@@ -211,7 +268,7 @@ function PouchStrapsEditor({
         </div>
       ) : (
         <div className="space-y-2">
-          <div className="hidden sm:grid gap-2 sm:grid-cols-[minmax(0,1fr)_90px_minmax(0,1.4fr)_70px_90px] px-1 text-[11px] uppercase tracking-wide text-gray-500">
+          <div className="hidden sm:grid gap-2 sm:grid-cols-[minmax(0,1fr)_110px_minmax(0,1.4fr)_70px_90px] px-1 text-[11px] uppercase tracking-wide text-gray-500">
             <div>Назва</div>
             <div>Колір</div>
             <div>Фото (мішечок + ремінець)</div>
@@ -222,7 +279,7 @@ function PouchStrapsEditor({
           {straps.map((strap, strapIndex) => (
             <div
               key={strap.id || `pouch-strap-${strapIndex}`}
-              className="grid gap-2 sm:grid-cols-[minmax(0,1fr)_90px_minmax(0,1.4fr)_70px_90px]"
+              className="grid gap-2 sm:grid-cols-[minmax(0,1fr)_110px_minmax(0,1.4fr)_70px_90px]"
             >
               <input
                 className={inputClass}
@@ -232,12 +289,11 @@ function PouchStrapsEditor({
                   patchStrap(strapIndex, { name: e.target.value })
                 }
               />
-              <input
-                className={`${inputClass} h-[38px] p-1`}
-                type="color"
-                value={strap.hex || '#000000'}
-                onChange={(e) => patchStrap(strapIndex, { hex: e.target.value })}
-                aria-label="Колір ремінця"
+              <ColorCell
+                value={strap.hex || ''}
+                label={strap.name}
+                onChange={(hex) => patchStrap(strapIndex, { hex })}
+                ariaLabel="Колір ремінця"
               />
               <input
                 className={inputClass}

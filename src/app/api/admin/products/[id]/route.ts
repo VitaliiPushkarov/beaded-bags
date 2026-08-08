@@ -51,6 +51,7 @@ const PouchStrapSchema = z.object({
 const PouchSchema = z.object({
   id: z.string().optional(),
   color: z.string().trim().min(1),
+  hex: z.string().trim().optional().nullable(),
   liqpayGoodId: NullableIntSchema.optional(),
   extraPriceUAH: z.coerce.number().int().min(0).optional().default(0),
   sort: z.coerce.number().int().optional().default(0),
@@ -321,6 +322,7 @@ export async function PATCH(
                   where: { id: pouch.id, variantId: v.id },
                   data: {
                     color: pouch.color,
+                    hex: pouch.hex || null,
                     liqpayGoodId: pouch.liqpayGoodId ?? null,
                     extraPriceUAH: pouch.extraPriceUAH ?? 0,
                     sort: pouch.sort ?? i,
@@ -335,6 +337,7 @@ export async function PATCH(
                     data: {
                       variantId: v.id,
                       color: pouch.color,
+                      hex: pouch.hex || null,
                       liqpayGoodId: pouch.liqpayGoodId ?? null,
                       extraPriceUAH: pouch.extraPriceUAH ?? 0,
                       sort: pouch.sort ?? i,
@@ -349,6 +352,7 @@ export async function PATCH(
                   data: {
                     variantId: v.id,
                     color: pouch.color,
+                    hex: pouch.hex || null,
                     liqpayGoodId: pouch.liqpayGoodId ?? null,
                     extraPriceUAH: pouch.extraPriceUAH ?? 0,
                     sort: pouch.sort ?? i,
@@ -507,6 +511,7 @@ export async function PATCH(
                 pouches: {
                   create: (v.pouches ?? []).map((pouch, i) => ({
                     color: pouch.color,
+                    hex: pouch.hex || null,
                     liqpayGoodId: pouch.liqpayGoodId ?? null,
                     extraPriceUAH: pouch.extraPriceUAH ?? 0,
                     sort: pouch.sort ?? i,
