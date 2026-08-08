@@ -1502,8 +1502,13 @@ export function ProductInteractive({ p }: { p: ProductWithVariants }) {
 
           {/* Pinned to the bottom of the viewport on mobile so the primary
               action stays reachable while scrolling a long configurator.
-              Inline in the column on desktop, where it is already visible. */}
-          <div className="fixed inset-x-0 bottom-0 z-30 border-t border-gray-200 bg-white px-4 pb-[max(0.75rem,env(safe-area-inset-bottom))] pt-2 md:static md:z-auto md:border-0 md:bg-transparent md:p-0">
+              Inline in the column on desktop, where it is already visible.
+
+              md:w-full is load-bearing: the column is `items-start`, so once
+              this stops being `fixed` it is a flex item with no width of its
+              own and collapses to the button's text width. `inset-x-0` covers
+              the mobile case only, hence the md-only override. */}
+          <div className="fixed inset-x-0 bottom-0 z-30 border-t border-gray-200 bg-white px-4 pb-[max(0.75rem,env(safe-area-inset-bottom))] pt-2 md:static md:z-auto md:w-full md:border-0 md:bg-transparent md:p-0">
             <ProductActions
               availabilityStatus={availabilityStatus}
               canSubmit={canSubmitSelection}
