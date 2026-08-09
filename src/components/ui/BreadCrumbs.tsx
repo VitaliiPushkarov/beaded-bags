@@ -164,11 +164,24 @@ function BreadcrumbsInner({ override }: { override?: Crumb[] }) {
         aria-label={locale === 'en' ? 'Breadcrumbs' : 'Хлібні крихти'}
         className="mb-3 md:mb-5 md:mb-10"
       >
-        <ol className="flex md:flex-wrap items-center gap-2 text-sm text-gray-600">
+        {/* Mobile keeps the trail on one line by letting the last crumb — the
+            page's own name — truncate. `truncate` alone cannot do that: a flex
+            item's default `min-width: auto` refuses to shrink below its
+            content, so the nowrap name kept its full width and pushed the row
+            past the viewport, scrolling the whole page sideways. `min-w-0` on
+            the last item lets it shrink, `shrink-0` keeps the short parent
+            crumbs whole, and `overflow-hidden` on the row is the backstop for
+            a path whose parent crumbs alone are wider than the screen. */}
+        <ol className="flex md:flex-wrap items-center gap-2 min-w-0 overflow-hidden text-sm text-gray-600">
           {crumbs.map((c, i) => {
             const last = i === crumbs.length - 1
             return (
-              <li key={`${c.label}-${i}`} className="flex items-center gap-2">
+              <li
+                key={`${c.label}-${i}`}
+                className={`flex items-center gap-2 ${
+                  last ? 'min-w-0' : 'shrink-0'
+                }`}
+              >
                 {c.href && !last ? (
                   <Link
                     href={c.href}
@@ -177,7 +190,7 @@ function BreadcrumbsInner({ override }: { override?: Crumb[] }) {
                     {c.label}
                   </Link>
                 ) : (
-                  <span className="text-gray-900 truncate text-[12px] md:text-base">
+                  <span className="block min-w-0 truncate text-gray-900 text-[12px] md:text-base">
                     {c.label}
                   </span>
                 )}
