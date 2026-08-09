@@ -453,10 +453,12 @@ export function ProductInteractive({ p }: { p: ProductWithVariants }) {
       return
     }
 
-    // In pouch+strap mode the strap list hangs off the chosen pouch, so a pouch
-    // has to be resolved for the strap step to have anything to show on the
-    // first render. Default to the first one; the shopper can still change it.
-    if (isPouchStrapMode || pouchOptions.length === 1) {
+    // Deliberately no default in pouch+strap mode: entering the page — from the
+    // catalogue or after a reload — has to leave the shopper on step 1 with the
+    // variant's own photos, not on a pouch nobody picked. It does mean the strap
+    // list stays empty until a pouch is chosen, which is what makes step 3
+    // follow step 2.
+    if (!isPouchStrapMode && pouchOptions.length === 1) {
       setSelectedPouchId(pouchOptions[0].id)
       return
     }
@@ -703,15 +705,29 @@ export function ProductInteractive({ p }: { p: ProductWithVariants }) {
   const requiresPouchSelection = pouchOptions.length > 0
   const requiresStrapSelection = strapOptions.length > 0
 
+  // In pouch+strap mode `strapOptions` is empty until a pouch is chosen, so it
+  // cannot answer "does this variant have a strap step at all?" — asking the
+  // pouches directly can. Without this the step list would grow from 2 to 3
+  // mid-configuration, which reads as a glitch.
+  const hasStrapStep = useMemo(() => {
+    if (!isPouchStrapMode) return strapOptions.length > 0
+    return pouchOptions.some((pouch) => (pouch.straps?.length ?? 0) > 0)
+  }, [isPouchStrapMode, pouchOptions, strapOptions])
+
   const isStepColorDone = Boolean(selectedColorKey)
   const isStepSizeDone = !requiresSizeSelection || Boolean(selectedSizeId)
   const isStepPouchDone = !requiresPouchSelection || Boolean(selectedPouchId)
-  const isStepStrapDone = !requiresStrapSelection || Boolean(strapId)
+  // The step counts as done once a strap is picked — or once a pouch that
+  // simply has no straps is, which must not become an unsatisfiable step.
+  const isStepStrapDone =
+    !hasStrapStep ||
+    Boolean(strapId) ||
+    (Boolean(selectedPouchId) && !requiresStrapSelection)
 
   // Every step is rendered from the first paint rather than unlocking one at a
   // time, so the shopper can see up front what the product is configurable in.
   const showPouchStepBlock = requiresPouchSelection
-  const showStrapStepBlock = requiresStrapSelection
+  const showStrapStepBlock = hasStrapStep
   const showSizeStepBlock = requiresSizeSelection
 
   const isConfigurationComplete =
@@ -723,10 +739,10 @@ export function ProductInteractive({ p }: { p: ProductWithVariants }) {
   const stepIds = useMemo(() => {
     const ids = ['color']
     if (requiresPouchSelection) ids.push('pouch')
-    if (requiresStrapSelection) ids.push('strap')
+    if (hasStrapStep) ids.push('strap')
     if (requiresSizeSelection) ids.push('size')
     return ids
-  }, [requiresSizeSelection, requiresPouchSelection, requiresStrapSelection])
+  }, [requiresSizeSelection, requiresPouchSelection, hasStrapStep])
 
   const completedSteps = stepIds.reduce((sum, id) => {
     if (id === 'color' && isStepColorDone) return sum + 1
@@ -1296,14 +1312,14 @@ export function ProductInteractive({ p }: { p: ProductWithVariants }) {
                               )
                             })}
                           </div>
-                          {!selectedPouchId && (
+                          {/* {!selectedPouchId && (
                             <div className="mt-2 text-xs text-red-600">
                               {t(
                                 'Оберіть мішечок, щоб продовжити.',
                                 'Choose pouch to continue.',
                               )}
                             </div>
-                          )}
+                          )} */}
                         </div>
                       )}
 
@@ -1325,6 +1341,17 @@ export function ProductInteractive({ p }: { p: ProductWithVariants }) {
                             aria-label={t('Ремінець', 'Strap')}
                             className="flex flex-wrap gap-2"
                           >
+                            {/* The step is visible from the first paint, but its
+                                options belong to the pouch, so until one is
+                                picked there is nothing to list. */}
+                            {!requiresStrapSelection && (
+                              <div className="text-xs text-gray-500">
+                                {t(
+                                  'Спочатку оберіть мішечок',
+                                  'Choose a pouch first',
+                                )}
+                              </div>
+                            )}
                             {strapOptions.map((strap) => {
                               const isActive = strap.id === strapId
                               const extra = Math.max(
