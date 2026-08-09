@@ -1076,6 +1076,13 @@ export function ProductInteractive({ p }: { p: ProductWithVariants }) {
             and the matching number here has to move with it, or the pinned box
             keeps dead space or clips.
 
+            z-30 sits inside a fixed stack, so raising it breaks something else:
+            the header and its menu panel are z-50 and the menu's backdrop z-40,
+            and the pinned image must stay under all three or it covers the open
+            menu. It only has to beat the Addons cards below it, and those carry
+            no z-index at all, so any positive value clears them — the number
+            just needs to stay under 40.
+
             Above md this must return to `relative`, not `static` — the two
             gallery layers below are `absolute inset-0` and would escape the
             column without a positioned ancestor. `top-auto` and `self-auto`
@@ -1083,7 +1090,7 @@ export function ProductInteractive({ p }: { p: ProductWithVariants }) {
         <div
           className={`w-full md:w-[66%] ${
             isPouchStrapMode
-              ? 'sticky top-[65px] z-50 self-start bg-white h-[320px] md:relative md:top-auto md:z-auto md:self-auto md:h-[672px]'
+              ? 'sticky top-[65px] z-30 self-start bg-white h-[320px] md:relative md:top-auto md:z-auto md:self-auto md:h-[672px]'
               : 'relative h-[472px] md:h-[580px]'
           }`}
         >
