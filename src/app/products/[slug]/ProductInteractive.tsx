@@ -123,7 +123,7 @@ function ColorOptionButton(props: {
       aria-label={title}
       title={title}
       onClick={props.onClick}
-      className={`relative grid h-[60px] w-[60px] place-items-center rounded-md border bg-white p-1 transition cursor-pointer ${
+      className={`relative grid h-8 w-8 place-items-center rounded-md border bg-white p-1 transition cursor-pointer ${
         props.selected
           ? 'border-black ring-2 ring-black/10'
           : 'border-gray-300 hover:border-black'
@@ -1067,7 +1067,7 @@ export function ProductInteractive({ p }: { p: ProductWithVariants }) {
         <div
           className={`w-full md:w-[66%] ${
             isPouchStrapMode
-              ? 'sticky top-[65px] z-20 self-start bg-white h-[320px] md:relative md:top-auto md:z-auto md:self-auto md:h-[672px]'
+              ? 'sticky top-[65px] z-50 self-start bg-white h-[320px] md:relative md:top-auto md:z-auto md:self-auto md:h-[672px]'
               : 'relative h-[472px] md:h-[580px]'
           }`}
         >
@@ -1208,7 +1208,7 @@ export function ProductInteractive({ p }: { p: ProductWithVariants }) {
                                 }}
                                 aria-label={option.label}
                                 title={option.label}
-                                className={`relative grid h-[42px] w-[42px] place-items-center rounded-full border bg-white p-1 transition cursor-pointer ${
+                                className={`relative grid h-7 w-7 place-items-center rounded-full border bg-white p-1 transition cursor-pointer ${
                                   isActive
                                     ? 'border-black ring-2 ring-black/10'
                                     : outOfStock

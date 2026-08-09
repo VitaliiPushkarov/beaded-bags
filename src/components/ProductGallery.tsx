@@ -456,12 +456,12 @@ function ThumbnailGallery({
         {hasMultipleImages && (
           // Mobile gets the same swipe-plus-dots affordance as the rest of the
           // catalogue rather than a thumbnail strip.
-          <div className="relative z-[2] mt-2 mb-2 md:hidden">
-            <div className="mb-2 flex items-center justify-end pr-0.5 text-[11px] text-gray-500">
+          <div className="relative z-[2] mt-1 mb-1 md:hidden">
+            {/* <div className="mb-2 flex items-center justify-end pr-0.5 text-[11px] text-gray-500">
               <span>
                 {activeIndex + 1} / {list.length}
               </span>
-            </div>
+            </div> */}
             <div className="flex items-center justify-center gap-2">
               {mobileBullets.map((isActive, index) => (
                 <span
