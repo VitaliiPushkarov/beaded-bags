@@ -1063,7 +1063,7 @@ export function ProductInteractive({ p }: { p: ProductWithVariants }) {
 
   return (
     <>
-      <section className="mx-auto flex flex-col items-center md:items-stretch md:flex-row md:justify-between md:gap-10 mb-[60px] pb-24 md:pb-0">
+      <section className="mx-auto flex flex-col items-center md:items-stretch md:flex-row md:justify-between md:gap-10 md:mb-[60px] pb-1 md:pb-0">
         {/* Only products with the configurator pin their image, and only on
             mobile: the shopper needs to see the bag change while scrolling a
             long list of options. The header is 65px and sticky, hence
@@ -1071,10 +1071,10 @@ export function ProductInteractive({ p }: { p: ProductWithVariants }) {
 
             Both heights are the sum of what ProductGallery's 'thumbnails'
             layout puts inside, since the layers below are absolute and cannot
-            size this box: mobile 270 (square photo) + 50 (counter and dots),
-            desktop 580 (photo) + 12 + 80 (thumb strip). Change a height there
-            and the matching number here has to move with it, or the pinned box
-            keeps dead space or clips.
+            size this box: mobile 270 (square photo, with the counter and dots
+            laid over it rather than under), desktop 580 (photo) + 12 + 80
+            (thumb strip). Change a height there and the matching number here
+            has to move with it, or the pinned box keeps dead space or clips.
 
             z-30 sits inside a fixed stack, so raising it breaks something else:
             the header and its menu panel are z-50 and the menu's backdrop z-40,
@@ -1088,10 +1088,10 @@ export function ProductInteractive({ p }: { p: ProductWithVariants }) {
             column without a positioned ancestor. `top-auto` and `self-auto`
             undo the sticky offset and the flex alignment on desktop. */}
         <div
-          className={`w-full md:w-[66%] ${
+          className={`w-full md:w-[66%] mb-3 md:mb-0 ${
             isPouchStrapMode
-              ? 'sticky top-[65px] z-30 self-start bg-white h-[320px] md:relative md:top-auto md:z-auto md:self-auto md:h-[672px]'
-              : 'relative h-[472px] md:h-[580px]'
+              ? 'sticky top-[65px] z-30 self-start bg-white h-[270px] md:relative md:top-auto md:z-auto md:self-auto md:h-[672px]'
+              : 'relative h-[420px] md:h-[580px]'
           }`}
         >
           <div
@@ -1114,8 +1114,8 @@ export function ProductInteractive({ p }: { p: ProductWithVariants }) {
           </div>
         </div>
 
-        <div className="flex flex-col items-start w-full lg:w-[33%] pt-7 md:pt-0">
-          <h1 className=" md:text-[38px] text-2xl font-fixel-display font-medium md:mb-6 mb-3">
+        <div className="flex flex-col items-start w-full lg:w-[33%] md:pt-0">
+          <h1 className=" md:text-[38px] text-xl md:text-2xl font-fixel-display font-medium md:mb-6 mb-1">
             {productName}
           </h1>
 
@@ -1477,7 +1477,7 @@ export function ProductInteractive({ p }: { p: ProductWithVariants }) {
                 </>
               ) : (
                 simpleSwatchEntries.length > 1 && (
-                  <div className="mb-4 w-full">
+                  <div className="mb-2 md:mb-4 w-full">
                     <div className="mb-2 flex items-center gap-2 text-sm text-gray-600">
                       <span>{t('Колір', 'Color')}:</span>
                       {selectedVariantColor && (
@@ -1584,7 +1584,7 @@ export function ProductInteractive({ p }: { p: ProductWithVariants }) {
             )}
           />
 
-          <div className="mt-6">
+          <div className="md:mt-6 mt-2 mb-6 md:mb-0">
             <div className="text-[11px] uppercase tracking-[0.08em] text-gray-600">
               {t('Соцмережі', 'Socials')}
             </div>
@@ -1619,11 +1619,11 @@ export function ProductInteractive({ p }: { p: ProductWithVariants }) {
             </div>
           </div>
 
-          <div className="mt-8 space-y-3 text-sm text-gray-700">
+          {/*  <div className="mt-8 space-y-3 text-sm text-gray-700">
             <div className="flex items-center gap-2">
               <span>{shippingNote}</span>
             </div>
-          </div>
+          </div> */}
         </div>
       </section>
 

@@ -43,7 +43,7 @@ export function AddonsSection(props: {
 
   return (
     <>
-      <div className="mt-6 w-full">
+      <div className="mt-3 md:mt-6 w-full">
         <div className="mb-3 text-sm font-medium text-gray-700">
           {t('Доповнити:', 'Add-ons:')}
         </div>

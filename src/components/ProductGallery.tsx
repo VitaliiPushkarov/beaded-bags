@@ -215,7 +215,7 @@ export default function PhotoGallery({
     <div className="relative w-full">
       <Gallery>
         <div className="relative w-full">
-          <div className="w-full overflow-hidden">
+          <div className="relative w-full overflow-hidden">
             <Swiper
               key={listKey}
               modules={[Navigation]}
@@ -274,23 +274,26 @@ export default function PhotoGallery({
             </Swiper>
 
             {hasMultipleImages && (
-              <div className="mt-2 mb-2 md:hidden relative z-[2]">
-                <div className="flex items-center justify-end text-[11px] text-gray-500 mb-2 pr-0.5">
-                  <span>
-                    {activeIndex + 1} / {list.length}
-                  </span>
-                </div>
-                <div className="flex items-center justify-center gap-2">
+              // Sits over the bottom of the photo instead of taking a row
+              // below it: dots centred, counter in the bottom-right corner.
+              // pointer-events-none keeps the swipe and the tap-to-zoom
+              // underneath working. Swiper's own root is z-index 1, so the
+              // overlay needs at least 2 to paint above the slide.
+              <div className="pointer-events-none absolute inset-x-0 bottom-0 z-[2] flex items-center justify-center px-3 pb-3 md:hidden">
+                <div className="flex items-center gap-2">
                   {mobileBullets.map((isActive, index) => (
                     <span
                       key={`mobile-bullet-${index}`}
-                      className={`h-2.5 w-2.5 rounded-full transition ${
+                      className={`h-2.5 w-2.5 rounded-full shadow-[0_1px_3px_rgba(0,0,0,0.35)] transition ${
                         isActive ? 'bg-pink-300' : 'bg-gray-300'
                       }`}
                       aria-hidden
                     />
                   ))}
                 </div>
+                <span className="absolute bottom-3 right-3  px-2 py-0.5 text-[11px] leading-none text-gray-600 ">
+                  {activeIndex + 1} / {list.length}
+                </span>
               </div>
             )}
           </div>
@@ -455,23 +458,27 @@ function ThumbnailGallery({
 
         {hasMultipleImages && (
           // Mobile gets the same swipe-plus-dots affordance as the rest of the
-          // catalogue rather than a thumbnail strip.
-          <div className="relative z-[2] mt-1 mb-1 md:hidden">
-            {/* <div className="mb-2 flex items-center justify-end pr-0.5 text-[11px] text-gray-500">
-              <span>
+          // catalogue rather than a thumbnail strip, laid over the bottom of
+          // the photo. The inner box repeats the slide's own 270px width
+          // because the square photo is narrower than the swiper — anchoring
+          // the counter to the full width would park it beside the photo
+          // instead of in its corner.
+          <div className="pointer-events-none absolute inset-x-0 bottom-0 z-[2] md:hidden">
+            <div className="relative mx-auto flex w-[270px] items-center justify-center px-3 pb-3">
+              <div className="flex items-center gap-2">
+                {mobileBullets.map((isActive, index) => (
+                  <span
+                    key={`thumb-mobile-bullet-${index}`}
+                    className={`h-2.5 w-2.5 rounded-full shadow-[0_1px_3px_rgba(0,0,0,0.35)] transition ${
+                      isActive ? 'bg-pink-300' : 'bg-gray-300'
+                    }`}
+                    aria-hidden
+                  />
+                ))}
+              </div>
+              <span className="absolute bottom-3 right-3 rounded-full bg-white/75 px-2 py-0.5 text-[11px] leading-none text-gray-600 backdrop-blur-sm">
                 {activeIndex + 1} / {list.length}
               </span>
-            </div> */}
-            <div className="flex items-center justify-center gap-2">
-              {mobileBullets.map((isActive, index) => (
-                <span
-                  key={`thumb-mobile-bullet-${index}`}
-                  className={`h-2.5 w-2.5 rounded-full transition ${
-                    isActive ? 'bg-pink-300' : 'bg-gray-300'
-                  }`}
-                  aria-hidden
-                />
-              ))}
             </div>
           </div>
         )}

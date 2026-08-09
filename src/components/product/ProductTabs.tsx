@@ -19,11 +19,7 @@ function renderHtml(content?: string | null) {
   )
 }
 
-export default function ProductTabs({
-  description,
-  info,
-  dimensions,
-}: Props) {
+export default function ProductTabs({ description, info, dimensions }: Props) {
   const t = useT()
   const [tab, setTab] = useState<'description' | 'info' | 'dimensions'>(
     'description',
@@ -38,7 +34,7 @@ export default function ProductTabs({
   return (
     <div className="w-full mt-[27px]">
       {/* --- HEADER TABS --- */}
-      <div className="flex gap-10 mb-6 flex-wrap">
+      <div className="flex gap-10 mb-1 md:mb-6 flex-wrap">
         {tabs.map((t) => (
           <button
             key={t.key}
@@ -54,7 +50,7 @@ export default function ProductTabs({
       </div>
 
       {/* --- CONTENT --- */}
-      <div className="mt-4 text-sm leading-none whitespace-pre-line">
+      <div className="mt-2 text-sm leading-none whitespace-pre-line">
         {tab === 'description' && renderHtml(description)}
         {tab === 'info' && (info ? renderHtml(info) : <CareInfoBlock />)}
         {tab === 'dimensions' && renderHtml(dimensions)}

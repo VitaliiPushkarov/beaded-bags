@@ -89,7 +89,7 @@ export default function Header() {
           transition: 'border-color 0.3s ease',
         }}
       >
-        <div className="px-4 sm:px-6 lg:px-6 xl:px-[50px] py-3 flex items-center justify-between lg:gap-6 xl:gap-[130px] lg:h-[86px] relative">
+        <div className="px-4 sm:px-6 lg:px-6 xl:px-[50px] py-1 md:py-3 flex items-center justify-between lg:gap-6 xl:gap-[130px] lg:h-[86px] relative">
           {/* Mobile hamburger button */}
           <button
             aria-controls="mobile-menu"

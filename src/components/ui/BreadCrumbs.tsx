@@ -99,7 +99,9 @@ function BreadcrumbsInner({ override }: { override?: Crumb[] }) {
     if (override) return override
 
     const parts = (pathname || '/').split('/').filter(Boolean)
-    const acc: Crumb[] = [{ label: locale === 'en' ? 'Home' : 'Головна', href: '/' }]
+    const acc: Crumb[] = [
+      { label: locale === 'en' ? 'Home' : 'Головна', href: '/' },
+    ]
 
     let href = ''
     parts.forEach((p, idx) => {
@@ -160,9 +162,9 @@ function BreadcrumbsInner({ override }: { override?: Crumb[] }) {
     <>
       <nav
         aria-label={locale === 'en' ? 'Breadcrumbs' : 'Хлібні крихти'}
-        className="mb-5 md:mb-10"
+        className="mb-3 md:mb-5 md:mb-10"
       >
-        <ol className="flex flex-wrap items-center gap-2 text-sm text-gray-600">
+        <ol className="flex md:flex-wrap items-center gap-2 text-sm text-gray-600">
           {crumbs.map((c, i) => {
             const last = i === crumbs.length - 1
             return (
@@ -170,12 +172,14 @@ function BreadcrumbsInner({ override }: { override?: Crumb[] }) {
                 {c.href && !last ? (
                   <Link
                     href={c.href}
-                    className="hover:text-black underline underline-offset-2"
+                    className="hover:text-black underline underline-offset-2 text-[12px] md:text-base"
                   >
                     {c.label}
                   </Link>
                 ) : (
-                  <span className="text-gray-900">{c.label}</span>
+                  <span className="text-gray-900 truncate text-[12px] md:text-base">
+                    {c.label}
+                  </span>
                 )}
                 {!last && <span aria-hidden>›</span>}
               </li>

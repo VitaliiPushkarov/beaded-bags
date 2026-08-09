@@ -175,7 +175,7 @@ export default function YouMayAlsoLike({
   return (
     <div className="relative">
       <h3 className="text-2xl font-semibold mb-5 uppercase">
-        {t('Вам також може сподобатись', 'You may also like')}
+        {t('Вам може сподобатись', 'You may also like')}
       </h3>
       {/* arrows */}
       <button
