@@ -5,21 +5,34 @@ import { useMemo, useState } from 'react'
 import { TYPE_LABELS } from '@/lib/labels'
 import {
   RECOMMENDATION_CATEGORIES,
+  isSubcategoryTarget,
   recommendationCellName,
+  subcategorySlugOf,
   type RecommendationCategory,
   type RecommendationMatrix,
+  type RecommendationTarget,
 } from '@/lib/recommendation-matrix'
 
 type Props = {
   initial: RecommendationMatrix
   action: (formData: FormData) => Promise<void>
   saved?: boolean
+  // Passed through the form rather than closed over by the action: a server
+  // action cannot capture the helper that builds it.
+  returnTo: string
+  // Column order and labels come from the server so the grid always mirrors the
+  // shop's own accessory taxonomy.
+  columns: RecommendationTarget[]
+  subcategoryLabels: Record<string, string>
 }
 
 export default function RecommendationMatrixForm({
   initial,
   action,
   saved,
+  returnTo,
+  columns,
+  subcategoryLabels,
 }: Props) {
   const [matrix, setMatrix] = useState<RecommendationMatrix>(initial)
   const [saving, setSaving] = useState(false)
@@ -29,15 +42,23 @@ export default function RecommendationMatrixForm({
     [matrix],
   )
 
-  function toggle(row: RecommendationCategory, column: RecommendationCategory) {
+  function columnLabel(column: RecommendationTarget) {
+    if (!isSubcategoryTarget(column)) {
+      return TYPE_LABELS[column]
+    }
+    const slug = subcategorySlugOf(column)
+    return subcategoryLabels[slug] ?? slug
+  }
+
+  function toggle(row: RecommendationCategory, column: RecommendationTarget) {
     setMatrix((current) => {
-      const next = new Set(current[row])
+      const next = new Set<RecommendationTarget>(current[row])
       if (next.has(column)) next.delete(column)
       else next.add(column)
 
       return {
         ...current,
-        [row]: RECOMMENDATION_CATEGORIES.filter((item) => next.has(item)),
+        [row]: columns.filter((item) => next.has(item)),
       }
     })
   }
@@ -45,7 +66,7 @@ export default function RecommendationMatrixForm({
   function selectRow(row: RecommendationCategory, all: boolean) {
     setMatrix((current) => ({
       ...current,
-      [row]: all ? [...RECOMMENDATION_CATEGORIES] : [],
+      [row]: all ? [...columns] : [],
     }))
   }
 
@@ -61,14 +82,22 @@ export default function RecommendationMatrixForm({
       }}
       className="rounded-lg border border-slate-200 bg-white p-4 space-y-4"
     >
+      <input type="hidden" name="returnTo" value={returnTo} />
+
       <div>
         <h2 className="text-lg font-semibold text-slate-900">
           Блок «Вам може сподобатись»
         </h2>
         <p className="mt-1 text-sm text-slate-600">
           Рядок — категорія товару, сторінку якого відкрив покупець. Стовпці —
-          категорії, товари з яких можуть з’явитися в блоці. Сам товар, який
+          що можна показати в блоці: спочатку категорії, далі окремі
+          підкатегорії аксесуарів (наприклад «Сумки → Брелоки»). Сам товар, який
           відкрито, у блоці ніколи не показується.
+        </p>
+        <p className="mt-1 text-xs text-slate-500">
+          Підкатегорії визначаються за назвою товару — тим самим правилом, що й
+          сторінки каталогу /shop/accessories. Тому товар може підпасти під дві
+          підкатегорії одночасно.
         </p>
       </div>
 
@@ -80,12 +109,16 @@ export default function RecommendationMatrixForm({
                 Відкрито товар →<br />
                 Показувати ↓
               </th>
-              {RECOMMENDATION_CATEGORIES.map((column) => (
+              {columns.map((column) => (
                 <th
                   key={column}
-                  className="border border-slate-200 bg-slate-50 px-3 py-2 text-center text-xs font-semibold text-slate-700"
+                  className={`border border-slate-200 px-3 py-2 text-center text-xs font-semibold ${
+                    isSubcategoryTarget(column)
+                      ? 'bg-slate-100 font-normal text-slate-600'
+                      : 'bg-slate-50 text-slate-700'
+                  }`}
                 >
-                  {TYPE_LABELS[column]}
+                  {columnLabel(column)}
                 </th>
               ))}
               <th className="border border-slate-200 bg-slate-50 px-3 py-2 text-center text-xs font-semibold uppercase tracking-wide text-slate-500">
@@ -110,17 +143,19 @@ export default function RecommendationMatrixForm({
                     {TYPE_LABELS[row]}
                   </th>
 
-                  {RECOMMENDATION_CATEGORIES.map((column) => {
+                  {columns.map((column) => {
                     const checked = matrix[row].includes(column)
 
                     return (
                       <td
                         key={column}
-                        className="border border-slate-200 px-3 py-2 text-center"
+                        className={`border border-slate-200 px-3 py-2 text-center ${
+                          isSubcategoryTarget(column) ? 'bg-slate-50/60' : ''
+                        }`}
                       >
                         <label className="inline-flex cursor-pointer items-center justify-center">
                           <span className="sr-only">
-                            {`На сторінці «${TYPE_LABELS[row]}» показувати «${TYPE_LABELS[column]}»`}
+                            {`На сторінці «${TYPE_LABELS[row]}» показувати «${columnLabel(column)}»`}
                           </span>
                           <input
                             type="checkbox"

@@ -1,12 +1,16 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
-import type { Prisma } from '@prisma/client'
+import type { Prisma, ProductType } from '@prisma/client'
 import {
   isPrismaAvailabilityError,
   withPrismaRetry,
 } from '@/lib/prisma-resilience'
-import { resolveRecommendedTypes } from '@/lib/recommendation-matrix'
+import {
+  SUBCATEGORY_CANDIDATE_TYPES,
+  resolveRecommendation,
+} from '@/lib/recommendation-matrix'
 import { getRecommendationMatrix } from '@/lib/recommendation-settings'
+import { matchAccessorySubcategory } from '@/lib/shop-taxonomy'
 
 function clamp(value: number, min: number, max: number) {
   return Math.min(Math.max(value, min), max)
@@ -120,17 +124,34 @@ export async function GET(req: NextRequest) {
         status: 'PUBLISHED',
       }
 
+      // Subcategory columns are keyword-matched after the query, so the SQL
+      // fetches a superset and the rows get filtered below.
+      let recommendedSubcategories: string[] = []
+      let recommendedWholeTypes: ProductType[] = []
+
       if (recommendFor) {
         const matrix = await getRecommendationMatrix()
-        const allowedTypes = resolveRecommendedTypes(matrix, recommendFor)
+        const resolved = resolveRecommendation(matrix, recommendFor)
+        recommendedWholeTypes = resolved.types
+        recommendedSubcategories = resolved.subcategories
 
         // An empty row means the owner switched the block off for this
         // category, so return nothing rather than falling back to everything.
-        if (allowedTypes.length === 0) {
+        if (
+          recommendedWholeTypes.length === 0 &&
+          recommendedSubcategories.length === 0
+        ) {
           return NextResponse.json({ items: [] })
         }
 
-        where.type = { in: allowedTypes }
+        const candidateTypes = new Set<ProductType>(recommendedWholeTypes)
+        if (recommendedSubcategories.length > 0) {
+          for (const type of SUBCATEGORY_CANDIDATE_TYPES) {
+            candidateTypes.add(type)
+          }
+        }
+
+        where.type = { in: Array.from(candidateTypes) }
       }
 
       if (excludeId || excludeSlug) {
@@ -154,11 +175,16 @@ export async function GET(req: NextRequest) {
           }
         : undefined
 
+      // With subcategory columns the keyword filter runs after the query, so the
+      // fetch has to be a superset or matches past the first `limit` rows would
+      // be lost. The catalogue is small enough that a generous cap is cheap.
+      const fetchTake = recommendedSubcategories.length > 0 ? 200 : limit
+
       const items = await withPrismaRetry(
         () =>
           prisma.product.findMany({
             where,
-            take: limit,
+            take: fetchTake,
             orderBy: [{ createdAt: 'desc' }],
             select: {
               id: true,
@@ -200,7 +226,28 @@ export async function GET(req: NextRequest) {
         { scope: 'api.products.lite.findMany' },
       )
 
-      return NextResponse.json({ items })
+      if (recommendedSubcategories.length === 0) {
+        return NextResponse.json({ items })
+      }
+
+      // Same keyword rule the /shop/accessories/[subcategory] pages use, so the
+      // block and the catalogue always agree on what a "брелок" is. It has to run
+      // in JS: matchAccessorySubcategory strips apostrophes before comparing, and
+      // a SQL `contains` would miss "в'язана" for the keyword "вязан".
+      const wholeTypes = new Set(recommendedWholeTypes)
+      const subcategoryTypes = new Set<ProductType>(SUBCATEGORY_CANDIDATE_TYPES)
+
+      const filtered = items
+        .filter((item) => {
+          if (wholeTypes.has(item.type)) return true
+          if (!subcategoryTypes.has(item.type)) return false
+          return recommendedSubcategories.some((slug) =>
+            matchAccessorySubcategory(item, slug),
+          )
+        })
+        .slice(0, limit)
+
+      return NextResponse.json({ items: filtered })
     }
     const limitParam = searchParams.get('limit')
     const limit = limitParam ? Number(limitParam) : null

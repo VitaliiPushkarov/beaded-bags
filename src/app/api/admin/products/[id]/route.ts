@@ -9,17 +9,12 @@ import {
 } from '@prisma/client'
 import { isInStockStatus, resolveAvailabilityStatus } from '@/lib/availability'
 import { requireAdmin } from '@/lib/admin-auth'
+import {
+  ImagePath,
+  OptionalImagePath,
+  OptionalText,
+} from '@/lib/admin-product-input'
 import { revalidateProductCache } from '@/lib/revalidate-products'
-
-const ImagePath = z
-  .string()
-  .trim()
-  .min(1)
-  .refine(
-    (s) =>
-      s.startsWith('/') || s.startsWith('http://') || s.startsWith('https://'),
-    'Invalid image path',
-  )
 
 const NullableIntSchema = z.preprocess(
   (value) => {
@@ -36,7 +31,7 @@ const StrapSchema = z.object({
   liqpayGoodId: NullableIntSchema.optional(),
   extraPriceUAH: z.coerce.number().int().min(0).optional().default(0),
   sort: z.coerce.number().int().optional().default(0),
-  imageUrl: ImagePath.optional().nullable(),
+  imageUrl: OptionalImagePath,
 })
 
 // Straps offered for one pouch. No price and no fiscal id by design.
@@ -45,7 +40,7 @@ const PouchStrapSchema = z.object({
   name: z.string().trim().min(1),
   hex: z.string().trim().optional().nullable(),
   sort: z.coerce.number().int().optional().default(0),
-  mainImageUrl: ImagePath.optional().nullable(),
+  mainImageUrl: OptionalImagePath,
 })
 
 const PouchSchema = z.object({
@@ -55,7 +50,7 @@ const PouchSchema = z.object({
   liqpayGoodId: NullableIntSchema.optional(),
   extraPriceUAH: z.coerce.number().int().min(0).optional().default(0),
   sort: z.coerce.number().int().optional().default(0),
-  imageUrl: ImagePath.optional().nullable(),
+  imageUrl: OptionalImagePath,
   straps: z.array(PouchStrapSchema).optional().default([]),
 })
 
@@ -65,7 +60,7 @@ const SizeSchema = z.object({
   liqpayGoodId: NullableIntSchema.optional(),
   extraPriceUAH: z.coerce.number().int().min(0).optional().default(0),
   sort: z.coerce.number().int().optional().default(0),
-  imageUrl: ImagePath.optional().nullable(),
+  imageUrl: OptionalImagePath,
 })
 
 const NullablePriceSchema = z.preprocess(
@@ -85,7 +80,7 @@ const VariantSchema = z.object({
   modelSize: z.string().optional().nullable(),
   pouchColor: z.string().optional().nullable(),
   hex: z.string().optional().nullable(),
-  image: ImagePath.optional().nullable(),
+  image: OptionalImagePath,
   images: z.array(ImagePath).optional().default([]),
   priceUAH: NullablePriceSchema,
   priceUSD: NullablePriceSchema,
@@ -94,7 +89,9 @@ const VariantSchema = z.object({
   sortCatalog: z.coerce.number().int().optional().nullable(),
   availabilityStatus: z.enum(AvailabilityStatus).optional().nullable(),
   inStock: z.coerce.boolean(),
-  sku: z.string().trim().optional().nullable(),
+  // Unique in the database, so "not filled in" has to stay NULL: two variants
+  // saved with '' would collide (P2002).
+  sku: OptionalText,
   liqpayGoodId: NullableIntSchema.optional(),
   shippingNote: z.string().trim().optional().nullable(),
   pouchStrapCustomization: z.coerce.boolean().optional().default(false),
@@ -366,13 +363,21 @@ export async function PATCH(
 
             // Straps belong to the pouch, so they are reconciled per pouch.
             // Pouches removed below take their straps with them via cascade.
-            for (let i = 0; i < pouches.length; i++) {
+            //
+            // With the configurator off the form hides the strap editor and
+            // sends no straps at all. Reconciling against that empty list would
+            // delete a configuration the admin never saw and never touched, so
+            // straps are left exactly as they are until the box is ticked
+            // again — unticking it hides the configurator, it does not reset it.
+            for (
+              let i = 0;
+              v.pouchStrapCustomization && i < pouches.length;
+              i++
+            ) {
               const pouchId = keepPouchIds[i]
               if (!pouchId) continue
 
-              const incoming = v.pouchStrapCustomization
-                ? (pouches[i].straps ?? [])
-                : []
+              const incoming = pouches[i].straps ?? []
               const keepPouchStrapIds: string[] = []
 
               for (let j = 0; j < incoming.length; j++) {

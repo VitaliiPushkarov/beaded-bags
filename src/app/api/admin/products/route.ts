@@ -9,18 +9,12 @@ import {
 } from '@prisma/client'
 import { isInStockStatus, resolveAvailabilityStatus } from '@/lib/availability'
 import { requireAdmin } from '@/lib/admin-auth'
+import {
+  ImagePath,
+  OptionalImagePath,
+  OptionalText,
+} from '@/lib/admin-product-input'
 import { revalidateProductCache } from '@/lib/revalidate-products'
-
-// Accept both absolute URLs and local paths like "/img/foo.jpg".
-const ImagePath = z
-  .string()
-  .trim()
-  .min(1)
-  .refine(
-    (s) =>
-      s.startsWith('/') || s.startsWith('http://') || s.startsWith('https://'),
-    'Invalid image path',
-  )
 
 const NullableIntSchema = z.preprocess(
   (value) => {
@@ -37,7 +31,18 @@ const StrapSchema = z.object({
   liqpayGoodId: NullableIntSchema.optional(),
   extraPriceUAH: z.coerce.number().int().min(0).optional().default(0),
   sort: z.coerce.number().int().optional().default(0),
-  imageUrl: ImagePath.optional().nullable(),
+  imageUrl: OptionalImagePath,
+})
+
+// Straps offered for one pouch. No price and no fiscal id by design — same
+// shape the edit endpoint accepts, so a product can be born customised instead
+// of having to be created first and customised in a second save.
+const PouchStrapSchema = z.object({
+  id: z.string().optional(),
+  name: z.string().trim().min(1),
+  hex: z.string().trim().optional().nullable(),
+  sort: z.coerce.number().int().optional().default(0),
+  mainImageUrl: OptionalImagePath,
 })
 
 const PouchSchema = z.object({
@@ -47,7 +52,8 @@ const PouchSchema = z.object({
   liqpayGoodId: NullableIntSchema.optional(),
   extraPriceUAH: z.coerce.number().int().min(0).optional().default(0),
   sort: z.coerce.number().int().optional().default(0),
-  imageUrl: ImagePath.optional().nullable(),
+  imageUrl: OptionalImagePath,
+  straps: z.array(PouchStrapSchema).optional().default([]),
 })
 
 const SizeSchema = z.object({
@@ -56,7 +62,7 @@ const SizeSchema = z.object({
   liqpayGoodId: NullableIntSchema.optional(),
   extraPriceUAH: z.coerce.number().int().min(0).optional().default(0),
   sort: z.coerce.number().int().optional().default(0),
-  imageUrl: ImagePath.optional().nullable(),
+  imageUrl: OptionalImagePath,
 })
 
 const NullablePriceSchema = z.preprocess(
@@ -100,7 +106,7 @@ const ProductCreateSchema = z.object({
         pouchColor: z.string().trim().optional().nullable(),
         hex: z.string().trim().optional().nullable(),
         // in our project we often store local paths
-        image: ImagePath.optional().nullable(),
+        image: OptionalImagePath,
         images: z.array(ImagePath).optional().default([]),
 
         priceUAH: NullablePriceSchema,
@@ -110,11 +116,14 @@ const ProductCreateSchema = z.object({
         sortCatalog: z.coerce.number().int().optional().nullable(),
         availabilityStatus: z.enum(AvailabilityStatus).optional().nullable(),
         inStock: z.coerce.boolean(),
-        sku: z.string().trim().optional().nullable(),
+        // Unique in the database, so "not filled in" has to stay NULL: two
+        // variants saved with '' would collide (P2002).
+        sku: OptionalText,
         liqpayGoodId: NullableIntSchema.optional(),
 
         // Optional per-variant shipping text (e.g. "Відправка протягом 1–3 днів")
         shippingNote: z.string().trim().optional().nullable(),
+        pouchStrapCustomization: z.coerce.boolean().optional().default(false),
         straps: z.array(StrapSchema).optional().default([]),
         pouches: z.array(PouchSchema).optional().default([]),
         sizes: z.array(SizeSchema).optional().default([]),
@@ -269,6 +278,7 @@ export async function POST(req: NextRequest) {
                   imageUrl: s.imageUrl ?? null,
                 })),
               },
+              pouchStrapCustomization: v.pouchStrapCustomization,
               pouches: {
                 create: (v.pouches ?? []).map((pouch, pouchIdx) => ({
                   color: pouch.color,
@@ -277,6 +287,16 @@ export async function POST(req: NextRequest) {
                   extraPriceUAH: pouch.extraPriceUAH ?? 0,
                   sort: pouch.sort ?? pouchIdx,
                   imageUrl: pouch.imageUrl ?? null,
+                  straps: v.pouchStrapCustomization
+                    ? {
+                        create: (pouch.straps ?? []).map((strap, strapIdx) => ({
+                          name: strap.name,
+                          hex: strap.hex ?? null,
+                          sort: strap.sort ?? strapIdx,
+                          mainImageUrl: strap.mainImageUrl ?? null,
+                        })),
+                      }
+                    : undefined,
                 })),
               },
               sizes: {
@@ -310,15 +330,22 @@ export async function POST(req: NextRequest) {
   } catch (err) {
     console.error('Create product error:', err)
 
-    // Provide a clearer error for unique slug conflicts
-    // (Prisma error code P2002)
-    const msg =
+    // Name the field that actually collided (Prisma error code P2002). Reading
+    // every unique conflict as a slug conflict sent admins hunting for a
+    // duplicate URL when the real culprit was a repeated SKU.
+    const isUniqueConflict =
       typeof err === 'object' &&
       err &&
       'code' in err &&
       (err as any).code === 'P2002'
+    const target = String((err as any)?.meta?.target ?? '')
+
+    let msg = err instanceof Error ? err.message : 'Internal Server Error'
+    if (isUniqueConflict) {
+      msg = target.includes('slug')
         ? 'Product with this slug already exists'
-        : 'Internal Server Error'
+        : `Duplicate value for a unique field: ${target || 'unknown'}`
+    }
 
     return NextResponse.json({ error: msg }, { status: 500 })
   }

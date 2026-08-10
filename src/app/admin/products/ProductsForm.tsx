@@ -16,6 +16,7 @@ import {
   STATUS_OPTIONS,
   TYPE_OPTIONS,
   buildVariantRemovalConfirmation,
+  describeSaveError,
   normalizeImages,
   type AddonVariantOption,
   type ProductFormValues,
@@ -497,9 +498,9 @@ export default function ProductForm({
       })
       const contentType = res.headers.get('content-type') || ''
 
-      let json: { error?: string; id?: string } = {}
+      let json: { error?: unknown; id?: string } = {}
       if (contentType.includes('application/json')) {
-        json = (await res.json()) as { error?: string; id?: string }
+        json = (await res.json()) as { error?: unknown; id?: string }
       } else {
         console.error('Non-JSON response on save product', await res.text())
         setError('Сервер повернув неочікувану відповідь')
@@ -507,7 +508,8 @@ export default function ProductForm({
       }
 
       if (!res.ok) {
-        setError(json.error || 'Помилка збереження')
+        console.error('Save product failed', json.error)
+        setError(describeSaveError(json.error))
         return
       }
 

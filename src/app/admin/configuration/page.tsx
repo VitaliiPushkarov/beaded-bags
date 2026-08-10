@@ -16,9 +16,14 @@ import {
   RECOMMENDATION_CATEGORIES,
   normalizeRecommendationMatrix,
   recommendationCellName,
-  type RecommendationCategory,
+  recommendationTargets,
   type RecommendationMatrix,
+  type RecommendationTarget,
 } from '@/lib/recommendation-matrix'
+import {
+  getAccessorySubcategoryConfig,
+  getAccessorySubcategorySlugs,
+} from '@/lib/shop-taxonomy'
 import {
   RECOMMENDATION_CACHE_TAG,
   getRecommendationMatrix,
@@ -78,13 +83,14 @@ export default async function AdminConfigurationPage({
     'use server'
 
     const matrix = {} as RecommendationMatrix
+    const columns = recommendationTargets()
 
     for (const row of RECOMMENDATION_CATEGORIES) {
       // Unchecked boxes are simply absent from the submission, so an entirely
       // empty row is the owner turning the block off for that category.
-      matrix[row] = RECOMMENDATION_CATEGORIES.filter(
+      matrix[row] = columns.filter(
         (column) => formData.get(recommendationCellName(row, column)) === 'on',
-      ) as RecommendationCategory[]
+      )
     }
 
     const payload = normalizeRecommendationMatrix(matrix)
@@ -100,14 +106,21 @@ export default async function AdminConfigurationPage({
     revalidateTag(RECOMMENDATION_CACHE_TAG, 'max')
     revalidatePath('/admin/configuration')
 
-    // Keep whatever search/filter the New Arrivals table below is showing,
-    // so saving this block doesn't reset the rest of the page.
-    const returnTo = buildConfigurationHref()
-    redirect(
-      returnTo.includes('?')
-        ? `${returnTo}&savedRecs=1`
-        : `${returnTo}?savedRecs=1`,
-    )
+    // Keep whatever search/filter the New Arrivals table below is showing, so
+    // saving this block doesn't reset the rest of the page. This has to arrive
+    // through the form: closing over buildConfigurationHref instead makes Next
+    // try to serialize that function into the action's bound arguments, which
+    // fails at invocation time with "Functions cannot be passed directly to
+    // Client Components" — the page renders fine and only saving breaks.
+    const returnToRaw = String(formData.get('returnTo') || '').trim()
+    const returnTo = returnToRaw.startsWith('/admin/configuration')
+      ? returnToRaw
+      : '/admin/configuration'
+
+    const nextUrl = new URL(returnTo, 'http://localhost')
+    nextUrl.searchParams.set('savedRecs', '1')
+
+    redirect(`${nextUrl.pathname}?${nextUrl.searchParams.toString()}`)
   }
 
   async function saveNewArrivals(formData: FormData) {
@@ -238,6 +251,14 @@ export default async function AdminConfigurationPage({
 
   const hiddenCount = Math.max(0, matchingCount - variants.length)
 
+  const recommendationColumns: RecommendationTarget[] = recommendationTargets()
+  const subcategoryLabels = Object.fromEntries(
+    getAccessorySubcategorySlugs().map((slug) => [
+      slug,
+      getAccessorySubcategoryConfig(slug)?.label ?? slug,
+    ]),
+  )
+
   // Collapsed by default so the page opens on the settings blocks instead of a
   // wall of variant rows. Expand it automatically whenever the owner is clearly
   // working in here: a search or filter is active, or a save just happened.
@@ -256,6 +277,9 @@ export default async function AdminConfigurationPage({
         initial={recommendationInitial}
         action={saveRecommendationMatrix}
         saved={savedRecs}
+        returnTo={buildConfigurationHref()}
+        columns={recommendationColumns}
+        subcategoryLabels={subcategoryLabels}
       />
 
       <details

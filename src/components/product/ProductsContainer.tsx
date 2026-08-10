@@ -51,7 +51,6 @@ const EMPTY_SUBCATEGORY_OPTIONS: Array<{ value: string; label: string }> = []
  * чи одна картка = один товар (свотчі всередині), чи один варіант.
  */
 export type CatalogView = 'products' | 'variants'
-const VIEW_STORAGE_KEY = 'gerdan:catalog-view'
 const VIEW_QUERY_KEY = 'view'
 
 function localizedProductName(p: ProductWithVariants, locale: 'uk' | 'en') {
@@ -314,23 +313,12 @@ export default function ProductsContainer({
   // і так його не треба протягувати крізь apply/removeChip/clearAll.
   const [view, setView] = useState<CatalogView>('products')
 
-  // Відновлюємо після монтування (не в useState), щоб не розійтися з SSR.
+  // Режим живе лише в URL — навмисно без localStorage: інакше він перетікав би
+  // на інші сторінки каталогу, де користувач його не вмикав.
   // Слухаємо саме sp, а не лише маунт: сторінки каталогу пререндеряться
   // статично, тож searchParams доїжджають уже після гідрації.
-  // URL має пріоритет над збереженим вибором.
   useEffect(() => {
-    const fromUrl = sp.get(VIEW_QUERY_KEY)
-    if (fromUrl === 'variants' || fromUrl === 'products') {
-      setView(fromUrl)
-      return
-    }
-
-    try {
-      const stored = window.localStorage.getItem(VIEW_STORAGE_KEY)
-      if (stored === 'variants' || stored === 'products') setView(stored)
-    } catch {
-      // приватний режим / заблоковане сховище — лишаємо дефолт
-    }
+    setView(sp.get(VIEW_QUERY_KEY) === 'variants' ? 'variants' : 'products')
   }, [sp])
 
   // 1) UI-стан (те, що юзер крутить у формі)
@@ -408,11 +396,6 @@ export default function ProductsContainer({
   const changeView = (nextView: CatalogView) => {
     if (nextView === view) return
     setView(nextView)
-    try {
-      window.localStorage.setItem(VIEW_STORAGE_KEY, nextView)
-    } catch {
-      // приватний режим / заблоковане сховище — просто не запам'ятовуємо
-    }
     // зберігаємо вже застосовані фільтри з URL як є
     replaceUrl(new URLSearchParams(sp.toString()), nextView)
   }

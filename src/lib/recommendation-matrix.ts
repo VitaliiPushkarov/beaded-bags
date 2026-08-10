@@ -1,9 +1,17 @@
 import type { ProductType } from '@prisma/client'
 
+import { getAccessorySubcategorySlugs } from '@/lib/shop-taxonomy'
+
 // Which categories the "You may also like" block may pull from, per category of
 // the product being viewed. Before this existed the rule was hardcoded in the
 // products API as "same type OR same group"; the matrix makes it editable in
 // /admin/configuration without touching any individual product.
+//
+// Rows are always one of the five visible categories. Columns are wider: besides
+// those categories they can name a single accessory subcategory (breloky,
+// gerdany, …) so a bag page can recommend keychains without pulling in every
+// accessory. Subcategories are columns only — an accessory product page still
+// gets its rule from the ACCESSORY row.
 //
 // Deliberately free of Prisma and next/cache imports so the rules can be unit
 // tested; the DB-backed reader lives in lib/recommendation-settings.
@@ -23,10 +31,46 @@ export const RECOMMENDATION_CATEGORIES = [
 
 export type RecommendationCategory = (typeof RECOMMENDATION_CATEGORIES)[number]
 
+// Subcategory columns are stored prefixed so one flat string[] can hold both
+// kinds of target without a second field in the JSON payload.
+export const SUBCATEGORY_PREFIX = 'sub:'
+
+export type RecommendationSubcategory = `${typeof SUBCATEGORY_PREFIX}${string}`
+
+export type RecommendationTarget =
+  | RecommendationCategory
+  | RecommendationSubcategory
+
 export type RecommendationMatrix = Record<
   RecommendationCategory,
-  RecommendationCategory[]
+  RecommendationTarget[]
 >
+
+export function toSubcategoryTarget(slug: string): RecommendationSubcategory {
+  return `${SUBCATEGORY_PREFIX}${slug}`
+}
+
+export function isSubcategoryTarget(
+  target: string,
+): target is RecommendationSubcategory {
+  return target.startsWith(SUBCATEGORY_PREFIX)
+}
+
+export function subcategorySlugOf(target: RecommendationSubcategory): string {
+  return target.slice(SUBCATEGORY_PREFIX.length)
+}
+
+/**
+ * Column order for the admin grid and for normalization: the five categories
+ * first, then one column per accessory subcategory. Derived from the shop's own
+ * taxonomy so a subcategory added there shows up here automatically.
+ */
+export function recommendationTargets(): RecommendationTarget[] {
+  return [
+    ...RECOMMENDATION_CATEGORIES,
+    ...getAccessorySubcategorySlugs().map(toSubcategoryTarget),
+  ]
+}
 
 const CATEGORY_ALIASES: Record<ProductType, RecommendationCategory> = {
   BAG: 'BAG',
@@ -65,7 +109,7 @@ export const RECOMMENDATION_MATRIX_DEFAULTS: RecommendationMatrix = {
 // the server action that parses its submission cannot drift apart.
 export function recommendationCellName(
   row: RecommendationCategory,
-  column: RecommendationCategory,
+  column: RecommendationTarget,
 ) {
   return `cell_${row}_${column}`
 }
@@ -78,20 +122,30 @@ export function toRecommendationCategory(
   return CATEGORY_ALIASES[key as ProductType] ?? null
 }
 
-function normalizeCategoryList(input: unknown): RecommendationCategory[] {
+function normalizeTargetList(input: unknown): RecommendationTarget[] {
   if (!Array.isArray(input)) return []
 
-  const seen = new Set<RecommendationCategory>()
+  const knownSubcategories = new Set(getAccessorySubcategorySlugs())
+  const seen = new Set<RecommendationTarget>()
+
   for (const item of input) {
-    const category = toRecommendationCategory(
-      typeof item === 'string' ? item : null,
-    )
+    if (typeof item !== 'string') continue
+    const raw = item.trim()
+
+    if (isSubcategoryTarget(raw)) {
+      // Drop subcategories the shop no longer declares, so a renamed slug can
+      // never silently keep filtering on something that does not exist.
+      if (knownSubcategories.has(subcategorySlugOf(raw))) seen.add(raw)
+      continue
+    }
+
+    const category = toRecommendationCategory(raw)
     if (category) seen.add(category)
   }
 
-  // Keep the declared category order so the block is stable regardless of the
+  // Keep the declared column order so the block is stable regardless of the
   // order checkboxes happened to be submitted in.
-  return RECOMMENDATION_CATEGORIES.filter((category) => seen.has(category))
+  return recommendationTargets().filter((target) => seen.has(target))
 }
 
 /**
@@ -117,24 +171,46 @@ export function normalizeRecommendationMatrix(
 
     // A row that is present but empty is a deliberate "hide the block here",
     // so it must survive normalization rather than fall back to the default.
-    matrix[category] = normalizeCategoryList(source[category])
+    matrix[category] = normalizeTargetList(source[category])
   }
 
   return matrix
 }
 
 /**
- * The ProductType values the block may show for a product of `type`, ready to
- * drop into a Prisma `in` filter. Empty means the block is switched off for
- * that category.
+ * What the block may show for a product of `type`, split into the two things the
+ * query needs: whole categories (a plain `type in [...]` filter) and accessory
+ * subcategories (keyword-matched on name/slug, exactly as the shop's own
+ * subcategory pages do).
+ *
+ * Both empty means the block is switched off for that category.
  */
-export function resolveRecommendedTypes(
+export function resolveRecommendation(
   matrix: RecommendationMatrix,
   type?: ProductType | string | null,
-): ProductType[] {
+): { types: ProductType[]; subcategories: string[] } {
   const category = toRecommendationCategory(type)
-  if (!category) return []
+  if (!category) return { types: [], subcategories: [] }
 
   const allowed = matrix[category] ?? []
-  return allowed.flatMap((item) => TYPES_BY_CATEGORY[item])
+  const types: ProductType[] = []
+  const subcategories: string[] = []
+
+  for (const target of allowed) {
+    if (isSubcategoryTarget(target)) {
+      subcategories.push(subcategorySlugOf(target))
+      continue
+    }
+    types.push(...TYPES_BY_CATEGORY[target])
+  }
+
+  return { types, subcategories }
 }
+
+/**
+ * Product types a subcategory column can ever match. Subcategory keywords are
+ * broad on purpose ("вязан" catches anything knitted), so the candidate set has
+ * to be pinned to accessories or a knitted bag would qualify as a keychain.
+ */
+export const SUBCATEGORY_CANDIDATE_TYPES: ProductType[] =
+  TYPES_BY_CATEGORY.ACCESSORY

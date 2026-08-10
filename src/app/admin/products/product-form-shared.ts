@@ -58,6 +58,34 @@ export const normalizeImages = (input: unknown): string[] => {
   return []
 }
 
+// What the save endpoints put in `error`: a string for server failures, or the
+// flattened Zod report for a rejected payload. Rendering that object straight
+// into JSX throws ("Objects are not valid as a React child") and takes the whole
+// admin page down instead of telling the admin which field is wrong.
+export function describeSaveError(error: unknown): string {
+  if (typeof error === 'string' && error.trim()) return error
+
+  if (error && typeof error === 'object') {
+    const flattened = error as {
+      formErrors?: unknown
+      fieldErrors?: Record<string, unknown>
+    }
+
+    const messages = [
+      ...(Array.isArray(flattened.formErrors) ? flattened.formErrors : []),
+      ...Object.entries(flattened.fieldErrors ?? {}).flatMap(([field, errors]) =>
+        (Array.isArray(errors) ? errors : []).map(
+          (message) => `${field}: ${message}`,
+        ),
+      ),
+    ].filter((message): message is string => typeof message === 'string')
+
+    if (messages.length) return messages.join('; ')
+  }
+
+  return 'Помилка збереження'
+}
+
 export type VariantAddonLinkInput = {
   id: string
   sort: number
@@ -99,6 +127,45 @@ export type VariantPouchInput = {
   imageUrl?: string
   images?: string[]
   straps?: VariantPouchStrapInput[]
+}
+
+const strapKey = (name: string) => name.trim().toLowerCase()
+
+// Straps repeat from pouch to pouch — the same labels and swatches, only the
+// photo of that pouch with that strap differs — so they can be picked off
+// another pouch instead of retyped. Which ones is the admin's call: pouches do
+// not always carry the identical set.
+//
+// This adds to the target, it never replaces it: straps already there and not
+// among the picked ones stay untouched. A picked strap whose name the target
+// already has updates that row in place, keeping its id (so the save updates
+// the database row rather than replacing it with a twin) and its photo — the
+// one field that genuinely belongs to this pouch and is never copied.
+export function mergePouchStraps(
+  picked: VariantPouchStrapInput[],
+  target: VariantPouchStrapInput[],
+): VariantPouchStrapInput[] {
+  const merged = [...target]
+
+  for (const strap of picked) {
+    const at = merged.findIndex(
+      (existing) =>
+        strapKey(existing.name) && strapKey(existing.name) === strapKey(strap.name),
+    )
+
+    const copied = {
+      name: strap.name,
+      hex: strap.hex ?? '',
+      mainImageUrl: at >= 0 ? (merged[at].mainImageUrl ?? '') : '',
+      id: at >= 0 ? merged[at].id : undefined,
+      sort: '0',
+    }
+
+    if (at >= 0) merged[at] = copied
+    else merged.push(copied)
+  }
+
+  return merged.map((strap, index) => ({ ...strap, sort: String(index) }))
 }
 
 export type VariantSizeInput = {

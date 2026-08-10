@@ -1,10 +1,13 @@
 'use client'
 
+import { useState } from 'react'
+
 import { resolveOptionSwatchColor } from '@/app/products/[slug]/product-options'
 
-import type {
-  VariantPouchInput,
-  VariantPouchStrapInput,
+import {
+  mergePouchStraps,
+  type VariantPouchInput,
+  type VariantPouchStrapInput,
 } from './product-form-shared'
 
 const inputClass =
@@ -71,7 +74,10 @@ export default function VariantPouchesEditor({
   onChange: (next: VariantPouchInput[]) => void
   customizationMode: boolean
 }) {
-  const patchPouch = (pouchIndex: number, patch: Partial<VariantPouchInput>) => {
+  const patchPouch = (
+    pouchIndex: number,
+    patch: Partial<VariantPouchInput>,
+  ) => {
     const next = [...pouches]
     next[pouchIndex] = { ...next[pouchIndex], ...patch }
     onChange(next)
@@ -79,6 +85,34 @@ export default function VariantPouchesEditor({
 
   const setStraps = (pouchIndex: number, straps: VariantPouchStrapInput[]) => {
     patchPouch(pouchIndex, { straps })
+  }
+
+  const pouchLabel = (pouchIndex: number) =>
+    pouches[pouchIndex]?.color.trim() || `Мішечок #${pouchIndex + 1}`
+
+  const copyStrapsInto = (
+    targetIndex: number,
+    picked: VariantPouchStrapInput[],
+  ) => {
+    setStraps(
+      targetIndex,
+      mergePouchStraps(picked, pouches[targetIndex]?.straps ?? []),
+    )
+  }
+
+  // Same picked straps into every other pouch. The source keeps its own set —
+  // that is where they came from.
+  const copyStrapsIntoAll = (
+    sourceIndex: number,
+    picked: VariantPouchStrapInput[],
+  ) => {
+    onChange(
+      pouches.map((pouch, index) =>
+        index === sourceIndex
+          ? pouch
+          : { ...pouch, straps: mergePouchStraps(picked, pouch.straps ?? []) },
+      ),
+    )
   }
 
   const addPouch = () => {
@@ -201,6 +235,26 @@ export default function VariantPouchesEditor({
                 <PouchStrapsEditor
                   straps={pouch.straps || []}
                   onChange={(next) => setStraps(pouchIndex, next)}
+                  sources={pouches
+                    .map((candidate, index) => ({
+                      index,
+                      label: pouchLabel(index),
+                      straps: candidate.straps || [],
+                    }))
+                    .filter(
+                      (candidate) =>
+                        candidate.index !== pouchIndex &&
+                        candidate.straps.length > 0,
+                    )}
+                  onCopyHere={(picked) => copyStrapsInto(pouchIndex, picked)}
+                  onCopyEverywhere={
+                    // Only worth offering when there is a third pouch to reach:
+                    // with two, "everywhere" is just "here".
+                    pouches.length > 2
+                      ? (sourceIndex, picked) =>
+                          copyStrapsIntoAll(sourceIndex, picked)
+                      : undefined
+                  }
                 />
               )}
 
@@ -223,13 +277,55 @@ export default function VariantPouchesEditor({
   )
 }
 
+type StrapSource = {
+  index: number
+  label: string
+  straps: VariantPouchStrapInput[]
+}
+
 function PouchStrapsEditor({
   straps,
   onChange,
+  sources,
+  onCopyHere,
+  onCopyEverywhere,
 }: {
   straps: VariantPouchStrapInput[]
   onChange: (next: VariantPouchStrapInput[]) => void
+  sources: StrapSource[]
+  onCopyHere: (picked: VariantPouchStrapInput[]) => void
+  onCopyEverywhere?: (
+    sourceIndex: number,
+    picked: VariantPouchStrapInput[],
+  ) => void
 }) {
+  // Which pouch we are picking from, and which of its straps are ticked.
+  // Positions, because a strap typed in this session has no id yet.
+  const [pickingFrom, setPickingFrom] = useState<number | null>(null)
+  const [picked, setPicked] = useState<number[]>([])
+
+  const source = sources.find((entry) => entry.index === pickingFrom) ?? null
+  const pickedStraps = source
+    ? picked
+        .slice()
+        .sort((a, b) => a - b)
+        .map((position) => source.straps[position])
+        .filter(Boolean)
+    : []
+
+  const openSource = (sourceIndex: number) => {
+    const next = sources.find((entry) => entry.index === sourceIndex)
+    setPickingFrom(sourceIndex)
+    // Everything ticked to start with: unticking a couple is less work than
+    // ticking six, and this is the set that repeats across pouches.
+    setPicked(next ? next.straps.map((_, position) => position) : [])
+  }
+
+  const closeSource = () => {
+    setPickingFrom(null)
+    setPicked([])
+  }
+
   const patchStrap = (
     strapIndex: number,
     patch: Partial<VariantPouchStrapInput>,
@@ -241,26 +337,161 @@ function PouchStrapsEditor({
 
   return (
     <div className="rounded border border-dashed border-blue-200 bg-blue-50/40 p-3">
-      <div className="flex items-center justify-between gap-2 mb-2">
+      <div className="flex flex-wrap items-start justify-between gap-2 mb-2">
         <div>
           <div className="text-sm font-medium">Ремінці для цього мішечка</div>
           <div className="text-[11px] text-gray-500">
-            Напр. «Спортивний», «Casual» або колір. Без націнки та без LiqPay ID.
+            Напр. «Спортивний», «Casual» або колір.
           </div>
         </div>
-        <button
-          type="button"
-          className="text-xs px-3 py-1 rounded border border-blue-700 text-blue-700 hover:bg-blue-700 hover:text-white cursor-pointer"
-          onClick={() =>
-            onChange([
-              ...straps,
-              { name: '', hex: '', sort: String(straps.length), mainImageUrl: '' },
-            ])
-          }
-        >
-          Додати ремінець
-        </button>
+        <div className="flex flex-wrap items-center gap-2">
+          {sources.length > 0 && (
+            // Назви й кольори повторюються з мішечка в мішечок — беремо потрібні,
+            // а фото лишається за цим мішечком: воно і є те, що відрізняється.
+            <select
+              className="text-xs px-2 py-1 rounded border border-blue-300 bg-white text-blue-700 cursor-pointer"
+              value={pickingFrom === null ? '' : String(pickingFrom)}
+              onChange={(e) => {
+                if (!e.target.value) closeSource()
+                else openSource(Number(e.target.value))
+              }}
+              title="Обрати ремінці з іншого мішечка (фото не копіюються)"
+            >
+              <option value="">Взяти ремінці з…</option>
+              {sources.map((entry) => (
+                <option key={entry.index} value={entry.index}>
+                  {entry.label} ({entry.straps.length})
+                </option>
+              ))}
+            </select>
+          )}
+
+          <button
+            type="button"
+            className="text-xs px-3 py-1 rounded border border-blue-700 text-blue-700 hover:bg-blue-700 hover:text-white cursor-pointer"
+            onClick={() =>
+              onChange([
+                ...straps,
+                {
+                  name: '',
+                  hex: '',
+                  sort: String(straps.length),
+                  mainImageUrl: '',
+                },
+              ])
+            }
+          >
+            Додати ремінець
+          </button>
+        </div>
       </div>
+
+      {source && (
+        <div className="mb-3 rounded border border-blue-200 bg-white p-2">
+          <div className="flex flex-wrap items-center justify-between gap-2 mb-2">
+            <div className="text-xs font-medium">
+              Ремінці з «{source.label}» — оберіть, які додати
+            </div>
+            <div className="flex gap-2 text-[11px] text-blue-700">
+              <button
+                type="button"
+                className="underline cursor-pointer"
+                onClick={() =>
+                  setPicked(source.straps.map((_, position) => position))
+                }
+              >
+                усі
+              </button>
+              <button
+                type="button"
+                className="underline cursor-pointer"
+                onClick={() => setPicked([])}
+              >
+                жодного
+              </button>
+            </div>
+          </div>
+
+          <div className="grid gap-1 sm:grid-cols-2">
+            {source.straps.map((strap, position) => {
+              const checked = picked.includes(position)
+
+              return (
+                <label
+                  key={strap.id || `source-strap-${position}`}
+                  className="flex min-w-0 items-center gap-2 text-xs cursor-pointer"
+                >
+                  <input
+                    type="checkbox"
+                    className="cursor-pointer"
+                    checked={checked}
+                    onChange={() =>
+                      setPicked((current) =>
+                        checked
+                          ? current.filter((entry) => entry !== position)
+                          : [...current, position],
+                      )
+                    }
+                  />
+                  <span
+                    className="h-3 w-3 shrink-0 rounded-full border border-gray-300"
+                    style={{
+                      background:
+                        strap.hex?.trim() ||
+                        resolveOptionSwatchColor(strap.name) ||
+                        '#e5e7eb',
+                    }}
+                  />
+                  <span className="truncate">
+                    {strap.name.trim() || `Ремінець #${position + 1}`}
+                  </span>
+                </label>
+              )
+            })}
+          </div>
+
+          <div className="mt-2 flex flex-wrap items-center gap-2">
+            <button
+              type="button"
+              className="text-xs px-3 py-1 rounded border border-blue-700 bg-blue-700 text-white hover:bg-white hover:text-blue-700 cursor-pointer disabled:cursor-default disabled:opacity-40"
+              disabled={pickedStraps.length === 0}
+              onClick={() => {
+                onCopyHere(pickedStraps)
+                closeSource()
+              }}
+            >
+              Додати сюди ({pickedStraps.length})
+            </button>
+
+            {onCopyEverywhere && (
+              <button
+                type="button"
+                className="text-xs px-3 py-1 rounded border border-blue-300 text-blue-700 hover:bg-blue-50 cursor-pointer disabled:cursor-default disabled:opacity-40"
+                disabled={pickedStraps.length === 0}
+                onClick={() => {
+                  onCopyEverywhere(source.index, pickedStraps)
+                  closeSource()
+                }}
+                title="Додати обрані ремінці в усі мішечки, крім того, з якого вони взяті"
+              >
+                Додати в усі мішечки
+              </button>
+            )}
+
+            <button
+              type="button"
+              className="text-xs px-2 py-1 text-gray-500 hover:text-blue-700 cursor-pointer"
+              onClick={closeSource}
+            >
+              Скасувати
+            </button>
+
+            <span className="text-[11px] text-gray-500">
+              Фото не копіюються — їх ви додаєте для кожного мішечка окремо.
+            </span>
+          </div>
+        </div>
+      )}
 
       {straps.length === 0 ? (
         <div className="text-xs text-gray-500">

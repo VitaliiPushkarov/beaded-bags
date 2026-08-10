@@ -1185,7 +1185,7 @@ export function ProductInteractive({ p }: { p: ProductWithVariants }) {
                           {t('Колір виробу', 'Color')}
                         </div>
                         {selectedColorLabel ? (
-                          <div className="mt-1 mb-2 min-h-5 text-sm font-medium text-gray-500">
+                          <div className="mt-1 mb-1 min-h-5 text-sm font-medium text-gray-500">
                             {selectedColorLabel}
                           </div>
                         ) : null}
@@ -1264,7 +1264,7 @@ export function ProductInteractive({ p }: { p: ProductWithVariants }) {
                               {/* {t('Крок', 'Step')} {stepNumberById.get('pouch')}:{' '} */}
                               {t('Мішечок', 'Pouch')}
                             </div>
-                            <div className="mt-1 min-h-5 text-sm font-medium text-gray-500">
+                            <div className="mt-1 mb-1 min-h-5 text-sm font-medium text-gray-500">
                               {selectedPouchStepLabel}
                             </div>
                           </div>
@@ -1322,7 +1322,7 @@ export function ProductInteractive({ p }: { p: ProductWithVariants }) {
                               {t('Ремінець', 'Strap')}
                             </div>
                             {
-                              <div className="mt-1 min-h-5 text-sm font-medium text-gray-500">
+                              <div className="mt-1 mb-1 min-h-5 text-sm font-medium text-gray-500">
                                 {selectedStrapStepLabel}
                               </div>
                             }
@@ -1384,7 +1384,7 @@ export function ProductInteractive({ p }: { p: ProductWithVariants }) {
 
                       {showSizeStepBlock && (
                         <div>
-                          <div className="md:mb-2 text-sm uppercase tracking-wide text-gray-900">
+                          <div className="mt-1 mb-1 md:mb-2 text-sm uppercase tracking-wide text-gray-900">
                             {/* {t('Крок', 'Step')} {stepNumberById.get('size')}:{' '} */}
                             {t('Розмір', 'Size')}
                           </div>

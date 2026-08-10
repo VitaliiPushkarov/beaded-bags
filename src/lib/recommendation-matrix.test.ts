@@ -4,9 +4,15 @@ import assert from 'node:assert/strict'
 import {
   RECOMMENDATION_MATRIX_DEFAULTS,
   normalizeRecommendationMatrix,
-  resolveRecommendedTypes,
+  resolveRecommendation,
   toRecommendationCategory,
 } from './recommendation-matrix'
+
+// The resolver returns categories and subcategories separately; most assertions
+// only care about the category half.
+function resolvedTypes(matrix: Parameters<typeof resolveRecommendation>[0], type: string) {
+  return resolveRecommendation(matrix, type).types
+}
 
 test('the seven product types fold into the five visible categories', () => {
   assert.equal(toRecommendationCategory('BACKPACK'), 'BAG')
@@ -32,7 +38,7 @@ test('a row that is present but empty means the block is switched off', () => {
 
   // The empty row survives instead of being refilled with the default...
   assert.deepEqual(matrix.CASE, [])
-  assert.deepEqual(resolveRecommendedTypes(matrix, 'CASE'), [])
+  assert.deepEqual(resolvedTypes(matrix, 'CASE'), [])
   // ...while rows absent from the payload still get their default.
   assert.deepEqual(matrix.BAG, ['BAG'])
 })
@@ -61,7 +67,7 @@ test('resolving expands a category back into every type it covers', () => {
 
   // BAG covers BACKPACK and ACCESSORY covers ORNAMENTS, so a product tagged
   // with either still shows up in the block.
-  assert.deepEqual(resolveRecommendedTypes(matrix, 'CASE'), [
+  assert.deepEqual(resolvedTypes(matrix, 'CASE'), [
     'BAG',
     'BACKPACK',
     'ACCESSORY',
@@ -72,16 +78,67 @@ test('resolving expands a category back into every type it covers', () => {
 test('a product of an unknown type recommends nothing', () => {
   const matrix = normalizeRecommendationMatrix(null)
 
-  assert.deepEqual(resolveRecommendedTypes(matrix, 'MYSTERY'), [])
+  assert.deepEqual(resolvedTypes(matrix, 'MYSTERY'), [])
 })
 
 test('defaults keep a product inside its own category', () => {
   const matrix = normalizeRecommendationMatrix(null)
 
-  assert.deepEqual(resolveRecommendedTypes(matrix, 'BAG'), ['BAG', 'BACKPACK'])
-  assert.deepEqual(resolveRecommendedTypes(matrix, 'BACKPACK'), [
+  assert.deepEqual(resolvedTypes(matrix, 'BAG'), ['BAG', 'BACKPACK'])
+  assert.deepEqual(resolvedTypes(matrix, 'BACKPACK'), [
     'BAG',
     'BACKPACK',
   ])
-  assert.deepEqual(resolveRecommendedTypes(matrix, 'SHOPPER'), ['SHOPPER'])
+  assert.deepEqual(resolvedTypes(matrix, 'SHOPPER'), ['SHOPPER'])
+})
+
+test('a subcategory column resolves separately from whole categories', () => {
+  const matrix = normalizeRecommendationMatrix({
+    BAG: ['BAG', 'sub:breloky'],
+  })
+
+  const resolved = resolveRecommendation(matrix, 'BAG')
+  assert.deepEqual(resolved.types, ['BAG', 'BACKPACK'])
+  assert.deepEqual(resolved.subcategories, ['breloky'])
+})
+
+test('a row can target only a subcategory, without any whole category', () => {
+  const matrix = normalizeRecommendationMatrix({ CASE: ['sub:breloky'] })
+
+  const resolved = resolveRecommendation(matrix, 'CASE')
+  assert.deepEqual(resolved.types, [])
+  assert.deepEqual(resolved.subcategories, ['breloky'])
+})
+
+test('subcategory slugs the shop does not declare are dropped', () => {
+  const matrix = normalizeRecommendationMatrix({
+    BAG: ['sub:breloky', 'sub:no-such-subcategory'],
+  })
+
+  assert.deepEqual(matrix.BAG, ['sub:breloky'])
+})
+
+test('columns keep a stable order: categories first, then subcategories', () => {
+  const matrix = normalizeRecommendationMatrix({
+    BAG: ['sub:gerdany', 'CASE', 'sub:breloky', 'BAG'],
+  })
+
+  assert.deepEqual(matrix.BAG, ['BAG', 'CASE', 'sub:breloky', 'sub:gerdany'])
+})
+
+test('selecting the whole ACCESSORY column is not the same as a subcategory', () => {
+  const wholeCategory = normalizeRecommendationMatrix({ BAG: ['ACCESSORY'] })
+  const justKeychains = normalizeRecommendationMatrix({ BAG: ['sub:breloky'] })
+
+  // Whole category filters purely by type and needs no keyword pass...
+  assert.deepEqual(resolveRecommendation(wholeCategory, 'BAG').types, [
+    'ACCESSORY',
+    'ORNAMENTS',
+  ])
+  assert.deepEqual(resolveRecommendation(wholeCategory, 'BAG').subcategories, [])
+  // ...whereas the subcategory carries no type of its own.
+  assert.deepEqual(resolveRecommendation(justKeychains, 'BAG').types, [])
+  assert.deepEqual(resolveRecommendation(justKeychains, 'BAG').subcategories, [
+    'breloky',
+  ])
 })
