@@ -768,12 +768,12 @@ export function ProductInteractive({ p }: { p: ProductWithVariants }) {
     ? `${selectedPouch.color.trim()}${formatOptionExtraLabel(
         selectedPouch.extraPriceUAH,
       )}`
-    : t('Мішечок', 'Choose pouch')
+    : t('Колір', 'Choose pouch')
   const selectedStrapStepLabel = selectedStrap?.name?.trim()
     ? `${selectedStrap.name.trim()}${formatOptionExtraLabel(
         strapExtraPriceUAH(selectedStrap),
       )}`
-    : t('Ремінець', 'Choose strap')
+    : t('Колір', 'Choose strap')
 
   const viewContentName = buildVariantSelectionLabel({
     productName,
@@ -1064,34 +1064,19 @@ export function ProductInteractive({ p }: { p: ProductWithVariants }) {
   return (
     <>
       <section className="mx-auto flex flex-col items-center md:items-stretch md:flex-row md:justify-between md:gap-10 md:mb-[60px] pb-1 md:pb-0">
-        {/* Only products with the configurator pin their image, and only on
-            mobile: the shopper needs to see the bag change while scrolling a
-            long list of options. The header is 65px and sticky, hence
-            top-[65px].
+        {/* The two gallery layers below are `absolute inset-0`, so this box has
+            to be positioned and has to carry their height itself.
 
-            Both heights are the sum of what ProductGallery's 'thumbnails'
-            layout puts inside, since the layers below are absolute and cannot
-            size this box: mobile 270 (square photo, with the counter and dots
-            laid over it rather than under), desktop 580 (photo) + 12 + 80
-            (thumb strip). Change a height there and the matching number here
-            has to move with it, or the pinned box keeps dead space or clips.
-
-            z-30 sits inside a fixed stack, so raising it breaks something else:
-            the header and its menu panel are z-50 and the menu's backdrop z-40,
-            and the pinned image must stay under all three or it covers the open
-            menu. It only has to beat the Addons cards below it, and those carry
-            no z-index at all, so any positive value clears them — the number
-            just needs to stay under 40.
-
-            Above md this must return to `relative`, not `static` — the two
-            gallery layers below are `absolute inset-0` and would escape the
-            column without a positioned ancestor. `top-auto` and `self-auto`
-            undo the sticky offset and the flex alignment on desktop. */}
+            Mobile is 420 for both layouts — the photo, with the counter and
+            dots laid over it rather than under — because on a phone the
+            configurator's gallery is deliberately identical to the plain one.
+            Desktop differs: 580 for the carousel, and 580 + 12 + 80 for the
+            thumbnail strip the configurator adds underneath. Change a height in
+            ProductGallery and the matching number here has to move with it, or
+            this box keeps dead space or clips. */}
         <div
-          className={`w-full md:w-[66%] mb-3 md:mb-0 ${
-            isPouchStrapMode
-              ? 'sticky top-[65px] z-30 self-start bg-white h-[270px] md:relative md:top-auto md:z-auto md:self-auto md:h-[672px]'
-              : 'relative h-[420px] md:h-[580px]'
+          className={`relative w-full md:w-[66%] mb-3 md:mb-0 h-[420px] ${
+            isPouchStrapMode ? 'md:h-[672px]' : 'md:h-[580px]'
           }`}
         >
           <div
@@ -1115,11 +1100,11 @@ export function ProductInteractive({ p }: { p: ProductWithVariants }) {
         </div>
 
         <div className="flex flex-col items-start w-full lg:w-[33%] md:pt-0">
-          <h1 className=" md:text-[38px] text-xl md:text-2xl font-fixel-display font-medium md:mb-6 mb-1">
+          <h1 className=" md:text-[38px] text-xl md:text-2xl font-fixel-display font-medium md:mb-6">
             {productName}
           </h1>
 
-          <div className="mb-1">
+          <div className="md:mb-1">
             <div className="flex items-baseline gap-2">
               <div className="text-lg md:text-2xl">{finalPriceLabel}</div>
               {hasDiscount && (
@@ -1177,6 +1162,12 @@ export function ProductInteractive({ p }: { p: ProductWithVariants }) {
               {hasAdvancedConfigurator ? (
                 <>
                   <div className="w-full rounded-xl border border-gray-200 p-3 md:p-4 mb-4 bg-white">
+                    <div className="h-1.5 w-full rounded-full bg-gray-100 overflow-hidden mb-2 md:mb-4">
+                      <div
+                        className="h-full bg-green-500 transition-all duration-300"
+                        style={{ width: `${progressPercent}%` }}
+                      />
+                    </div>
                     <div className="mb-3 flex items-center justify-between gap-3">
                       <div className="text-sm font-medium text-gray-900 uppercase tracking-wide">
                         {t('Кастомізація', 'Configurator')}
@@ -1187,18 +1178,11 @@ export function ProductInteractive({ p }: { p: ProductWithVariants }) {
                       </div>
                     </div>
 
-                    <div className="h-1.5 w-full rounded-full bg-gray-100 overflow-hidden mb-4">
-                      <div
-                        className="h-full bg-green-500 transition-all duration-300"
-                        style={{ width: `${progressPercent}%` }}
-                      />
-                    </div>
-
                     <div className="space-y-4">
                       <div>
-                        <div className="mb-2 text-sm uppercase tracking-wide text-gray-900">
-                          {t('Крок', 'Step')} {stepNumberById.get('color')}:{' '}
-                          {t('Колір', 'Color')}
+                        <div className="md:mb-2 text-sm uppercase tracking-wide text-gray-900">
+                          {/* {t('Крок', 'Step')} {stepNumberById.get('color')}:{' '} */}
+                          {t('Колір виробу', 'Color')}
                         </div>
                         {selectedColorLabel ? (
                           <div className="mt-1 mb-2 min-h-5 text-sm font-medium text-gray-500">
@@ -1275,9 +1259,9 @@ export function ProductInteractive({ p }: { p: ProductWithVariants }) {
 
                       {showPouchStepBlock && (
                         <div>
-                          <div className="mb-2">
+                          <div className="md:mb-2">
                             <div className="text-sm uppercase tracking-wide text-gray-900">
-                              {t('Крок', 'Step')} {stepNumberById.get('pouch')}:{' '}
+                              {/* {t('Крок', 'Step')} {stepNumberById.get('pouch')}:{' '} */}
                               {t('Мішечок', 'Pouch')}
                             </div>
                             <div className="mt-1 min-h-5 text-sm font-medium text-gray-500">
@@ -1332,9 +1316,9 @@ export function ProductInteractive({ p }: { p: ProductWithVariants }) {
 
                       {showStrapStepBlock && (
                         <div>
-                          <div className="mb-2">
+                          <div className="md:mb-2">
                             <div className="text-sm uppercase tracking-wide text-gray-900">
-                              {t('Крок', 'Step')} {stepNumberById.get('strap')}:{' '}
+                              {/* {t('Крок', 'Step')} {stepNumberById.get('strap')}:{' '} */}
                               {t('Ремінець', 'Strap')}
                             </div>
                             {
@@ -1400,8 +1384,8 @@ export function ProductInteractive({ p }: { p: ProductWithVariants }) {
 
                       {showSizeStepBlock && (
                         <div>
-                          <div className="mb-2 text-sm uppercase tracking-wide text-gray-900">
-                            {t('Крок', 'Step')} {stepNumberById.get('size')}:{' '}
+                          <div className="md:mb-2 text-sm uppercase tracking-wide text-gray-900">
+                            {/* {t('Крок', 'Step')} {stepNumberById.get('size')}:{' '} */}
                             {t('Розмір', 'Size')}
                           </div>
                           <div className="flex flex-wrap gap-2">
@@ -1631,7 +1615,6 @@ export function ProductInteractive({ p }: { p: ProductWithVariants }) {
         currentSlug={p.slug}
         currentId={p.id}
         currentType={p.type}
-        currentGroup={p.group ?? undefined}
       />
     </>
   )

@@ -1,11 +1,7 @@
 'use client'
 
 import { ProductType } from '@prisma/client'
-import {
-  ACTIVE_PRODUCT_TYPES,
-  getColorLabel,
-  getTypeLabel,
-} from '@/lib/labels'
+import { ACTIVE_PRODUCT_TYPES, getColorLabel, getTypeLabel } from '@/lib/labels'
 import { useEffect, useId } from 'react'
 import clsx from 'clsx'
 import { useLocale, useT } from '@/lib/i18n'
@@ -26,10 +22,15 @@ export type FiltersValue = {
 
 const TYPE_OPTIONS: ProductType[] = ACTIVE_PRODUCT_TYPES
 
+export type CatalogViewValue = 'products' | 'variants'
+
 type Props = {
   value: FiltersValue
   onChange: (next: FiltersValue) => void
   colors: string[]
+  /** Режим показу — застосовується одразу, без кнопки «Застосувати». */
+  view?: CatalogViewValue
+  onViewChange?: (next: CatalogViewValue) => void
   accessorySubcategoryOptions?: Array<{ value: string; label: string }>
   showAccessorySubcategory?: boolean
   lockType?: boolean
@@ -46,6 +47,8 @@ export default function ProductsFilter({
   value,
   onChange,
   colors,
+  view = 'products',
+  onViewChange,
   accessorySubcategoryOptions,
   showAccessorySubcategory = false,
   lockType = false,
@@ -78,9 +81,9 @@ export default function ProductsFilter({
   const Controls = (sortName: string) => (
     <>
       {/* верхній рядок: чекбокси + сортування */}
-      <div className="flex justify-between flex-nowrap mb-[26px] uppercase">
+      <div className="flex justify-between flex-nowrap mb-2 uppercase">
         <div>
-          <div className="flex flex-wrap gap-x-3 gap-y-3 mb-[34px]">
+          <div className="flex flex-wrap gap-x-3 gap-y-3 mb-4">
             {/* В наявності */}
             <label className="flex items-center md:gap-2 gap-1 cursor-pointer">
               <input
@@ -264,10 +267,44 @@ export default function ProductsFilter({
                 ))}
               </select>
             </div>
+
+            {/* Вигляд — не фільтр, діє одразу */}
+            {onViewChange && (
+              <button
+                type="button"
+                role="switch"
+                aria-checked={view === 'variants'}
+                onClick={() =>
+                  onViewChange(view === 'variants' ? 'products' : 'variants')
+                }
+                className="inline-flex items-center gap-2.5 cursor-pointer group"
+              >
+                <span
+                  aria-hidden
+                  className={clsx(
+                    'inline-flex h-5 w-9 shrink-0 rounded-full p-[3px] transition-colors',
+                    'group-focus-visible:ring-2 group-focus-visible:ring-black/40 group-focus-visible:ring-offset-2',
+                    view === 'variants'
+                      ? 'bg-black'
+                      : 'bg-gray-300 group-hover:bg-gray-400',
+                  )}
+                >
+                  <span
+                    className={clsx(
+                      'h-3.5 w-3.5 rounded-full bg-white shadow-sm transition-transform duration-200',
+                      view === 'variants' && 'translate-x-4',
+                    )}
+                  />
+                </span>
+                <span className="uppercase tracking-wide">
+                  {t('Усі кольори', 'All colors')}
+                </span>
+              </button>
+            )}
           </div>
 
           {/* третій рядок: ціна */}
-          <div className="mt-[34px] flex items-center gap-3">
+          <div className="mt-4 flex items-center gap-3">
             <span>{t('Ціна', 'Price')}:</span>
             <input
               placeholder={t('60 грн', '60 UAH')}
@@ -309,7 +346,7 @@ export default function ProductsFilter({
       <div
         className={clsx(
           'lg:hidden fixed inset-0 z-50',
-          mobileOpen ? 'pointer-events-auto' : 'pointer-events-none'
+          mobileOpen ? 'pointer-events-auto' : 'pointer-events-none',
         )}
         aria-hidden={!mobileOpen}
       >
@@ -317,7 +354,7 @@ export default function ProductsFilter({
         <div
           className={clsx(
             'absolute inset-0 bg-black/40 transition-opacity',
-            mobileOpen ? 'opacity-100' : 'opacity-0'
+            mobileOpen ? 'opacity-100' : 'opacity-0',
           )}
           onClick={onMobileClose}
         />
@@ -326,7 +363,7 @@ export default function ProductsFilter({
         <div
           className={clsx(
             'absolute inset-x-0 bottom-0 top-0 bg-white flex flex-col transition-transform',
-            mobileOpen ? 'translate-y-0' : 'translate-y-full'
+            mobileOpen ? 'translate-y-0' : 'translate-y-full',
           )}
         >
           {/* Header */}

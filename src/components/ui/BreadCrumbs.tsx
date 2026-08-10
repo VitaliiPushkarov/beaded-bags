@@ -162,7 +162,7 @@ function BreadcrumbsInner({ override }: { override?: Crumb[] }) {
     <>
       <nav
         aria-label={locale === 'en' ? 'Breadcrumbs' : 'Хлібні крихти'}
-        className="mb-3 md:mb-5 md:mb-10"
+        className="mb-3 md:mb-5"
       >
         {/* Mobile keeps the trail on one line by letting the last crumb — the
             page's own name — truncate. `truncate` alone cannot do that: a flex

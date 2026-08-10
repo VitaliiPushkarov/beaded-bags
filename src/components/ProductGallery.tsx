@@ -375,7 +375,10 @@ function ThumbnailGallery({
               thumbsSwiper && !thumbsSwiper.destroyed ? thumbsSwiper : null,
           }}
           slidesPerView={1}
-          spaceBetween={0}
+          // Mobile is a copy of the carousel layout, down to the gap that shows
+          // between slides mid-swipe. Desktop keeps its flush single slide.
+          spaceBetween={16}
+          breakpoints={{ 768: { spaceBetween: 0 } }}
           className="w-full rounded overflow-hidden"
         >
           {list.map((src, i) => (
@@ -387,16 +390,18 @@ function ThumbnailGallery({
                 height={sizesByUrl[src]?.h ?? 1600}
               >
                 {({ ref, open }) => (
-                  // Product photos are portrait (2:3). The carousel gets away with a
-                  // full-width slide because it shows two per view, which
-                  // happens to match; a single full-width slide does not, and
-                  // object-cover cropped half the bag away. Giving the box the
-                  // photo's own ratio and centring it makes the image fill it
-                  // exactly, nothing cropped.
+                  // Mobile deliberately matches the carousel layout box for box
+                  // — full width, 420 tall, same crop — so a customisable
+                  // product does not look like a different site on a phone.
+                  //
+                  // Desktop keeps its own box: product photos are portrait
+                  // (2:3) and the wide column would crop half the bag away
+                  // under object-cover, so above md the box takes the photo's
+                  // own ratio and is centred, which it fills exactly.
                   <div
                     ref={ref as (node: HTMLDivElement | null) => void}
                     onClick={open}
-                    className="relative mx-auto aspect-[1/1] md:aspect-[2/3] h-[270px] md:h-[580px] cursor-zoom-in overflow-hidden rounded bg-white"
+                    className="relative h-[420px] w-full cursor-zoom-in overflow-hidden rounded bg-white md:mx-auto md:aspect-[2/3] md:h-[580px] md:w-auto"
                   >
                     <Image
                       src={src || placeholder}
@@ -457,29 +462,25 @@ function ThumbnailGallery({
         )}
 
         {hasMultipleImages && (
-          // Mobile gets the same swipe-plus-dots affordance as the rest of the
-          // catalogue rather than a thumbnail strip, laid over the bottom of
-          // the photo. The inner box repeats the slide's own 270px width
-          // because the square photo is narrower than the swiper — anchoring
-          // the counter to the full width would park it beside the photo
-          // instead of in its corner.
-          <div className="pointer-events-none absolute inset-x-0 bottom-0 z-[2] md:hidden">
-            <div className="relative mx-auto flex w-[270px] items-center justify-center px-3 pb-3">
-              <div className="flex items-center gap-2">
-                {mobileBullets.map((isActive, index) => (
-                  <span
-                    key={`thumb-mobile-bullet-${index}`}
-                    className={`h-2.5 w-2.5 rounded-full shadow-[0_1px_3px_rgba(0,0,0,0.35)] transition ${
-                      isActive ? 'bg-pink-300' : 'bg-gray-300'
-                    }`}
-                    aria-hidden
-                  />
-                ))}
-              </div>
-              <span className="absolute bottom-3 right-3 rounded-full bg-white/75 px-2 py-0.5 text-[11px] leading-none text-gray-600 backdrop-blur-sm">
-                {activeIndex + 1} / {list.length}
-              </span>
+          // Mobile gets the swipe-plus-dots affordance the rest of the
+          // catalogue has rather than a thumbnail strip, and spans the full
+          // width exactly like the carousel's — the slide underneath is now the
+          // same size, so there is nothing narrower to align to.
+          <div className="pointer-events-none absolute inset-x-0 bottom-0 z-[2] flex items-center justify-center px-3 pb-3 md:hidden">
+            <div className="flex items-center gap-2">
+              {mobileBullets.map((isActive, index) => (
+                <span
+                  key={`thumb-mobile-bullet-${index}`}
+                  className={`h-2.5 w-2.5 rounded-full shadow-[0_1px_3px_rgba(0,0,0,0.35)] transition ${
+                    isActive ? 'bg-pink-300' : 'bg-gray-300'
+                  }`}
+                  aria-hidden
+                />
+              ))}
             </div>
+            <span className="absolute bottom-3 right-3 rounded-full bg-white/75 px-2 py-0.5 text-[11px] leading-none text-gray-600 backdrop-blur-sm">
+              {activeIndex + 1} / {list.length}
+            </span>
           </div>
         )}
       </Gallery>

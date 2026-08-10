@@ -24,10 +24,17 @@ export default function ProductCardLarge({
   p,
   preferredColor,
   aboveTheFold = false,
+  asVariantCard = false,
 }: {
   p: ProductWithVariants
   preferredColor?: string
   aboveTheFold?: boolean
+  /**
+   * Картка представляє один конкретний варіант (розгорнутий вигляд каталогу):
+   * свотчі ховаємо, натомість підписуємо колір, щоб сусідні картки
+   * однієї моделі не читались як дубль.
+   */
+  asVariantCard?: boolean
 }) {
   const locale = useLocale()
   const numberLocale = useLocaleNumberFormat()
@@ -173,6 +180,11 @@ export default function ProductCardLarge({
             <h3 className="text-[16px] font-normal leading-snug line-clamp-2 break-words">
               {productName}
             </h3>
+            {asVariantCard && variantColorLabel && (
+              <div className="text-[13px] text-gray-500 leading-snug mt-0.5">
+                {variantColorLabel}
+              </div>
+            )}
           </Link>
 
           <div className="whitespace-nowrap flex flex-col items-start">
@@ -200,13 +212,15 @@ export default function ProductCardLarge({
         </div>
 
         {/* свотчі — міняють фото та назву */}
-        <div className="mt-2 md:mt-3">
-          <VariantSwatches
-            variants={p.variants}
-            value={activeVariantId ?? ''}
-            onChange={setVariantId}
-          />
-        </div>
+        {!asVariantCard && (
+          <div className="mt-2 md:mt-3">
+            <VariantSwatches
+              variants={p.variants}
+              value={activeVariantId ?? ''}
+              onChange={setVariantId}
+            />
+          </div>
+        )}
 
         {/* швидке додавання в кошик саме обраного кольору */}
         {/*  <button

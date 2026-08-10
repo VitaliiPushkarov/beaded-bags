@@ -610,6 +610,17 @@ model HomeHeroBannerSettings {
   updatedAt      DateTime @updatedAt
 }
 
+// Singleton row holding the category -> categories rule for the "You may also
+// like" block on product pages. Kept out of HomeHeroBannerSettings because that
+// row is home-page config with its own cache tag, while this is read on every
+// product page.
+model RecommendationSettings {
+  id        Int      @id @default(1)
+  matrix    Json
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
 model PromoCode {
   id              String    @id @default(cuid())
   // Stored uppercase; codes are compared case-insensitively.

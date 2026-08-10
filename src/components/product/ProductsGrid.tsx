@@ -9,10 +9,13 @@ export default function ProductsGrid({
   products,
   loading,
   preferredColor,
+  expanded = false,
 }: {
   products: ProductWithVariants[]
   loading: boolean
   preferredColor?: string
+  /** Кожен елемент масиву — окремий варіант, а не товар цілком. */
+  expanded?: boolean
 }) {
   const t = useT()
   if (loading) {
@@ -39,10 +42,15 @@ export default function ProductsGrid({
     <div className="grid grid-cols-2 lg:grid-cols-3 2xl:grid-cols-5 gap-5 gap-7 mt-6">
       {products.map((p, index) => (
         <ProductCardLarge
-          key={p.id || p.slug}
+          key={
+            expanded
+              ? `${p.id || p.slug}:${p.variants[0]?.id ?? index}`
+              : p.id || p.slug
+          }
           p={p}
           preferredColor={preferredColor}
           aboveTheFold={index < 2}
+          asVariantCard={expanded}
         />
       ))}
     </div>

@@ -5,6 +5,8 @@ import {
   isPrismaAvailabilityError,
   withPrismaRetry,
 } from '@/lib/prisma-resilience'
+import { resolveRecommendedTypes } from '@/lib/recommendation-matrix'
+import { getRecommendationMatrix } from '@/lib/recommendation-settings'
 
 function clamp(value: number, min: number, max: number) {
   return Math.min(Math.max(value, min), max)
@@ -109,20 +111,26 @@ export async function GET(req: NextRequest) {
 
       const excludeSlug = searchParams.get('excludeSlug')?.trim()
       const excludeId = searchParams.get('excludeId')?.trim()
-      const type = searchParams.get('type')?.trim() || undefined
-      const group = searchParams.get('group')?.trim() || undefined
+      // Category of the product being viewed. The admin-configured matrix
+      // decides which categories may be recommended for it; previously this
+      // branch matched "same type OR same group" with the rule hardcoded.
+      const recommendFor = searchParams.get('recommendFor')?.trim()
 
       const where: Prisma.ProductWhereInput = {
         status: 'PUBLISHED',
       }
 
-      // Soft relevance: if type/group are provided, prefer matching either of them,
-      // but don't require both simultaneously.
-      if (type || group) {
-        where.OR = [
-          ...(type ? [{ type: type as any }] : []),
-          ...(group ? [{ group: group as any }] : []),
-        ]
+      if (recommendFor) {
+        const matrix = await getRecommendationMatrix()
+        const allowedTypes = resolveRecommendedTypes(matrix, recommendFor)
+
+        // An empty row means the owner switched the block off for this
+        // category, so return nothing rather than falling back to everything.
+        if (allowedTypes.length === 0) {
+          return NextResponse.json({ items: [] })
+        }
+
+        where.type = { in: allowedTypes }
       }
 
       if (excludeId || excludeSlug) {

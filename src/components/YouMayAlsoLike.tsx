@@ -37,15 +37,11 @@ export default function YouMayAlsoLike({
   currentSlug,
   currentId,
   currentType,
-  currentGroup,
-  pinnedSlugs,
   limit = 20,
 }: {
   currentSlug: string
   currentId?: string
   currentType?: string
-  currentGroup?: string
-  pinnedSlugs?: string[]
   limit?: number
 }) {
   const locale = useLocale()
@@ -70,7 +66,6 @@ export default function YouMayAlsoLike({
   }
 
   const currentSlugNorm = normalizeSlug(currentSlug)
-  const pinnedNorm = (pinnedSlugs ?? []).map(normalizeSlug).filter(Boolean)
 
   useEffect(() => {
     let cancelled = false
@@ -85,8 +80,8 @@ export default function YouMayAlsoLike({
         })
 
         if (currentId) qs.set('excludeId', String(currentId))
-        if (currentType) qs.set('type', String(currentType))
-        if (currentGroup) qs.set('group', String(currentGroup))
+        // The API resolves this against the admin-configured category matrix.
+        if (currentType) qs.set('recommendFor', String(currentType))
 
         const res = await fetch(`/api/products?${qs.toString()}`, {
           cache: 'no-store',
@@ -120,37 +115,11 @@ export default function YouMayAlsoLike({
             deduped.push(x)
           }
 
-          // 3) Rank: pinned first, then same type, then same group
-          const score = (x: any) => {
-            const slugNorm = normalizeSlug(x?.slug)
-            if (pinnedNorm.length && pinnedNorm.includes(slugNorm)) return 300
-            if (
-              currentType &&
-              x?.type &&
-              String(x.type) === String(currentType)
-            )
-              return 200
-            if (
-              currentGroup &&
-              x?.group &&
-              String(x.group) === String(currentGroup)
-            )
-              return 100
-            return 0
-          }
-
-          const ranked = [...deduped].sort((a, b) => {
-            const d = score(b) - score(a)
-            if (d !== 0) return d
-            // stable-ish fallback: newest first if available
-            const da = a?.createdAt ? new Date(a.createdAt).getTime() : 0
-            const db = b?.createdAt ? new Date(b.createdAt).getTime() : 0
-            if (db !== da) return db - da
-            return String(a?.slug ?? '').localeCompare(String(b?.slug ?? ''))
-          })
-
-          // 4) If pinned provided, keep only up to limit
-          setItems(ranked.slice(0, limit))
+          // 3) Keep the API's order (newest first). Categories are deliberately
+          // interleaved rather than grouped: when the matrix allows a second
+          // category, sorting the current one first would bury it past the
+          // visible part of the slider.
+          setItems(deduped.slice(0, limit))
         }
       } catch (e) {
         if (!cancelled) setItems([])
@@ -163,7 +132,7 @@ export default function YouMayAlsoLike({
     return () => {
       cancelled = true
     }
-  }, [currentSlug, currentId, currentType, currentGroup, limit, pinnedSlugs])
+  }, [currentSlug, currentId, currentType, limit])
 
   const scrollByAmount = (dir: 'left' | 'right') => {
     const el = scrollerRef.current
@@ -171,6 +140,11 @@ export default function YouMayAlsoLike({
     const amount = Math.round(el.clientWidth * 0.9)
     el.scrollBy({ left: dir === 'left' ? -amount : amount, behavior: 'smooth' })
   }
+
+  // Nothing to recommend: either the matrix has no categories checked for this
+  // one, or everything it allows is unpublished. Drop the heading and arrows
+  // too rather than leaving an empty titled section on the page.
+  if (!loading && items.length === 0) return null
 
   return (
     <div className="relative">

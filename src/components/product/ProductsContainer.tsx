@@ -46,6 +46,14 @@ const DEFAULT_FILTERS: UIFilters = {
 type ProductWithVariants = CardProductWithVariants
 const EMPTY_SUBCATEGORY_OPTIONS: Array<{ value: string; label: string }> = []
 
+/**
+ * Режим показу каталогу. Це не фільтр: він нічого не відсіює, лише вирішує,
+ * чи одна картка = один товар (свотчі всередині), чи один варіант.
+ */
+export type CatalogView = 'products' | 'variants'
+const VIEW_STORAGE_KEY = 'gerdan:catalog-view'
+const VIEW_QUERY_KEY = 'view'
+
 function localizedProductName(p: ProductWithVariants, locale: 'uk' | 'en') {
   return pickLocalizedText(p.name, p.nameEn, locale)
 }
@@ -88,6 +96,64 @@ function getComparablePrices(p: ProductWithVariants, locale: 'uk' | 'en') {
 function getMinPrice(p: ProductWithVariants, locale: 'uk' | 'en') {
   const list = getComparablePrices(p, locale)
   return list.length ? Math.min(...list) : 0
+}
+
+function getVariantPrice(
+  p: ProductWithVariants,
+  v: ProductWithVariants['variants'][number],
+  locale: 'uk' | 'en',
+) {
+  // Той самий фолбек, що й у картці: ціна варіанту, інакше базова ціна товару.
+  return pickLocalizedMoney({
+    locale,
+    priceUAH: v.priceUAH ?? p.basePriceUAH,
+    priceUSD: v.priceUSD ?? p.basePriceUSD,
+  }).amount
+}
+
+/**
+ * Розгортає кожен товар у стільки карток, скільки в нього варіантів.
+ * Варіанти лишаються згрупованими біля свого товару — глобальний порядок
+ * товарів не змінюється, сортується лише всередині групи.
+ *
+ * Якщо активний фільтр кольору, показуємо тільки варіанти цього кольору:
+ * інакше запит «покажи рожеве» повертав би всі кольори кожної моделі.
+ */
+function expandToVariants(
+  products: ProductWithVariants[],
+  locale: 'uk' | 'en',
+  sortPrice: UIFilters['sortPrice'],
+  color: string,
+): ProductWithVariants[] {
+  const out: ProductWithVariants[] = []
+
+  for (const p of products) {
+    const all = p.variants ?? []
+    const matching = color
+      ? all.filter((v) => localizedVariantColor(v, locale) === color)
+      : all
+    // фолбек: товар потрапив у список, але жоден варіант не збігся за міткою
+    const variants = matching.length ? matching : all
+
+    if (variants.length <= 1) {
+      out.push(variants === all ? p : { ...p, variants })
+      continue
+    }
+
+    const ordered = sortPrice
+      ? [...variants].sort((a, b) => {
+          const d =
+            getVariantPrice(p, a, locale) - getVariantPrice(p, b, locale)
+          return sortPrice === 'asc' ? d : -d
+        })
+      : variants
+
+    for (const v of ordered) {
+      out.push({ ...p, variants: [v] })
+    }
+  }
+
+  return out
 }
 
 function isInStock(p: ProductWithVariants) {
@@ -244,6 +310,29 @@ export default function ProductsContainer({
   // окремий стан для мобільного фільтру замість __mobile у ui
   const [mobileOpen, setMobileOpen] = useState(false)
 
+  // Режим показу живе поза UIFilters: він не бере участі у фільтрації,
+  // і так його не треба протягувати крізь apply/removeChip/clearAll.
+  const [view, setView] = useState<CatalogView>('products')
+
+  // Відновлюємо після монтування (не в useState), щоб не розійтися з SSR.
+  // Слухаємо саме sp, а не лише маунт: сторінки каталогу пререндеряться
+  // статично, тож searchParams доїжджають уже після гідрації.
+  // URL має пріоритет над збереженим вибором.
+  useEffect(() => {
+    const fromUrl = sp.get(VIEW_QUERY_KEY)
+    if (fromUrl === 'variants' || fromUrl === 'products') {
+      setView(fromUrl)
+      return
+    }
+
+    try {
+      const stored = window.localStorage.getItem(VIEW_STORAGE_KEY)
+      if (stored === 'variants' || stored === 'products') setView(stored)
+    } catch {
+      // приватний режим / заблоковане сховище — лишаємо дефолт
+    }
+  }, [sp])
+
   // 1) UI-стан (те, що юзер крутить у формі)
   const [ui, setUI] = useState<UIFilters>(() => ({
     ...DEFAULT_FILTERS,
@@ -303,6 +392,30 @@ export default function ProductsContainer({
       return changed ? next : prev
     })
   }, [sp, lockedType, lockedGroup, subcategoryOptions, isLockedAccessoryType])
+
+  // Єдина точка запису URL: режим показу доклеюється до будь-якого набору
+  // фільтрів, щоб apply/clearAll/removeChip його не збивали.
+  const replaceUrl = (
+    params: URLSearchParams,
+    nextView: CatalogView = view,
+  ) => {
+    if (nextView === 'variants') params.set(VIEW_QUERY_KEY, 'variants')
+    else params.delete(VIEW_QUERY_KEY)
+    const qs = params.toString()
+    router.replace(qs ? `${pathname}?${qs}` : pathname)
+  }
+
+  const changeView = (nextView: CatalogView) => {
+    if (nextView === view) return
+    setView(nextView)
+    try {
+      window.localStorage.setItem(VIEW_STORAGE_KEY, nextView)
+    } catch {
+      // приватний режим / заблоковане сховище — просто не запам'ятовуємо
+    }
+    // зберігаємо вже застосовані фільтри з URL як є
+    replaceUrl(new URLSearchParams(sp.toString()), nextView)
+  }
 
   // застосувати
   const apply = () => {
@@ -425,8 +538,7 @@ export default function ProductsContainer({
     if (toApply.max) params.set('max', toApply.max)
     if (toApply.sortBase) params.set('sortBase', toApply.sortBase)
     if (toApply.sortPrice) params.set('sortPrice', toApply.sortPrice)
-    const qs = params.toString()
-    router.replace(qs ? `${pathname}?${qs}` : pathname)
+    replaceUrl(params)
 
     // закриємо мобільний фільтр після застосування
     setMobileOpen(false)
@@ -444,7 +556,7 @@ export default function ProductsContainer({
     setHasApplied(false)
     setIsDirty(false)
     setVisible(base)
-    router.replace(pathname)
+    replaceUrl(new URLSearchParams())
   }
 
   // кольори з продуктів з урахуванням поточних фільтрів
@@ -690,9 +802,16 @@ export default function ProductsContainer({
     if (next.max) params.set('max', next.max)
     if (next.sortBase) params.set('sortBase', next.sortBase)
     if (next.sortPrice) params.set('sortPrice', next.sortPrice)
-    const qs = params.toString()
-    router.replace(qs ? `${pathname}?${qs}` : pathname)
+    replaceUrl(params)
   }
+
+  const displayed = useMemo(
+    () =>
+      view === 'variants'
+        ? expandToVariants(visible, locale, applied.sortPrice, applied.color)
+        : visible,
+    [view, visible, locale, applied.sortPrice, applied.color],
+  )
 
   const shouldShowAccessorySubcategory =
     subcategoryOptions.length > 0 &&
@@ -704,7 +823,7 @@ export default function ProductsContainer({
   return (
     <div className="max-w-[1440px] mx-auto py-6 px-5 md:px-[50px] 2xl:max-w-full">
       <Breadcrumbs />
-      <div className="flex items-center justify-between py-4 lg:mb-6 lg:items-end">
+      <div className="flex items-center justify-between py-4 lg:items-end">
         <h1 className="text-2xl lg:text-3xl">
           {locale === 'en' && title === 'Каталог' ? 'Catalog' : title}
         </h1>
@@ -734,6 +853,8 @@ export default function ProductsContainer({
           setIsDirty(true)
         }}
         colors={colors}
+        view={view}
+        onViewChange={changeView}
         accessorySubcategoryOptions={visibleSubcategoryOptions}
         showAccessorySubcategory={shouldShowAccessorySubcategory}
         lockType={Boolean(lockedType)}
@@ -747,9 +868,10 @@ export default function ProductsContainer({
         <AppliedChips chips={chips} onRemove={removeChip} onClear={clearAll} />
       )}
       <ProductsGrid
-        products={visible}
+        products={displayed}
         loading={loading}
         preferredColor={applied.color || undefined}
+        expanded={view === 'variants'}
       />
     </div>
   )
