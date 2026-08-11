@@ -1296,6 +1296,21 @@ export function ProductInteractive({ p }: { p: ProductWithVariants }) {
                                   imageUrl={optionPreviewImage(pouch)}
                                   extraLabel={extraLabel}
                                   onClick={() => {
+                                    // Clicking the pouch already chosen is the
+                                    // way back. Without it the click only swaps
+                                    // the photo, and a shopper who has picked a
+                                    // strap ends up looking at the bare pouch
+                                    // while the strap still reads as selected.
+                                    // The strap belongs to this pouch, so it
+                                    // steps back too, and the gallery returns to
+                                    // the variant's own photos — step 1.
+                                    if (isPouchStrapMode && isActive) {
+                                      setSelectedPouchId(undefined)
+                                      setStrapId(undefined)
+                                      setActiveCustomizationImage(null)
+                                      return
+                                    }
+
                                     setSelectedPouchId(pouch.id)
                                     setActiveCustomizationImage('pouch')
                                   }}
@@ -1364,6 +1379,15 @@ export function ProductInteractive({ p }: { p: ProductWithVariants }) {
                                   imageUrl={optionPreviewImage(strap)}
                                   extraLabel={extraLabel}
                                   onClick={() => {
+                                    // Same step back one level down: the strap
+                                    // is undone, the pouch stays, so the gallery
+                                    // falls back to the pouch photo — step 2.
+                                    if (isPouchStrapMode && isActive) {
+                                      setStrapId(undefined)
+                                      setActiveCustomizationImage('pouch')
+                                      return
+                                    }
+
                                     setStrapId(strap.id)
                                     setActiveCustomizationImage('strap')
                                   }}

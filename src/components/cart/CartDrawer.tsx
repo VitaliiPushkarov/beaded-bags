@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useRef } from 'react'
 import Link from 'next/link'
 import Image from 'next/image'
-import { useCart } from '@/app/store/cart'
+import { cartLineKey, useCart } from '@/app/store/cart'
 import { useUI } from '@/app/store/ui'
 import { useIsMounted } from '@/lib/useIsMounted'
 import { pushMetaInitiateCheckout } from '@/lib/analytics/datalayer'
@@ -122,7 +122,7 @@ export default function CartDrawer() {
 
               {items.map((it) => (
                 <div
-                  key={`${it.productId}-${it.variantId}-${it.strapId ?? ''}-${it.sizeId ?? ''}-${it.pouchId ?? ''}`}
+                  key={cartLineKey(it)}
                   className="grid grid-cols-[96px,1fr,auto] gap-4 items-start border rounded px-3 py-3"
                 >
                   <div className="inline-flex gap-6">
@@ -174,13 +174,7 @@ export default function CartDrawer() {
 
                       <button
                         onClick={() => {
-                          remove(
-                            it.productId,
-                            it.variantId,
-                            it.strapId,
-                            it.sizeId,
-                            it.pouchId,
-                          )
+                          remove(it)
                         }}
                         className="mt-2 text-rose-600 hover:text-rose-700 text-sm cursor-pointer"
                       >
@@ -196,22 +190,9 @@ export default function CartDrawer() {
                         onClick={() => {
                           const next = it.qty - 1
                           if (next <= 0) {
-                            remove(
-                              it.productId,
-                              it.variantId,
-                              it.strapId,
-                              it.sizeId,
-                              it.pouchId,
-                            )
+                            remove(it)
                           } else {
-                            setQty(
-                              it.productId,
-                              it.variantId,
-                              next,
-                              it.strapId,
-                              it.sizeId,
-                              it.pouchId,
-                            )
+                            setQty(it, next)
                           }
                         }}
                         aria-label={t('Менше', 'Decrease')}
@@ -222,14 +203,7 @@ export default function CartDrawer() {
                       <button
                         className="h-8 w-8 rounded bg-black text-white hover:bg-[#FF3D8C] transition cursor-pointer"
                         onClick={() => {
-                          setQty(
-                            it.productId,
-                            it.variantId,
-                            it.qty + 1,
-                            it.strapId,
-                            it.sizeId,
-                            it.pouchId,
-                          )
+                          setQty(it, it.qty + 1)
                         }}
                         aria-label={t('Більше', 'Increase')}
                       >

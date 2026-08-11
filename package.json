@@ -26,6 +26,7 @@
     "db:probe": "node --import tsx scripts/db/probe-connection.ts",
     "check:variant-delete": "node --import tsx scripts/check-variant-delete.ts",
     "test:promo": "node --import tsx --test src/lib/promo-rules.test.ts",
+    "test:cart": "node --import tsx --test src/app/store/cart.test.ts",
     "test:product-options": "node --import tsx --test 'src/app/products/*/product-options.test.ts'"
   },
   "dependencies": {

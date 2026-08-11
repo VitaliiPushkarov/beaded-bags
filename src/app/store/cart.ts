@@ -33,32 +33,48 @@ type CartItem = {
   addons?: OrderItemAddon[]
 }
 
+// What makes two cart lines the same line: the product, the variant, and every
+// option that can differ between them. Anything left out of here makes the two
+// lines indistinguishable — React renders them under one key, and remove/setQty
+// act on whichever comes first. That is what `pouchStrapId` did: the same pouch
+// with a different strap produced two lines that behaved as one.
+//
+// The whole cart identifies lines through this one helper on purpose, so the
+// next option added to the configurator has a single place to be declared.
+// The option fields are optional here, not because callers may skip them —
+// they pass the whole line — but because carts persisted before an option
+// existed come back from localStorage without it. Missing and null mean the
+// same thing: not chosen.
+export type CartLineIdentity = {
+  productId: string
+  variantId: string
+  strapId?: string | null
+  pouchStrapId?: string | null
+  sizeId?: string | null
+  pouchId?: string | null
+}
+
+// '|' rather than '-': ids like `cozy-bag-00` already carry dashes, so a
+// dash-joined key cannot be read back unambiguously.
+export const cartLineKey = (line: CartLineIdentity): string =>
+  [
+    line.productId,
+    line.variantId,
+    line.strapId ?? '',
+    line.pouchStrapId ?? '',
+    line.sizeId ?? '',
+    line.pouchId ?? '',
+  ].join('|')
+
 type CartState = {
   items: CartItem[]
   add: (item: CartItem) => void
-  remove: (
-    id: string,
-    variantId: string,
-    strapId?: string | null,
-    sizeId?: string | null,
-    pouchId?: string | null,
-  ) => void
-  setQty: (
-    id: string,
-    variantId: string,
-    qty: number,
-    strapId?: string | null,
-    sizeId?: string | null,
-    pouchId?: string | null,
-  ) => void
+  remove: (line: CartLineIdentity) => void
+  setQty: (line: CartLineIdentity, qty: number) => void
   clear: () => void
   applyServerPrices: (updates: Array<{ index: number; priceUAH: number }>) => void
   total: () => number
 }
-
-const normalizeStrapId = (strapId: string | null | undefined) => strapId ?? null
-const normalizeSizeId = (sizeId: string | null | undefined) => sizeId ?? null
-const normalizePouchId = (pouchId: string | null | undefined) => pouchId ?? null
 
 export const useCart = create<CartState>()(
   persist(
@@ -66,16 +82,8 @@ export const useCart = create<CartState>()(
       items: [],
       add: (item) => {
         set((s) => {
-          const i = s.items.findIndex(
-            (x) =>
-              x.productId === item.productId &&
-              x.variantId === item.variantId &&
-              normalizeStrapId(x.strapId) === normalizeStrapId(item.strapId) &&
-              normalizeStrapId(x.pouchStrapId) ===
-                normalizeStrapId(item.pouchStrapId) &&
-              normalizeSizeId(x.sizeId) === normalizeSizeId(item.sizeId) &&
-              normalizePouchId(x.pouchId) === normalizePouchId(item.pouchId)
-          )
+          const key = cartLineKey(item)
+          const i = s.items.findIndex((x) => cartLineKey(x) === key)
           if (i >= 0) {
             const copy = [...s.items]
             copy[i] = { ...copy[i], qty: copy[i].qty + item.qty }
@@ -93,31 +101,20 @@ export const useCart = create<CartState>()(
           slug: item.slug,
         })
       },
-      remove: (id, variantId, strapId, sizeId, pouchId) =>
-        set((s) => ({
-          items: s.items.filter(
-            (i) =>
-              !(
-                i.productId === id &&
-                i.variantId === variantId &&
-                normalizeStrapId(i.strapId) === normalizeStrapId(strapId) &&
-                normalizeSizeId(i.sizeId) === normalizeSizeId(sizeId) &&
-                normalizePouchId(i.pouchId) === normalizePouchId(pouchId)
-              )
-          ),
-        })),
-      setQty: (id, variantId, qty, strapId, sizeId, pouchId) =>
-        set((s) => ({
-          items: s.items.map((i) =>
-            i.productId === id &&
-            i.variantId === variantId &&
-            normalizeStrapId(i.strapId) === normalizeStrapId(strapId) &&
-            normalizeSizeId(i.sizeId) === normalizeSizeId(sizeId) &&
-            normalizePouchId(i.pouchId) === normalizePouchId(pouchId)
-              ? { ...i, qty }
-              : i
-          ),
-        })),
+      remove: (line) =>
+        set((s) => {
+          const key = cartLineKey(line)
+          return { items: s.items.filter((i) => cartLineKey(i) !== key) }
+        }),
+      setQty: (line, qty) =>
+        set((s) => {
+          const key = cartLineKey(line)
+          return {
+            items: s.items.map((i) =>
+              cartLineKey(i) === key ? { ...i, qty } : i,
+            ),
+          }
+        }),
       clear: () => set({ items: [] }),
       // Correct stale cart prices from the server's repricing response. Indexes
       // refer to positions in the cart as it was submitted. The stored USD price

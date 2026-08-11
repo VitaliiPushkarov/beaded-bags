@@ -2,7 +2,7 @@
 import Image from 'next/image'
 import Link from 'next/link'
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { useCart } from '../store/cart'
+import { cartLineKey, useCart } from '../store/cart'
 import { pushMetaInitiateCheckout } from '@/lib/analytics/datalayer'
 import { normalizePromoInput } from '@/lib/promo'
 import { usePromoDiscount } from '@/lib/usePromo'
@@ -159,7 +159,7 @@ export default function CartPage() {
               )
               return (
                 <div
-                  key={`${it.productId}-${it.variantId}-${it.strapId ?? ''}-${it.sizeId ?? ''}-${it.pouchId ?? ''}`}
+                  key={cartLineKey(it)}
                   className="py-6 grid lg:grid-cols-[2fr_1fr_1fr_1fr] gap-6 items-center border-b border-black"
                 >
                   {/* Товар */}
@@ -204,13 +204,7 @@ export default function CartPage() {
                       </div>
                       <button
                         onClick={() =>
-                          remove(
-                            it.productId,
-                            it.variantId,
-                            it.strapId,
-                            it.sizeId,
-                            it.pouchId,
-                          )
+                          remove(it)
                         }
                         className="mt-3 text-black underline underline-offset-4 hover:no-underline cursor-pointer"
                       >
@@ -233,33 +227,13 @@ export default function CartPage() {
                       onDec={() => {
                         const n = it.qty - 1
                         if (n <= 0) {
-                          remove(
-                            it.productId,
-                            it.variantId,
-                            it.strapId,
-                            it.sizeId,
-                            it.pouchId,
-                          )
+                          remove(it)
                         } else {
-                          setQty(
-                            it.productId,
-                            it.variantId,
-                            n,
-                            it.strapId,
-                            it.sizeId,
-                            it.pouchId,
-                          )
+                          setQty(it, n)
                         }
                       }}
                       onInc={() =>
-                        setQty(
-                          it.productId,
-                          it.variantId,
-                          it.qty + 1,
-                          it.strapId,
-                          it.sizeId,
-                          it.pouchId,
-                        )
+                        setQty(it, it.qty + 1)
                       }
                     />
                   </div>

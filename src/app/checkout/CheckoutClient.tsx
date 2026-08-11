@@ -10,7 +10,7 @@ import {
   getCheckoutCountryByCode,
   getCheckoutCountryLabel,
 } from '@/lib/checkout-countries'
-import { useCart } from '../store/cart'
+import { cartLineKey, useCart } from '../store/cart'
 import { useCheckout } from '@/stores/checkout'
 import { IMaskInput } from 'react-imask'
 
@@ -979,7 +979,7 @@ export default function CheckoutClient() {
         <div className="space-y-3">
           {cart.items.map((item) => (
             <div
-              key={`${item.productId}-${item.variantId ?? ''}-${item.strapId ?? ''}-${item.sizeId ?? ''}-${item.pouchId ?? ''}`}
+              key={cartLineKey(item)}
               className="flex items-center gap-3"
             >
               {item.image && (
