@@ -62,6 +62,7 @@ export default function HomeHeroForm({ initial }: Props) {
     () => JSON.stringify(values) !== JSON.stringify(savedValues),
     [savedValues, values],
   )
+  const activeSlidesCount = slides.filter((slide) => slide.isActive).length
 
   async function uploadToCloudinary(file: File): Promise<string> {
     const sigRes = await fetch('/api/admin/cloudinary/signature', {
@@ -223,41 +224,63 @@ export default function HomeHeroForm({ initial }: Props) {
   }
 
   return (
-    <form
-      onSubmit={onSubmit}
-      className="space-y-5 rounded-xl border border-slate-200 bg-white p-5"
-    >
-      <div className="flex items-center justify-between gap-4">
-        <h1 className="text-2xl font-semibold">HeroBlock слайдер на головній</h1>
-        <button
-          type="button"
-          onClick={addSlide}
-          className="cursor-pointer rounded-md border border-slate-300 px-3 py-2 text-sm font-medium hover:bg-slate-50"
-        >
-          Додати слайд
-        </button>
-      </div>
+    <details className="group rounded-xl border border-slate-200 bg-white">
+      <summary className="flex cursor-pointer list-none items-center justify-between gap-3 p-4">
+        <span>
+          <span className="text-lg font-semibold text-slate-900">
+            HeroBlock слайдер на головній
+          </span>
+          <span className="mt-1 block text-sm text-slate-600">
+            {slides.length} слайд(ів), активних: {activeSlidesCount}.
+          </span>
+        </span>
+        <span className="shrink-0 text-sm text-slate-500 group-open:hidden">
+          Розгорнути ▾
+        </span>
+        <span className="hidden shrink-0 text-sm text-slate-500 group-open:inline">
+          Згорнути ▴
+        </span>
+      </summary>
 
-      <div className="space-y-6">
-        {slides.map((slide, index) => {
-          const desktopUploadId = `home-hero-desktop-upload-${slide.id}`
-          const mobileUploadId = `home-hero-mobile-upload-${slide.id}`
+      <form
+        onSubmit={onSubmit}
+        className="space-y-4 border-t border-slate-200 p-4"
+      >
+        <div className="flex items-center justify-end">
+          <button
+            type="button"
+            onClick={addSlide}
+            className="cursor-pointer rounded-md border border-slate-300 px-3 py-2 text-sm font-medium hover:bg-slate-50"
+          >
+            Додати слайд
+          </button>
+        </div>
 
-          return (
-            <div key={slide.id} className="rounded-lg border border-slate-200 p-4">
-              <div className="mb-4 flex items-center justify-between gap-3">
-                <div className="text-sm font-medium text-slate-800">Слайд #{index + 1}</div>
-                <button
-                  type="button"
-                  onClick={() => removeSlide(slide.id)}
-                  className="cursor-pointer rounded-md border border-rose-300 px-2 py-1 text-xs text-rose-700 hover:bg-rose-50"
-                  disabled={slides.length <= 1}
-                >
-                  Видалити
-                </button>
-              </div>
+        <div className="space-y-3">
+          {slides.map((slide, index) => {
+            const desktopUploadId = `home-hero-desktop-upload-${slide.id}`
+            const mobileUploadId = `home-hero-mobile-upload-${slide.id}`
 
-              <div className="grid gap-4 lg:grid-cols-2">
+            return (
+              <div
+                key={slide.id}
+                className="rounded-lg border border-slate-200 p-3"
+              >
+                <div className="mb-3 flex items-center justify-between gap-3">
+                  <div className="text-sm font-medium text-slate-800">
+                    Слайд #{index + 1}
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => removeSlide(slide.id)}
+                    className="cursor-pointer rounded-md border border-rose-300 px-2 py-1 text-xs text-rose-700 hover:bg-rose-50"
+                    disabled={slides.length <= 1}
+                  >
+                    Видалити
+                  </button>
+                </div>
+
+              <div className="grid gap-3 lg:grid-cols-2">
                 <div className="block text-sm font-medium text-slate-800">
                   <div>Desktop банер (URL)</div>
                   <input
@@ -319,7 +342,7 @@ export default function HomeHeroForm({ initial }: Props) {
                 </div>
               </div>
 
-              <div className="mt-4 grid gap-4 lg:grid-cols-3">
+              <div className="mt-3 grid gap-3 lg:grid-cols-3">
                 <label className="block text-sm font-medium text-slate-800">
                   Посилання при кліку
                   <input
@@ -352,7 +375,7 @@ export default function HomeHeroForm({ initial }: Props) {
                 </label>
               </div>
 
-              <div className="mt-4 grid gap-4 lg:grid-cols-3">
+              <div className="mt-3 grid gap-3 lg:grid-cols-3">
                 <label className="block text-sm font-medium text-slate-800">
                   Позиція
                   <input
@@ -377,8 +400,8 @@ export default function HomeHeroForm({ initial }: Props) {
                 </label>
               </div>
 
-              <div className="mt-4 grid gap-4 lg:grid-cols-2">
-                <div className="rounded-lg border border-slate-200 p-3">
+              <div className="mt-3 grid gap-3 lg:grid-cols-2">
+                <div className="rounded-lg border border-slate-200 p-2">
                   <div className="mb-2 text-xs uppercase tracking-wide text-slate-500">
                     Preview Desktop
                   </div>
@@ -387,11 +410,11 @@ export default function HomeHeroForm({ initial }: Props) {
                     alt={slide.desktopAlt}
                     width={1400}
                     height={900}
-                    className="h-56 w-full rounded-md object-cover"
+                    className="h-32 w-full rounded-md object-cover"
                   />
                 </div>
 
-                <div className="rounded-lg border border-slate-200 p-3">
+                <div className="rounded-lg border border-slate-200 p-2">
                   <div className="mb-2 text-xs uppercase tracking-wide text-slate-500">
                     Preview Mobile
                   </div>
@@ -400,41 +423,42 @@ export default function HomeHeroForm({ initial }: Props) {
                     alt={slide.mobileAlt}
                     width={900}
                     height={1400}
-                    className="h-56 w-full rounded-md object-cover"
+                    className="h-32 w-full rounded-md object-cover"
                   />
                 </div>
               </div>
             </div>
           )
-        })}
-      </div>
-
-      {error ? (
-        <div className="rounded-lg border border-rose-200 bg-rose-50 px-3 py-2 text-sm text-rose-700">
-          {error}
+          })}
         </div>
-      ) : null}
 
-      {success ? (
-        <div className="rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm text-emerald-700">
-          {success}
+        {error ? (
+          <div className="rounded-lg border border-rose-200 bg-rose-50 px-3 py-2 text-sm text-rose-700">
+            {error}
+          </div>
+        ) : null}
+
+        {success ? (
+          <div className="rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm text-emerald-700">
+            {success}
+          </div>
+        ) : null}
+
+        <div className="flex items-center gap-3">
+          <button
+            type="submit"
+            disabled={saving || uploadingTarget !== null}
+            className="cursor-pointer rounded-md border-black border-1 bg-slate-900 px-4 py-2 text-sm font-medium text-white disabled:cursor-not-allowed disabled:opacity-60 hover:bg-white hover:text-black"
+          >
+            {saving ? 'Зберігаю...' : 'Зберегти'}
+          </button>
+          {!isDirty ? (
+            <span className="text-xs text-slate-500">Змін немає</span>
+          ) : (
+            <span className="text-xs text-amber-600">Є незбережені зміни</span>
+          )}
         </div>
-      ) : null}
-
-      <div className="flex items-center gap-3">
-        <button
-          type="submit"
-          disabled={saving || uploadingTarget !== null}
-          className="cursor-pointer rounded-md border-black border-1 bg-slate-900 px-4 py-2 text-sm font-medium text-white disabled:cursor-not-allowed disabled:opacity-60 hover:bg-white hover:text-black"
-        >
-          {saving ? 'Зберігаю...' : 'Зберегти'}
-        </button>
-        {!isDirty ? (
-          <span className="text-xs text-slate-500">Змін немає</span>
-        ) : (
-          <span className="text-xs text-amber-600">Є незбережені зміни</span>
-        )}
-      </div>
-    </form>
+      </form>
+    </details>
   )
 }

@@ -52,6 +52,7 @@ export default function InstagramSliderForm({ initial }: Props) {
     () => JSON.stringify(values) !== JSON.stringify(savedValues),
     [savedValues, values],
   )
+  const activePostsCount = posts.filter((post) => post.isActive).length
 
   async function uploadToCloudinary(file: File): Promise<string> {
     const sigRes = await fetch('/api/admin/cloudinary/signature', {
@@ -208,40 +209,62 @@ export default function InstagramSliderForm({ initial }: Props) {
   }
 
   return (
-    <form
-      onSubmit={onSubmit}
-      className="space-y-5 rounded-xl border border-slate-200 bg-white p-5"
-    >
-      <div className="flex items-center justify-between gap-4">
-        <h2 className="text-2xl font-semibold">InstagramSlider на головній</h2>
-        <button
-          type="button"
-          onClick={addPost}
-          className="cursor-pointer rounded-md border border-slate-300 px-3 py-2 text-sm font-medium hover:bg-slate-50"
-        >
-          Додати пост
-        </button>
-      </div>
+    <details className="group rounded-xl border border-slate-200 bg-white">
+      <summary className="flex cursor-pointer list-none items-center justify-between gap-3 p-4">
+        <span>
+          <span className="text-lg font-semibold text-slate-900">
+            InstagramSlider на головній
+          </span>
+          <span className="mt-1 block text-sm text-slate-600">
+            {posts.length} пост(ів), активних: {activePostsCount}.
+          </span>
+        </span>
+        <span className="shrink-0 text-sm text-slate-500 group-open:hidden">
+          Розгорнути ▾
+        </span>
+        <span className="hidden shrink-0 text-sm text-slate-500 group-open:inline">
+          Згорнути ▴
+        </span>
+      </summary>
 
-      <div className="space-y-6">
-        {posts.map((post, index) => {
-          const uploadId = `instagram-post-upload-${post.id}`
+      <form
+        onSubmit={onSubmit}
+        className="space-y-4 border-t border-slate-200 p-4"
+      >
+        <div className="flex items-center justify-end">
+          <button
+            type="button"
+            onClick={addPost}
+            className="cursor-pointer rounded-md border border-slate-300 px-3 py-2 text-sm font-medium hover:bg-slate-50"
+          >
+            Додати пост
+          </button>
+        </div>
 
-          return (
-            <div key={post.id} className="rounded-lg border border-slate-200 p-4">
-              <div className="mb-4 flex items-center justify-between gap-3">
-                <div className="text-sm font-medium text-slate-800">Пост #{index + 1}</div>
-                <button
-                  type="button"
-                  onClick={() => removePost(post.id)}
-                  className="cursor-pointer rounded-md border border-rose-300 px-2 py-1 text-xs text-rose-700 hover:bg-rose-50"
-                  disabled={posts.length <= 1}
-                >
-                  Видалити
-                </button>
-              </div>
+        <div className="space-y-3">
+          {posts.map((post, index) => {
+            const uploadId = `instagram-post-upload-${post.id}`
 
-              <div className="grid gap-4 lg:grid-cols-2">
+            return (
+              <div
+                key={post.id}
+                className="rounded-lg border border-slate-200 p-3"
+              >
+                <div className="mb-3 flex items-center justify-between gap-3">
+                  <div className="text-sm font-medium text-slate-800">
+                    Пост #{index + 1}
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => removePost(post.id)}
+                    className="cursor-pointer rounded-md border border-rose-300 px-2 py-1 text-xs text-rose-700 hover:bg-rose-50"
+                    disabled={posts.length <= 1}
+                  >
+                    Видалити
+                  </button>
+                </div>
+
+              <div className="grid gap-3 lg:grid-cols-2">
                 <div className="block text-sm font-medium text-slate-800">
                   <div>Фото (URL)</div>
                   <input
@@ -281,7 +304,7 @@ export default function InstagramSliderForm({ initial }: Props) {
                 </label>
               </div>
 
-              <div className="mt-4 grid gap-4 lg:grid-cols-2">
+              <div className="mt-3 grid gap-3 lg:grid-cols-2">
                 <label className="block text-sm font-medium text-slate-800">
                   ALT
                   <input
@@ -307,18 +330,18 @@ export default function InstagramSliderForm({ initial }: Props) {
                 </label>
               </div>
 
-              <label className="mt-4 block text-sm font-medium text-slate-800">
+              <label className="mt-3 block text-sm font-medium text-slate-800">
                 Підпис
                 <textarea
                   className="mt-2 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm"
-                  rows={3}
+                  rows={2}
                   value={post.caption}
                   onChange={(e) => updatePost(post.id, { caption: e.target.value })}
                   placeholder="Короткий опис поста"
                 />
               </label>
 
-              <label className="mt-4 inline-flex items-center gap-2 text-sm font-medium text-slate-800">
+              <label className="mt-3 inline-flex items-center gap-2 text-sm font-medium text-slate-800">
                 <input
                   type="checkbox"
                   checked={post.isActive}
@@ -327,48 +350,49 @@ export default function InstagramSliderForm({ initial }: Props) {
                 Активний пост
               </label>
 
-              <div className="mt-4 rounded-lg border border-slate-200 p-3">
+              <div className="mt-3 rounded-lg border border-slate-200 p-2">
                 <div className="mb-2 text-xs uppercase tracking-wide text-slate-500">Preview</div>
                 <Image
                   src={post.src}
                   alt={post.alt}
                   width={900}
                   height={1400}
-                  className="h-64 w-full rounded-md object-cover"
+                  className="h-32 w-full rounded-md object-cover"
                 />
               </div>
             </div>
           )
-        })}
-      </div>
-
-      {error ? (
-        <div className="rounded-lg border border-rose-200 bg-rose-50 px-3 py-2 text-sm text-rose-700">
-          {error}
+          })}
         </div>
-      ) : null}
 
-      {success ? (
-        <div className="rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm text-emerald-700">
-          {success}
+        {error ? (
+          <div className="rounded-lg border border-rose-200 bg-rose-50 px-3 py-2 text-sm text-rose-700">
+            {error}
+          </div>
+        ) : null}
+
+        {success ? (
+          <div className="rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm text-emerald-700">
+            {success}
+          </div>
+        ) : null}
+
+        <div className="flex items-center gap-3">
+          <button
+            type="submit"
+            disabled={saving || uploadingPostId !== null}
+            className="cursor-pointer rounded-md border border-black bg-slate-900 px-4 py-2 text-sm font-medium text-white transition hover:bg-white hover:text-black disabled:cursor-not-allowed disabled:opacity-60"
+          >
+            {saving ? 'Зберігаю...' : 'Зберегти'}
+          </button>
+
+          {!isDirty ? (
+            <span className="text-xs text-slate-500">Змін немає</span>
+          ) : (
+            <span className="text-xs text-amber-600">Є незбережені зміни</span>
+          )}
         </div>
-      ) : null}
-
-      <div className="flex items-center gap-3">
-        <button
-          type="submit"
-          disabled={saving || uploadingPostId !== null}
-          className="cursor-pointer rounded-md border border-black bg-slate-900 px-4 py-2 text-sm font-medium text-white transition hover:bg-white hover:text-black disabled:cursor-not-allowed disabled:opacity-60"
-        >
-          {saving ? 'Зберігаю...' : 'Зберегти'}
-        </button>
-
-        {!isDirty ? (
-          <span className="text-xs text-slate-500">Змін немає</span>
-        ) : (
-          <span className="text-xs text-amber-600">Є незбережені зміни</span>
-        )}
-      </div>
-    </form>
+      </form>
+    </details>
   )
 }
