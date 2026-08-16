@@ -10,12 +10,15 @@ export default function ProductsGrid({
   loading,
   preferredColor,
   expanded = false,
+  preferDiscounted = false,
 }: {
   products: ProductWithVariants[]
   loading: boolean
   preferredColor?: string
   /** Кожен елемент масиву — окремий варіант, а не товар цілком. */
   expanded?: boolean
+  /** Sale-контекст: картка відкривається на варіанті зі знижкою. */
+  preferDiscounted?: boolean
 }) {
   const t = useT()
   if (loading) {
@@ -51,6 +54,7 @@ export default function ProductsGrid({
           preferredColor={preferredColor}
           aboveTheFold={index < 2}
           asVariantCard={expanded}
+          preferDiscounted={preferDiscounted}
         />
       ))}
     </div>

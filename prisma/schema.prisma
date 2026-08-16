@@ -606,6 +606,7 @@ model HomeHeroBannerSettings {
   slides         Json
   heroImages     Json?
   instagramPosts Json?
+  categoryCards  Json?
   createdAt      DateTime @default(now())
   updatedAt      DateTime @updatedAt
 }

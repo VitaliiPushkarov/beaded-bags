@@ -1,5 +1,6 @@
 import ProductsContainer from '@/components/product/ProductsContainer'
 import { getProductsLite } from '@/lib/db/products'
+import { hasDiscountedCardVariant } from '@/lib/product-card-dto'
 import type { Metadata } from 'next'
 import { getRequestLocale } from '@/lib/server-locale'
 import { getLocaleAlternates, getSiteUrl } from '@/lib/site-url'
@@ -21,9 +22,13 @@ export async function generateMetadata(): Promise<Metadata> {
 export default async function SalePage() {
   const locale = await getRequestLocale()
   const siteUrl = getSiteUrl(locale)
-  const products = await getProductsLite({
-    onSale: true,
-  })
+  // Запит відбирає товари за наявністю знижки в БД; додатково відсіюємо ті,
+  // у яких вона все одно не порахується в ціні картки.
+  const products = (
+    await getProductsLite({
+      onSale: true,
+    })
+  ).filter(hasDiscountedCardVariant)
 
   const jsonLd = {
     '@context': 'https://schema.org',
@@ -40,6 +45,7 @@ export default async function SalePage() {
       <ProductsContainer
         initialProducts={products}
         title={locale === 'en' ? 'Sale' : 'Sale'}
+        saleOnly
       />
       <script
         type="application/ld+json"

@@ -13,7 +13,10 @@ import {
   isPreorderStatus,
   resolveAvailabilityStatus,
 } from '@/lib/availability'
-import type { ProductCardDTO } from '@/lib/product-card-dto'
+import {
+  findDiscountedCardVariant,
+  type ProductCardDTO,
+} from '@/lib/product-card-dto'
 import { useLocale, useLocaleNumberFormat, useT } from '@/lib/i18n'
 /* import { useCart } from '@/app/store/cart'
 import { useUI } from '@/app/store/ui' */
@@ -25,6 +28,7 @@ export default function ProductCardLarge({
   preferredColor,
   aboveTheFold = false,
   asVariantCard = false,
+  preferDiscounted = false,
 }: {
   p: ProductWithVariants
   preferredColor?: string
@@ -35,6 +39,12 @@ export default function ProductCardLarge({
    * однієї моделі не читались як дубль.
    */
   asVariantCard?: boolean
+  /**
+   * Розпродаж: відкриваємо картку на варіанті зі знижкою, а не на першому за
+   * порядком. Інакше товар стоїть на сторінці Sale з повною ціною, і знижку
+   * видно тільки після кліку по свотчу.
+   */
+  preferDiscounted?: boolean
 }) {
   const locale = useLocale()
   const numberLocale = useLocaleNumberFormat()
@@ -48,9 +58,22 @@ export default function ProductCardLarge({
     })?.id
   }, [locale, p.variants, preferredColor])
 
-  const [variantId, setVariantId] = useState(
-    preferredVariantId ?? p.variants[0]?.id,
+  const discountedVariantId = useMemo(
+    () => (preferDiscounted ? findDiscountedCardVariant(p)?.id : undefined),
+    [p, preferDiscounted],
   )
+  // Колір із фільтра важливіший за знижку: юзер попросив саме його.
+  const defaultVariantId =
+    preferredVariantId ?? discountedVariantId ?? p.variants[0]?.id
+
+  const [variantId, setVariantId] = useState(defaultVariantId)
+  // Поки юзер сам не клікнув свотч, картка слухається дефолту: інакше
+  // увімкнений «On sale» нічого не змінював би на вже змонтованих картках.
+  const [pickedByUser, setPickedByUser] = useState(false)
+  const pickVariant = (id: string) => {
+    setPickedByUser(true)
+    setVariantId(id)
+  }
   const v = useMemo(
     () => p.variants.find((x) => x.id === variantId) ?? p.variants[0],
     [p.variants, variantId],
@@ -68,8 +91,20 @@ export default function ProductCardLarge({
       return
     }
     const exists = variantId && p.variants.some((x) => x.id === variantId)
-    if (!exists) setVariantId(p.variants[0].id)
-  }, [p.variants, preferredVariantId, variantId])
+    if (!exists) {
+      setVariantId(defaultVariantId)
+      return
+    }
+    if (!pickedByUser && variantId !== defaultVariantId) {
+      setVariantId(defaultVariantId)
+    }
+  }, [
+    p.variants,
+    preferredVariantId,
+    defaultVariantId,
+    variantId,
+    pickedByUser,
+  ])
 
   /* const add = useCart((s) => s.add)
   const openCart = useUI((s) => s.openCart) */
@@ -217,7 +252,7 @@ export default function ProductCardLarge({
             <VariantSwatches
               variants={p.variants}
               value={activeVariantId ?? ''}
-              onChange={setVariantId}
+              onChange={pickVariant}
             />
           </div>
         )}

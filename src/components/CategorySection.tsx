@@ -1,56 +1,24 @@
 import Link from 'next/link'
 import Image from 'next/image'
 import { getRequestLocale } from '@/lib/server-locale'
+import { getHomeCategoryCardsSettings } from '@/lib/home-page-config'
 
-const HOME_CATEGORY_CARDS = [
-  {
-    title: 'Сумки',
-    href: '/shop/sumky',
-    image: '/img/home-banner-v-day.webp',
-    subtitle: 'Сумки ручної роботи',
-  },
-  {
-    title: 'Бананки',
-    href: '/shop/bananky',
-    image: '/img/bananka-waffle-banana-00.jpg',
-    subtitle: 'Компактний формат на щодень',
-  },
-  {
-    title: 'Шопери',
-    href: '/shop/shopery',
-    image: '/img/shopper-lazy.jpg',
-    subtitle: 'Місткі моделі для міста',
-  },
-  {
-    title: 'Чохли',
-    href: '/shop/chohly',
-    image: '/img/metallic-case.jpg',
-    subtitle: 'Практичні акценти',
-  },
-  {
-    title: 'Аксесуари',
-    href: '/shop/accessories',
-    image: '/img/fortune-brelok-01.jpg',
-    subtitle: 'Брелоки, гердани, силянки',
-  },
-] as const
 export default async function CategorySection() {
   const locale = await getRequestLocale()
-  const cards = HOME_CATEGORY_CARDS.map((card) => {
-    if (locale !== 'en') return card
-    const map: Record<string, { title: string; subtitle: string }> = {
-      '/shop/sumky': { title: 'Bags', subtitle: 'Handmade bags' },
-      '/shop/bananky': { title: 'Belt Bags', subtitle: 'Compact daily format' },
-      '/shop/shopery': { title: 'Shoppers', subtitle: 'Spacious city models' },
-      '/shop/chohly': { title: 'Cases', subtitle: 'Practical accents' },
-      '/shop/accessories': {
-        title: 'Accessories',
-        subtitle: 'Keychains, gerdans, sylyanky',
-      },
-    }
-    const translated = map[card.href]
-    return translated ? { ...card, ...translated } : card
-  })
+  const categorySettings = await getHomeCategoryCardsSettings()
+  const cards = categorySettings.cards
+    .filter((card) => card.isActive)
+    .map((card) => {
+      if (locale !== 'en') return card
+
+      return {
+        ...card,
+        title: card.titleEn || card.title,
+        subtitle: card.subtitleEn || card.subtitle,
+      }
+    })
+
+  if (cards.length === 0) return null
 
   return (
     <section className=" px-5 md:px-6 py-12">
@@ -76,7 +44,7 @@ export default async function CategorySection() {
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
         {cards.map((card) => (
           <Link
-            key={card.href}
+            key={card.id}
             href={card.href}
             className="group relative overflow-hidden border border-gray-300 min-h-[320px] lg:min-h-[360px] 2xl:min-h-[560px] shadow-[0_10px_24px_rgba(0,0,0,0.14)] transition-shadow duration-300 hover:shadow-[0_16px_30px_rgba(0,0,0,0.2)]"
           >

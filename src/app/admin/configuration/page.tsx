@@ -9,6 +9,7 @@ import { prisma } from '@/lib/prisma'
 import HomeHeroForm from '../home-hero/HomeHeroForm'
 import { getHomeHeroBannerSettings } from '@/lib/home-hero-banner'
 import {
+  getHomeCategoryCardsSettings,
   getHeroImagesSettings,
   getInstagramSliderSettings,
 } from '@/lib/home-page-config'
@@ -31,6 +32,7 @@ import {
 import HeroImagesForm from './HeroImagesForm'
 import InstagramSliderForm from './InstagramSliderForm'
 import RecommendationMatrixForm from './RecommendationMatrixForm'
+import CategoryCardsForm from './CategoryCardsForm'
 
 export const dynamic = 'force-dynamic'
 
@@ -59,6 +61,7 @@ export default async function AdminConfigurationPage({
   const savedRecs = params.savedRecs === '1'
   const heroInitial = await getHomeHeroBannerSettings()
   const heroImagesInitial = await getHeroImagesSettings()
+  const categoryCardsInitial = await getHomeCategoryCardsSettings()
   const instagramInitial = await getInstagramSliderSettings()
   const recommendationInitial = await getRecommendationMatrix()
 
@@ -272,6 +275,7 @@ export default async function AdminConfigurationPage({
 
       <HomeHeroForm initial={heroInitial} />
       <HeroImagesForm initial={heroImagesInitial} />
+      <CategoryCardsForm initial={categoryCardsInitial} />
       <InstagramSliderForm initial={instagramInitial} />
       <RecommendationMatrixForm
         initial={recommendationInitial}

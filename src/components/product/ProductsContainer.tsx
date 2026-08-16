@@ -9,7 +9,10 @@ import Breadcrumbs from '../ui/BreadCrumbs'
 import type { ProductType } from '@prisma/client'
 import { ACTIVE_PRODUCT_TYPES, getColorLabel, getTypeLabel } from '@/lib/labels'
 import type { ProductWithVariants as CardProductWithVariants } from '@/app/products/ProductCardLarge'
-import { resolveDiscountPercent } from '@/lib/pricing'
+import {
+  hasDiscountedCardVariant,
+  isDiscountedCardVariant,
+} from '@/lib/product-card-dto'
 import { matchAccessorySubcategory } from '@/lib/shop-taxonomy'
 import { isInStockStatus, resolveAvailabilityStatus } from '@/lib/availability'
 import { useLocale, useT } from '@/lib/i18n'
@@ -117,20 +120,27 @@ function getVariantPrice(
  *
  * Якщо активний фільтр кольору, показуємо тільки варіанти цього кольору:
  * інакше запит «покажи рожеве» повертав би всі кольори кожної моделі.
+ *
+ * У Sale-контексті так само лишаємо тільки варіанти зі знижкою: окрема картка
+ * на повну ціну серед розпродажу читається як помилка.
  */
 function expandToVariants(
   products: ProductWithVariants[],
   locale: 'uk' | 'en',
   sortPrice: UIFilters['sortPrice'],
   color: string,
+  discountedOnly: boolean,
 ): ProductWithVariants[] {
   const out: ProductWithVariants[] = []
 
   for (const p of products) {
     const all = p.variants ?? []
-    const matching = color
+    const byColor = color
       ? all.filter((v) => localizedVariantColor(v, locale) === color)
       : all
+    const matching = discountedOnly
+      ? byColor.filter((v) => isDiscountedCardVariant(p, v))
+      : byColor
     // фолбек: товар потрапив у список, але жоден варіант не збігся за міткою
     const variants = matching.length ? matching : all
 
@@ -256,16 +266,7 @@ function matchesColor(
 
 function isOnSale(p: ProductWithVariants) {
   // A product is "On sale" if any variant has a positive discount percent.
-  return Boolean(
-    p.variants?.some(
-      (v) =>
-        resolveDiscountPercent({
-          basePriceUAH: v.priceUAH ?? p.basePriceUAH ?? 0,
-          discountPercent: v.discountPercent,
-          discountUAH: v.discountUAH ?? 0,
-        }) > 0,
-    ),
-  )
+  return hasDiscountedCardVariant(p)
 }
 
 function resetKey(source: UIFilters, key: keyof UIFilters): UIFilters {
@@ -283,6 +284,7 @@ export default function ProductsContainer({
   lockedGroup,
   accessorySubcategoryOptions,
   title = 'Каталог',
+  saleOnly = false,
 }: {
   initialProducts: ProductWithVariants[]
   initialFilters?: Partial<UIFilters>
@@ -291,6 +293,11 @@ export default function ProductsContainer({
   lockedGroup?: UIFilters['group']
   accessorySubcategoryOptions?: Array<{ value: string; label: string }>
   title?: string
+  /**
+   * Сторінка сама по собі є розпродажем (/sale): список уже зібраний зі знижок,
+   * тож картки мають відкриватись на знижених варіантах без фільтра «On sale».
+   */
+  saleOnly?: boolean
 }) {
   const locale = useLocale()
   const t = useT()
@@ -788,12 +795,21 @@ export default function ProductsContainer({
     replaceUrl(params)
   }
 
+  // Sale-контекст: або сторінка розпродажу, або застосований фільтр «On sale».
+  const preferDiscounted = saleOnly || applied.onSale
+
   const displayed = useMemo(
     () =>
       view === 'variants'
-        ? expandToVariants(visible, locale, applied.sortPrice, applied.color)
+        ? expandToVariants(
+            visible,
+            locale,
+            applied.sortPrice,
+            applied.color,
+            preferDiscounted,
+          )
         : visible,
-    [view, visible, locale, applied.sortPrice, applied.color],
+    [view, visible, locale, applied.sortPrice, applied.color, preferDiscounted],
   )
 
   const shouldShowAccessorySubcategory =
@@ -855,6 +871,7 @@ export default function ProductsContainer({
         loading={loading}
         preferredColor={applied.color || undefined}
         expanded={view === 'variants'}
+        preferDiscounted={preferDiscounted}
       />
     </div>
   )
