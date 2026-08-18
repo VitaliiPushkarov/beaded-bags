@@ -253,16 +253,16 @@ export default function PhotoGallery({
                       <div
                         ref={ref as (node: HTMLDivElement | null) => void}
                         onClick={open}
-                        className="relative h-[420px] md:h-[580px] w-full cursor-pointer overflow-hidden rounded bg-white will-change-transform transform-gpu backface-visibility:hidden"
+                        className="relative aspect-3/4 w-full cursor-pointer overflow-hidden rounded bg-white will-change-transform transform-gpu backface-visibility:hidden"
                       >
                         <Image
                           src={src || placeholder}
                           alt={t('Фото товару', 'Product image')}
                           fill
-                          className="object-cover"
+                          className="object-contain"
                           priority={i === 0}
                           loading={i === 0 ? 'eager' : 'lazy'}
-                          sizes="(min-width: 1024px) 66vw, 100vw"
+                          sizes="(min-width: 1024px) 33vw, (min-width: 768px) 66vw, 100vw"
                           quality={80}
                           fetchPriority={i === 0 ? 'high' : 'auto'}
                         />
@@ -279,7 +279,7 @@ export default function PhotoGallery({
               // pointer-events-none keeps the swipe and the tap-to-zoom
               // underneath working. Swiper's own root is z-index 1, so the
               // overlay needs at least 2 to paint above the slide.
-              <div className="pointer-events-none absolute inset-x-0 bottom-0 z-[2] flex items-center justify-center px-3 pb-3 md:hidden">
+              <div className="pointer-events-none absolute inset-x-0 bottom-4 z-[2] flex items-center justify-center px-3 pb-3 md:hidden">
                 <div className="flex items-center gap-2">
                   {mobileBullets.map((isActive, index) => (
                     <span
@@ -291,7 +291,7 @@ export default function PhotoGallery({
                     />
                   ))}
                 </div>
-                <span className="absolute bottom-3 right-3  px-2 py-0.5 text-[11px] leading-none text-gray-600 ">
+                <span className="absolute right-3  px-2 py-0.5 text-[11px] leading-none text-gray-600 ">
                   {activeIndex + 1} / {list.length}
                 </span>
               </div>
@@ -390,27 +390,19 @@ function ThumbnailGallery({
                 height={sizesByUrl[src]?.h ?? 1600}
               >
                 {({ ref, open }) => (
-                  // Mobile deliberately matches the carousel layout box for box
-                  // — full width, 420 tall, same crop — so a customisable
-                  // product does not look like a different site on a phone.
-                  //
-                  // Desktop keeps its own box: product photos are portrait
-                  // (2:3) and the wide column would crop half the bag away
-                  // under object-cover, so above md the box takes the photo's
-                  // own ratio and is centred, which it fills exactly.
                   <div
                     ref={ref as (node: HTMLDivElement | null) => void}
                     onClick={open}
-                    className="relative h-[420px] w-full cursor-zoom-in overflow-hidden rounded bg-white md:mx-auto md:aspect-[2/3] md:h-[580px] md:w-auto"
+                    className="relative aspect-3/4 w-full cursor-zoom-in overflow-hidden rounded bg-white md:mx-auto md:max-w-[435px]"
                   >
                     <Image
                       src={src || placeholder}
                       alt={t('Фото товару', 'Product image')}
                       fill
-                      className="object-cover"
+                      className="object-contain"
                       priority={i === 0}
                       loading={i === 0 ? 'eager' : 'lazy'}
-                      sizes="(min-width: 1024px) 66vw, 100vw"
+                      sizes="(min-width: 768px) 435px, 100vw"
                       quality={80}
                       fetchPriority={i === 0 ? 'high' : 'auto'}
                     />
@@ -450,7 +442,7 @@ function ThumbnailGallery({
                       src={src || placeholder}
                       alt=""
                       fill
-                      className="object-cover"
+                      className="object-contain"
                       sizes="120px"
                       quality={60}
                     />
@@ -466,7 +458,7 @@ function ThumbnailGallery({
           // catalogue has rather than a thumbnail strip, and spans the full
           // width exactly like the carousel's — the slide underneath is now the
           // same size, so there is nothing narrower to align to.
-          <div className="pointer-events-none absolute inset-x-0 bottom-0 z-[2] flex items-center justify-center px-3 pb-3 md:hidden">
+          <div className="pointer-events-none absolute inset-x-0 bottom-4 z-[2] flex items-center justify-center px-3 pb-3 md:hidden">
             <div className="flex items-center gap-2">
               {mobileBullets.map((isActive, index) => (
                 <span
@@ -478,7 +470,7 @@ function ThumbnailGallery({
                 />
               ))}
             </div>
-            <span className="absolute bottom-3 right-3 rounded-full bg-white/75 px-2 py-0.5 text-[11px] leading-none text-gray-600 backdrop-blur-sm">
+            <span className="absolute right-3 rounded-full bg-white/75 px-2 py-0.5 text-[11px] leading-none text-gray-600 backdrop-blur-sm">
               {activeIndex + 1} / {list.length}
             </span>
           </div>

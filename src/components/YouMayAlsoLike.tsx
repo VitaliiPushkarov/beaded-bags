@@ -188,7 +188,7 @@ export default function YouMayAlsoLike({
                   basis-[85%] sm:basis-[48%] md:basis-[32%] lg:basis-[19%]
                 "
                 >
-                  <div className="w-full aspect-4/5 bg-gray-100 animate-pulse border" />
+                  <div className="w-full aspect-3/4 bg-gray-100 animate-pulse border" />
                   <div className="mt-2 h-4 w-2/3 bg-gray-100 animate-pulse" />
                   <div className="mt-1 h-4 w-1/3 bg-gray-100 animate-pulse" />
                 </div>
@@ -289,12 +289,12 @@ export default function YouMayAlsoLike({
                   href={href}
                   className="flex h-full w-full flex-col min-w-0"
                 >
-                  <div className="relative w-full aspect-4/5 border bg-white overflow-hidden">
+                  <div className="relative w-full aspect-3/4 border overflow-hidden">
                     <Image
                       src={image}
                       alt={productName || 'Product'}
                       fill
-                      className="object-cover"
+                      className="object-contain"
                       sizes="(min-width: 1024px) 20vw, (min-width: 640px) 45vw, 85vw"
                       loading="lazy"
                     />

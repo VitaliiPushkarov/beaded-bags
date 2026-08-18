@@ -167,7 +167,7 @@ export default function ProductCardLarge({
       {/* зображення прив'язане до варіанту */}
       <Link href={productHref} className="block">
         <div
-          className="group relative md:h-[560px] aspect-3/4 2xl:aspect-auto bg-gray-100 2xl:h-[480px] overflow-hidden"
+          className="group relative aspect-3/4  overflow-hidden"
           onMouseEnter={() => setIsHovered(true)}
           onMouseLeave={() => setIsHovered(false)}
         >
@@ -184,8 +184,8 @@ export default function ProductCardLarge({
                 src={primaryImage}
                 alt={`${productName} — ${variantColorLabel}`}
                 fill
-                className={`object-cover transition-opacity duration-300 ${
-                  isHovered ? 'opacity-0 scale-[1.02]' : 'opacity-100'
+                className={`object-contain transition-opacity duration-300 ${
+                  isHovered ? 'opacity-0' : 'opacity-100'
                 }`}
                 priority={aboveTheFold}
                 loading={aboveTheFold ? 'eager' : 'lazy'}
@@ -197,8 +197,8 @@ export default function ProductCardLarge({
                   src={hoverImage}
                   alt={`${productName} — ${variantColorLabel} — view 2`}
                   fill
-                  className={`hidden md:block object-cover transition-opacity duration-300 ${
-                    isHovered ? 'opacity-100 scale-[1.02]' : 'opacity-0'
+                  className={`hidden md:block object-contain transition-opacity duration-300 ${
+                    isHovered ? 'opacity-100' : 'opacity-0'
                   }`}
                   priority={false}
                   sizes={CARD_SIZES}

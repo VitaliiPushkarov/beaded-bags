@@ -87,20 +87,49 @@ const PreorderModal = dynamic(
   },
 )
 
-function ProductGalleryFallback({ src }: { src: string }) {
+function ProductGalleryFallback({
+  src,
+  layout = 'carousel',
+}: {
+  src: string
+  layout?: 'carousel' | 'thumbnails'
+}) {
   const t = useT()
-  return (
-    <div className="relative w-full">
-      <div className="relative md:h-[420px] md:h-[580px] w-full overflow-hidden rounded bg-white">
-        <Image
-          src={src}
-          alt={t('Фото товару', 'Product image')}
-          fill
-          className="object-cover"
-          priority
-          sizes="(min-width: 1024px) 66vw, 100vw"
-        />
+  const image = (
+    <Image
+      src={src}
+      alt={t('Фото товару', 'Product image')}
+      fill
+      className="object-contain"
+      priority
+      sizes={
+        layout === 'thumbnails'
+          ? '(min-width: 768px) 435px, 100vw'
+          : '(min-width: 1024px) 33vw, (min-width: 768px) 66vw, 100vw'
+      }
+    />
+  )
+
+  if (layout === 'thumbnails') {
+    return (
+      <div className="relative w-full">
+        <div className="relative aspect-3/4 w-full overflow-hidden rounded bg-white md:mx-auto md:max-w-[435px]">
+          {image}
+        </div>
+        <div className="mt-3 hidden h-20 w-full md:block" aria-hidden />
       </div>
+    )
+  }
+
+  return (
+    <div className="grid w-full grid-cols-1 gap-4 lg:grid-cols-2 lg:gap-[30px]">
+      <div className="relative aspect-3/4 w-full overflow-hidden rounded bg-white">
+        {image}
+      </div>
+      <div
+        className="hidden aspect-3/4 rounded bg-white lg:block"
+        aria-hidden
+      />
     </div>
   )
 }
@@ -1064,32 +1093,25 @@ export function ProductInteractive({ p }: { p: ProductWithVariants }) {
   return (
     <>
       <section className="mx-auto flex flex-col items-center md:items-stretch md:flex-row md:justify-between md:gap-10 md:mb-[60px] pb-1 md:pb-0">
-        {/* The two gallery layers below are `absolute inset-0`, so this box has
-            to be positioned and has to carry their height itself.
-
-            Mobile is 420 for both layouts — the photo, with the counter and
-            dots laid over it rather than under — because on a phone the
-            configurator's gallery is deliberately identical to the plain one.
-            Desktop differs: 580 for the carousel, and 580 + 12 + 80 for the
-            thumbnail strip the configurator adds underneath. Change a height in
-            ProductGallery and the matching number here has to move with it, or
-            this box keeps dead space or clips. */}
-        <div
-          className={`relative w-full md:w-[66%] mb-3 md:mb-0 h-[420px] ${
-            isPouchStrapMode ? 'md:h-[672px]' : 'md:h-[580px]'
-          }`}
-        >
+        {/* The fallback stays in flow so the client-only gallery can fade in
+            over the same 3:4 geometry without reserving stale fixed heights. */}
+        <div className="relative w-full md:w-[66%] mb-3 md:mb-0">
           <div
-            className={`absolute inset-0 transition-opacity duration-300 ${
+            className={`transition-opacity duration-300 ${
               galleryReady ? 'opacity-0 pointer-events-none' : 'opacity-100'
             }`}
+            aria-hidden={galleryReady}
           >
-            <ProductGalleryFallback src={galleryImages[0]} />
+            <ProductGalleryFallback
+              src={galleryImages[0]}
+              layout={isPouchStrapMode ? 'thumbnails' : 'carousel'}
+            />
           </div>
           <div
             className={`absolute inset-0 transition-opacity duration-300 ${
               galleryReady ? 'opacity-100' : 'opacity-0 pointer-events-none'
             }`}
+            aria-hidden={!galleryReady}
           >
             <ProductGallery
               layout={isPouchStrapMode ? 'thumbnails' : 'carousel'}
