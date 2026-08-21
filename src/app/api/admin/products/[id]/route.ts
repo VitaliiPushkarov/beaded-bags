@@ -14,6 +14,13 @@ import {
   OptionalImagePath,
   OptionalText,
 } from '@/lib/admin-product-input'
+import {
+  ADMIN_PRODUCT_SAVE_TRANSACTION,
+  reconcileVariantPouches,
+  reconcileVariantSizes,
+  reconcileVariantStraps,
+  type ExistingVariantOptions,
+} from '@/lib/admin-product-option-reconcile'
 import { revalidateProductCache } from '@/lib/revalidate-products'
 
 const NullableIntSchema = z.preprocess(
@@ -180,7 +187,7 @@ export async function PATCH(
           : null
     const nextDimensionsEn =
       typeof data.dimensionsEn === 'undefined'
-        ? ((existing as any).dimensionsEn ?? null)
+        ? (existing.dimensionsEn ?? null)
         : data.dimensionsEn?.trim()
           ? data.dimensionsEn
           : null
@@ -218,6 +225,38 @@ export async function PATCH(
           select: { id: true },
         })
 
+        const existingOptionsByVariant = new Map<string, ExistingVariantOptions>()
+        if (incomingIds.length) {
+          const optionRows = await tx.productVariant.findMany({
+            where: { productId: id, id: { in: incomingIds } },
+            select: {
+              id: true,
+              straps: { select: { id: true } },
+              pouches: {
+                select: {
+                  id: true,
+                  straps: { select: { id: true } },
+                },
+              },
+              sizes: { select: { id: true } },
+            },
+          })
+
+          for (const row of optionRows) {
+            existingOptionsByVariant.set(row.id, {
+              strapIds: new Set(row.straps.map((strap) => strap.id)),
+              pouchIds: new Set(row.pouches.map((pouch) => pouch.id)),
+              pouchStrapIdsByPouchId: new Map(
+                row.pouches.map((pouch) => [
+                  pouch.id,
+                  new Set(pouch.straps.map((strap) => strap.id)),
+                ]),
+              ),
+              sizeIds: new Set(row.sizes.map((size) => size.id)),
+            })
+          }
+        }
+
         // 2) upsert variants
         const createdIds: string[] = []
         for (const v of data.variants) {
@@ -227,6 +266,11 @@ export async function PATCH(
           })
 
           if (v.id) {
+            const existingOptions = existingOptionsByVariant.get(v.id)
+            if (!existingOptions) {
+              throw new Error('Variant does not belong to this product')
+            }
+
             await tx.productVariant.update({
               where: { id: v.id },
               data: {
@@ -255,231 +299,25 @@ export async function PATCH(
               },
             })
 
-            const keepStrapIds: string[] = []
-            const straps = v.straps ?? []
-            for (let i = 0; i < straps.length; i++) {
-              const strap = straps[i]
-              if (strap.id) {
-                const updated = await tx.productVariantStrap.updateMany({
-                  where: { id: strap.id, variantId: v.id },
-                  data: {
-                    name: strap.name,
-                    liqpayGoodId: strap.liqpayGoodId ?? null,
-                    extraPriceUAH: strap.extraPriceUAH ?? 0,
-                    sort: strap.sort ?? i,
-                    imageUrl: strap.imageUrl ?? null,
-                  },
-                })
-
-                if (updated.count > 0) {
-                  keepStrapIds.push(strap.id)
-                } else {
-                  const createdStrap = await tx.productVariantStrap.create({
-                    data: {
-                      variantId: v.id,
-                      name: strap.name,
-                      liqpayGoodId: strap.liqpayGoodId ?? null,
-                      extraPriceUAH: strap.extraPriceUAH ?? 0,
-                      sort: strap.sort ?? i,
-                      imageUrl: strap.imageUrl ?? null,
-                    },
-                    select: { id: true },
-                  })
-                  keepStrapIds.push(createdStrap.id)
-                }
-              } else {
-                const createdStrap = await tx.productVariantStrap.create({
-                  data: {
-                    variantId: v.id,
-                    name: strap.name,
-                    liqpayGoodId: strap.liqpayGoodId ?? null,
-                    extraPriceUAH: strap.extraPriceUAH ?? 0,
-                    sort: strap.sort ?? i,
-                    imageUrl: strap.imageUrl ?? null,
-                  },
-                  select: { id: true },
-                })
-                keepStrapIds.push(createdStrap.id)
-              }
-            }
-
-            await tx.productVariantStrap.deleteMany({
-              where: {
-                variantId: v.id,
-                ...(keepStrapIds.length ? { id: { notIn: keepStrapIds } } : {}),
-              },
-            })
-
-            const keepPouchIds: string[] = []
-            const pouches = v.pouches ?? []
-            for (let i = 0; i < pouches.length; i++) {
-              const pouch = pouches[i]
-              if (pouch.id) {
-                const updated = await tx.productVariantPouch.updateMany({
-                  where: { id: pouch.id, variantId: v.id },
-                  data: {
-                    color: pouch.color,
-                    hex: pouch.hex || null,
-                    liqpayGoodId: pouch.liqpayGoodId ?? null,
-                    extraPriceUAH: pouch.extraPriceUAH ?? 0,
-                    sort: pouch.sort ?? i,
-                    imageUrl: pouch.imageUrl ?? null,
-                  },
-                })
-
-                if (updated.count > 0) {
-                  keepPouchIds.push(pouch.id)
-                } else {
-                  const createdPouch = await tx.productVariantPouch.create({
-                    data: {
-                      variantId: v.id,
-                      color: pouch.color,
-                      hex: pouch.hex || null,
-                      liqpayGoodId: pouch.liqpayGoodId ?? null,
-                      extraPriceUAH: pouch.extraPriceUAH ?? 0,
-                      sort: pouch.sort ?? i,
-                      imageUrl: pouch.imageUrl ?? null,
-                    },
-                    select: { id: true },
-                  })
-                  keepPouchIds.push(createdPouch.id)
-                }
-              } else {
-                const createdPouch = await tx.productVariantPouch.create({
-                  data: {
-                    variantId: v.id,
-                    color: pouch.color,
-                    hex: pouch.hex || null,
-                    liqpayGoodId: pouch.liqpayGoodId ?? null,
-                    extraPriceUAH: pouch.extraPriceUAH ?? 0,
-                    sort: pouch.sort ?? i,
-                    imageUrl: pouch.imageUrl ?? null,
-                  },
-                  select: { id: true },
-                })
-                keepPouchIds.push(createdPouch.id)
-              }
-            }
-
-            // Straps belong to the pouch, so they are reconciled per pouch.
-            // Pouches removed below take their straps with them via cascade.
-            //
-            // With the configurator off the form hides the strap editor and
-            // sends no straps at all. Reconciling against that empty list would
-            // delete a configuration the admin never saw and never touched, so
-            // straps are left exactly as they are until the box is ticked
-            // again — unticking it hides the configurator, it does not reset it.
-            for (
-              let i = 0;
-              v.pouchStrapCustomization && i < pouches.length;
-              i++
-            ) {
-              const pouchId = keepPouchIds[i]
-              if (!pouchId) continue
-
-              const incoming = pouches[i].straps ?? []
-              const keepPouchStrapIds: string[] = []
-
-              for (let j = 0; j < incoming.length; j++) {
-                const strap = incoming[j]
-                const strapData = {
-                  name: strap.name,
-                  hex: strap.hex ?? null,
-                  sort: strap.sort ?? j,
-                  mainImageUrl: strap.mainImageUrl ?? null,
-                }
-
-                if (strap.id) {
-                  const updatedStrap =
-                    await tx.productVariantPouchStrap.updateMany({
-                      where: { id: strap.id, pouchId },
-                      data: strapData,
-                    })
-
-                  if (updatedStrap.count > 0) {
-                    keepPouchStrapIds.push(strap.id)
-                    continue
-                  }
-                }
-
-                const createdStrap = await tx.productVariantPouchStrap.create({
-                  data: { pouchId, ...strapData },
-                  select: { id: true },
-                })
-                keepPouchStrapIds.push(createdStrap.id)
-              }
-
-              await tx.productVariantPouchStrap.deleteMany({
-                where: {
-                  pouchId,
-                  ...(keepPouchStrapIds.length
-                    ? { id: { notIn: keepPouchStrapIds } }
-                    : {}),
-                },
-              })
-            }
-
-            await tx.productVariantPouch.deleteMany({
-              where: {
-                variantId: v.id,
-                ...(keepPouchIds.length ? { id: { notIn: keepPouchIds } } : {}),
-              },
-            })
-
-            const keepSizeIds: string[] = []
-            const sizes = v.sizes ?? []
-            for (let i = 0; i < sizes.length; i++) {
-              const size = sizes[i]
-              if (size.id) {
-                const updated = await tx.productVariantSize.updateMany({
-                  where: { id: size.id, variantId: v.id },
-                  data: {
-                    size: size.size,
-                    liqpayGoodId: size.liqpayGoodId ?? null,
-                    extraPriceUAH: size.extraPriceUAH ?? 0,
-                    sort: size.sort ?? i,
-                    imageUrl: size.imageUrl ?? null,
-                  },
-                })
-
-                if (updated.count > 0) {
-                  keepSizeIds.push(size.id)
-                } else {
-                  const createdSize = await tx.productVariantSize.create({
-                    data: {
-                      variantId: v.id,
-                      size: size.size,
-                      liqpayGoodId: size.liqpayGoodId ?? null,
-                      extraPriceUAH: size.extraPriceUAH ?? 0,
-                      sort: size.sort ?? i,
-                      imageUrl: size.imageUrl ?? null,
-                    },
-                    select: { id: true },
-                  })
-                  keepSizeIds.push(createdSize.id)
-                }
-              } else {
-                const createdSize = await tx.productVariantSize.create({
-                  data: {
-                    variantId: v.id,
-                    size: size.size,
-                    liqpayGoodId: size.liqpayGoodId ?? null,
-                    extraPriceUAH: size.extraPriceUAH ?? 0,
-                    sort: size.sort ?? i,
-                    imageUrl: size.imageUrl ?? null,
-                  },
-                  select: { id: true },
-                })
-                keepSizeIds.push(createdSize.id)
-              }
-            }
-
-            await tx.productVariantSize.deleteMany({
-              where: {
-                variantId: v.id,
-                ...(keepSizeIds.length ? { id: { notIn: keepSizeIds } } : {}),
-              },
-            })
+            await reconcileVariantStraps(
+              tx,
+              v.id,
+              v.straps ?? [],
+              existingOptions?.strapIds,
+            )
+            await reconcileVariantPouches(
+              tx,
+              v.id,
+              v.pouches ?? [],
+              existingOptions,
+              v.pouchStrapCustomization,
+            )
+            await reconcileVariantSizes(
+              tx,
+              v.id,
+              v.sizes ?? [],
+              existingOptions?.sizeIds,
+            )
           } else {
             const created = await tx.productVariant.create({
               data: {
@@ -585,12 +423,6 @@ export async function PATCH(
           await tx.productVariantStrap.deleteMany({
             where: { variantId: { in: toDeleteIds } },
           })
-          await tx.productVariantPouch.deleteMany({
-            where: { variantId: { in: toDeleteIds } },
-          })
-          await tx.productVariantSize.deleteMany({
-            where: { variantId: { in: toDeleteIds } },
-          })
 
           await tx.productVariant.deleteMany({
             where: { id: { in: toDeleteIds } },
@@ -599,10 +431,7 @@ export async function PATCH(
 
         return updated
       },
-      {
-        // Admin edits can touch many variants + images; allow more time than default 5s.
-        timeout: 15000,
-      },
+      ADMIN_PRODUCT_SAVE_TRANSACTION,
     )
 
     revalidateProductCache({
