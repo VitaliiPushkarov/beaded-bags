@@ -268,28 +268,17 @@ function buildOrderBy(
 }
 
 export async function getProductBySlug(slug: string) {
-  try {
-    return await withPrismaRetry(
-      () =>
-        prisma.product.findFirst({
-          where: {
-            slug,
-            status: 'PUBLISHED',
-          },
-          include: PRODUCT_PAGE_INCLUDE,
-        }),
-      { scope: 'db.products.getProductBySlug' },
-    )
-  } catch (error) {
-    if (isPrismaAvailabilityError(error)) {
-      console.error(
-        `[db] getProductBySlug fallback for slug="${slug}" due to DB availability issue.`,
-        error,
-      )
-      return null
-    }
-    throw error
-  }
+  return await withPrismaRetry(
+    () =>
+      prisma.product.findFirst({
+        where: {
+          slug,
+          status: 'PUBLISHED',
+        },
+        include: PRODUCT_PAGE_INCLUDE,
+      }),
+    { attempts: 5, scope: 'db.products.getProductBySlug' },
+  )
 }
 
 export async function getProductMetaBySlug(slug: string) {

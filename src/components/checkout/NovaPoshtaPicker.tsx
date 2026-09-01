@@ -205,6 +205,8 @@ export default function NovaPoshtaPicker() {
           return
         }
         const json = await res.json()
+        if (json.unavailable) return
+
         const list: WH[] = Array.isArray(json.data) ? json.data : []
 
         const hydrated = list.map((w) => ({
@@ -270,6 +272,8 @@ export default function NovaPoshtaPicker() {
             return
           }
           const json = await res.json()
+          if (json.unavailable) return
+
           const list: WH[] = Array.isArray(json.data) ? json.data : []
 
           const hydrated = list.map((w) => ({

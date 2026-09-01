@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { npCall } from '@/lib/np'
+import { isNovaPoshtaTransientError, npCall } from '@/lib/np'
 import {
   buildNpCityQueryVariants,
   dedupeCityOptions,
@@ -124,7 +124,15 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ data: unique.slice(0, limit) })
   } catch (e: unknown) {
     const message = e instanceof Error ? e.message : 'Unknown error'
+    if (isNovaPoshtaTransientError(e)) {
+      console.warn('NP getSettlements temporarily unavailable:', message)
+      return NextResponse.json({ data: [], unavailable: true })
+    }
+
     console.error('NP getSettlements error:', message)
-    return NextResponse.json({ error: message }, { status: 500 })
+    return NextResponse.json(
+      { error: 'Nova Poshta settlements lookup failed' },
+      { status: 502 },
+    )
   }
 }

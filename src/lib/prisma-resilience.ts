@@ -1,4 +1,5 @@
 import { Prisma } from '@prisma/client'
+import { resetPrismaConnection } from './prisma'
 
 const RETRYABLE_PRISMA_CODES = new Set(['P1001', 'P1002', 'P1008', 'P1017'])
 const RETRYABLE_MESSAGE_PATTERNS = [
@@ -8,6 +9,12 @@ const RETRYABLE_MESSAGE_PATTERNS = [
   /econnreset/i,
   /eai_again/i,
   /enotfound/i,
+]
+const RESET_PRISMA_CONNECTION_CODES = new Set(['P1017'])
+const RESET_PRISMA_CONNECTION_MESSAGE_PATTERNS = [
+  /server has closed the connection/i,
+  /connection.*(closed|terminated|reset)/i,
+  /econnreset/i,
 ]
 
 function readMessage(error: unknown): string {
@@ -26,6 +33,17 @@ export function isPrismaAvailabilityError(error: unknown): boolean {
   return RETRYABLE_MESSAGE_PATTERNS.some((pattern) => pattern.test(message))
 }
 
+function shouldResetPrismaConnection(error: unknown): boolean {
+  if (error instanceof Prisma.PrismaClientKnownRequestError) {
+    if (RESET_PRISMA_CONNECTION_CODES.has(error.code)) return true
+  }
+
+  const message = readMessage(error)
+  return RESET_PRISMA_CONNECTION_MESSAGE_PATTERNS.some((pattern) =>
+    pattern.test(message),
+  )
+}
+
 function sleep(ms: number): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, ms))
 }
@@ -40,7 +58,7 @@ export async function withPrismaRetry<T>(
   operation: () => Promise<T>,
   options: PrismaRetryOptions = {},
 ): Promise<T> {
-  const attempts = Math.max(1, options.attempts ?? 3)
+  const attempts = Math.max(1, options.attempts ?? 4)
   const baseDelayMs = Math.max(0, options.baseDelayMs ?? 800)
 
   for (let attempt = 1; attempt <= attempts; attempt++) {
@@ -58,6 +76,9 @@ export async function withPrismaRetry<T>(
         `[db] transient Prisma availability error${scopeSuffix}. Retry ${attempt}/${retriesTotal}. ${message}`,
       )
 
+      if (shouldResetPrismaConnection(error)) {
+        await resetPrismaConnection(options.scope)
+      }
       await sleep(baseDelayMs * attempt)
     }
   }

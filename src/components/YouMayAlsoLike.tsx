@@ -294,7 +294,7 @@ export default function YouMayAlsoLike({
                       src={image}
                       alt={productName || 'Product'}
                       fill
-                      className="object-contain"
+                      className="object-fit"
                       sizes="(min-width: 1024px) 20vw, (min-width: 640px) 45vw, 85vw"
                       loading="lazy"
                     />

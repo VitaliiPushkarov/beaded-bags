@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server'
-import { npCall } from '@/lib/np'
+import { isNovaPoshtaTransientError, npCall } from '@/lib/np'
 
 interface NovaPoshtaArea {
   Ref: string
@@ -13,7 +13,15 @@ export async function GET() {
     return NextResponse.json({ data: areas })
   } catch (e: unknown) {
     const error = e instanceof Error ? e.message : 'Unknown error'
+    if (isNovaPoshtaTransientError(e)) {
+      console.warn('NP getAreas temporarily unavailable:', error)
+      return NextResponse.json({ data: [], unavailable: true })
+    }
+
     console.error('NP getAreas error:', error)
-    return NextResponse.json({ error }, { status: 500 })
+    return NextResponse.json(
+      { error: 'Nova Poshta areas lookup failed' },
+      { status: 502 },
+    )
   }
 }
