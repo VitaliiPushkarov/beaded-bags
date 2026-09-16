@@ -238,11 +238,11 @@ export default function ProductCardLarge({
                 </>
               )}
             </div>
-            {hasDiscount && offerNote && (
+            {/*   {hasDiscount && offerNote && (
               <div className="text-[11px] md:text-xs text-gray-600">
                 {offerNote}
               </div>
-            )}
+            )} */}
           </div>
         </div>
 
