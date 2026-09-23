@@ -1,3 +1,9 @@
+import {
+  interpolateOrderEmailText,
+  resolveOrderEmailCopy,
+  type OrderEmailCopy,
+} from './order-email-copy'
+
 // Pure builders for customer-facing order emails. No prisma, no transport —
 // everything here is deterministic so it can be unit tested and previewed.
 
@@ -109,9 +115,7 @@ export function buildItemOptionParts(
     .filter((name) => name.length > 0)
 
   if (addonNames.length) {
-    parts.push(
-      `${t(locale, 'додатково', 'add-ons')}: ${addonNames.join(', ')}`,
-    )
+    parts.push(`${t(locale, 'додатково', 'add-ons')}: ${addonNames.join(', ')}`)
   }
 
   return parts
@@ -122,11 +126,15 @@ export function buildShippingLines(
   locale: OrderEmailLocale,
 ): string[] {
   if (clean(order.shippingMethod) === 'INTERNATIONAL_ADDRESS') {
-    const locality = [clean(order.shippingPostalCode), clean(order.shippingCity)]
+    const locality = [
+      clean(order.shippingPostalCode),
+      clean(order.shippingCity),
+    ]
       .filter((part) => part.length > 0)
       .join(' ')
 
     return [
+      t(locale, 'Міжнародна доставка', 'International shipping'),
       clean(order.shippingCountryName),
       clean(order.shippingRegion),
       locality,
@@ -143,26 +151,51 @@ export function buildShippingLines(
   ].filter((line) => line.length > 0)
 }
 
-export function buildOrderEmailSubject(input: {
-  order: Pick<OrderEmailOrder, 'shortNumber'>
+type EmailCopyInput = {
+  order: OrderEmailOrder
   kind: OrderEmailKind
   locale: OrderEmailLocale
-}): string {
-  const number = `#${input.order.shortNumber}`
+  copy?: OrderEmailCopy
+}
 
-  if (input.kind === 'AWAITING_PAYMENT') {
-    return t(
-      input.locale,
-      `Замовлення ${number} — реквізити для оплати · ${BRAND}`,
-      `Order ${number} — payment details · ${BRAND}`,
-    )
-  }
-
-  return t(
-    input.locale,
-    `Замовлення ${number} підтверджено · ${BRAND}`,
-    `Order ${number} confirmed · ${BRAND}`,
+function renderCopy(
+  input: EmailCopyInput,
+  field: keyof OrderEmailCopy,
+): string {
+  return interpolateOrderEmailText(
+    resolveOrderEmailCopy(input.locale, input.kind, input.copy)[field],
+    {
+      orderNumber: String(input.order.shortNumber),
+      customerName: clean(input.order.customerName),
+      totalAmount: formatOrderAmount(input.order.totalUAH),
+    },
   )
+}
+
+export function buildOrderEmailSubject(input: EmailCopyInput): string {
+  return renderCopy(input, 'subject').replace(/[\r\n]+/g, ' ')
+}
+
+export function buildPaymentMethodLabel(
+  order: Pick<OrderEmailOrder, 'paymentMethod'>,
+  locale: OrderEmailLocale,
+): string {
+  switch (order.paymentMethod) {
+    case 'BANK_TRANSFER':
+      return t(locale, 'Банківський переказ', 'Bank transfer')
+    case 'LIQPAY':
+      return t(locale, 'Онлайн-оплата LiqPay', 'Online payment via LiqPay')
+    case 'WAYFORPAY':
+      return t(
+        locale,
+        'Онлайн-оплата WayForPay',
+        'Online payment via WayForPay',
+      )
+    case 'COD':
+      return t(locale, 'Оплата при отриманні', 'Cash on delivery')
+    default:
+      return t(locale, 'Інший спосіб оплати', 'Other payment method')
+  }
 }
 
 type TotalsRow = { label: string; value: string; strong?: boolean }
@@ -194,7 +227,7 @@ function buildTotalsRows(
   })
 
   rows.push({
-    label: t(locale, 'До сплати', 'Total'),
+    label: t(locale, 'Загалом', 'Total'),
     value: formatOrderAmount(order.totalUAH),
     strong: true,
   })
@@ -202,35 +235,12 @@ function buildTotalsRows(
   return rows
 }
 
-function buildIntroLines(
-  order: OrderEmailOrder,
-  kind: OrderEmailKind,
-  locale: OrderEmailLocale,
-): string[] {
-  const name = clean(order.customerName)
+function buildIntroLines(input: EmailCopyInput): string[] {
+  const name = clean(input.order.customerName)
   const greeting = name
-    ? t(locale, `Вітаємо, ${name}!`, `Hello ${name},`)
-    : t(locale, 'Вітаємо!', 'Hello,')
-
-  if (kind === 'AWAITING_PAYMENT') {
-    return [
-      greeting,
-      t(
-        locale,
-        `Дякуємо за замовлення #${order.shortNumber}. Ми зберігаємо його за вами й чекаємо на оплату — реквізити нижче.`,
-        `Thank you for order #${order.shortNumber}. We are holding it for you and are waiting for payment — details are below.`,
-      ),
-    ]
-  }
-
-  return [
-    greeting,
-    t(
-      locale,
-      `Дякуємо! Оплату отримано, замовлення #${order.shortNumber} підтверджено — ми вже беремо його в роботу.`,
-      `Thank you! Your payment was received and order #${order.shortNumber} is confirmed — we are getting to work on it.`,
-    ),
-  ]
+    ? t(input.locale, `Вітаємо, ${name}!`, `Hello ${name},`)
+    : t(input.locale, 'Вітаємо!', 'Hello,')
+  return [greeting, renderCopy(input, 'intro')]
 }
 
 // The configured bank details are static text and cannot know the order number,
@@ -247,33 +257,22 @@ export function buildPaymentReference(
   )
 }
 
-function buildNextStepsLine(
-  kind: OrderEmailKind,
-  locale: OrderEmailLocale,
-): string {
-  if (kind === 'AWAITING_PAYMENT') {
-    return t(
-      locale,
-      'Щойно кошти надійдуть, ми одразу візьмемо замовлення в роботу й повідомимо вас.',
-      'As soon as the payment arrives we will start working on your order and let you know.',
-    )
-  }
-
-  return t(
-    locale,
-    'Щойно передамо посилку Новій пошті — надішлемо номер накладної для відстеження.',
-    'Once the parcel is handed to the carrier we will send you the tracking number.',
-  )
-}
-
 // International orders are quoted in USD at checkout but the order itself is
 // stored only in UAH, so we state the UAH amount and promise an exact figure
 // rather than inventing an exchange rate.
 function buildCurrencyNote(
   order: OrderEmailOrder,
   locale: OrderEmailLocale,
+  kind: OrderEmailKind,
 ): string | null {
   if (clean(order.shippingMethod) !== 'INTERNATIONAL_ADDRESS') return null
+
+  if (kind === 'PAID')
+    return t(
+      locale,
+      'Суму замовлення вказано в гривні.',
+      'The order amount is shown in UAH.',
+    )
 
   return t(
     locale,
@@ -288,17 +287,20 @@ export function buildOrderEmailText(input: {
   locale: OrderEmailLocale
   bankTransferDetails?: string | null
   siteUrl: string
+  copy?: OrderEmailCopy
 }): string {
   const { order, kind, locale } = input
   const lines: string[] = []
 
-  lines.push(...buildIntroLines(order, kind, locale), '')
+  lines.push(...buildIntroLines(input), '')
 
-  lines.push(t(locale, 'ВАШЕ ЗАМОВЛЕННЯ', 'YOUR ORDER'))
+  lines.push(
+    `${t(locale, 'ВАШЕ ЗАМОВЛЕННЯ', 'YOUR ORDER')} #${order.shortNumber}`,
+  )
   for (const item of order.items) {
     const options = buildItemOptionParts(item, locale)
     lines.push(
-      `- ${item.name}${options.length ? ` (${options.join(' · ')})` : ''} × ${item.qty} — ${formatOrderAmount(item.priceUAH * item.qty)}`,
+      `- ${item.name}${options.length ? ` (${options.join(' · ')})` : ''} ${item.qty} × ${formatOrderAmount(item.priceUAH)} — ${formatOrderAmount(item.priceUAH * item.qty)}`,
     )
   }
   lines.push('')
@@ -307,9 +309,13 @@ export function buildOrderEmailText(input: {
     lines.push(`${row.label}: ${row.value}`)
   }
 
-  const currencyNote = buildCurrencyNote(order, locale)
+  const currencyNote = buildCurrencyNote(order, locale, kind)
   if (currencyNote) lines.push('', currencyNote)
 
+  lines.push(
+    '',
+    `${t(locale, 'Спосіб оплати', 'Payment method')}: ${buildPaymentMethodLabel(order, locale)}`,
+  )
   lines.push('', t(locale, 'ДОСТАВКА', 'DELIVERY'))
   lines.push(...buildShippingLines(order, locale))
 
@@ -329,16 +335,8 @@ export function buildOrderEmailText(input: {
     }
   }
 
-  lines.push('', buildNextStepsLine(kind, locale))
-  lines.push(
-    '',
-    t(
-      locale,
-      `Питання? Просто відповідайте на цей лист. ${input.siteUrl}`,
-      `Questions? Just reply to this email. ${input.siteUrl}`,
-    ),
-    BRAND,
-  )
+  lines.push('', renderCopy(input, 'nextSteps'))
+  lines.push('', renderCopy(input, 'footer'), input.siteUrl, BRAND)
 
   return lines.join('\n')
 }
@@ -349,6 +347,7 @@ export function buildOrderEmailHtml(input: {
   locale: OrderEmailLocale
   bankTransferDetails?: string | null
   siteUrl: string
+  copy?: OrderEmailCopy
 }): string {
   const { order, kind, locale } = input
   const text = (value: string) => escapeHtml(value)
@@ -364,7 +363,7 @@ export function buildOrderEmailHtml(input: {
   <td style="padding:12px 0;border-bottom:1px solid #e5e7eb;">
     <div style="color:#111827;font-size:15px;font-weight:600;">${text(item.name)}</div>
     ${optionsHtml}
-    <div style="color:#6b7280;font-size:13px;margin-top:4px;">× ${text(String(item.qty))}</div>
+    <div style="color:#6b7280;font-size:13px;margin-top:4px;">${text(String(item.qty))} × ${text(formatOrderAmount(item.priceUAH))}</div>
   </td>
   <td style="padding:12px 0;border-bottom:1px solid #e5e7eb;text-align:right;color:#111827;font-size:15px;white-space:nowrap;vertical-align:top;">
     ${text(formatOrderAmount(item.priceUAH * item.qty))}
@@ -391,7 +390,7 @@ export function buildOrderEmailHtml(input: {
     .map((line) => `<div>${text(line)}</div>`)
     .join('')
 
-  const currencyNote = buildCurrencyNote(order, locale)
+  const currencyNote = buildCurrencyNote(order, locale, kind)
   const currencyNoteHtml = currencyNote
     ? `<p style="color:#6b7280;font-size:13px;line-height:1.6;margin:12px 0 0;">${text(currencyNote)}</p>`
     : ''
@@ -420,10 +419,10 @@ export function buildOrderEmailHtml(input: {
 </div>`
       : ''
 
-  const introHtml = buildIntroLines(order, kind, locale)
+  const introHtml = buildIntroLines(input)
     .map(
       (line) =>
-        `<p style="color:#374151;font-size:15px;line-height:1.7;margin:0 0 12px;">${text(line)}</p>`,
+        `<p style="color:#374151;font-size:15px;line-height:1.7;white-space:pre-wrap;margin:0 0 12px;">${text(line)}</p>`,
     )
     .join('')
 
@@ -443,23 +442,25 @@ export function buildOrderEmailHtml(input: {
 
 ${introHtml}
 
-${sectionTitle(t(locale, 'Ваше замовлення', 'Your order'))}
+${sectionTitle(`${t(locale, 'Ваше замовлення', 'Your order')} #${order.shortNumber}`)}
 <table role="presentation" width="100%" cellpadding="0" cellspacing="0">${itemRows}</table>
 
 <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin-top:16px;">${totalsRows}</table>
 ${currencyNoteHtml}
 
+${sectionTitle(t(locale, 'Спосіб оплати', 'Payment method'))}
+<div style="color:#374151;font-size:14px;line-height:1.7;">${text(buildPaymentMethodLabel(order, locale))}</div>
 ${paymentBlock}
 
 ${sectionTitle(t(locale, 'Доставка', 'Delivery'))}
 <div style="color:#374151;font-size:14px;line-height:1.7;">${shippingHtml}</div>
 
-<p style="color:#374151;font-size:14px;line-height:1.7;margin:28px 0 0;">${text(
-    buildNextStepsLine(kind, locale),
+<p style="color:#374151;font-size:14px;line-height:1.7;white-space:pre-wrap;margin:28px 0 0;">${text(
+    renderCopy(input, 'nextSteps'),
   )}</p>
 
-<p style="color:#6b7280;font-size:13px;line-height:1.7;margin:24px 0 0;border-top:1px solid #e5e7eb;padding-top:20px;">
-${text(t(locale, 'Питання? Просто відповідайте на цей лист.', 'Questions? Just reply to this email.'))}<br>
+<p style="color:#6b7280;font-size:13px;line-height:1.7;white-space:pre-wrap;margin:24px 0 0;border-top:1px solid #e5e7eb;padding-top:20px;">
+${text(renderCopy(input, 'footer'))}<br>
 <a href="${text(input.siteUrl)}" style="color:#111827;">${text(input.siteUrl.replace(/^https?:\/\//, ''))}</a>
 </p>
 
@@ -477,6 +478,7 @@ export function buildOrderEmail(input: {
   locale: OrderEmailLocale
   bankTransferDetails?: string | null
   siteUrl: string
+  copy?: OrderEmailCopy
 }): { subject: string; html: string; text: string } {
   return {
     subject: buildOrderEmailSubject(input),

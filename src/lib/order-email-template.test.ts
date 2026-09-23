@@ -1,3 +1,7 @@
+import {
+  DEFAULT_ORDER_EMAIL_SETTINGS,
+  OrderEmailSettingsSchema,
+} from './order-email-copy'
 import test from 'node:test'
 import assert from 'node:assert/strict'
 
@@ -115,7 +119,13 @@ test('international delivery lines use the postal address', () => {
     }),
     'en',
   )
-  assert.deepEqual(lines, ['Poland', 'Mazowieckie', '00-001 Warsaw', 'ul. Prosta 1'])
+  assert.deepEqual(lines, [
+    'International shipping',
+    'Poland',
+    'Mazowieckie',
+    '00-001 Warsaw',
+    'ul. Prosta 1',
+  ])
 })
 
 test('subjects distinguish a confirmed order from one awaiting payment', () => {
@@ -286,4 +296,98 @@ test('buildOrderEmail returns all three renderings', () => {
   assert.ok(result.subject.length > 0)
   assert.match(result.html, /^<!doctype html>/)
   assert.ok(result.text.includes('Сумка Ґердан'))
+})
+
+test('edited copy applies to subject, HTML and text while order facts stay automatic', () => {
+  const copy = {
+    subject: 'GERDAN #{{orderNumber}} — {{customerName}}',
+    intro: 'Дякуємо, {{customerName}}! Вартість: {{totalAmount}}.',
+    nextSteps: 'Пакуємо вашу сумку.',
+    footer: 'З любов’ю, GERDAN',
+  }
+  const result = buildOrderEmail({
+    order: buildOrder(),
+    kind: 'PAID',
+    locale: 'uk',
+    copy,
+    siteUrl: 'https://gerdan.online',
+  })
+  assert.equal(result.subject, 'GERDAN #1042 — Олена')
+  for (const body of [result.text, result.html]) {
+    for (const expected of [
+      'Олена',
+      '4 200 ₴',
+      'Сумка Ґердан',
+      'LiqPay',
+      'Нова пошта',
+      'Відділення №5',
+      'Пакуємо вашу сумку.',
+      'З любов’ю, GERDAN',
+    ]) {
+      assert.ok(body.includes(expected), expected)
+    }
+  }
+})
+
+test('edited copy and substituted names cannot inject HTML or recursively expand variables', () => {
+  const result = buildOrderEmail({
+    order: buildOrder({
+      customerName: '<img src=x> {{totalAmount}}\r\nBcc: invalid',
+    }),
+    kind: 'PAID',
+    locale: 'uk',
+    siteUrl: 'https://gerdan.online',
+    copy: {
+      ...DEFAULT_ORDER_EMAIL_SETTINGS.uk.PAID,
+      subject: '#{{orderNumber}} {{customerName}}',
+      intro: '<b>{{customerName}}</b>',
+    },
+  })
+  assert.doesNotMatch(result.html, /<img|<b>/)
+  assert.match(result.html, /&lt;b&gt;&lt;img/)
+  assert.match(result.text, /\{\{totalAmount\}\}/)
+  assert.doesNotMatch(result.subject, /[\r\n]/)
+})
+
+test('settings reject unknown variables, missing order numbers and header injection', () => {
+  assert.equal(
+    OrderEmailSettingsSchema.safeParse(DEFAULT_ORDER_EMAIL_SETTINGS).success,
+    true,
+  )
+  for (const subject of [
+    'Hello',
+    '#{{orderNumber}} {{unknown}}',
+    '#{{orderNumber}}\nBcc: someone@example.com',
+  ]) {
+    const settings = structuredClone(DEFAULT_ORDER_EMAIL_SETTINGS)
+    settings.uk.PAID.subject = subject
+    assert.equal(OrderEmailSettingsSchema.safeParse(settings).success, false)
+  }
+})
+
+test('payment and delivery methods are present in both formats for bank transfers', () => {
+  const result = buildOrderEmail({
+    order: buildOrder({ paymentMethod: 'BANK_TRANSFER' }),
+    kind: 'AWAITING_PAYMENT',
+    locale: 'uk',
+    siteUrl: 'https://gerdan.online',
+  })
+  for (const body of [result.text, result.html]) {
+    assert.match(body, /Банківський переказ/)
+    assert.match(body, /Нова пошта/)
+    assert.doesNotMatch(body, /Оплату отримано/)
+  }
+})
+
+test('paid international orders do not promise payment details again', () => {
+  const result = buildOrderEmail({
+    order: buildOrder({ shippingMethod: 'INTERNATIONAL_ADDRESS' }),
+    kind: 'PAID',
+    locale: 'en',
+    siteUrl: 'https://en.gerdan.online',
+  })
+  for (const body of [result.text, result.html]) {
+    assert.match(body, /amount is shown in UAH/)
+    assert.doesNotMatch(body, /together with the payment details/)
+  }
 })

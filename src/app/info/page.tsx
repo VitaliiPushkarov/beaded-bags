@@ -132,9 +132,11 @@ export default async function InfoPage() {
             </li>
           </ul>
           <p className="text-gray-700">
-            {isEn ? 'For any questions, write to' : 'З будь-яких питань — пишіть у'}{' '}
-            <a href="mailto:support@gerdan.com" className="underline">
-              support@gerdan.com
+            {isEn
+              ? 'For any questions, write to'
+              : 'З будь-яких питань — пишіть у'}{' '}
+            <a href="mailto:gerdanstudio@gmail.com" className="underline">
+              gerdanstudio@gmail.com
             </a>{' '}
             {isEn ? 'or Instagram.' : 'або в Instagram.'}
           </p>

@@ -1,3 +1,5 @@
+import { enqueueOrderEmailTx } from '@/lib/order-email-queue'
+import { scheduleOrderEmails } from '@/lib/order-email-dispatch'
 import { NextRequest, NextResponse } from 'next/server'
 import { revalidatePath } from 'next/cache'
 import { z } from 'zod'
@@ -34,6 +36,7 @@ export async function PATCH(req: NextRequest, { params }: PageProps) {
     }
 
     const updated = await prisma.$transaction(async (tx) => {
+      const existing = await tx.order.findUniqueOrThrow({ where: { id }, select: { status: true } })
       const next = await tx.order.update({
         where: { id },
         data: { status: parsed.data.status },
@@ -48,8 +51,13 @@ export async function PATCH(req: NextRequest, { params }: PageProps) {
         inventoryProductSnapshots = reversal.productSnapshots
       }
 
+      if (next.status === 'PAID' && existing.status !== 'PAID' && existing.status !== 'FULFILLED') {
+        await enqueueOrderEmailTx(tx, next, 'PAID')
+      }
       return next
     })
+
+    if (updated.status === 'PAID') scheduleOrderEmails(updated.id)
 
     revalidatePath('/admin')
     revalidatePath('/admin/orders')

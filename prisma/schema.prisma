@@ -351,9 +351,39 @@ model Order {
   paymentFeeUAH        Int            @default(0)
   customer             Customer?      @relation(fields: [customerId], references: [id])
   items                OrderItem[]
+  emails               OrderEmailDelivery[]
 
   @@index([status, createdAt])
   @@index([customerPhone])
+}
+
+model OrderEmailSettings {
+  id        Int      @id @default(1)
+  templates Json
+  updatedAt DateTime @updatedAt
+}
+
+enum OrderEmailKind {
+  PAID
+  AWAITING_PAYMENT
+}
+
+model OrderEmailDelivery {
+  id            String         @id @default(cuid())
+  orderId       String
+  kind          OrderEmailKind
+  attempts      Int            @default(0)
+  nextAttemptAt DateTime       @default(now())
+  lockedUntil   DateTime?
+  lockToken     String?
+  sentAt        DateTime?
+  skippedAt     DateTime?
+  lastError     String?
+  createdAt     DateTime       @default(now())
+  order         Order          @relation(fields: [orderId], references: [id], onDelete: Cascade)
+
+  @@unique([orderId, kind])
+  @@index([sentAt, skippedAt, nextAttemptAt])
 }
 
 model OrderItem {

@@ -13,6 +13,7 @@ import {
   FileText,
   Factory,
   Home,
+  Mail,
   Package,
   Receipt,
   Settings2,
@@ -80,6 +81,7 @@ const NAV_ITEMS: AdminNavItem[] = [
   { kind: 'link', href: '/admin/finance', label: 'Фінанси', icon: BarChart3 },
   { kind: 'link', href: '/admin/liqpay', label: 'LiqPay ПРРО', icon: Receipt },
   { kind: 'link', href: '/admin/promo', label: 'Промокоди', icon: TicketPercent },
+  { kind: 'link', href: '/admin/order-emails', label: 'Листи клієнтам', icon: Mail },
   {
     kind: 'link',
     href: '/admin/configuration',

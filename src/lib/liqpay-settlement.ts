@@ -6,7 +6,8 @@ import {
   verifyLiqPayPaidAmount,
   type LiqPayStatusPayload,
 } from '@/lib/liqpay-payment-status'
-import { sendOrderCustomerEmailSafe } from '@/lib/order-email'
+import { enqueueOrderEmailTx } from '@/lib/order-email-queue'
+import { scheduleOrderEmails } from '@/lib/order-email-dispatch'
 import { sendOrderTelegramNotification } from '@/lib/order-telegram'
 import {
   applyPaidOrderInventoryTx,
@@ -103,7 +104,7 @@ export async function settleOrderFromLiqPayPayload(args: {
 
   if (mappedOrderStatus === 'PAID') {
     inventorySettlement = await prisma.$transaction(async (tx) => {
-      await tx.order.update({
+      const order = await tx.order.update({
         where: { id: existing.id },
         data: updateData,
       })
@@ -121,6 +122,7 @@ export async function settleOrderFromLiqPayPayload(args: {
       })
       transitionedToPaid = result.count > 0
 
+      if (transitionedToPaid) await enqueueOrderEmailTx(tx, order, 'PAID')
       return applyPaidOrderInventoryTx(tx, existing.id)
     })
   } else if (mappedOrderStatus) {
@@ -158,9 +160,7 @@ export async function settleOrderFromLiqPayPayload(args: {
       console.error('LiqPay settlement Telegram error:', error)
     }
 
-    // Guarded by the same PENDING -> PAID transition as the Telegram message,
-    // so a repeated callback or a status refresh cannot email the customer twice.
-    await sendOrderCustomerEmailSafe({ orderId: existing.id, kind: 'PAID' })
+    scheduleOrderEmails(existing.id)
   }
 
   return loadOrderSettlementSnapshot(existing.id)

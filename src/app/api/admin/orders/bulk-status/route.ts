@@ -1,3 +1,5 @@
+import { enqueueOrderEmailTx } from '@/lib/order-email-queue'
+import { scheduleOrderEmails } from '@/lib/order-email-dispatch'
 import { NextRequest, NextResponse } from 'next/server'
 import { revalidatePath } from 'next/cache'
 import { z } from 'zod'
@@ -42,7 +44,7 @@ export async function PATCH(req: NextRequest) {
       const result = await prisma.$transaction(async (tx) => {
         const existing = await tx.order.findUnique({
           where: { id },
-          select: { id: true },
+          select: { id: true, status: true },
         })
         if (!existing) return null
 
@@ -50,6 +52,10 @@ export async function PATCH(req: NextRequest) {
           where: { id },
           data: { status },
         })
+
+        if (next.status === 'PAID' && existing.status !== 'PAID' && existing.status !== 'FULFILLED') {
+          await enqueueOrderEmailTx(tx, next, 'PAID')
+        }
 
         const settlement = isInventorySettledOrderStatus(next.status)
           ? await applyPaidOrderInventoryTx(tx, next.id)
@@ -66,6 +72,8 @@ export async function PATCH(req: NextRequest) {
       console.error(`bulk-status: failed for order ${id}`, error)
     }
   }
+
+  if (status === 'PAID' && updated > 0) scheduleOrderEmails()
 
   revalidatePath('/admin')
   revalidatePath('/admin/orders')

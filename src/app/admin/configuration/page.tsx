@@ -274,6 +274,10 @@ export default async function AdminConfigurationPage({
       </div>
 
       <HomeHeroForm initial={heroInitial} />
+      <Link href="/admin/order-emails" className="block rounded-lg border border-slate-200 bg-white p-4 hover:border-slate-400">
+        <span className="font-semibold">Листи клієнтам →</span>
+        <span className="mt-1 block text-sm text-slate-600">Редагувати шаблони автоматичних підтверджень замовлення.</span>
+      </Link>
       <HeroImagesForm initial={heroImagesInitial} />
       <CategoryCardsForm initial={categoryCardsInitial} />
       <InstagramSliderForm initial={instagramInitial} />
