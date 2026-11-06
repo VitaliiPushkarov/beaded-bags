@@ -1583,6 +1583,21 @@ export function ProductInteractive({ p }: { p: ProductWithVariants }) {
             />
           </div>
 
+          <ul className="mt-4 flex w-full flex-wrap gap-x-2 gap-y-2 text-xs leading-4 text-[#6A9FB5] md:gap-x-2.5 md:text-sm md:leading-4">
+            {[
+              t('Відправка день у день', 'Same-day dispatch'),
+              t('Подарункове пакування', 'Gift packaging'),
+              t('Оплата частинами', 'Pay in installments'),
+            ].map((label) => (
+              <li
+                key={label}
+                className="max-w-full rounded-[5px] border border-current px-1.5 py-0.5 uppercase"
+              >
+                {label}
+              </li>
+            ))}
+          </ul>
+
           {preorderOpen && variantPreorder && (
             <PreorderModal
               open={preorderOpen}
