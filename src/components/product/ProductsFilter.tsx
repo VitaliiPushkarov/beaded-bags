@@ -78,7 +78,40 @@ export default function ProductsFilter({
     }
   }, [mobileOpen])
 
-  const Controls = (sortName: string) => (
+  const viewSwitch = onViewChange && (
+    <button
+      type="button"
+      role="switch"
+      aria-checked={view === 'variants'}
+      onClick={() =>
+        onViewChange(view === 'variants' ? 'products' : 'variants')
+      }
+      className="inline-flex items-center gap-2.5 cursor-pointer group"
+    >
+      <span
+        aria-hidden
+        className={clsx(
+          'inline-flex h-5 w-9 shrink-0 rounded-full p-[3px] transition-colors',
+          'group-focus-visible:ring-2 group-focus-visible:ring-black/40 group-focus-visible:ring-offset-2',
+          view === 'variants'
+            ? 'bg-black'
+            : 'bg-gray-300 group-hover:bg-gray-400',
+        )}
+      >
+        <span
+          className={clsx(
+            'h-3.5 w-3.5 rounded-full bg-white shadow-sm transition-transform duration-200',
+            view === 'variants' && 'translate-x-4',
+          )}
+        />
+      </span>
+      <span className="uppercase tracking-wide">
+        {t('Усі кольори', 'All colors')}
+      </span>
+    </button>
+  )
+
+  const Controls = (sortName: string, showViewSwitch = false) => (
     <>
       {/* верхній рядок: чекбокси + сортування */}
       <div className="flex justify-between flex-nowrap mb-2 uppercase">
@@ -269,38 +302,7 @@ export default function ProductsFilter({
             </div>
 
             {/* Вигляд — не фільтр, діє одразу */}
-            {onViewChange && (
-              <button
-                type="button"
-                role="switch"
-                aria-checked={view === 'variants'}
-                onClick={() =>
-                  onViewChange(view === 'variants' ? 'products' : 'variants')
-                }
-                className="inline-flex items-center gap-2.5 cursor-pointer group"
-              >
-                <span
-                  aria-hidden
-                  className={clsx(
-                    'inline-flex h-5 w-9 shrink-0 rounded-full p-[3px] transition-colors',
-                    'group-focus-visible:ring-2 group-focus-visible:ring-black/40 group-focus-visible:ring-offset-2',
-                    view === 'variants'
-                      ? 'bg-black'
-                      : 'bg-gray-300 group-hover:bg-gray-400',
-                  )}
-                >
-                  <span
-                    className={clsx(
-                      'h-3.5 w-3.5 rounded-full bg-white shadow-sm transition-transform duration-200',
-                      view === 'variants' && 'translate-x-4',
-                    )}
-                  />
-                </span>
-                <span className="uppercase tracking-wide">
-                  {t('Усі кольори', 'All colors')}
-                </span>
-              </button>
-            )}
+            {showViewSwitch && viewSwitch}
           </div>
 
           {/* третій рядок: ціна */}
@@ -339,8 +341,13 @@ export default function ProductsFilter({
 
   return (
     <>
+      {/* Mobile view switch stays visible above the catalog */}
+      {onViewChange && (
+        <div className="flex justify-end pb-4 lg:hidden">{viewSwitch}</div>
+      )}
+
       {/* Desktop (inline) */}
-      <div className="hidden lg:block">{Controls(sortNameDesktop)}</div>
+      <div className="hidden lg:block">{Controls(sortNameDesktop, true)}</div>
 
       {/* Mobile full-screen overlay */}
       <div
