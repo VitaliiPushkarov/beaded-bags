@@ -43,6 +43,49 @@ type Props = {
   onApply?: () => void
 }
 
+export function CatalogViewSwitch({
+  view,
+  onViewChange,
+}: {
+  view: CatalogViewValue
+  onViewChange: (next: CatalogViewValue) => void
+}) {
+  const t = useT()
+
+  return (
+    <button
+      type="button"
+      role="switch"
+      aria-checked={view === 'variants'}
+      onClick={() =>
+        onViewChange(view === 'variants' ? 'products' : 'variants')
+      }
+      className="inline-flex shrink-0 items-center gap-2 md:gap-2.5 whitespace-nowrap cursor-pointer group"
+    >
+      <span
+        aria-hidden
+        className={clsx(
+          'inline-flex h-5 w-9 shrink-0 rounded-full p-[3px] transition-colors',
+          'group-focus-visible:ring-2 group-focus-visible:ring-black/40 group-focus-visible:ring-offset-2',
+          view === 'variants'
+            ? 'bg-black'
+            : 'bg-gray-300 group-hover:bg-gray-400',
+        )}
+      >
+        <span
+          className={clsx(
+            'h-3.5 w-3.5 rounded-full bg-white shadow-sm transition-transform duration-200',
+            view === 'variants' && 'translate-x-4',
+          )}
+        />
+      </span>
+      <span className="text-sm tracking-normal uppercase md:tracking-wide md:text-base ">
+        {t('Усі кольори', 'All colors')}
+      </span>
+    </button>
+  )
+}
+
 export default function ProductsFilter({
   value,
   onChange,
@@ -77,39 +120,6 @@ export default function ProductsFilter({
       }
     }
   }, [mobileOpen])
-
-  const viewSwitch = onViewChange && (
-    <button
-      type="button"
-      role="switch"
-      aria-checked={view === 'variants'}
-      onClick={() =>
-        onViewChange(view === 'variants' ? 'products' : 'variants')
-      }
-      className="inline-flex items-center gap-2 md:gap-2.5 cursor-pointer group"
-    >
-      <span
-        aria-hidden
-        className={clsx(
-          'inline-flex h-5 w-9 shrink-0 rounded-full p-[3px] transition-colors',
-          'group-focus-visible:ring-2 group-focus-visible:ring-black/40 group-focus-visible:ring-offset-2',
-          view === 'variants'
-            ? 'bg-black'
-            : 'bg-gray-300 group-hover:bg-gray-400',
-        )}
-      >
-        <span
-          className={clsx(
-            'h-3.5 w-3.5 rounded-full bg-white shadow-sm transition-transform duration-200',
-            view === 'variants' && 'translate-x-4',
-          )}
-        />
-      </span>
-      <span className="text-sm tracking-normal uppercase md:tracking-wide md:text-base ">
-        {t('Усі кольори', 'All colors')}
-      </span>
-    </button>
-  )
 
   const Controls = (sortName: string, showViewSwitch = false) => (
     <>
@@ -302,7 +312,9 @@ export default function ProductsFilter({
             </div>
 
             {/* Вигляд — не фільтр, діє одразу */}
-            {showViewSwitch && viewSwitch}
+            {showViewSwitch && onViewChange && (
+              <CatalogViewSwitch view={view} onViewChange={onViewChange} />
+            )}
           </div>
 
           {/* третій рядок: ціна */}
@@ -341,11 +353,6 @@ export default function ProductsFilter({
 
   return (
     <>
-      {/* Mobile view switch stays visible above the catalog */}
-      {onViewChange && (
-        <div className="flex justify-end pb-4 lg:hidden">{viewSwitch}</div>
-      )}
-
       {/* Desktop (inline) */}
       <div className="hidden lg:block">{Controls(sortNameDesktop, true)}</div>
 

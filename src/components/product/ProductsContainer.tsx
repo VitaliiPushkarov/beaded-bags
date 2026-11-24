@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState } from 'react'
 import { useSearchParams, useRouter, usePathname } from 'next/navigation'
-import ProductsFilter from './ProductsFilter'
+import ProductsFilter, { CatalogViewSwitch } from './ProductsFilter'
 import AppliedChips from './AppliedChips'
 import ProductsGrid from './ProductsGrid'
 import Breadcrumbs from '../ui/BreadCrumbs'
@@ -822,16 +822,23 @@ export default function ProductsContainer({
   return (
     <div className="max-w-[1440px] mx-auto py-6 px-5 md:px-[50px] 2xl:max-w-full">
       <Breadcrumbs />
-      <div className="flex items-center justify-between py-4 lg:items-end">
-        <h1 className="text-2xl lg:text-3xl">
+      <div className="flex items-center justify-between md:gap-3 py-4 lg:items-end">
+        <h1
+          className="min-w-0 flex-1 text-2xl max-lg:truncate lg:flex-none lg:text-3xl"
+          title={locale === 'en' && title === 'Каталог' ? 'Catalog' : title}
+        >
           {locale === 'en' && title === 'Каталог' ? 'Catalog' : title}
         </h1>
-        <button
-          onClick={() => setMobileOpen(true)}
-          className="uppercase flex items-center gap-2 lg:hidden"
-        >
-          {t('Фільтр', 'Filter')} +
-        </button>
+        <div className="flex shrink-0 items-center gap-5 lg:hidden">
+          <button
+            type="button"
+            onClick={() => setMobileOpen(true)}
+            className="uppercase whitespace-nowrap text-base"
+          >
+            {t('Фільтр', 'Filter')} +
+          </button>
+          <CatalogViewSwitch view={view} onViewChange={changeView} />
+        </div>
         <button
           onClick={apply}
           disabled={!isDirty}
