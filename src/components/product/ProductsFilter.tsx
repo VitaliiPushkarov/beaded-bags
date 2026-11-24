@@ -86,7 +86,7 @@ export default function ProductsFilter({
       onClick={() =>
         onViewChange(view === 'variants' ? 'products' : 'variants')
       }
-      className="inline-flex items-center gap-2.5 cursor-pointer group"
+      className="inline-flex items-center gap-2 md:gap-2.5 cursor-pointer group"
     >
       <span
         aria-hidden
@@ -105,7 +105,7 @@ export default function ProductsFilter({
           )}
         />
       </span>
-      <span className="uppercase tracking-wide">
+      <span className="text-sm tracking-normal uppercase md:tracking-wide md:text-base ">
         {t('Усі кольори', 'All colors')}
       </span>
     </button>
